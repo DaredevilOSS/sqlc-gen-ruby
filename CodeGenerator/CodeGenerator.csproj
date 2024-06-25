@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <RootNamespace>SqlcGenCsharp</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Google.Protobuf" Version="3.26.0-rc2"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\PluginOptions\PluginOptions.csproj"/>
+        <ProjectReference Include="..\GeneratedProtobuf\GeneratedProtobuf.csproj"/>
+        <ProjectReference Include="..\Drivers\Drivers.csproj"/>
+    </ItemGroup>
+
+</Project>

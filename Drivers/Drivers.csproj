@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <RootNamespace>SqlcGenCsharp.Drivers</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Extensions\Extensions.csproj"/>
+        <ProjectReference Include="..\PluginOptions\PluginOptions.csproj"/>
+        <ProjectReference Include="..\RubySyntax\RubySyntax.csproj"/>
+    </ItemGroup>
+
+</Project>

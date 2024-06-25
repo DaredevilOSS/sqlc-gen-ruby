@@ -1,0 +1,6 @@
+source 'https://rubygems.org'
+
+gem "ruby_wasm", "~> 2.6"
+gem "ruby-next", "~> 1.0"
+gem "google-protobuf", "~> 3.25"
+gem "grpc", "~> 1.63"

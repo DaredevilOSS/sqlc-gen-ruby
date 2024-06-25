@@ -1,0 +1,22 @@
+version: "2"
+plugins:
+- name: ruby
+  process:
+    cmd: ./dist/LocalRunner
+sql:
+- schema: "examples/authors/postgresql/schema.sql"
+  queries: "examples/authors/postgresql/query.sql"
+  engine: "postgresql"
+  codegen:
+  - plugin: ruby
+    out: examples/pg
+    options:
+      driver: pg
+- schema: "examples/authors/mysql/schema.sql"
+  queries: "examples/authors/mysql/query.sql"
+  engine: "mysql"
+  codegen:
+  - plugin: ruby
+    out: examples/mysql2
+    options:
+      driver: mysql2
