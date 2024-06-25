@@ -2,10 +2,7 @@ SHELL 		:= /bin/bash
 PWD 		:= $(shell pwd)
         
 dotnet-format:
-	dotnet format \
-		--exclude GeneratedProtobuf \
-		--exclude MySqlConnectorExample \
-		--exclude NpgsqlExample
+	dotnet format --exclude GeneratedProtobuf
 
 dockerfile-generate:
 	./scripts/generate_dockerfile.sh Dockerfile
@@ -15,14 +12,11 @@ protobuf-generate:
 
 # tests are run against generated code - can be generated either via a "process" or "wasm" SQLC plugins
 run-tests:
-	./scripts/run_tests.sh
+	./scripts/tests/run_end2end.sh
 
 # process type plugin
-dotnet-build-process: protobuf-generate dotnet-format
-	dotnet build ProcessRunner -c Release
-
-dotnet-publish-process: dotnet-build-process
-	dotnet publish ProcessRunner -c release --output dist/
+dotnet-publish-process: protobuf-generate dotnet-format
+	dotnet publish LocalRunner -c release --output dist/
 
 sqlc-generate-process: dotnet-publish-process
 	sqlc -f sqlc.local.yaml generate

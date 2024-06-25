@@ -1,28 +1,22 @@
 version: "2"
 plugins:
-- name: csharp
+- name: ruby
   process:
-    cmd: ./dist/ProcessRunner
+    cmd: ./dist/LocalRunner
 sql:
 - schema: "examples/authors/postgresql/schema.sql"
   queries: "examples/authors/postgresql/query.sql"
   engine: "postgresql"
   codegen:
-  - plugin: csharp
-    out: NpgsqlExample
+  - plugin: ruby
+    out: examples/pg
     options:
-      driver: Npgsql
-#      targetFramework: netstandard2.0
-#      generateCsproj: true
-#      filePerQuery: false
+      driver: pg
 - schema: "examples/authors/mysql/schema.sql"
   queries: "examples/authors/mysql/query.sql"
   engine: "mysql"
   codegen:
-  - plugin: csharp
-    out: MySqlConnectorExample
+  - plugin: ruby
+    out: examples/mysql2
     options:
-      driver: MySqlConnector
-#      targetFramework: netstandard2.0,netsandard2.1,net8.0
-#      generateCsproj: true
-#      filePerQuery: false
+      driver: mysql2

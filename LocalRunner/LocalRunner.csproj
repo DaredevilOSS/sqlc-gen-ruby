@@ -9,7 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\SqlcGenCsharp\SqlcGenCsharp.csproj"/>
+        <ProjectReference Include="..\SqlcGenRuby\SqlcGenRuby.csproj" />
     </ItemGroup>
 
 </Project>

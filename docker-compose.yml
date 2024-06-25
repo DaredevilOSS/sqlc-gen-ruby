@@ -5,7 +5,7 @@ services:
     restart: on-failure
     env_file:
       - .env
-    command: "dotnet test"
+    command: rake test
     depends_on:
       mysqldb:
         condition: service_healthy
@@ -14,7 +14,7 @@ services:
         
   mysqldb:
     container_name: mysqldb
-    build: examples/authors/mysql
+    build: ./examples/authors/mysql
     restart: always
     ports:
       - "3306:3306"
@@ -28,7 +28,7 @@ services:
       
   postgresdb:
     container_name: postgresdb
-    build: examples/authors/postgresql
+    build: ./examples/authors/postgresql
     restart: always
     ports:
       - "8080:8080"

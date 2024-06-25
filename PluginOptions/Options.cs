@@ -8,8 +8,8 @@ namespace SqlcGenCsharp;
 
 public enum DriverName
 {
-    MySqlConnector,
-    Npgsql
+    Mysql2,
+    Pg
 }
 
 public class Options
@@ -23,12 +23,12 @@ public class Options
         DriverName = outDriverName;
         FilePerQuery = rawOptions.FilePerQuery;
         GenerateCsproj = rawOptions.GenerateCsproj;
-        DotnetFramework = DotnetFrameworkExtensions.ParseName(rawOptions.TargetFramework);
+        RubyMajorVersion = DotnetFrameworkExtensions.ParseName(rawOptions.TargetFramework);
     }
 
     public DriverName DriverName { get; }
 
-    public DotnetFramework DotnetFramework { get; }
+    public RubyMajorVersion RubyMajorVersion { get; }
 
     public bool FilePerQuery { get; }
 

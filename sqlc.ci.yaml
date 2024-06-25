@@ -1,29 +1,23 @@
 version: "2"
 plugins:
-  - name: csharp
+  - name: ruby
     wasm:
       url: file://dist/plugin.wasm
-      sha256: SHA_TO_REPLACE
+      sha256: 8f18f3158b9ff9396e27a4084512473cbe304e5ef205ac21741c1bc6094fd079
 sql:
   - schema: "examples/authors/postgresql/schema.sql"
     queries: "examples/authors/postgresql/query.sql"
     engine: "postgresql"
     codegen:
-      - plugin: csharp
-        out: NpgsqlExample
+      - plugin: ruby
+        out: examples/pg
         options:
-          driver: Npgsql
-          filePerQuery: false
-          targetFramework: net8.0
-          generateCsproj: true
+          driver: pg
   - schema: "examples/authors/mysql/schema.sql"
     queries: "examples/authors/mysql/query.sql"
     engine: "mysql"
     codegen:
-      - plugin: csharp
-        out: MySqlConnectorExample
+      - plugin: ruby
+        out: examples/mysql2
         options:
-          driver: MySqlConnector
-          filePerQuery: false
-          targetFramework: net8.0
-          generateCsproj: true
+          driver: mysql2

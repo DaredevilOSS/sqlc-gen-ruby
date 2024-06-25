@@ -6,7 +6,7 @@ if [ "$GITHUB_ACTIONS" = "true" ]; then
     tests_exit_code=$(docker wait "${TESTS_CONTAINER_NAME}")
     docker logs --timestamps "${tests_container_id}"
 else
-    echo "Running in local"
+    echo "Running locally"
     set -ex
 
     destroy() { docker-compose down --volumes; }

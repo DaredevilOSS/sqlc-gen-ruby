@@ -1,0 +1,22 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    connection_pool (2.4.1)
+    minitest (5.24.0)
+    mysql2 (0.5.6)
+    pg (1.5.2)
+    rake (13.2.1)
+
+PLATFORMS
+  arm64-darwin-23
+  ruby
+
+DEPENDENCIES
+  connection_pool
+  minitest
+  mysql2
+  pg (= 1.5.2)
+  rake
+
+BUNDLED WITH
+   2.5.10

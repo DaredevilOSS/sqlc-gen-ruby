@@ -2,14 +2,12 @@
 
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <RootNamespace>SqlcGenCsharp.Drivers</RootNamespace>
+        <RootNamespace>RubyCodegen</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Extensions\Extensions.csproj"/>
-        <ProjectReference Include="..\PluginOptions\PluginOptions.csproj"/>
-        <ProjectReference Include="..\RubySyntax\RubySyntax.csproj" />
     </ItemGroup>
-
 </Project>
