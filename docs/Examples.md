@@ -1,25 +1,19 @@
 # Examples
-## Engine `postgresql`: [NpgsqlExample](../NpgsqlExample)
+## Engine `postgresql`: [examples/pg](../examples/pg)
 
-### [Schema](../examples/authors/postgresql/schema.sql) | [Queries](../examples/authors/postgresql/query.sql) | [End2End Test](../EndToEndTests/NpgsqlTester.cs)
+### [Schema](../examples/authors/postgresql/schema.sql) | [Queries](../examples/authors/postgresql/query.sql) | [End2End Test](../EndToEndTests/examples/pg.cs)
 
 ### Config
 ```yaml
-driver: Npgsql
-filePerQuery: false
-targetFramework: net8.0
-generateCsproj: true
+driver: pg
 ```
 
-## Engine `mysql`: [MySqlConnectorExample](../MySqlConnectorExample)
+## Engine `mysql`: [examples/mysql2](../examples/mysql2)
 
-### [Schema](../examples/authors/mysql/schema.sql) | [Queries](../examples/authors/mysql/query.sql) | [End2End Test](../EndToEndTests/MySqlConnectorTester.cs)
+### [Schema](../examples/authors/mysql/schema.sql) | [Queries](../examples/authors/mysql/query.sql) | [End2End Test](../EndToEndTests/examples/mysql2.cs)
 
 ### Config
 ```yaml
-driver: MySqlConnector
-filePerQuery: false
-targetFramework: net8.0
-generateCsproj: true
+driver: mysql2
 ```
 
