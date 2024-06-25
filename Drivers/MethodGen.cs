@@ -7,7 +7,7 @@ namespace SqlcGenCsharp.Drivers;
 
 public class MethodGen(DbDriver dbDriver)
 {
-    public static MethodDeclaration OneDeclare(string funcName, string queryTextConstant, string argInterface,
+    public MethodDeclaration OneDeclare(string funcName, string queryTextConstant, string argInterface,
         string returnInterface, IList<Parameter> parameters, IList<Column> columns)
     {
         var newObjectExpression = new NewObject(returnInterface, GetColumnsInitExpressions(columns));
@@ -16,8 +16,8 @@ public class MethodGen(DbDriver dbDriver)
         withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
         withResourceBody = withResourceBody.Concat(
             [
-                PrepareQuery(queryTextConstant),
-                ExecuteAndAssign(queryTextConstant, queryParams),
+                dbDriver.PrepareStmt(funcName, queryTextConstant),
+                ExecuteAndAssign(funcName, queryParams),
                 new SimpleStatement(Variable.Row.AsVar(), new SimpleExpression($"{Variable.Result.AsVar()}.first")),
                 new SimpleExpression($"return nil if {Variable.Row.AsVar()}.nil?"),
                 new SimpleStatement($"{Variable.Entity.AsVar()}", newObjectExpression),
@@ -37,7 +37,7 @@ public class MethodGen(DbDriver dbDriver)
         return parameters.Count == 0 ? null : argInterface.SnakeCase();
     }
 
-    public static MethodDeclaration ManyDeclare(string funcName, string queryTextConstant, string argInterface,
+    public MethodDeclaration ManyDeclare(string funcName, string queryTextConstant, string argInterface,
         string returnInterface, IList<Parameter> parameters, IList<Column> columns)
     {
         var listAppend = new ListAppend(Variable.Entities.AsVar(),
@@ -47,8 +47,8 @@ public class MethodGen(DbDriver dbDriver)
         withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
         withResourceBody = withResourceBody.Concat(
             [
-                PrepareQuery(queryTextConstant),
-                ExecuteAndAssign(queryTextConstant, queryParams),
+                dbDriver.PrepareStmt(funcName, queryTextConstant),
+                dbDriver.ExecuteStmt(funcName, queryParams),
                 new SimpleStatement(Variable.Entities.AsVar(), new SimpleExpression("[]")),
                 new ForeachLoop(Variable.Result.AsVar(), Variable.Row.AsVar(), new List<IComposable> { listAppend }),
                 new SimpleExpression($"return {Variable.Entities.AsVar()}")
@@ -62,7 +62,7 @@ public class MethodGen(DbDriver dbDriver)
             });
     }
 
-    public static MethodDeclaration ExecDeclare(string funcName, string queryTextConstant, string argInterface,
+    public MethodDeclaration ExecDeclare(string funcName, string queryTextConstant, string argInterface,
         IList<Parameter> parameters)
     {
         IEnumerable<IComposable> withResourceBody = new List<IComposable>();
@@ -70,8 +70,8 @@ public class MethodGen(DbDriver dbDriver)
         withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
         withResourceBody = withResourceBody.Concat(
             [
-                PrepareQuery(queryTextConstant),
-                ExecuteStmt(queryTextConstant, queryParams)
+                dbDriver.PrepareStmt(funcName, queryTextConstant),
+                dbDriver.ExecuteStmt(funcName, queryParams)
             ]
         );
         return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
@@ -81,7 +81,7 @@ public class MethodGen(DbDriver dbDriver)
             });
     }
 
-    public static MethodDeclaration ExecLastIdDeclare(string funcName, string queryTextConstant, string argInterface,
+    public MethodDeclaration ExecLastIdDeclare(string funcName, string queryTextConstant, string argInterface,
         IList<Parameter> parameters)
     {
         IEnumerable<IComposable> withResourceBody = new List<IComposable>();
@@ -89,8 +89,8 @@ public class MethodGen(DbDriver dbDriver)
         withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
         withResourceBody = withResourceBody.Concat(
             [
-                PrepareQuery(queryTextConstant),
-                ExecuteStmt(queryTextConstant, queryParams),
+                dbDriver.PrepareStmt(funcName, queryTextConstant),
+                dbDriver.ExecuteStmt(funcName, queryParams),
                 new SimpleExpression($"return {Variable.Client.AsVar()}.last_id")
             ]
         );
@@ -109,25 +109,14 @@ public class MethodGen(DbDriver dbDriver)
             : new SimpleStatement(Variable.QueryParams.AsVar(), new SimpleExpression($"[{queryParams.JoinByComma()}]"));
     }
 
-    private static SimpleStatement PrepareQuery(string queryTextConstant)
-    {
-        return new SimpleStatement(Variable.Stmt.AsVar(),
-            new SimpleExpression($"{Variable.Client.AsVar()}.prepare({queryTextConstant})"));
-    }
-
-    private static SimpleExpression ExecuteStmt(string queryTextConstant, SimpleStatement? queryParams)
-    {
-        var queryParamsArg = queryParams is null ? string.Empty : $", {Variable.QueryParams.AsVar()}";
-        return new SimpleExpression($"{Variable.Stmt.AsVar()}.execute({queryTextConstant}{queryParamsArg})");
-    }
-
     private static IEnumerable<SimpleExpression> GetColumnsInitExpressions(IEnumerable<Column> columns)
     {
         return columns.Select(c => new SimpleExpression($"{Variable.Row.AsVar()}['{c.Name}']"));
     }
 
-    private static SimpleStatement ExecuteAndAssign(string queryTextConstant, SimpleStatement? queryParams)
+    private SimpleStatement ExecuteAndAssign(string funcName, SimpleStatement? queryParams)
     {
-        return new SimpleStatement(Variable.Result.AsVar(), ExecuteStmt(queryTextConstant, queryParams));
+        return new SimpleStatement(Variable.Result.AsVar(),
+            dbDriver.ExecuteStmt(funcName, queryParams));
     }
 }

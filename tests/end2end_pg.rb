@@ -11,7 +11,7 @@ class TestPg < Minitest::Test
       'user' => ENV['DB_USER'],
       'password' => ENV['DB_PASS']
     }
-    @query_sql = QuerySql.new({ }, pg_params)
+    @query_sql = PgCodegen::QuerySql.new({ }, pg_params)
   end
 
   def test_flow

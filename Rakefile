@@ -2,12 +2,24 @@
 require 'rake'
 require 'rake/testtask'
 
-task :dotnet_format do
-    sh "dotnet format --exclude GeneratedProtobuf"
+# tests
+# Rake::TestTask.new(:codegen_tests) do |t|
+#     t.pattern = "tests/end2end_*.rb"
+# end
+
+Rake::TestTask.new(:end2end_tests) do |t|
+    t.pattern = "tests/end2end_*.rb"
 end
 
-task :dockerfile_generate do
-    sh "./scripts/generate_dockerfile.sh Dockerfile"
+task :run_end2end_tests do
+    sh "./scripts/tests/run_end2end.sh" # rake end2end_tests is called from Docker
+end
+
+task :run_tests => [:run_end2end_tests]
+
+# Other
+task :dotnet_format do
+    sh "dotnet format --exclude GeneratedProtobuf"
 end
 
 task :protobuf_generate do
@@ -22,7 +34,7 @@ task :sqlc_generate_process => :dotnet_publish_process do
     sh "sqlc -f sqlc.local.yaml generate"
 end
 
-task :test_process_plugin => [:sqlc_generate_process, :dockerfile_generate, :run_tests]
+task :test_process_plugin => [:sqlc_generate_process, :run_tests]
 
 task :dotnet_publish_wasm => :protobuf_generate do
     sh "dotnet publish WasmRunner -c release --output dist/"
@@ -38,8 +50,4 @@ task :sqlc_generate_wasm => [:dotnet_publish_wasm, :update_wasm_plugin] do
     sh "sqlc -f sqlc.ci.yaml generate"
 end
 
-Rake::TestTask.new do |test|
-    test.pattern = "tests/*.rb"
-end
-
-task :test_wasm_plugin => [:sqlc_generate_wasm, :update_wasm_plugin, :dockerfile_generate, :run_tests]
+task :test_wasm_plugin => [:sqlc_generate_wasm, :update_wasm_plugin, :run_tests]

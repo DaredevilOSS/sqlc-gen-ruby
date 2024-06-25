@@ -10,7 +10,7 @@ class TestMysql2 < Minitest::Test
       'host' => ENV['MYSQL_HOST'], 
       'username' => ENV['DB_USER'] 
     }
-    @query_sql = QuerySql.new({ }, mysql2_params)
+    @query_sql = Mysql2Codegen::QuerySql.new({ }, mysql2_params)
   end
   
   def test_flow

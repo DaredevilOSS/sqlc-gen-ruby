@@ -7,23 +7,39 @@ namespace SqlcGenCsharp.Drivers;
 
 public class Mysql2Driver : DbDriver
 {
-    public override MethodDeclaration GetInitMethod()
+    private MethodGen MethodGen { get; }
+
+    public Mysql2Driver()
     {
-        return new MethodDeclaration("initialize", "connection_pool_params, mysql2_params",
-            [
-                new NewObject("ConnectionPool", [new SimpleExpression("**connection_pool_params")],
-                    new SimpleStatement("@pool", new NewObject(
-                            "Mysql2::Client", [new SimpleExpression("**mysql2_params")]
-                        )
-                    )
-                )
-            ]
-        );
+        MethodGen = new MethodGen(this);
     }
 
     public override IEnumerable<RequireGem> GetRequiredGems()
     {
         return GetCommonGems().Append(new RequireGem("mysql2"));
+    }
+
+    public override MethodDeclaration GetInitMethod()
+    {
+        return new MethodDeclaration("initialize", "connection_pool_params, mysql2_params",
+            [
+                new SimpleStatement(Variable.Pool.AsProperty(),
+                    new NewObject("ConnectionPool", [new SimpleExpression("**connection_pool_params")],
+                        new SimpleExpression("new Mysql2::Client(**mysql2_params)")))
+            ]
+        );
+    }
+
+    public override SimpleStatement PrepareStmt(string funcName, string queryTextConstant)
+    {
+        return new SimpleStatement(Variable.Stmt.AsVar(),
+            new SimpleExpression($"{Variable.Client.AsVar()}.prepare('{funcName}', {queryTextConstant})"));
+    }
+
+    public override SimpleExpression ExecuteStmt(string funcName, SimpleStatement? queryParams)
+    {
+        var queryParamsArg = queryParams is null ? string.Empty : $", {Variable.QueryParams.AsVar()}";
+        return new SimpleExpression($"{Variable.Stmt.AsVar()}.execute('{funcName}'{queryParamsArg})");
     }
 
     public override MethodDeclaration OneDeclare(string funcName, string queryTextConstant, string argInterface,

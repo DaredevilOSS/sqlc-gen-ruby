@@ -5,7 +5,7 @@ services:
     restart: on-failure
     env_file:
       - .env
-    command: rake test
+    command: rake end2end_tests
     depends_on:
       mysqldb:
         condition: service_healthy
@@ -19,7 +19,7 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_DATABASE: tests
+      MYSQL_DATABASE: ${DB_NAME}
       MYSQL_ALLOW_EMPTY_PASSWORD: true
     healthcheck:
       test: "mysqladmin ping -h 127.0.0.1"
@@ -33,9 +33,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      POSTGRES_DB: tests
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
     healthcheck:
       test: "pg_isready -d tests"
       timeout: 20s

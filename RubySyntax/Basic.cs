@@ -15,6 +15,18 @@ public class RequireGem(string gem)
     }
 }
 
+public class ModuleDeclaration(string name, IEnumerable<IComposable> members) : IComposable
+{
+    public string Build()
+    {
+        var moduleBody = members
+            .Select(m => m.Build())
+            .JoinByNewLine()
+            .Indent();
+        return $"module {name}\n{moduleBody}\nend";
+    }
+}
+
 public class ClassDeclaration(string name, IEnumerable<IComposable> members) : IComposable
 {
     public string Build()

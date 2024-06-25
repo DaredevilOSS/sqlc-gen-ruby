@@ -15,6 +15,10 @@ public abstract class DbDriver
 
     public abstract MethodDeclaration GetInitMethod();
 
+    public abstract SimpleStatement PrepareStmt(string funcName, string queryTextConstant);
+
+    public abstract SimpleExpression ExecuteStmt(string funcName, SimpleStatement? queryParams);
+
     public abstract MethodDeclaration OneDeclare(string name, string sqlTextConstant, string argInterface,
         string returnInterface, IList<Parameter> parameters, IList<Column> columns);
 
