@@ -17,15 +17,26 @@ public partial class PgDriver : DbDriver
 
     public override IEnumerable<RequireGem> GetRequiredGems()
     {
-        return GetCommonGems().Append(new RequireGem("pg"));
+        return GetCommonGems()
+            .Append(new RequireGem("pg"))
+            .Append(new RequireGem("set"));
     }
 
     public override MethodDeclaration GetInitMethod()
     {
+        var pgConnectionInitBody = """
+                conn = PG.connect(**pg_params)
+                conn.type_map_for_results = PG::BasicTypeMapForResults.new conn
+                conn
+            """
+            .TrimTrailingWhitespacesPerLine()
+            .Indent();
+        var pgConnectionInit = "{\n" + pgConnectionInitBody + "\n}";
         return new MethodDeclaration("initialize", "connection_pool_params, pg_params",
             [
                 new SimpleStatement(Variable.Pool.AsProperty(), new SimpleExpression(
-                    "ConnectionPool::new(**connection_pool_params) { PG.connect(**pg_params) }"))
+                    $"ConnectionPool::new(**connection_pool_params) {pgConnectionInit}")),
+                new SimpleStatement(Variable.PreparedStatements.AsProperty(), new SimpleExpression("Set[]"))
             ]
         );
     }
@@ -38,10 +49,16 @@ public partial class PgDriver : DbDriver
             new SimpleExpression($"%q({transformedQueryText})"));
     }
 
-    public override SimpleStatement PrepareStmt(string funcName, string queryTextConstant)
+    public override IComposable PrepareStmt(string funcName, string queryTextConstant)
     {
-        return new SimpleStatement("_",
-            new SimpleExpression($"{Variable.Client.AsVar()}.prepare('{funcName}', {queryTextConstant})"));
+        return new UnlessCondition(
+            $"{Variable.PreparedStatements.AsProperty()}.include?('{funcName}')",
+            new List<IComposable>
+            {
+                new SimpleExpression($"{Variable.Client.AsVar()}.prepare('{funcName}', {queryTextConstant})"),
+                new SimpleExpression($"{Variable.PreparedStatements.AsProperty()}.add('{funcName}')")
+            }
+        );
     }
 
     public override SimpleExpression ExecuteStmt(string funcName, SimpleStatement? queryParams)

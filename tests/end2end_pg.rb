@@ -28,7 +28,7 @@ class TestPg < Minitest::Test
         get_author_args = PgCodegen::GetAuthorArgs.new(id: 1)
         actual = @query_sql.get_author(get_author_args)
         expected = PgCodegen::GetAuthorRow.new(
-          id: "1", # TODO why converted to string is necessary?
+          id: 1,
           name: Consts::BOJACK_AUTHOR,
           bio: Consts::BOJACK_THEME
         )
@@ -36,18 +36,18 @@ class TestPg < Minitest::Test
     end
 
     def create_second_author_and_assert
-        # create_author_args = PgCodegen::CreateAuthorArgs.new(
-        #   name: Consts::DR_SEUSS_AUTHOR,
-        #   bio: Consts::DR_SEUSS_QUOTE
-        # )
-        # @query_sql.create_author(create_author_args)
-        # get_author_args = PgCodegen::GetAuthorArgs.new(id: 1)
-        # actual = @query_sql.get_author(get_author_args)
-        # expected = PgCodegen::GetAuthorRow.new(
-        #   id: 2,
-        #   name: Consts::DR_SEUSS_AUTHOR,
-        #   bio: Consts::DR_SEUSS_QUOTE
-        # )
-        # assert_equal(expected, actual)
+        create_author_args = PgCodegen::CreateAuthorArgs.new(
+          name: Consts::DR_SEUSS_AUTHOR,
+          bio: Consts::DR_SEUSS_QUOTE
+        )
+        @query_sql.create_author(create_author_args)
+        get_author_args = PgCodegen::GetAuthorArgs.new(id: 2)
+        actual = @query_sql.get_author(get_author_args)
+        expected = PgCodegen::GetAuthorRow.new(
+          id: 2,
+          name: Consts::DR_SEUSS_AUTHOR,
+          bio: Consts::DR_SEUSS_QUOTE
+        )
+        assert_equal(expected, actual)
     end
 end

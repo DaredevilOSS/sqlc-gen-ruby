@@ -17,7 +17,7 @@ public abstract class DbDriver
 
     public abstract SimpleStatement QueryTextConstantDeclare(Query query);
 
-    public abstract SimpleStatement PrepareStmt(string funcName, string queryTextConstant);
+    public abstract IComposable PrepareStmt(string funcName, string queryTextConstant);
 
     public abstract SimpleExpression ExecuteStmt(string funcName, SimpleStatement? queryParams);
 

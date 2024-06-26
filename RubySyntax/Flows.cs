@@ -6,7 +6,8 @@ public class WithResource(string resourceFrom, string resourceName, IEnumerable<
 {
     public string Build()
     {
-        var withResourceBody = statements.Select(s => s.Build())
+        var withResourceBody = statements
+            .Select(s => s.Build())
             .JoinByNewLine()
             .TrimTrailingWhitespacesPerLine()
             .Indent();
@@ -15,22 +16,49 @@ public class WithResource(string resourceFrom, string resourceName, IEnumerable<
     }
 }
 
-public class NewObject(
-    string objectType,
-    IEnumerable<SimpleExpression> initExpressions,
-    IComposable? bodyExpression = null) : IComposable
+public class IfCondition(string condition, IList<IComposable> thenStatements,
+    IList<IComposable>? elseStatements = null) : IComposable
 {
     public string Build()
     {
-        var optionalBody = bodyExpression is null
-            ? string.Empty
-            : $$""" { {{bodyExpression.Build()}} }""";
+        var thenBody = thenStatements
+            .Select(s => s.Build())
+            .JoinByNewLine()
+            .TrimTrailingWhitespacesPerLine()
+            .Indent();
+        if (elseStatements is null || elseStatements.Count == 0)
+            return $"if {condition}\n{thenBody}\nend";
+        var elseBody = elseStatements
+            .Select(s => s.Build())
+            .JoinByNewLine()
+            .TrimTrailingWhitespacesPerLine()
+            .Indent();
+        return $"if {condition}\n{thenStatements}\nelse\n{elseBody}\nend";
+    }
+}
+
+public class UnlessCondition(string condition, IList<IComposable> thenStatements) : IComposable
+{
+    public string Build()
+    {
+        var thenBody = thenStatements
+            .Select(s => s.Build())
+            .JoinByNewLine()
+            .TrimTrailingWhitespacesPerLine()
+            .Indent();
+        return $"unless {condition}\n{thenBody}\nend";
+    }
+}
+
+public class NewObject(string objectType, IEnumerable<SimpleExpression> initExpressions) : IComposable
+{
+    public string Build()
+    {
         var initParams = initExpressions
             .Select(e => e.Build())
             .JoinByCommaAndNewLine()
             .Indent();
-        var newObject = $"{objectType}.new(\n{initParams}\n){optionalBody}";
-        return newObject;
+        return $"{objectType}.new(\n{initParams}\n)";
     }
 }
 

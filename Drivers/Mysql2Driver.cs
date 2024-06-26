@@ -34,7 +34,7 @@ public class Mysql2Driver : DbDriver
         return new SimpleStatement($"{query.Name}{ClassMember.Sql}", new SimpleExpression($"%q({query.Text})"));
     }
 
-    public override SimpleStatement PrepareStmt(string _, string queryTextConstant)
+    public override IComposable PrepareStmt(string _, string queryTextConstant)
     {
         return new SimpleStatement(Variable.Stmt.AsVar(),
             new SimpleExpression($"{Variable.Client.AsVar()}.prepare({queryTextConstant})"));
@@ -42,10 +42,10 @@ public class Mysql2Driver : DbDriver
 
     public override SimpleExpression ExecuteStmt(string funcName, SimpleStatement? queryParams)
     {
-        var baseCommand = $"{Variable.Stmt.AsVar()}.execute";
-        return queryParams is null
-            ? new SimpleExpression(baseCommand)
-            : new SimpleExpression($"{baseCommand}(*{Variable.QueryParams.AsVar()})");
+        var command = $"{Variable.Stmt.AsVar()}.execute";
+        if (queryParams is not null)
+            command = $"{command}(*{Variable.QueryParams.AsVar()})";
+        return new SimpleExpression(command);
     }
 
     public override MethodDeclaration OneDeclare(string funcName, string queryTextConstant, string argInterface,

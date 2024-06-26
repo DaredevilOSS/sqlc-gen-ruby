@@ -14,15 +14,16 @@ public class MethodGen(DbDriver dbDriver)
         IEnumerable<IComposable> withResourceBody = new List<IComposable>();
         var queryParams = GetQueryParams(argInterface, parameters);
         withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
-        withResourceBody = withResourceBody.Concat(
-            [
-                dbDriver.PrepareStmt(funcName, queryTextConstant),
-                ExecuteAndAssign(funcName, queryParams),
-                new SimpleStatement(Variable.Row.AsVar(), new SimpleExpression($"{Variable.Result.AsVar()}.first")),
-                new SimpleExpression($"return nil if {Variable.Row.AsVar()}.nil?"),
-                new SimpleStatement($"{Variable.Entity.AsVar()}", newObjectExpression),
-                new SimpleExpression($"return {Variable.Entity.AsVar()}")
-            ]
+        withResourceBody = withResourceBody
+            .Concat(
+                [
+                    dbDriver.PrepareStmt(funcName, queryTextConstant),
+                    ExecuteAndAssign(funcName, queryParams),
+                    new SimpleStatement(Variable.Row.AsVar(), new SimpleExpression($"{Variable.Result.AsVar()}.first")),
+                    new SimpleExpression($"return nil if {Variable.Row.AsVar()}.nil?"),
+                    new SimpleStatement($"{Variable.Entity.AsVar()}", newObjectExpression),
+                    new SimpleExpression($"return {Variable.Entity.AsVar()}")
+                ]
         );
 
         return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
@@ -45,14 +46,15 @@ public class MethodGen(DbDriver dbDriver)
         IEnumerable<IComposable> withResourceBody = new List<IComposable>();
         var queryParams = GetQueryParams(argInterface, parameters);
         withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
-        withResourceBody = withResourceBody.Concat(
-            [
-                dbDriver.PrepareStmt(funcName, queryTextConstant),
-                ExecuteAndAssign(funcName, queryParams),
-                new SimpleStatement(Variable.Entities.AsVar(), new SimpleExpression("[]")),
-                new ForeachLoop(Variable.Result.AsVar(), Variable.Row.AsVar(), new List<IComposable> { listAppend }),
-                new SimpleExpression($"return {Variable.Entities.AsVar()}")
-            ]
+        withResourceBody = withResourceBody
+            .Concat(
+                [
+                    dbDriver.PrepareStmt(funcName, queryTextConstant),
+                    ExecuteAndAssign(funcName, queryParams),
+                    new SimpleStatement(Variable.Entities.AsVar(), new SimpleExpression("[]")),
+                    new ForeachLoop(Variable.Result.AsVar(), Variable.Row.AsVar(), new List<IComposable> { listAppend }),
+                    new SimpleExpression($"return {Variable.Entities.AsVar()}")
+                ]
         );
 
         return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
@@ -68,12 +70,10 @@ public class MethodGen(DbDriver dbDriver)
         IEnumerable<IComposable> withResourceBody = new List<IComposable>();
         var queryParams = GetQueryParams(argInterface, parameters);
         withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
-        withResourceBody = withResourceBody.Concat(
-            [
-                dbDriver.PrepareStmt(funcName, queryTextConstant),
-                dbDriver.ExecuteStmt(funcName, queryParams)
-            ]
-        );
+        withResourceBody = withResourceBody
+            .Append(dbDriver.PrepareStmt(funcName, queryTextConstant))
+            .Append(dbDriver.ExecuteStmt(funcName, queryParams));
+
         return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
             new List<IComposable>
             {
@@ -87,13 +87,14 @@ public class MethodGen(DbDriver dbDriver)
         IEnumerable<IComposable> withResourceBody = new List<IComposable>();
         var queryParams = GetQueryParams(argInterface, parameters);
         withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
-        withResourceBody = withResourceBody.Concat(
-            [
-                dbDriver.PrepareStmt(funcName, queryTextConstant),
-                dbDriver.ExecuteStmt(funcName, queryParams),
-                new SimpleExpression($"return {Variable.Client.AsVar()}.last_id")
-            ]
-        );
+        withResourceBody = withResourceBody
+            .Concat(
+                [
+                    dbDriver.PrepareStmt(funcName, queryTextConstant),
+                    dbDriver.ExecuteStmt(funcName, queryParams),
+                    new SimpleExpression($"return {Variable.Client.AsVar()}.last_id")
+                ]
+            );
         return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
             new List<IComposable>
             {

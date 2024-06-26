@@ -3,9 +3,7 @@ namespace SqlcGenCsharp.Drivers;
 public enum Variable
 {
     Pool,
-    PoolParams,
-    Mysql2Params,
-    PgParams,
+    PreparedStatements,
     QueryParams,
     Client,
     Stmt,
