@@ -3,66 +3,17 @@ require 'connection_pool'
 require 'pg'
 
 module PgCodegen
-	class QuerySql
-		def initialize(connection_pool_params, pg_params)
-			@pool = ConnectionPool.new(
-				**connection_pool_params
-			) { PG.connect(**pg_params) }
-		end
-		
 		GetAuthorSql = %q(SELECT id, name, bio FROM authors
 		WHERE id = $1 LIMIT 1)
 		
-		GetAuthorRow = Data.define(
-			:id,
-			:name,
-			:bio
-		)
+		GetAuthorRow = Data.define(		:id, :name, :bio)
 		
-		GetAuthorArgs = Data.define(
-			:id
-		)
-		
-		def get_author(get_author_args)
-			@pool.with do |client|
-				query_params = [get_author_args.id]
-				stmt = client.prepare('get_author', GetAuthorSql)
-				result = client.exec_prepared('get_author', query_params)
-				row = result.first
-				return nil if row.nil?
-				entity = GetAuthorRow.new(
-					row['id'],
-					row['name'],
-					row['bio']
-				)
-				return entity
-			end
-		end
+		GetAuthorArgs = Data.define(		:id)
 		
 		ListAuthorsSql = %q(SELECT id, name, bio FROM authors
 		ORDER BY name)
 		
-		ListAuthorsRow = Data.define(
-			:id,
-			:name,
-			:bio
-		)
-		
-		def list_authors
-			@pool.with do |client|
-				stmt = client.prepare('list_authors', ListAuthorsSql)
-				client.exec_prepared('list_authors')
-				entities = []
-				result.each do |row|
-				entities << ListAuthorsRow.new(
-					row['id'],
-					row['name'],
-					row['bio']
-				)
-				end
-				return entities
-			end
-		end
+		ListAuthorsRow = Data.define(		:id, :name, :bio)
 		
 		CreateAuthorSql = %q(INSERT INTO authors (
 		    name, bio
@@ -71,100 +22,128 @@ module PgCodegen
 		)
 		RETURNING id, name, bio)
 		
-		CreateAuthorRow = Data.define(
-			:id,
-			:name,
-			:bio
-		)
+		CreateAuthorRow = Data.define(		:id, :name, :bio)
 		
-		CreateAuthorArgs = Data.define(
-			:name,
-			:bio
-		)
-		
-		def create_author(create_author_args)
-			@pool.with do |client|
-				query_params = [create_author_args.name, create_author_args.bio]
-				stmt = client.prepare('create_author', CreateAuthorSql)
-				result = client.exec_prepared('create_author', query_params)
-				row = result.first
-				return nil if row.nil?
-				entity = CreateAuthorRow.new(
-					row['id'],
-					row['name'],
-					row['bio']
-				)
-				return entity
-			end
-		end
+		CreateAuthorArgs = Data.define(		:name, :bio)
 		
 		DeleteAuthorSql = %q(DELETE FROM authors
 		WHERE id = $1)
 		
-		DeleteAuthorArgs = Data.define(
-			:id
-		)
-		
-		def delete_author(delete_author_args)
-			@pool.with do |client|
-				query_params = [delete_author_args.id]
-				stmt = client.prepare('delete_author', DeleteAuthorSql)
-				client.exec_prepared('delete_author', query_params)
-			end
-		end
+		DeleteAuthorArgs = Data.define(		:id)
 		
 		TestSql = %q(SELECT c_bit, c_smallint, c_boolean, c_integer, c_bigint, c_serial, c_decimal, c_numeric, c_real, c_double_precision, c_date, c_time, c_timestamp, c_char, c_varchar, c_bytea, c_text, c_json FROM node_postgres_types
 		LIMIT 1)
 		
 		TestRow = Data.define(
-			:c_bit,
-			:c_smallint,
-			:c_boolean,
-			:c_integer,
-			:c_bigint,
-			:c_serial,
-			:c_decimal,
-			:c_numeric,
-			:c_real,
-			:c_double_precision,
-			:c_date,
-			:c_time,
-			:c_timestamp,
-			:c_char,
-			:c_varchar,
-			:c_bytea,
-			:c_text,
-			:c_json
+				:c_bit,
+				:c_smallint,
+				:c_boolean,
+				:c_integer,
+				:c_bigint,
+				:c_serial,
+				:c_decimal,
+				:c_numeric,
+				:c_real,
+				:c_double_precision,
+				:c_date,
+				:c_time,
+				:c_timestamp,
+				:c_char,
+				:c_varchar,
+				:c_bytea,
+				:c_text,
+				:c_json
 		)
 		
-		def test
-			@pool.with do |client|
-				stmt = client.prepare('test', TestSql)
-				result = client.exec_prepared('test')
-				row = result.first
-				return nil if row.nil?
-				entity = TestRow.new(
-					row['c_bit'],
-					row['c_smallint'],
-					row['c_boolean'],
-					row['c_integer'],
-					row['c_bigint'],
-					row['c_serial'],
-					row['c_decimal'],
-					row['c_numeric'],
-					row['c_real'],
-					row['c_double_precision'],
-					row['c_date'],
-					row['c_time'],
-					row['c_timestamp'],
-					row['c_char'],
-					row['c_varchar'],
-					row['c_bytea'],
-					row['c_text'],
-					row['c_json']
-				)
-				return entity
-			end
+		class QuerySql
+				def initialize(connection_pool_params, pg_params)
+						@pool = ConnectionPool::new(**connection_pool_params) { PG.connect(**pg_params) }
+				end
+				
+				def get_author(get_author_args)
+						@pool.with do |client|
+								query_params = [get_author_args.id]
+								_ = client.prepare('get_author', GetAuthorSql)
+								result = client.exec_prepared('get_author', query_params)
+								row = result.first
+								return nil if row.nil?
+								entity = GetAuthorRow.new(
+										row['id'],
+										row['name'],
+										row['bio']
+								)
+								return entity
+						end
+				end
+				
+				def list_authors
+						@pool.with do |client|
+								_ = client.prepare('list_authors', ListAuthorsSql)
+								result = client.exec_prepared('list_authors')
+								entities = []
+								result.each do |row|
+								entities << ListAuthorsRow.new(
+										row['id'],
+										row['name'],
+										row['bio']
+								)
+								end
+								return entities
+						end
+				end
+				
+				def create_author(create_author_args)
+						@pool.with do |client|
+								query_params = [create_author_args.name, create_author_args.bio]
+								_ = client.prepare('create_author', CreateAuthorSql)
+								result = client.exec_prepared('create_author', query_params)
+								row = result.first
+								return nil if row.nil?
+								entity = CreateAuthorRow.new(
+										row['id'],
+										row['name'],
+										row['bio']
+								)
+								return entity
+						end
+				end
+				
+				def delete_author(delete_author_args)
+						@pool.with do |client|
+								query_params = [delete_author_args.id]
+								_ = client.prepare('delete_author', DeleteAuthorSql)
+								client.exec_prepared('delete_author', query_params)
+						end
+				end
+				
+				def test
+						@pool.with do |client|
+								_ = client.prepare('test', TestSql)
+								result = client.exec_prepared('test')
+								row = result.first
+								return nil if row.nil?
+								entity = TestRow.new(
+										row['c_bit'],
+										row['c_smallint'],
+										row['c_boolean'],
+										row['c_integer'],
+										row['c_bigint'],
+										row['c_serial'],
+										row['c_decimal'],
+										row['c_numeric'],
+										row['c_real'],
+										row['c_double_precision'],
+										row['c_date'],
+										row['c_time'],
+										row['c_timestamp'],
+										row['c_char'],
+										row['c_varchar'],
+										row['c_bytea'],
+										row['c_text'],
+										row['c_json']
+								)
+								return entity
+						end
+				end
 		end
-	end
 end

@@ -2,10 +2,11 @@ using Plugin;
 using RubyCodegen;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace SqlcGenCsharp.Drivers;
 
-public class PgDriver : DbDriver
+public partial class PgDriver : DbDriver
 {
     private MethodGen MethodGen { get; }
 
@@ -23,16 +24,23 @@ public class PgDriver : DbDriver
     {
         return new MethodDeclaration("initialize", "connection_pool_params, pg_params",
             [
-                new SimpleStatement(Variable.Pool.AsProperty(),
-                    new NewObject("ConnectionPool", [new SimpleExpression("**connection_pool_params")],
-                        new SimpleExpression("PG.connect(**pg_params)")))
+                new SimpleStatement(Variable.Pool.AsProperty(), new SimpleExpression(
+                    "ConnectionPool::new(**connection_pool_params) { PG.connect(**pg_params) }"))
             ]
         );
     }
 
+    public override SimpleStatement QueryTextConstantDeclare(Query query)
+    {
+        var counter = 1;
+        var transformedQueryText = StandardBindRegex().Replace(query.Text, m => $"${counter++}");
+        return new SimpleStatement($"{query.Name}{ClassMember.Sql}",
+            new SimpleExpression($"%q({transformedQueryText})"));
+    }
+
     public override SimpleStatement PrepareStmt(string funcName, string queryTextConstant)
     {
-        return new SimpleStatement(Variable.Stmt.AsVar(),
+        return new SimpleStatement("_",
             new SimpleExpression($"{Variable.Client.AsVar()}.prepare('{funcName}', {queryTextConstant})"));
     }
 
@@ -65,4 +73,7 @@ public class PgDriver : DbDriver
     {
         return MethodGen.ManyDeclare(funcName, queryTextConstant, argInterface, returnInterface, parameters, columns);
     }
+
+    [GeneratedRegex(@"\?")]
+    private static partial Regex StandardBindRegex();
 }

@@ -23,23 +23,29 @@ public class Mysql2Driver : DbDriver
     {
         return new MethodDeclaration("initialize", "connection_pool_params, mysql2_params",
             [
-                new SimpleStatement(Variable.Pool.AsProperty(),
-                    new NewObject("ConnectionPool", [new SimpleExpression("**connection_pool_params")],
-                        new SimpleExpression("new Mysql2::Client(**mysql2_params)")))
+                new SimpleStatement(Variable.Pool.AsProperty(), new SimpleExpression(
+                    "ConnectionPool::new(**connection_pool_params) { Mysql2::Client.new(**mysql2_params) }"))
             ]
         );
     }
 
-    public override SimpleStatement PrepareStmt(string funcName, string queryTextConstant)
+    public override SimpleStatement QueryTextConstantDeclare(Query query)
+    {
+        return new SimpleStatement($"{query.Name}{ClassMember.Sql}", new SimpleExpression($"%q({query.Text})"));
+    }
+
+    public override SimpleStatement PrepareStmt(string _, string queryTextConstant)
     {
         return new SimpleStatement(Variable.Stmt.AsVar(),
-            new SimpleExpression($"{Variable.Client.AsVar()}.prepare('{funcName}', {queryTextConstant})"));
+            new SimpleExpression($"{Variable.Client.AsVar()}.prepare({queryTextConstant})"));
     }
 
     public override SimpleExpression ExecuteStmt(string funcName, SimpleStatement? queryParams)
     {
-        var queryParamsArg = queryParams is null ? string.Empty : $", {Variable.QueryParams.AsVar()}";
-        return new SimpleExpression($"{Variable.Stmt.AsVar()}.execute('{funcName}'{queryParamsArg})");
+        var baseCommand = $"{Variable.Stmt.AsVar()}.execute";
+        return queryParams is null
+            ? new SimpleExpression(baseCommand)
+            : new SimpleExpression($"{baseCommand}(*{Variable.QueryParams.AsVar()})");
     }
 
     public override MethodDeclaration OneDeclare(string funcName, string queryTextConstant, string argInterface,

@@ -28,7 +28,7 @@ public static partial class StringExtensions
     {
         return string.IsNullOrEmpty(input)
             ? input
-            : MyRegex().Replace(input, "_$1").TrimStart('_').ToLower();
+            : SnakeCaseRegex().Replace(input, "_$1").TrimStart('_').ToLower();
     }
 
     public static string TrimTrailingWhitespacesPerLine(this string lines)
@@ -47,7 +47,7 @@ public static partial class StringExtensions
     {
         return lines
             .Split("\n")
-            .Select(line => $"\t{line}")
+            .Select(line => $"\t\t{line}")
             .JoinByNewLine();
     }
 
@@ -64,5 +64,5 @@ public static partial class StringExtensions
 
 
     [GeneratedRegex("([A-Z])")]
-    private static partial Regex MyRegex();
+    private static partial Regex SnakeCaseRegex();
 }

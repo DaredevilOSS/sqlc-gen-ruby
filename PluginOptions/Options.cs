@@ -21,16 +21,13 @@ public class Options
 
         Enum.TryParse(rawOptions.DriverName, true, out DriverName outDriverName);
         DriverName = outDriverName;
-        FilePerQuery = rawOptions.FilePerQuery;
-        GenerateCsproj = rawOptions.GenerateCsproj;
-        RubyMajorVersion = DotnetFrameworkExtensions.ParseName(rawOptions.TargetFramework);
+        GenerateGemfile = rawOptions.GenerateCsproj;
+        RubyVersion = DotnetFrameworkExtensions.ParseName(rawOptions.TargetFramework);
     }
 
     public DriverName DriverName { get; }
 
-    public RubyMajorVersion RubyMajorVersion { get; }
+    public RubyVersion RubyVersion { get; }
 
-    public bool FilePerQuery { get; }
-
-    public bool GenerateCsproj { get; }
+    public bool GenerateGemfile { get; }
 }

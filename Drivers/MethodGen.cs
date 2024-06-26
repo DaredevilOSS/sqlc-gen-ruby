@@ -48,7 +48,7 @@ public class MethodGen(DbDriver dbDriver)
         withResourceBody = withResourceBody.Concat(
             [
                 dbDriver.PrepareStmt(funcName, queryTextConstant),
-                dbDriver.ExecuteStmt(funcName, queryParams),
+                ExecuteAndAssign(funcName, queryParams),
                 new SimpleStatement(Variable.Entities.AsVar(), new SimpleExpression("[]")),
                 new ForeachLoop(Variable.Result.AsVar(), Variable.Row.AsVar(), new List<IComposable> { listAppend }),
                 new SimpleExpression($"return {Variable.Entities.AsVar()}")

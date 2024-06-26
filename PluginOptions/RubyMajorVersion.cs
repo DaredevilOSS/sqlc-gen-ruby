@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace SqlcGenCsharp;
 
-public enum RubyMajorVersion
+public enum RubyVersion
 {
     Ruby1,
     Ruby2,
@@ -12,27 +12,27 @@ public enum RubyMajorVersion
 
 public static class DotnetFrameworkExtensions
 {
-    private static readonly Dictionary<RubyMajorVersion, string> EnumToString = new()
+    private static readonly Dictionary<RubyVersion, string> EnumToString = new()
     {
-        { RubyMajorVersion.Ruby1, "ruby1.0" },
-        { RubyMajorVersion.Ruby2, "ruby2.7" },
-        { RubyMajorVersion.Ruby3, "ruby3.3" }
+        { RubyVersion.Ruby1, "ruby1.0" },
+        { RubyVersion.Ruby2, "ruby2.7" },
+        { RubyVersion.Ruby3, "ruby3.3" }
     };
 
-    public static string ToName(this RubyMajorVersion me)
+    public static string ToName(this RubyVersion me)
     {
         return EnumToString[me];
     }
 
-    public static RubyMajorVersion ParseName(string dotnetFramework)
+    public static RubyVersion ParseName(string dotnetFramework)
     {
         return EnumToString
             .ToDictionary(x => x.Value, x => x.Key)
             [dotnetFramework];
     }
 
-    public static bool LatestRubySupported(this RubyMajorVersion me)
+    public static bool LatestRubySupported(this RubyVersion me)
     {
-        return me == RubyMajorVersion.Ruby3;
+        return me == RubyVersion.Ruby3;
     }
 }

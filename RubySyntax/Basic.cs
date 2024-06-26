@@ -21,7 +21,7 @@ public class ModuleDeclaration(string name, IEnumerable<IComposable> members) : 
     {
         var moduleBody = members
             .Select(m => m.Build())
-            .JoinByNewLine()
+            .JoinByNewLine(2)
             .Indent();
         return $"module {name}\n{moduleBody}\nend";
     }
