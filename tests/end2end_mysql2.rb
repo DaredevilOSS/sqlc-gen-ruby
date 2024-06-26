@@ -15,8 +15,9 @@ class TestMysql2 < Minitest::Test
     end
 
     def test_flow
-        create_first_author_and_assert
+        first_inserted_id = create_first_author_and_assert
         create_second_author_and_assert
+        delete_author_and_assert(first_inserted_id)
     end
     
     def create_first_author_and_assert
@@ -33,6 +34,7 @@ class TestMysql2 < Minitest::Test
           bio: Consts::BOJACK_THEME
         )
         assert_equal(expected, actual)
+        inserted_id
     end
 
     def create_second_author_and_assert
@@ -48,6 +50,20 @@ class TestMysql2 < Minitest::Test
           name: Consts::DR_SEUSS_AUTHOR, 
           bio: Consts::DR_SEUSS_QUOTE
         )
+        assert_equal(expected, actual)
+    end
+
+    def delete_author_and_assert(id_to_delete)
+        delete_author_args = Mysql2Codegen::DeleteAuthorArgs.new(id: id_to_delete)
+        @query_sql.delete_author(delete_author_args)
+        actual = @query_sql.list_authors
+        expected = [
+          Mysql2Codegen::ListAuthorsRow.new(
+            id: 2,
+            name: Consts::DR_SEUSS_AUTHOR,
+            bio: Consts::DR_SEUSS_QUOTE
+          )
+        ]
         assert_equal(expected, actual)
     end
 end

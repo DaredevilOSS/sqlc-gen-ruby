@@ -15,8 +15,9 @@ class TestPg < Minitest::Test
     end
 
     def test_flow
-        create_first_author_and_assert
+        first_inserted_id = create_first_author_and_assert
         create_second_author_and_assert
+        delete_author_and_assert(first_inserted_id)
     end
 
     def create_first_author_and_assert
@@ -25,7 +26,8 @@ class TestPg < Minitest::Test
           bio: Consts::BOJACK_THEME
         )
         @query_sql.create_author(create_author_args)
-        get_author_args = PgCodegen::GetAuthorArgs.new(id: 1)
+        inserted_id = 1
+        get_author_args = PgCodegen::GetAuthorArgs.new(id: inserted_id)
         actual = @query_sql.get_author(get_author_args)
         expected = PgCodegen::GetAuthorRow.new(
           id: 1,
@@ -33,6 +35,7 @@ class TestPg < Minitest::Test
           bio: Consts::BOJACK_THEME
         )
         assert_equal(expected, actual)
+        inserted_id
     end
 
     def create_second_author_and_assert
@@ -48,6 +51,20 @@ class TestPg < Minitest::Test
           name: Consts::DR_SEUSS_AUTHOR,
           bio: Consts::DR_SEUSS_QUOTE
         )
+        assert_equal(expected, actual)
+    end
+
+    def delete_author_and_assert(id_to_delete)
+        delete_author_args = PgCodegen::DeleteAuthorArgs.new(id: id_to_delete)
+        @query_sql.delete_author(delete_author_args)
+        actual = @query_sql.list_authors
+        expected = [
+          PgCodegen::ListAuthorsRow.new(
+            id: 2,
+            name: Consts::DR_SEUSS_AUTHOR,
+            bio: Consts::DR_SEUSS_QUOTE
+          )
+        ]
         assert_equal(expected, actual)
     end
 end

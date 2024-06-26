@@ -50,7 +50,8 @@ public class UnlessCondition(string condition, IList<IComposable> thenStatements
     }
 }
 
-public class NewObject(string objectType, IEnumerable<SimpleExpression> initExpressions) : IComposable
+public class NewObject(string objectType, IEnumerable<SimpleExpression> initExpressions,
+    IEnumerable<IComposable>? bodyStatements = null) : IComposable
 {
     public string Build()
     {
@@ -58,7 +59,16 @@ public class NewObject(string objectType, IEnumerable<SimpleExpression> initExpr
             .Select(e => e.Build())
             .JoinByCommaAndNewLine()
             .Indent();
-        return $"{objectType}.new(\n{initParams}\n)";
+        var baseCommand = $"{objectType}.new(\n{initParams}\n)";
+        if (bodyStatements is null)
+            return baseCommand;
+
+        var body = "{\n" + bodyStatements
+            .Select(s => s.Build())
+            .JoinByNewLine()
+            .TrimTrailingWhitespacesPerLine()
+            .Indent() + "\n}";
+        return $"{baseCommand} {body}";
     }
 }
 

@@ -58,10 +58,12 @@ module PgCodegen
 		
 		class QuerySql
 				def initialize(connection_pool_params, pg_params)
-						@pool = ConnectionPool::new(**connection_pool_params) {
-								conn = PG.connect(**pg_params)
-								conn.type_map_for_results = PG::BasicTypeMapForResults.new conn
-								conn
+						@pool = ConnectionPool.new(
+								**connection_pool_params
+						) {
+								client = PG.connect(**pg_params)
+								client.type_map_for_results = PG::BasicTypeMapForResults.new client
+								client
 						}
 						@prepared_statements = Set[]
 				end

@@ -24,27 +24,36 @@ public partial class PgDriver : DbDriver
 
     public override MethodDeclaration GetInitMethod()
     {
-        var pgConnectionInitBody = """
-                conn = PG.connect(**pg_params)
-                conn.type_map_for_results = PG::BasicTypeMapForResults.new conn
-                conn
-            """
-            .TrimTrailingWhitespacesPerLine()
-            .Indent();
-        var pgConnectionInit = "{\n" + pgConnectionInitBody + "\n}";
         return new MethodDeclaration("initialize", "connection_pool_params, pg_params",
             [
-                new SimpleStatement(Variable.Pool.AsProperty(), new SimpleExpression(
-                    $"ConnectionPool::new(**connection_pool_params) {pgConnectionInit}")),
+                new SimpleStatement(
+                    Variable.Pool.AsProperty(),
+                    new NewObject("ConnectionPool",
+                        new[] { new SimpleExpression("**connection_pool_params") },
+                        PgClientCreate())),
                 new SimpleStatement(Variable.PreparedStatements.AsProperty(), new SimpleExpression("Set[]"))
             ]
         );
+
+        IEnumerable<IComposable> PgClientCreate()
+        {
+            return new List<IComposable>
+            {
+                new SimpleStatement(
+                    Variable.Client.AsVar(),
+                    new SimpleExpression("PG.connect(**pg_params)")),
+                new SimpleStatement(
+                    $"{Variable.Client.AsVar()}.type_map_for_results",
+                    new SimpleExpression($"PG::BasicTypeMapForResults.new {Variable.Client.AsVar()}")),
+                new SimpleExpression(Variable.Client.AsVar())
+            };
+        }
     }
 
     public override SimpleStatement QueryTextConstantDeclare(Query query)
     {
         var counter = 1;
-        var transformedQueryText = StandardBindRegex().Replace(query.Text, m => $"${counter++}");
+        var transformedQueryText = BindRegexToReplace().Replace(query.Text, m => $"${counter++}");
         return new SimpleStatement($"{query.Name}{ClassMember.Sql}",
             new SimpleExpression($"%q({transformedQueryText})"));
     }
@@ -92,5 +101,5 @@ public partial class PgDriver : DbDriver
     }
 
     [GeneratedRegex(@"\?")]
-    private static partial Regex StandardBindRegex();
+    private static partial Regex BindRegexToReplace();
 }
