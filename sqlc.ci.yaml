@@ -13,6 +13,8 @@ sql:
         out: examples/pg
         options:
           driver: pg
+          rubyVersion: "3.3"
+          generateGemfile: false
   - schema: "examples/authors/mysql/schema.sql"
     queries: "examples/authors/mysql/query.sql"
     engine: "mysql"
@@ -21,3 +23,5 @@ sql:
         out: examples/mysql2
         options:
           driver: mysql2
+          rubyVersion: "3.3"
+          generateGemfile: false
