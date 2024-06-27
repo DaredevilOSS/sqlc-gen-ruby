@@ -12,12 +12,12 @@ for ((i = 0 ; i < "${examples_cnt}" ; i++ )); do
     schema_file=$(yq ".sql[${i}].schema" sqlc.ci.yaml)
     query_files=$(yq ".sql[${i}].queries" sqlc.ci.yaml)
     driver=$(yq ".sql[${i}].codegen[0].options.driver" sqlc.ci.yaml)
-    test_class_name="end2end_${driver}.rb"
+    test_file="end2end_${driver}.rb"
     
     examples_doc+="
 ## Engine \`${engine_name}\`: [examples/${driver}](../examples/${driver})
 
-### [Schema](../${schema_file}) | [Queries](../${query_files}) | [End2End Test](../tests/${test_class_name}.rb)
+### [Schema](../${schema_file}) | [Queries](../${query_files}) | [End2End Test](../tests/${test_file})
 
 ### Config
 \`\`\`yaml
