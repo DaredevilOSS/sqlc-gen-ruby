@@ -10,6 +10,9 @@ permissions:
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - "**"
+      - "!**.md"
   pull_request:
     branches: [ "*" ]
     paths:
