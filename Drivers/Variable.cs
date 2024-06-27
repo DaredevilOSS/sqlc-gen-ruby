@@ -1,4 +1,4 @@
-namespace SqlcGenCsharp.Drivers;
+namespace SqlcGenRuby.Drivers;
 
 public enum Variable
 {

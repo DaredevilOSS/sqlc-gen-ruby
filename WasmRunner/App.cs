@@ -1,3 +1,3 @@
-using SqlcGenCsharp;
+using SqlcGenRuby;
 
 PluginRunner.Run();

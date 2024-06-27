@@ -1,4 +1,4 @@
-using SqlcGenCsharp;
+using SqlcGenRuby;
 
 namespace RubyCodegen;
 

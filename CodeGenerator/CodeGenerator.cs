@@ -1,7 +1,7 @@
 using Google.Protobuf;
 using Plugin;
 using RubyCodegen;
-using SqlcGenCsharp.Drivers;
+using SqlcGenRuby.Drivers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,7 +9,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using File = Plugin.File;
 
-namespace SqlcGenCsharp;
+namespace SqlcGenRuby;
 
 public class CodeGenerator
 {

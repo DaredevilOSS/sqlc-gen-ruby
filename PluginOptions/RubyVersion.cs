@@ -1,7 +1,7 @@
 using System;
 using System.Text.RegularExpressions;
 
-namespace SqlcGenCsharp;
+namespace SqlcGenRuby;
 
 public record RubyVersion(short Major, short? Minor, short? Patch = null) : IComparable<RubyVersion>
 {

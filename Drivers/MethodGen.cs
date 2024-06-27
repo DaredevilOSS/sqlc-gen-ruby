@@ -3,7 +3,7 @@ using RubyCodegen;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SqlcGenCsharp.Drivers;
+namespace SqlcGenRuby.Drivers;
 
 public class MethodGen(DbDriver dbDriver)
 {
