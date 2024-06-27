@@ -7,14 +7,14 @@ module PgCodegen
 		GetAuthorSql = %q(SELECT id, name, bio FROM authors
 		WHERE id = $1 LIMIT 1)
 		
-		GetAuthorRow = Data.define(		:id, :name, :bio)
+		GetAuthorRow = Struct.new(		:id, :name, :bio)
 		
-		GetAuthorArgs = Data.define(		:id)
+		GetAuthorArgs = Struct.new(		:id)
 		
 		ListAuthorsSql = %q(SELECT id, name, bio FROM authors
 		ORDER BY name)
 		
-		ListAuthorsRow = Data.define(		:id, :name, :bio)
+		ListAuthorsRow = Struct.new(		:id, :name, :bio)
 		
 		CreateAuthorSql = %q(INSERT INTO authors (
 		    name, bio
@@ -23,19 +23,19 @@ module PgCodegen
 		)
 		RETURNING id, name, bio)
 		
-		CreateAuthorRow = Data.define(		:id, :name, :bio)
+		CreateAuthorRow = Struct.new(		:id, :name, :bio)
 		
-		CreateAuthorArgs = Data.define(		:name, :bio)
+		CreateAuthorArgs = Struct.new(		:name, :bio)
 		
 		DeleteAuthorSql = %q(DELETE FROM authors
 		WHERE id = $1)
 		
-		DeleteAuthorArgs = Data.define(		:id)
+		DeleteAuthorArgs = Struct.new(		:id)
 		
 		TestSql = %q(SELECT c_bit, c_smallint, c_boolean, c_integer, c_bigint, c_serial, c_decimal, c_numeric, c_real, c_double_precision, c_date, c_time, c_timestamp, c_char, c_varchar, c_bytea, c_text, c_json FROM node_postgres_types
 		LIMIT 1)
 		
-		TestRow = Data.define(
+		TestRow = Struct.new(
 				:c_bit,
 				:c_smallint,
 				:c_boolean,
@@ -70,7 +70,7 @@ module PgCodegen
 				
 				def get_author(get_author_args)
 						@pool.with do |client|
-								query_params = [get_author_args.id]
+								query_params = [		get_author_args.id]
 								unless @prepared_statements.include?('get_author')
 										client.prepare('get_author', GetAuthorSql)
 										@prepared_statements.add('get_author')
@@ -79,8 +79,8 @@ module PgCodegen
 								row = result.first
 								return nil if row.nil?
 								entity = GetAuthorRow.new(
-										row['id'],
-										row['name'],
+										row['id']
+										row['name']
 										row['bio']
 								)
 								return entity
@@ -97,8 +97,8 @@ module PgCodegen
 								entities = []
 								result.each do |row|
 								entities << ListAuthorsRow.new(
-										row['id'],
-										row['name'],
+										row['id']
+										row['name']
 										row['bio']
 								)
 								end
@@ -108,7 +108,7 @@ module PgCodegen
 				
 				def create_author(create_author_args)
 						@pool.with do |client|
-								query_params = [create_author_args.name, create_author_args.bio]
+								query_params = [		create_author_args.name, create_author_args.bio]
 								unless @prepared_statements.include?('create_author')
 										client.prepare('create_author', CreateAuthorSql)
 										@prepared_statements.add('create_author')
@@ -117,8 +117,8 @@ module PgCodegen
 								row = result.first
 								return nil if row.nil?
 								entity = CreateAuthorRow.new(
-										row['id'],
-										row['name'],
+										row['id']
+										row['name']
 										row['bio']
 								)
 								return entity
@@ -127,7 +127,7 @@ module PgCodegen
 				
 				def delete_author(delete_author_args)
 						@pool.with do |client|
-								query_params = [delete_author_args.id]
+								query_params = [		delete_author_args.id]
 								unless @prepared_statements.include?('delete_author')
 										client.prepare('delete_author', DeleteAuthorSql)
 										@prepared_statements.add('delete_author')
@@ -146,23 +146,23 @@ module PgCodegen
 								row = result.first
 								return nil if row.nil?
 								entity = TestRow.new(
-										row['c_bit'],
-										row['c_smallint'],
-										row['c_boolean'],
-										row['c_integer'],
-										row['c_bigint'],
-										row['c_serial'],
-										row['c_decimal'],
-										row['c_numeric'],
-										row['c_real'],
-										row['c_double_precision'],
-										row['c_date'],
-										row['c_time'],
-										row['c_timestamp'],
-										row['c_char'],
-										row['c_varchar'],
-										row['c_bytea'],
-										row['c_text'],
+										row['c_bit']
+										row['c_smallint']
+										row['c_boolean']
+										row['c_integer']
+										row['c_bigint']
+										row['c_serial']
+										row['c_decimal']
+										row['c_numeric']
+										row['c_real']
+										row['c_double_precision']
+										row['c_date']
+										row['c_time']
+										row['c_timestamp']
+										row['c_char']
+										row['c_varchar']
+										row['c_bytea']
+										row['c_text']
 										row['c_json']
 								)
 								return entity

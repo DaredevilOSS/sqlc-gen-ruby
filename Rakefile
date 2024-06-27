@@ -25,8 +25,8 @@ task :dotnet_publish_process => [:protobuf_generate, :dotnet_format] do
     sh "dotnet publish LocalRunner -c release --output dist/"
 end
 
-task :sqlc_generate_process => :dotnet_publish_process do
-    sh "sqlc -f #{ENV['SQLC_LOCAL_FILE']} generate"
+task :sqlc_generate_process => [:dotnet_publish_process] do
+    sh "sqlc -f sqlc.local.yaml generate"
 end
 
 task :test_process_plugin => [:sqlc_generate_process, :run_tests]
@@ -37,12 +37,12 @@ task :dotnet_publish_wasm => :protobuf_generate do
 end
 
 task :update_wasm_plugin do
-    sh "./scripts/wasm/update_sha.sh #{ENV['SQLC_CI_FILE']}"
+    sh "./scripts/wasm/update_sha.sh sqlc.ci.yaml"
 end
 
 task :sqlc_generate_wasm => [:dotnet_publish_wasm, :update_wasm_plugin] do
     ENV['SQLCCACHE'] = './'
-    sh "sqlc -f #{ENV['SQLC_CI_FILE']} generate"
+    sh "sqlc -f sqlc.ci.yaml generate"
 end
 
 task :test_wasm_plugin => [:sqlc_generate_wasm, :update_wasm_plugin, :run_tests]
