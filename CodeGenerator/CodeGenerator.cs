@@ -3,7 +3,6 @@ using Plugin;
 using RubyCodegen;
 using SqlcGenCsharp.Drivers;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -138,18 +137,13 @@ public class CodeGenerator
         var dataColumns = columns.Select(c => $":{c.Name.ToLower()}").ToList();
         var dataColumnsStr = dataColumns.JoinByCommaAndFormat();
         return new SimpleStatement(dataclassName,
-            new SimpleExpression(options.RubyVersion.LatestRubySupported()
+            new SimpleExpression(options.RubyVersion.ImmutableDataSupported()
                 ? $"Struct.new({dataColumnsStr})"
                 : $"Data.define({dataColumnsStr})"));
     }
 
     private SimpleStatement? GetQueryColumnsDataclass(Query query)
     {
-        if (query.Columns.Count <= 0)
-        {
-            return null;
-        }
-
         return query.Columns.Count <= 0
             ? null
             : GenerateDataclass(query.Name, ClassMember.Row, query.Columns, Options);
@@ -158,10 +152,7 @@ public class CodeGenerator
     private SimpleStatement? GetQueryParamsDataclass(Query query)
     {
         if (query.Params.Count <= 0)
-        {
             return null;
-        }
-
         var columns = query.Params.Select(p => p.Column);
         return GenerateDataclass(query.Name, ClassMember.Args, columns, Options);
     }

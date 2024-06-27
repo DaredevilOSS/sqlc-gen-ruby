@@ -137,3 +137,5 @@ output/*
 docker-upload/*
 
 plugin.wasm
+
+**/build
