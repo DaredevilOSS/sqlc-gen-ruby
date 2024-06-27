@@ -138,8 +138,8 @@ public class CodeGenerator
         var dataColumnsStr = dataColumns.JoinByCommaAndFormat();
         return new SimpleStatement(dataclassName,
             new SimpleExpression(options.RubyVersion.ImmutableDataSupported()
-                ? $"Struct.new({dataColumnsStr})"
-                : $"Data.define({dataColumnsStr})"));
+                ? $"Data.define({dataColumnsStr})"
+                : $"Struct.new({dataColumnsStr})"));
     }
 
     private SimpleStatement? GetQueryColumnsDataclass(Query query)

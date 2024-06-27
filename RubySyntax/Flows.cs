@@ -57,9 +57,9 @@ public class NewObject(string objectType, IList<SimpleExpression> initExpression
     {
         var initParams = initExpressions
             .Select(e => e.Build())
-            .JoinByNewLine()
-            .Indent();
-        var baseCommand = $"{objectType}.new(\n{initParams}\n)";
+            .ToList()
+            .JoinByCommaAndFormat();
+        var baseCommand = $"{objectType}.new({initParams})";
         if (bodyStatements is null)
             return baseCommand;
 
