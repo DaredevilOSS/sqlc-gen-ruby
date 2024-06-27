@@ -34,9 +34,9 @@ public static partial class RubyVersionExtensions
     public static RubyVersion ParseName(string versionPattern)
     {
         var rubyVersion = ParseSemanticVersion(versionPattern);
-        if (rubyVersion.AtLeast(MinSupportedVersion))
+        if (!rubyVersion.AtLeast(MinSupportedVersion))
             throw new ArgumentException($"Provided version {rubyVersion} exceeds min version {MinSupportedVersion}");
-        if (rubyVersion.AtMost(MaxSupportedVersion))
+        if (!rubyVersion.AtMost(MaxSupportedVersion))
             throw new ArgumentException($"Provided version {rubyVersion} exceeds max version {MaxSupportedVersion}");
         return rubyVersion;
     }
