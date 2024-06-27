@@ -35,7 +35,7 @@ public partial class PgDriver : DbDriver
             ]
         );
 
-        IEnumerable<IComposable> PgClientCreate()
+        IList<IComposable> PgClientCreate()
         {
             return new List<IComposable>
             {

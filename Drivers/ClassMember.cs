@@ -1,6 +1,6 @@
 using System;
 
-namespace SqlcGenCsharp;
+namespace SqlcGenCsharp.Drivers;
 
 public enum ClassMember
 {

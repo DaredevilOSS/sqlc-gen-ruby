@@ -9,7 +9,7 @@ public class RequireGem(string gem)
         return $"require '{gem}'";
     }
 
-    public string GetName()
+    public string Name()
     {
         return gem;
     }

@@ -2,7 +2,7 @@ using SqlcGenCsharp;
 
 namespace RubyCodegen;
 
-public class WithResource(string resourceFrom, string resourceName, IEnumerable<IComposable> statements) : IComposable
+public class WithResource(string resourceFrom, string resourceName, IList<IComposable> statements) : IComposable
 {
     public string Build()
     {
@@ -50,14 +50,14 @@ public class UnlessCondition(string condition, IList<IComposable> thenStatements
     }
 }
 
-public class NewObject(string objectType, IEnumerable<SimpleExpression> initExpressions,
-    IEnumerable<IComposable>? bodyStatements = null) : IComposable
+public class NewObject(string objectType, IList<SimpleExpression> initExpressions,
+    IList<IComposable>? bodyStatements = null) : IComposable
 {
     public string Build()
     {
         var initParams = initExpressions
             .Select(e => e.Build())
-            .JoinByCommaAndNewLine()
+            .JoinByNewLine()
             .Indent();
         var baseCommand = $"{objectType}.new(\n{initParams}\n)";
         if (bodyStatements is null)
@@ -72,7 +72,7 @@ public class NewObject(string objectType, IEnumerable<SimpleExpression> initExpr
     }
 }
 
-public class ForeachLoop(string collectionVar, string controlVar, IEnumerable<IComposable> statements) : IComposable
+public class ForeachLoop(string collectionVar, string controlVar, IList<IComposable> statements) : IComposable
 {
     public string Build()
     {

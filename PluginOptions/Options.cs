@@ -21,8 +21,8 @@ public class Options
 
         Enum.TryParse(rawOptions.DriverName, true, out DriverName outDriverName);
         DriverName = outDriverName;
-        GenerateGemfile = rawOptions.GenerateCsproj;
-        RubyVersion = DotnetFrameworkExtensions.ParseName(rawOptions.TargetFramework);
+        GenerateGemfile = rawOptions.GenerateGemfile;
+        RubyVersion = RubyVersionExtensions.ParseName(rawOptions.RubyVersionPattern);
     }
 
     public DriverName DriverName { get; }

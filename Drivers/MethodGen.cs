@@ -24,12 +24,12 @@ public class MethodGen(DbDriver dbDriver)
                     new SimpleStatement($"{Variable.Entity.AsVar()}", newObjectExpression),
                     new SimpleExpression($"return {Variable.Entity.AsVar()}")
                 ]
-        );
+            ).ToList();
 
         return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
             new List<IComposable>
             {
-                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody)
+                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody.ToList())
             });
     }
 
@@ -52,15 +52,16 @@ public class MethodGen(DbDriver dbDriver)
                     dbDriver.PrepareStmt(funcName, queryTextConstant),
                     ExecuteAndAssign(funcName, queryParams),
                     new SimpleStatement(Variable.Entities.AsVar(), new SimpleExpression("[]")),
-                    new ForeachLoop(Variable.Result.AsVar(), Variable.Row.AsVar(), new List<IComposable> { listAppend }),
+                    new ForeachLoop(Variable.Result.AsVar(), Variable.Row.AsVar(),
+                        new List<IComposable> { listAppend }),
                     new SimpleExpression($"return {Variable.Entities.AsVar()}")
                 ]
-        );
+            );
 
         return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
             new List<IComposable>
             {
-                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody)
+                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody.ToList())
             });
     }
 
@@ -72,12 +73,14 @@ public class MethodGen(DbDriver dbDriver)
         withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
         withResourceBody = withResourceBody
             .Append(dbDriver.PrepareStmt(funcName, queryTextConstant))
-            .Append(dbDriver.ExecuteStmt(funcName, queryParams));
+            .Append(dbDriver.ExecuteStmt(funcName, queryParams))
+            .ToList();
 
         return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
             new List<IComposable>
             {
-                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody)
+                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody.ToList()
+                )
             });
     }
 
@@ -95,11 +98,15 @@ public class MethodGen(DbDriver dbDriver)
                     new SimpleExpression($"return {Variable.Client.AsVar()}.last_id")
                 ]
             );
-        return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
+
+        return new MethodDeclaration(
+            funcName, GetMethodArgs(argInterface, parameters),
             new List<IComposable>
             {
-                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody)
-            });
+                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(),
+                    withResourceBody.ToList())
+            }
+        );
     }
 
     private static SimpleStatement? GetQueryParams(string argInterface, IList<Parameter> parameters)
@@ -107,12 +114,13 @@ public class MethodGen(DbDriver dbDriver)
         var queryParams = parameters.Select(p => $"{argInterface}.{p.Column.Name}").ToList();
         return queryParams.Count == 0
             ? null
-            : new SimpleStatement(Variable.QueryParams.AsVar(), new SimpleExpression($"[{queryParams.JoinByComma()}]"));
+            : new SimpleStatement(Variable.QueryParams.AsVar(),
+                new SimpleExpression($"[{queryParams.JoinByCommaAndFormat()}]"));
     }
 
-    private static IEnumerable<SimpleExpression> GetColumnsInitExpressions(IEnumerable<Column> columns)
+    private static IList<SimpleExpression> GetColumnsInitExpressions(IList<Column> columns)
     {
-        return columns.Select(c => new SimpleExpression($"{Variable.Row.AsVar()}['{c.Name}']"));
+        return columns.Select(c => new SimpleExpression($"{Variable.Row.AsVar()}['{c.Name}']")).ToList();
     }
 
     private SimpleStatement ExecuteAndAssign(string funcName, SimpleStatement? queryParams)

@@ -2,6 +2,8 @@
 
 public static class ListExtensions
 {
+    private const int MaxElementsPerLine = 5;
+
     public static IEnumerable<T> AppendIfNotNull<T>(this IEnumerable<T> me, T? item)
     {
         return item is not null ? me.Append(item) : me;
@@ -12,13 +14,10 @@ public static class ListExtensions
         return string.Join(new string('\n', cnt), me);
     }
 
-    public static string JoinByComma(this IEnumerable<string> me)
+    public static string JoinByCommaAndFormat(this IList<string> me)
     {
-        return string.Join(", ", me);
-    }
-
-    public static string JoinByCommaAndNewLine(this IEnumerable<string> me)
-    {
-        return string.Join(",\n", me);
+        return me.Count < MaxElementsPerLine
+            ? string.Join(", ", me).Indent()
+            : $"\n{string.Join(",\n", me).Indent()}\n";
     }
 }
