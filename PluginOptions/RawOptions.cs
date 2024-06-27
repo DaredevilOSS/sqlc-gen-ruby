@@ -4,7 +4,7 @@ namespace SqlcGenCsharp;
 
 internal class RawOptions
 {
-    [JsonPropertyName("driver")] 
+    [JsonPropertyName("driver")]
     public required string DriverName { get; init; }
 
     [JsonPropertyName("generateGemfile")]
