@@ -26,7 +26,7 @@ task :dotnet_publish_process => [:protobuf_generate, :dotnet_format] do
 end
 
 task :sqlc_generate_process => :dotnet_publish_process do
-    sh "sqlc -f #{ENV['SQLC_LOCAL_FILE'] generate"
+    sh "sqlc -f #{ENV['SQLC_LOCAL_FILE']} generate"
 end
 
 task :test_process_plugin => [:sqlc_generate_process, :run_tests]
