@@ -52,6 +52,7 @@ The below examples in here are automatically tested:
 make sure that the following applications are installed and exposed in your path
 
 Follow the instructions in each of these:
+* Ruby - [Ruby Installation](https://www.ruby-lang.org/en/downloads/)
 * Dotnet CLI - [Dotnet Installation](https://github.com/dotnet/sdk) - use version `.NET 8.0 (latest)`
 * buf build - [Buf Build](https://buf.build/docs/installation)
 * WASM related - [WASM libs](https://www.strathweb.com/2023/09/dotnet-wasi-applications-in-net-8-0/)
