@@ -13,11 +13,13 @@ on:
     paths:
       - "**"
       - "!**.md"
+      - "!ruby-wasm-poc/**"
   pull_request:
     branches: [ "*" ]
     paths:
       - "**"
       - "!**.md"
+      - "!ruby-wasm-poc/**"
 
 jobs:
   lint:
