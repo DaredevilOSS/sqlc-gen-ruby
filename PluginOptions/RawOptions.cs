@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace SqlcGenCsharp;
+namespace SqlcGenRuby;
 
 internal class RawOptions
 {
@@ -10,6 +10,6 @@ internal class RawOptions
     [JsonPropertyName("generateGemfile")]
     public bool GenerateGemfile { get; init; } // not generating Gemfile files by default
 
-    [JsonPropertyName("rubyVersionPattern")]
-    public string RubyVersionPattern { get; init; } = "3.3";
+    [JsonPropertyName("rubyVersion")]
+    public string RubyVersion { get; init; } = "3.3";
 }

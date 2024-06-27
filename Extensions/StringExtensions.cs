@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace SqlcGenCsharp;
+namespace SqlcGenRuby;
 
 public static partial class StringExtensions
 {

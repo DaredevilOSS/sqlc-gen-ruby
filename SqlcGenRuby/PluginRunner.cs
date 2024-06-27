@@ -1,7 +1,7 @@
 ﻿using Google.Protobuf;
 using Plugin;
 
-namespace SqlcGenCsharp;
+namespace SqlcGenRuby;
 
 public static class PluginRunner
 {

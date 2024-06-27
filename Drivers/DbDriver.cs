@@ -2,7 +2,7 @@ using Plugin;
 using RubyCodegen;
 using System.Collections.Generic;
 
-namespace SqlcGenCsharp.Drivers;
+namespace SqlcGenRuby.Drivers;
 
 public abstract class DbDriver
 {

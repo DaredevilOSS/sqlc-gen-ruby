@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace SqlcGenCsharp.Drivers;
+namespace SqlcGenRuby.Drivers;
 
 public partial class PgDriver : DbDriver
 {

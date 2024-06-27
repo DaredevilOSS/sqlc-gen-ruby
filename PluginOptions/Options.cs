@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Enum = System.Enum;
 
-namespace SqlcGenCsharp;
+namespace SqlcGenRuby;
 
 public enum DriverName
 {
@@ -22,7 +22,7 @@ public class Options
         Enum.TryParse(rawOptions.DriverName, true, out DriverName outDriverName);
         DriverName = outDriverName;
         GenerateGemfile = rawOptions.GenerateGemfile;
-        RubyVersion = RubyVersionExtensions.ParseName(rawOptions.RubyVersionPattern);
+        RubyVersion = RubyVersionExtensions.ParseName(rawOptions.RubyVersion);
     }
 
     public DriverName DriverName { get; }

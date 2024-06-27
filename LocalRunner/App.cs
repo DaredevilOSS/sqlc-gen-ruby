@@ -1,4 +1,4 @@
-namespace SqlcGenCsharp;
+namespace SqlcGenRuby;
 
 public static class App
 {

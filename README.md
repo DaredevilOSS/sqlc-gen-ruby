@@ -31,7 +31,11 @@ sql:
           driver: mysql2
 ```
 ### Options Documentation
-TBD
+| Option          | Possible values                                | Optional | Info                                                                                                        |
+|-----------------|------------------------------------------------|----------|-------------------------------------------------------------------------------------------------------------|
+| driver          | <br/>values: `MySqlConnector`,`Npgsql`         | No       | Choosing the driver to use - refer to the [above](#supported-sql-engines) section on supported SQL engines. |
+| rubyVersion     | default: `3.3`<br/>values: `3.1`, `3.2`, `3.3` | Yes      | Determines the Ruby version the generated code should support..                                             |
+| generateGemfile | default: `false`<br/>values: `false`,`true`    | Yes      | Assists you with the integration of SQLC and Ruby by generating a `Gemfile` with the needed dependencies.   |
 
 ## Supported SQL Engines
 - MySQL via [mysql2](https://rubygems.org/gems/mysql2) package - [Mysql2Driver](Drivers/Mysql2Driver.cs)

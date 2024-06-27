@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
-        <RootNamespace>SqlcGenCsharp</RootNamespace>
+        <RootNamespace>SqlcGenRuby</RootNamespace>
         <OutputType>Exe</OutputType>
         <RuntimeIdentifier>wasi-wasm</RuntimeIdentifier>
         <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
