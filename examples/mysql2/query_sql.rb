@@ -3,197 +3,197 @@ require 'connection_pool'
 require 'mysql2'
 
 module Mysql2Codegen
-		GetAuthorSql = %q(SELECT id, name, bio FROM authors
-		WHERE id = ? LIMIT 1)
-		
-		GetAuthorRow = Data.define(		:id, :name, :bio)
-		
-		GetAuthorArgs = Data.define(		:id)
-		
-		ListAuthorsSql = %q(SELECT id, name, bio FROM authors
-		ORDER BY name)
-		
-		ListAuthorsRow = Data.define(		:id, :name, :bio)
-		
-		CreateAuthorSql = %q(INSERT INTO authors (
-		  name, bio
-		) VALUES (
-		  ?, ? 
-		))
-		
-		CreateAuthorArgs = Data.define(		:name, :bio)
-		
-		UpdateAuthorSql = %q(UPDATE authors 
-		SET bio = ?
-		WHERE id = ?)
-		
-		UpdateAuthorArgs = Data.define(		:bio, :id)
-		
-		CreateAuthorReturnIdSql = %q(INSERT INTO authors (
-		    name, bio
-		) VALUES (
-		    ?, ?
-		))
-		
-		CreateAuthorReturnIdArgs = Data.define(		:name, :bio)
-		
-		DeleteAuthorSql = %q(DELETE FROM authors
-		WHERE id = ?)
-		
-		DeleteAuthorArgs = Data.define(		:id)
-		
-		TestSql = %q(SELECT c_bit, c_tinyint, c_bool, c_boolean, c_smallint, c_mediumint, c_int, c_integer, c_bigint, c_serial, c_decimal, c_dec, c_numeric, c_fixed, c_float, c_double, c_double_precision, c_date, c_time, c_datetime, c_timestamp, c_year, c_char, c_nchar, c_national_char, c_varchar, c_binary, c_varbinary, c_tinyblob, c_tinytext, c_blob, c_text, c_mediumblob, c_mediumtext, c_longblob, c_longtext, c_json FROM node_mysql_types
-		LIMIT 1)
-		
-		TestRow = Data.define(
-				:c_bit,
-				:c_tinyint,
-				:c_bool,
-				:c_boolean,
-				:c_smallint,
-				:c_mediumint,
-				:c_int,
-				:c_integer,
-				:c_bigint,
-				:c_serial,
-				:c_decimal,
-				:c_dec,
-				:c_numeric,
-				:c_fixed,
-				:c_float,
-				:c_double,
-				:c_double_precision,
-				:c_date,
-				:c_time,
-				:c_datetime,
-				:c_timestamp,
-				:c_year,
-				:c_char,
-				:c_nchar,
-				:c_national_char,
-				:c_varchar,
-				:c_binary,
-				:c_varbinary,
-				:c_tinyblob,
-				:c_tinytext,
-				:c_blob,
-				:c_text,
-				:c_mediumblob,
-				:c_mediumtext,
-				:c_longblob,
-				:c_longtext,
-				:c_json
-		)
-		
-		class QuerySql
-				def initialize(connection_pool_params, mysql2_params)
-						@pool = ConnectionPool::new(**connection_pool_params) { Mysql2::Client.new(**mysql2_params) }
-				end
-				
-				def get_author(get_author_args)
-						@pool.with do |client|
-								query_params = [		get_author_args.id]
-								stmt = client.prepare(GetAuthorSql)
-								result = stmt.execute(*query_params)
-								row = result.first
-								return nil if row.nil?
-								entity = GetAuthorRow.new(		row['id'], row['name'], row['bio'])
-								return entity
-						end
-				end
-				
-				def list_authors
-						@pool.with do |client|
-								stmt = client.prepare(ListAuthorsSql)
-								result = stmt.execute
-								entities = []
-								result.each do |row|
-								entities << ListAuthorsRow.new(		row['id'], row['name'], row['bio'])
-								end
-								return entities
-						end
-				end
-				
-				def create_author(create_author_args)
-						@pool.with do |client|
-								query_params = [		create_author_args.name, create_author_args.bio]
-								stmt = client.prepare(CreateAuthorSql)
-								stmt.execute(*query_params)
-						end
-				end
-				
-				def update_author(update_author_args)
-						@pool.with do |client|
-								query_params = [		update_author_args.bio, update_author_args.id]
-								stmt = client.prepare(UpdateAuthorSql)
-								stmt.execute(*query_params)
-						end
-				end
-				
-				def create_author_return_id(create_author_return_id_args)
-						@pool.with do |client|
-								query_params = [		create_author_return_id_args.name, create_author_return_id_args.bio]
-								stmt = client.prepare(CreateAuthorReturnIdSql)
-								stmt.execute(*query_params)
-								return client.last_id
-						end
-				end
-				
-				def delete_author(delete_author_args)
-						@pool.with do |client|
-								query_params = [		delete_author_args.id]
-								stmt = client.prepare(DeleteAuthorSql)
-								stmt.execute(*query_params)
-						end
-				end
-				
-				def test
-						@pool.with do |client|
-								stmt = client.prepare(TestSql)
-								result = stmt.execute
-								row = result.first
-								return nil if row.nil?
-								entity = TestRow.new(
-										row['c_bit'],
-										row['c_tinyint'],
-										row['c_bool'],
-										row['c_boolean'],
-										row['c_smallint'],
-										row['c_mediumint'],
-										row['c_int'],
-										row['c_integer'],
-										row['c_bigint'],
-										row['c_serial'],
-										row['c_decimal'],
-										row['c_dec'],
-										row['c_numeric'],
-										row['c_fixed'],
-										row['c_float'],
-										row['c_double'],
-										row['c_double_precision'],
-										row['c_date'],
-										row['c_time'],
-										row['c_datetime'],
-										row['c_timestamp'],
-										row['c_year'],
-										row['c_char'],
-										row['c_nchar'],
-										row['c_national_char'],
-										row['c_varchar'],
-										row['c_binary'],
-										row['c_varbinary'],
-										row['c_tinyblob'],
-										row['c_tinytext'],
-										row['c_blob'],
-										row['c_text'],
-										row['c_mediumblob'],
-										row['c_mediumtext'],
-										row['c_longblob'],
-										row['c_longtext'],
-										row['c_json']
-								)
-								return entity
-						end
-				end
+	GetAuthorSql = %q(SELECT id, name, bio FROM authors
+	WHERE id = ? LIMIT 1)
+	
+	GetAuthorRow = Data.define(	:id, :name, :bio)
+	
+	GetAuthorArgs = Data.define(	:id)
+	
+	ListAuthorsSql = %q(SELECT id, name, bio FROM authors
+	ORDER BY name)
+	
+	ListAuthorsRow = Data.define(	:id, :name, :bio)
+	
+	CreateAuthorSql = %q(INSERT INTO authors (
+	  name, bio
+	) VALUES (
+	  ?, ? 
+	))
+	
+	CreateAuthorArgs = Data.define(	:name, :bio)
+	
+	UpdateAuthorSql = %q(UPDATE authors 
+	SET bio = ?
+	WHERE id = ?)
+	
+	UpdateAuthorArgs = Data.define(	:bio, :id)
+	
+	CreateAuthorReturnIdSql = %q(INSERT INTO authors (
+	    name, bio
+	) VALUES (
+	    ?, ?
+	))
+	
+	CreateAuthorReturnIdArgs = Data.define(	:name, :bio)
+	
+	DeleteAuthorSql = %q(DELETE FROM authors
+	WHERE id = ?)
+	
+	DeleteAuthorArgs = Data.define(	:id)
+	
+	TestSql = %q(SELECT c_bit, c_tinyint, c_bool, c_boolean, c_smallint, c_mediumint, c_int, c_integer, c_bigint, c_serial, c_decimal, c_dec, c_numeric, c_fixed, c_float, c_double, c_double_precision, c_date, c_time, c_datetime, c_timestamp, c_year, c_char, c_nchar, c_national_char, c_varchar, c_binary, c_varbinary, c_tinyblob, c_tinytext, c_blob, c_text, c_mediumblob, c_mediumtext, c_longblob, c_longtext, c_json FROM node_mysql_types
+	LIMIT 1)
+	
+	TestRow = Data.define(
+		:c_bit,
+		:c_tinyint,
+		:c_bool,
+		:c_boolean,
+		:c_smallint,
+		:c_mediumint,
+		:c_int,
+		:c_integer,
+		:c_bigint,
+		:c_serial,
+		:c_decimal,
+		:c_dec,
+		:c_numeric,
+		:c_fixed,
+		:c_float,
+		:c_double,
+		:c_double_precision,
+		:c_date,
+		:c_time,
+		:c_datetime,
+		:c_timestamp,
+		:c_year,
+		:c_char,
+		:c_nchar,
+		:c_national_char,
+		:c_varchar,
+		:c_binary,
+		:c_varbinary,
+		:c_tinyblob,
+		:c_tinytext,
+		:c_blob,
+		:c_text,
+		:c_mediumblob,
+		:c_mediumtext,
+		:c_longblob,
+		:c_longtext,
+		:c_json
+	)
+	
+	class QuerySql
+		def initialize(connection_pool_params, mysql2_params)
+			@pool = ConnectionPool::new(**connection_pool_params) { Mysql2::Client.new(**mysql2_params) }
 		end
+		
+		def get_author(get_author_args)
+			@pool.with do |client|
+				query_params = [	get_author_args.id]
+				stmt = client.prepare(GetAuthorSql)
+				result = stmt.execute(*query_params)
+				row = result.first
+				return nil if row.nil?
+				entity = GetAuthorRow.new(	row['id'], row['name'], row['bio'])
+				return entity
+			end
+		end
+		
+		def list_authors
+			@pool.with do |client|
+				stmt = client.prepare(ListAuthorsSql)
+				result = stmt.execute
+				entities = []
+				result.each do |row|
+				entities << ListAuthorsRow.new(	row['id'], row['name'], row['bio'])
+				end
+				return entities
+			end
+		end
+		
+		def create_author(create_author_args)
+			@pool.with do |client|
+				query_params = [	create_author_args.name, create_author_args.bio]
+				stmt = client.prepare(CreateAuthorSql)
+				stmt.execute(*query_params)
+			end
+		end
+		
+		def update_author(update_author_args)
+			@pool.with do |client|
+				query_params = [	update_author_args.bio, update_author_args.id]
+				stmt = client.prepare(UpdateAuthorSql)
+				stmt.execute(*query_params)
+			end
+		end
+		
+		def create_author_return_id(create_author_return_id_args)
+			@pool.with do |client|
+				query_params = [	create_author_return_id_args.name, create_author_return_id_args.bio]
+				stmt = client.prepare(CreateAuthorReturnIdSql)
+				stmt.execute(*query_params)
+				return client.last_id
+			end
+		end
+		
+		def delete_author(delete_author_args)
+			@pool.with do |client|
+				query_params = [	delete_author_args.id]
+				stmt = client.prepare(DeleteAuthorSql)
+				stmt.execute(*query_params)
+			end
+		end
+		
+		def test
+			@pool.with do |client|
+				stmt = client.prepare(TestSql)
+				result = stmt.execute
+				row = result.first
+				return nil if row.nil?
+				entity = TestRow.new(
+					row['c_bit'],
+					row['c_tinyint'],
+					row['c_bool'],
+					row['c_boolean'],
+					row['c_smallint'],
+					row['c_mediumint'],
+					row['c_int'],
+					row['c_integer'],
+					row['c_bigint'],
+					row['c_serial'],
+					row['c_decimal'],
+					row['c_dec'],
+					row['c_numeric'],
+					row['c_fixed'],
+					row['c_float'],
+					row['c_double'],
+					row['c_double_precision'],
+					row['c_date'],
+					row['c_time'],
+					row['c_datetime'],
+					row['c_timestamp'],
+					row['c_year'],
+					row['c_char'],
+					row['c_nchar'],
+					row['c_national_char'],
+					row['c_varchar'],
+					row['c_binary'],
+					row['c_varbinary'],
+					row['c_tinyblob'],
+					row['c_tinytext'],
+					row['c_blob'],
+					row['c_text'],
+					row['c_mediumblob'],
+					row['c_mediumtext'],
+					row['c_longblob'],
+					row['c_longtext'],
+					row['c_json']
+				)
+				return entity
+			end
+		end
+	end
 end
