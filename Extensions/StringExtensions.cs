@@ -37,7 +37,7 @@ public static partial class StringExtensions
     {
         return lines
             .Split("\n")
-            .Select(line => $"\t\t{line}")
+            .Select(line => $"\t{line}")
             .JoinByNewLine();
     }
 
