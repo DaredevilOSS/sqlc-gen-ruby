@@ -8,8 +8,8 @@ version: "2"
 plugins:
 - name: ruby
   wasm:
-    url: TBD
-    sha256: TBD
+    url: https://github.com/DaredevilOSS/sqlc-gen-ruby/releases/download/${RELEASE_TAG}/sqlc-gen-ruby.wasm
+    sha256: ${RELEASE_SHA}
 sql:
   # PostgreSQL Example
   - schema: "examples/authors/postgresql/schema.sql"
