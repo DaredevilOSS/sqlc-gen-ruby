@@ -6,6 +6,8 @@
 ### Config
 ```yaml
 driver: pg
+rubyVersion: "3.3"
+generateGemfile: false
 ```
 
 ## Engine `mysql`: [examples/mysql2](../examples/mysql2)
@@ -15,5 +17,7 @@ driver: pg
 ### Config
 ```yaml
 driver: mysql2
+rubyVersion: "3.3"
+generateGemfile: false
 ```
 
