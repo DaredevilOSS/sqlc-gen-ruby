@@ -15,7 +15,6 @@ on:
       - "examples/**"
       - "tests/**"
       - "Drivers/**"
-      - "!ruby-wasm-poc/**"
 
 jobs:
   generate-and-push-docs:
