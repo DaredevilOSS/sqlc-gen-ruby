@@ -1,6 +1,8 @@
 [![CI](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/main.yml)
 
 # sqlc-gen-ruby
+Why I didn't use Ruby to generate Ruby in [here](ruby-wasm-poc/README.md).
+
 ## Usage
 ### Configuration
 ```yaml
@@ -38,14 +40,11 @@ sql:
 | rubyVersion     | default: `3.3`<br/>values: `3.1`, `3.2`, `3.3` | Yes      | Determines the Ruby version the generated code should support..                                             |
 | generateGemfile | default: `false`<br/>values: `false`,`true`    | Yes      | Assists you with the integration of SQLC and Ruby by generating a `Gemfile` with the needed dependencies.   |
 
-## Supported SQL Engines
-- MySQL via [mysql2](https://rubygems.org/gems/mysql2) package - [Mysql2Driver](Drivers/Mysql2Driver.cs)
-- PostgreSQL via [pg](https://rubygems.org/gems/pg) package - [PgDriver](Drivers/PgDriver.cs)
+### [Generated Code Examples](docs/Examples.md)
 
-## Examples & Tests
-The below examples in here are automatically tested:
-- [MySql2Example](examples/mysql2)
-- [PgExample](examples/pg)
+### Next features
+1. Supporting sqlite engine, utilizing sqlite3 gem
+2. Adding type support to generated code by generating .rbs files
 
 # Contributing
 ## Local plugin development
@@ -62,21 +61,21 @@ Follow the instructions in each of these:
 SQLC protobuf are defined in sqlc-dev/sqlc repository.
 Generating Ruby code from protocol buffer files:
 ```
-make protobuf-generate
+rake protobuf_generate
 ```
 
 ### Generating code
 SQLC utilizes our process / WASM plugin to generate code
 ```
-make sqlc-generate-process
-make sqlc-generate-wasm
+rake sqlc_generate_process
+rake sqlc_generate_wasm
 ```
 
 ### Testing generated code
 Testing the SQLC generated code via a predefined flow:
 ```
-make test-process-plugin
-make test-wasm-plugin
+rake test_process_plugin
+rake test_wasm_plugin
 ```
 
 ## Release flow
