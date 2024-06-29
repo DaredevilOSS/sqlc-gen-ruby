@@ -20,8 +20,6 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
           
       - name: Download artifact
         id: download-artifact
@@ -66,7 +64,7 @@ jobs:
       - name: Calculate sha256
         run: |
           SHA256_HASH=$(sha256sum plugin.wasm | awk '{ print $1 }')
-          echo "SHA256_HASH=$SHA256_HASH" >> $GITHUB_ENV
+          echo "SHA256_HASH=${SHA256_HASH}" >> $GITHUB_ENV
           echo "The calculated sha256 is $SHA256_HASH"
 
       - name: Create release draft
@@ -79,13 +77,13 @@ jobs:
           NEW_TAG=${{ env.NEW_TAG }}
           SHA256_HASH=${{ env.SHA256_HASH }}
 
-          PREVIOUS_TAG=$(git rev-list -n 1 $LATEST_TAG)
-          CHANGE_LOG=$(git --no-pager log $PREVIOUS_TAG..HEAD --pretty=format:'%h - %an, %ar : %s')
+          PREVIOUS_TAG=$(git rev-list -n 1 ${LATEST_TAG})
+          CHANGE_LOG=$(git --no-pager log ${PREVIOUS_TAG}..HEAD --pretty=format:'%h - %an, %ar : %s')
 
           # Define the release notes template
           RELEASE_NOTES=$(cat <<EOF
-          ## Release version $NEW_TAG
-          Release sha256 is \`$SHA256_HASH\`
+          ## Release version ${NEW_TAG}
+          Release sha256 is \`${SHA256_HASH}\`
 
           ## Configuration example
           \`\`\`yaml
@@ -93,11 +91,11 @@ jobs:
           plugins:
           - name: ruby
             wasm:
-              url: https://github.com/DaredevilOSS/sqlc-gen-ruby/releases/download/$NEW_TAG/sqlc-gen-ruby.wasm
-              sha256: $SHA256_HASH
+              url: https://github.com/DaredevilOSS/sqlc-gen-ruby/releases/download/${NEW_TAG}/sqlc-gen-ruby.wasm
+              sha256: ${SHA256_HASH}
           \`\`\`
           ## Changelog 
-          $CHANGE_LOG
+          ${CHANGE_LOG}
 
           ## Contributors
           * @SockworkOrange
@@ -108,7 +106,7 @@ jobs:
           mv plugin.wasm sqlc-gen-ruby.wasm
 
           # Create a draft release
-          gh release create $NEW_TAG sqlc-gen-ruby.wasm \
+          gh release create ${NEW_TAG} sqlc-gen-ruby.wasm \
           --draft \
-          --title "$NEW_TAG" \
-          --notes "$RELEASE_NOTES"
+          --title "${NEW_TAG}" \
+          --notes "${RELEASE_NOTES}"
