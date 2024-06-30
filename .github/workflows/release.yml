@@ -13,10 +13,27 @@ on:
     types: [completed]
 
 jobs:
+  check-commit:
+    name: Check Commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Check latest commit message
+        run: |
+          LATEST_COMMIT_MSG=$(git log -1 --pretty=%B | cat)
+          if [[ ${LATEST_COMMIT_MSG} == *"[release]"* ]]; then
+            echo "IS_RELEASE=true" >> $GITHUB_ENV
+            echo "LATEST_COMMIT_MSG=${LATEST_COMMIT_MSG}" >> $GITHUB_ENV
+          else
+            echo "IS_RELEASE=false" >> $GITHUB_ENV
+          fi
+  
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, '[release]')
+    if: ${{ env.IS_RELEASE == 'true' }}
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
@@ -29,17 +46,18 @@ jobs:
           workflow: ci.yml
           workflow_conclusion: success
           name: wasm-file
-
+          
       - name: Bump version
         run: |
+          LATEST_COMMIT_MSG=${{ env.LATEST_COMMIT_MSG }}
+          
           echo "Extract the latest tag version"
-          LATEST_TAG_COMMIT=$(git rev-list --tags --max-count=1)
-          LATEST_TAG=$(git describe --tags ${LATEST_TAG_COMMIT})
+          LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
           
           BUMP_TYPE="patch" # Initialize the default version bump type to patch
-          if [[ ${LATEST_TAG_COMMIT} == *"[major]"* ]]; then
+          if [[ ${LATEST_COMMIT_MSG} == *"[major]"* ]]; then
             BUMP_TYPE="major"
-          elif [[ ${LATEST_TAG_COMMIT} == *"[minor]"* ]]; then
+          elif [[ ${LATEST_COMMIT_MSG} == *"[minor]"* ]]; then
             BUMP_TYPE="minor"
           fi
 
@@ -54,10 +72,14 @@ jobs:
               NEW_TAG=$(echo ${LATEST_TAG} | awk -F. '{OFS="."; $3=$3+1; print}')
               ;;
           esac
+          
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
 
       - name: Push tag
         run: |
+          NEW_TAG=${{ env.NEW_TAG }}
+          
           git tag ${NEW_TAG}
           git push origin ${NEW_TAG}
           
