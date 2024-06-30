@@ -16,27 +16,36 @@ jobs:
   check-commit:
     name: Check Commit
     runs-on: ubuntu-latest
+    outputs:
+      IS_RELEASE: ${{ steps.check_commit.outputs.IS_RELEASE }}
+      LATEST_COMMIT_MSG: ${{ steps.check_commit.outputs.LATEST_COMMIT_MSG }}
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
 
       - name: Check latest commit message
+        id: check_commit
         run: |
+          set -e
+          
           LATEST_COMMIT_MSG=$(git log -1 --pretty=%B | cat)
+          echo "LATEST_COMMIT_MSG=${LATEST_COMMIT_MSG}" >> $GITHUB_OUTPUT
+          
           if [[ ${LATEST_COMMIT_MSG} == *"[release]"* ]]; then
-            echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
-            echo "LATEST_COMMIT_MSG=${LATEST_COMMIT_MSG}" >> $GITHUB_OUTPUT
+            IS_RELEASE="true"
           else
-            echo "IS_RELEASE=false" >> $GITHUB_OUTPUT
+            IS_RELEASE="false"
           fi
-  
+          
+          echo "IS_RELEASE=${IS_RELEASE}" >> $GITHUB_OUTPUT
+          echo "LATEST_COMMIT_MSG=${LATEST_COMMIT_MSG}" >> $GITHUB_OUTPUT
+          
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [check-commit]
     if: ${{ needs.check-commit.outputs.IS_RELEASE == 'true' }}
     env:
-      LATEST_COMMIT_MSG=${{ needs.check-commit.outputs.LATEST_COMMIT_MSG }}
+      LATEST_COMMIT_MSG: ${{  needs.check-commit.outputs.LATEST_COMMIT_MSG }}
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
@@ -52,6 +61,8 @@ jobs:
           
       - name: Bump version
         run: |
+          LATEST_COMMIT_MSG=${{ env.LATEST_COMMIT_MSG }}
+          
           echo "Extract the latest tag version"
           LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
           
