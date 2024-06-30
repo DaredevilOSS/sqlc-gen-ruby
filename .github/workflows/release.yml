@@ -27,16 +27,14 @@ jobs:
       - name: Check latest commit message
         id: check_msg
         run: |
-          set -e
-          
           LATEST_COMMIT_MSG=$(git log -1 --pretty=%B | cat)
           echo "LATEST_COMMIT_MSG=${LATEST_COMMIT_MSG}" >> $GITHUB_OUTPUT
           
           if [[ ${LATEST_COMMIT_MSG} == *"[release]"* ]]; then
-            echo "release message found - continuing"
+            echo "release message found - continuing with the release"
             IS_RELEASE="true"
           else
-            echo "release message found - skipping"
+            echo "release message found - skipping..."
             IS_RELEASE="false"
           fi
           
@@ -66,32 +64,32 @@ jobs:
           
       - name: Bump version
         run: |
-          LATEST_COMMIT_MSG=${{ env.LATEST_COMMIT_MSG }}
+          set -e
           
           echo "Extract the latest tag version"
           LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
           
           BUMP_TYPE="patch" # Initialize the default version bump type to patch
-          if [[ ${LATEST_COMMIT_MSG} == *"[major]"* ]]; then
+          if [[ "${LATEST_COMMIT_MSG}" == *"[major]"* ]]; then
             BUMP_TYPE="major"
-          elif [[ ${LATEST_COMMIT_MSG} == *"[minor]"* ]]; then
+          elif [[ "${LATEST_COMMIT_MSG}" == *"[minor]"* ]]; then
             BUMP_TYPE="minor"
           fi
 
           case ${BUMP_TYPE} in
             "major")
-              NEW_TAG=$(echo ${LATEST_TAG} | awk -F. '{OFS="."; $1="v" substr($1,2)+1; $2="0"; $3="0"; print}')
+              NEW_TAG=$(echo "${LATEST_TAG}" | awk -F. '{OFS="."; $1="v" substr($1,2)+1; $2="0"; $3="0"; print}')
               ;;
             "minor")
-              NEW_TAG=$(echo ${LATEST_TAG} | awk -F. '{OFS="."; $2=$2+1; $3="0"; print}')
+              NEW_TAG=$(echo "${LATEST_TAG}" | awk -F. '{OFS="."; $2=$2+1; $3="0"; print}')
               ;;
             "patch")
-              NEW_TAG=$(echo ${LATEST_TAG} | awk -F. '{OFS="."; $3=$3+1; print}')
+              NEW_TAG=$(echo "${LATEST_TAG}" | awk -F. '{OFS="."; $3=$3+1; print}')
               ;;
           esac
           
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+          echo "LATEST_TAG=${LATEST_TAG}" >> $GITHUB_ENV
+          echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
 
       - name: Push tag
         run: |
