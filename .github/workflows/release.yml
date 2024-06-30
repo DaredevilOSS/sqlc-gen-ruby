@@ -13,18 +13,18 @@ on:
     types: [completed]
 
 jobs:
-  check-commit:
+  check_commit:
     name: Check Commit
     runs-on: ubuntu-latest
     outputs:
-      IS_RELEASE: ${{ steps.check_commit.outputs.IS_RELEASE }}
-      LATEST_COMMIT_MSG: ${{ steps.check_commit.outputs.LATEST_COMMIT_MSG }}
+      IS_RELEASE: ${{ steps.check_msg.outputs.IS_RELEASE }}
+      LATEST_COMMIT_MSG: ${{ steps.check_msg.outputs.LATEST_COMMIT_MSG }}
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
 
       - name: Check latest commit message
-        id: check_commit
+        id: check_msg
         run: |
           set -e
           
@@ -43,9 +43,9 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: ${{ needs.check-commit.outputs.IS_RELEASE == 'true' }}
+    if: ${{ needs.check_commit.outputs.IS_RELEASE == 'true' }}
     env:
-      LATEST_COMMIT_MSG: ${{  needs.check-commit.outputs.LATEST_COMMIT_MSG }}
+      LATEST_COMMIT_MSG: ${{  needs.check_commit.outputs.LATEST_COMMIT_MSG }}
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
