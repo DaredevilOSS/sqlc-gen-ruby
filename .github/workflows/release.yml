@@ -116,8 +116,7 @@ jobs:
           NEW_TAG=${{ env.NEW_TAG }}
           SHA256_HASH=${{ env.SHA256_HASH }}
 
-          PREVIOUS_TAG=$(git rev-list -n 1 ${LATEST_TAG})
-          CHANGE_LOG=$(git --no-pager log ${PREVIOUS_TAG}..HEAD --pretty=format:'%h - %an, %ar : %s')
+          CHANGE_LOG=$(git --no-pager log ${LATEST_TAG}..HEAD --pretty=format:'%h - %an, %ar : %s')
 
           # Define the release notes template
           RELEASE_NOTES=$(cat <<EOF
