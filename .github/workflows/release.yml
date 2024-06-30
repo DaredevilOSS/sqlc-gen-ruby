@@ -11,6 +11,7 @@ on:
   workflow_run: 
     workflows: [CI]
     types: [completed]
+    branches: [main]
 
 jobs:
   check_commit:
@@ -44,17 +45,13 @@ jobs:
           
   release:
     name: Release
+    needs: [check_commit]
     runs-on: ubuntu-latest
-    #if: ${{ needs.check_commit.outputs.IS_RELEASE == 'true' }}
+    if: ${{ needs.check_commit.outputs.IS_RELEASE == 'true' }}
     env:
       IS_RELEASE: ${{  needs.check_commit.outputs.IS_RELEASE }}
       LATEST_COMMIT_MSG: ${{  needs.check_commit.outputs.LATEST_COMMIT_MSG }}
     steps:
-      - name:
-        run: |
-          echo "IS_RELEASE=${IS_RELEASE}"
-          echo "LATEST_COMMIT_MSG=${LATEST_COMMIT_MSG}"
-          
       - name: Check out Git repository
         uses: actions/checkout@v4
           
