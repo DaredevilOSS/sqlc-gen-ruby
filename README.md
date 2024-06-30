@@ -1,4 +1,4 @@
-[![CI](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/main.yml)
+[![CI](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/ci.yml)
 
 # sqlc-gen-ruby
 Why I didn't use Ruby to generate Ruby in [here](ruby-wasm-poc/README.md).
