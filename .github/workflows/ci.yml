@@ -121,5 +121,3 @@ jobs:
 
       - name: End-to-End Tests
         run: ./scripts/tests/run_end2end.sh
-    
-    
