@@ -32,8 +32,10 @@ jobs:
           echo "LATEST_COMMIT_MSG=${LATEST_COMMIT_MSG}" >> $GITHUB_OUTPUT
           
           if [[ ${LATEST_COMMIT_MSG} == *"[release]"* ]]; then
+            echo "release message found - continuing"
             IS_RELEASE="true"
           else
+            echo "release message found - skipping"
             IS_RELEASE="false"
           fi
           
@@ -43,10 +45,16 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: ${{ needs.check_commit.outputs.IS_RELEASE == 'true' }}
+    #if: ${{ needs.check_commit.outputs.IS_RELEASE == 'true' }}
     env:
+      IS_RELEASE: ${{  needs.check_commit.outputs.IS_RELEASE }}
       LATEST_COMMIT_MSG: ${{  needs.check_commit.outputs.LATEST_COMMIT_MSG }}
     steps:
+      - name:
+        run: |
+          echo "IS_RELEASE=${IS_RELEASE}"
+          echo "LATEST_COMMIT_MSG=${LATEST_COMMIT_MSG}"
+          
       - name: Check out Git repository
         uses: actions/checkout@v4
           
