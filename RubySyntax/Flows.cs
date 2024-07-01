@@ -4,10 +4,10 @@ namespace RubyCodegen;
 
 public class WithResource(string resourceFrom, string resourceName, IList<IComposable> statements) : IComposable
 {
-    public string Build()
+    public string BuildCode()
     {
         var withResourceBody = statements
-            .Select(s => s.Build())
+            .Select(s => s.BuildCode())
             .JoinByNewLine()
             .TrimTrailingWhitespacesPerLine()
             .Indent();
@@ -19,17 +19,17 @@ public class WithResource(string resourceFrom, string resourceName, IList<ICompo
 public class IfCondition(string condition, IList<IComposable> thenStatements,
     IList<IComposable>? elseStatements = null) : IComposable
 {
-    public string Build()
+    public string BuildCode()
     {
         var thenBody = thenStatements
-            .Select(s => s.Build())
+            .Select(s => s.BuildCode())
             .JoinByNewLine()
             .TrimTrailingWhitespacesPerLine()
             .Indent();
         if (elseStatements is null || elseStatements.Count == 0)
             return $"if {condition}\n{thenBody}\nend";
         var elseBody = elseStatements
-            .Select(s => s.Build())
+            .Select(s => s.BuildCode())
             .JoinByNewLine()
             .TrimTrailingWhitespacesPerLine()
             .Indent();
@@ -39,10 +39,10 @@ public class IfCondition(string condition, IList<IComposable> thenStatements,
 
 public class UnlessCondition(string condition, IList<IComposable> thenStatements) : IComposable
 {
-    public string Build()
+    public string BuildCode()
     {
         var thenBody = thenStatements
-            .Select(s => s.Build())
+            .Select(s => s.BuildCode())
             .JoinByNewLine()
             .TrimTrailingWhitespacesPerLine()
             .Indent();
@@ -53,10 +53,10 @@ public class UnlessCondition(string condition, IList<IComposable> thenStatements
 public class NewObject(string objectType, IList<SimpleExpression> initExpressions,
     IList<IComposable>? bodyStatements = null) : IComposable
 {
-    public string Build()
+    public string BuildCode()
     {
         var initParams = initExpressions
-            .Select(e => e.Build())
+            .Select(e => e.BuildCode())
             .ToList()
             .JoinByCommaAndFormat();
         var baseCommand = $"{objectType}.new({initParams})";
@@ -64,7 +64,7 @@ public class NewObject(string objectType, IList<SimpleExpression> initExpression
             return baseCommand;
 
         var body = "{\n" + bodyStatements
-            .Select(s => s.Build())
+            .Select(s => s.BuildCode())
             .JoinByNewLine()
             .TrimTrailingWhitespacesPerLine()
             .Indent() + "\n}";
@@ -74,10 +74,10 @@ public class NewObject(string objectType, IList<SimpleExpression> initExpression
 
 public class ForeachLoop(string collectionVar, string controlVar, IList<IComposable> statements) : IComposable
 {
-    public string Build()
+    public string BuildCode()
     {
         var foreachBody = statements
-            .Select(s => s.Build())
+            .Select(s => s.BuildCode())
             .JoinByNewLine();
         var foreachLoop = $"{collectionVar}.each do |{controlVar}|\n{foreachBody}\nend";
         return foreachLoop;
@@ -86,8 +86,8 @@ public class ForeachLoop(string collectionVar, string controlVar, IList<IComposa
 
 public class ListAppend(string listVar, NewObject newObject) : IComposable
 {
-    public string Build()
+    public string BuildCode()
     {
-        return $"{listVar} << {newObject.Build()}";
+        return $"{listVar} << {newObject.BuildCode()}";
     }
 }

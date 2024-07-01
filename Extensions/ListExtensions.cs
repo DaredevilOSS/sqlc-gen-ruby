@@ -17,7 +17,7 @@ public static class ListExtensions
     public static string JoinByCommaAndFormat(this IList<string> me)
     {
         return me.Count < MaxElementsPerLine
-            ? string.Join(", ", me).Indent()
+            ? string.Join(", ", me)
             : $"\n{string.Join(",\n", me).Indent()}\n";
     }
 }

@@ -24,14 +24,17 @@ public partial class PgDriver : DbDriver
 
     public override MethodDeclaration GetInitMethod()
     {
-        return new MethodDeclaration("initialize", "connection_pool_params, pg_params",
+        var connectionPoolInit = new NewObject("ConnectionPool",
+            new[] { new SimpleExpression("**connection_pool_params") },
+            PgClientCreate());
+        return new MethodDeclaration(
+            "initialize",
+            "Hash[String, String], Hash[String, String]",
+            "connection_pool_params, pg_params",
+            null,
             [
-                new SimpleStatement(
-                    Variable.Pool.AsProperty(),
-                    new NewObject("ConnectionPool",
-                        new[] { new SimpleExpression("**connection_pool_params") },
-                        PgClientCreate())),
-                new SimpleStatement(Variable.PreparedStatements.AsProperty(), new SimpleExpression("Set[]"))
+                new PropertyDeclaration(Variable.Pool.AsProperty(), "untyped", connectionPoolInit),
+                new PropertyDeclaration(Variable.PreparedStatements.AsProperty(), "Set[String]", new SimpleExpression("Set[]"))
             ]
         );
 
@@ -50,11 +53,61 @@ public partial class PgDriver : DbDriver
         }
     }
 
-    public override SimpleStatement QueryTextConstantDeclare(Query query)
+    protected override List<(string, HashSet<string>)> GetColumnMapping()
+    {
+        return
+        [
+            ("bool", [
+                "bool",
+                "boolean"
+            ]),
+            ("Array[Integer]", [
+                "binary",
+                "bit",
+                "bytea",
+                "blob",
+                "longblob",
+                "mediumblob",
+                "tinyblob",
+                "varbinary"
+            ]),
+            ("String", [
+                "char",
+                "date",
+                "datetime",
+                "longtext",
+                "mediumtext",
+                "text",
+                "bpchar",
+                "time",
+                "timestamp",
+                "tinytext",
+                "varchar",
+                "json"
+            ]),
+            ("Integer", [
+                "int2",
+                "int4",
+                "int8",
+                "serial",
+                "bigserial"
+            ]),
+            ("Float", [
+                "numeric",
+                "float4",
+                "float8",
+                "decimal"
+            ])
+        ];
+    }
+
+    public override PropertyDeclaration QueryTextConstantDeclare(Query query)
     {
         var counter = 1;
-        var transformedQueryText = BindRegexToReplace().Replace(query.Text, m => $"${counter++}");
-        return new SimpleStatement($"{query.Name}{ClassMember.Sql}",
+        var transformedQueryText = BindRegexToReplace().Replace(query.Text, _ => $"${counter++}");
+        return new PropertyDeclaration(
+            $"{query.Name}{ClassMember.Sql}",
+            "String",
             new SimpleExpression($"%q({transformedQueryText})"));
     }
 

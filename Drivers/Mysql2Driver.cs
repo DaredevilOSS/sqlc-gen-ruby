@@ -21,17 +21,65 @@ public class Mysql2Driver : DbDriver
 
     public override MethodDeclaration GetInitMethod()
     {
-        return new MethodDeclaration("initialize", "connection_pool_params, mysql2_params",
+        var connectionPoolInit = new NewObject("ConnectionPool",
+            new[] { new SimpleExpression("**connection_pool_params") },
+            new List<IComposable> { new SimpleExpression("Mysql2::Client.new(**mysql2_params)") });
+        return new MethodDeclaration(
+            "initialize",
+            "Hash[String, String], Hash[String, String]",
+            "connection_pool_params, mysql2_params",
+            null,
             [
-                new SimpleStatement(Variable.Pool.AsProperty(), new SimpleExpression(
-                    "ConnectionPool::new(**connection_pool_params) { Mysql2::Client.new(**mysql2_params) }"))
+                new PropertyDeclaration(Variable.Pool.AsProperty(), "untyped", connectionPoolInit)
             ]
         );
     }
 
-    public override SimpleStatement QueryTextConstantDeclare(Query query)
+    protected override List<(string, HashSet<string>)> GetColumnMapping()
     {
-        return new SimpleStatement($"{query.Name}{ClassMember.Sql}", new SimpleExpression($"%q({query.Text})"));
+        return
+        [
+            ("Array[Integer]", [
+                "binary",
+                "bit",
+                "blob",
+                "longblob",
+                "mediumblob",
+                "tinyblob",
+                "varbinary"
+            ]),
+            ("String", [
+                "char",
+                "date",
+                "datetime",
+                "decimal",
+                "longtext",
+                "mediumtext",
+                "text",
+                "time",
+                "timestamp",
+                "tinytext",
+                "varchar",
+                "json"
+            ]),
+            ("Integer", [
+                "bigint",
+                "int",
+                "mediumint",
+                "smallint",
+                "tinyint",
+                "year"
+            ]),
+            ("Float", ["double", "float"]),
+        ];
+    }
+
+    public override PropertyDeclaration QueryTextConstantDeclare(Query query)
+    {
+        return new PropertyDeclaration(
+            $"{query.Name}{ClassMember.Sql}",
+            "String",
+            new SimpleExpression($"%q({query.Text})"));
     }
 
     public override IComposable PrepareStmt(string _, string queryTextConstant)

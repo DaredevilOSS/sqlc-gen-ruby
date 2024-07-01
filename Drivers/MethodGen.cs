@@ -26,7 +26,11 @@ public class MethodGen(DbDriver dbDriver)
                 ]
             ).ToList();
 
-        return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
+        return new MethodDeclaration(
+            funcName,
+            argInterface,
+            GetMethodArgs(argInterface, parameters),
+            returnInterface,
             new List<IComposable>
             {
                 new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody.ToList())
@@ -58,7 +62,11 @@ public class MethodGen(DbDriver dbDriver)
                 ]
             );
 
-        return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
+        return new MethodDeclaration(
+            funcName,
+            argInterface,
+            GetMethodArgs(argInterface, parameters),
+            returnInterface,
             new List<IComposable>
             {
                 new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody.ToList())
@@ -76,7 +84,10 @@ public class MethodGen(DbDriver dbDriver)
             .Append(dbDriver.ExecuteStmt(funcName, queryParams))
             .ToList();
 
-        return new MethodDeclaration(funcName, GetMethodArgs(argInterface, parameters),
+        return new MethodDeclaration(funcName,
+            argInterface,
+            GetMethodArgs(argInterface, parameters),
+            null,
             new List<IComposable>
             {
                 new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody.ToList()
@@ -100,7 +111,10 @@ public class MethodGen(DbDriver dbDriver)
             );
 
         return new MethodDeclaration(
-            funcName, GetMethodArgs(argInterface, parameters),
+            funcName,
+            argInterface,
+            GetMethodArgs(argInterface, parameters),
+            "Integer",
             new List<IComposable>
             {
                 new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(),
@@ -111,7 +125,7 @@ public class MethodGen(DbDriver dbDriver)
 
     private static SimpleStatement? GetQueryParams(string argInterface, IList<Parameter> parameters)
     {
-        var queryParams = parameters.Select(p => $"{argInterface}.{p.Column.Name}").ToList();
+        var queryParams = parameters.Select(p => $"{argInterface.SnakeCase()}.{p.Column.Name}").ToList();
         return queryParams.Count == 0
             ? null
             : new SimpleStatement(Variable.QueryParams.AsVar(),

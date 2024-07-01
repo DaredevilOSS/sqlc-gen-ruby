@@ -22,6 +22,7 @@ public class Options
         Enum.TryParse(rawOptions.DriverName, true, out DriverName outDriverName);
         DriverName = outDriverName;
         GenerateGemfile = rawOptions.GenerateGemfile;
+        GenerateTypes = rawOptions.GenerateTypes;
         RubyVersion = RubyVersionExtensions.ParseName(rawOptions.RubyVersion);
     }
 
@@ -30,4 +31,6 @@ public class Options
     public RubyVersion RubyVersion { get; }
 
     public bool GenerateGemfile { get; }
+
+    public bool GenerateTypes { get; }
 }

@@ -6,14 +6,17 @@ module Mysql2Codegen
 	GetAuthorSql = %q(SELECT id, name, bio FROM authors
 	WHERE id = ? LIMIT 1)
 	
-	GetAuthorRow = Data.define(	:id, :name, :bio)
+	class GetAuthorRow < Data.define(:id, :name, :bio)
+	end
 	
-	GetAuthorArgs = Data.define(	:id)
+	class GetAuthorArgs < Data.define(:id)
+	end
 	
 	ListAuthorsSql = %q(SELECT id, name, bio FROM authors
 	ORDER BY name)
 	
-	ListAuthorsRow = Data.define(	:id, :name, :bio)
+	class ListAuthorsRow < Data.define(:id, :name, :bio)
+	end
 	
 	CreateAuthorSql = %q(INSERT INTO authors (
 	  name, bio
@@ -21,13 +24,15 @@ module Mysql2Codegen
 	  ?, ? 
 	))
 	
-	CreateAuthorArgs = Data.define(	:name, :bio)
+	class CreateAuthorArgs < Data.define(:name, :bio)
+	end
 	
 	UpdateAuthorSql = %q(UPDATE authors 
 	SET bio = ?
 	WHERE id = ?)
 	
-	UpdateAuthorArgs = Data.define(	:bio, :id)
+	class UpdateAuthorArgs < Data.define(:bio, :id)
+	end
 	
 	CreateAuthorReturnIdSql = %q(INSERT INTO authors (
 	    name, bio
@@ -35,17 +40,19 @@ module Mysql2Codegen
 	    ?, ?
 	))
 	
-	CreateAuthorReturnIdArgs = Data.define(	:name, :bio)
+	class CreateAuthorReturnIdArgs < Data.define(:name, :bio)
+	end
 	
 	DeleteAuthorSql = %q(DELETE FROM authors
 	WHERE id = ?)
 	
-	DeleteAuthorArgs = Data.define(	:id)
+	class DeleteAuthorArgs < Data.define(:id)
+	end
 	
 	TestSql = %q(SELECT c_bit, c_tinyint, c_bool, c_boolean, c_smallint, c_mediumint, c_int, c_integer, c_bigint, c_serial, c_decimal, c_dec, c_numeric, c_fixed, c_float, c_double, c_double_precision, c_date, c_time, c_datetime, c_timestamp, c_year, c_char, c_nchar, c_national_char, c_varchar, c_binary, c_varbinary, c_tinyblob, c_tinytext, c_blob, c_text, c_mediumblob, c_mediumtext, c_longblob, c_longtext, c_json FROM node_mysql_types
 	LIMIT 1)
 	
-	TestRow = Data.define(
+	class TestRow < Data.define(
 		:c_bit,
 		:c_tinyint,
 		:c_bool,
@@ -84,20 +91,23 @@ module Mysql2Codegen
 		:c_longtext,
 		:c_json
 	)
+	end
 	
 	class QuerySql
 		def initialize(connection_pool_params, mysql2_params)
-			@pool = ConnectionPool::new(**connection_pool_params) { Mysql2::Client.new(**mysql2_params) }
+			@pool = ConnectionPool.new(**connection_pool_params) {
+				Mysql2::Client.new(**mysql2_params)
+			}
 		end
 		
 		def get_author(get_author_args)
 			@pool.with do |client|
-				query_params = [	get_author_args.id]
+				query_params = [get_author_args.id]
 				stmt = client.prepare(GetAuthorSql)
 				result = stmt.execute(*query_params)
 				row = result.first
 				return nil if row.nil?
-				entity = GetAuthorRow.new(	row['id'], row['name'], row['bio'])
+				entity = GetAuthorRow.new(row['id'], row['name'], row['bio'])
 				return entity
 			end
 		end
@@ -108,7 +118,7 @@ module Mysql2Codegen
 				result = stmt.execute
 				entities = []
 				result.each do |row|
-				entities << ListAuthorsRow.new(	row['id'], row['name'], row['bio'])
+				entities << ListAuthorsRow.new(row['id'], row['name'], row['bio'])
 				end
 				return entities
 			end
@@ -116,7 +126,7 @@ module Mysql2Codegen
 		
 		def create_author(create_author_args)
 			@pool.with do |client|
-				query_params = [	create_author_args.name, create_author_args.bio]
+				query_params = [create_author_args.name, create_author_args.bio]
 				stmt = client.prepare(CreateAuthorSql)
 				stmt.execute(*query_params)
 			end
@@ -124,7 +134,7 @@ module Mysql2Codegen
 		
 		def update_author(update_author_args)
 			@pool.with do |client|
-				query_params = [	update_author_args.bio, update_author_args.id]
+				query_params = [update_author_args.bio, update_author_args.id]
 				stmt = client.prepare(UpdateAuthorSql)
 				stmt.execute(*query_params)
 			end
@@ -132,7 +142,7 @@ module Mysql2Codegen
 		
 		def create_author_return_id(create_author_return_id_args)
 			@pool.with do |client|
-				query_params = [	create_author_return_id_args.name, create_author_return_id_args.bio]
+				query_params = [create_author_return_id_args.name, create_author_return_id_args.bio]
 				stmt = client.prepare(CreateAuthorReturnIdSql)
 				stmt.execute(*query_params)
 				return client.last_id
@@ -141,7 +151,7 @@ module Mysql2Codegen
 		
 		def delete_author(delete_author_args)
 			@pool.with do |client|
-				query_params = [	delete_author_args.id]
+				query_params = [delete_author_args.id]
 				stmt = client.prepare(DeleteAuthorSql)
 				stmt.execute(*query_params)
 			end

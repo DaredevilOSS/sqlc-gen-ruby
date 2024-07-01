@@ -1,5 +1,6 @@
 using Plugin;
 using RubyCodegen;
+using System;
 using System.Collections.Generic;
 
 namespace SqlcGenRuby.Drivers;
@@ -15,7 +16,20 @@ public abstract class DbDriver
 
     public abstract MethodDeclaration GetInitMethod();
 
-    public abstract SimpleStatement QueryTextConstantDeclare(Query query);
+    protected abstract List<(string, HashSet<string>)> GetColumnMapping();
+
+    public string GetColumnType(Column column)
+    {
+        var columnType = column.Type.Name.ToLower();
+        foreach (var (csharpType, dbTypes) in GetColumnMapping())
+        {
+            if (dbTypes.Contains(columnType))
+                return csharpType;
+        }
+        throw new NotSupportedException($"Unsupported column type: {column.Type.Name}");
+    }
+
+    public abstract PropertyDeclaration QueryTextConstantDeclare(Query query);
 
     public abstract IComposable PrepareStmt(string funcName, string queryTextConstant);
 
