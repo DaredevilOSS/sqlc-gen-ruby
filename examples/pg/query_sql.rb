@@ -97,7 +97,7 @@ module PgCodegen
 				result = client.exec_prepared('list_authors')
 				entities = []
 				result.each do |row|
-				entities << ListAuthorsRow.new(row['id'], row['name'], row['bio'])
+					entities << ListAuthorsRow.new(row['id'], row['name'], row['bio'])
 				end
 				return entities
 			end

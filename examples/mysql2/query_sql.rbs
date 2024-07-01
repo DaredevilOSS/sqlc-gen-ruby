@@ -139,9 +139,9 @@ module Mysql2Codegen
 		@pool: untyped
 		def initialize: (Hash[String, String], Hash[String, String]) -> void
 		
-		def get_author: (GetAuthorArgs) -> GetAuthorRow
+		def get_author: (GetAuthorArgs) -> GetAuthorRow?
 		
-		def list_authors: -> ListAuthorsRow
+		def list_authors: -> Array[ListAuthorsRow]
 		
 		def create_author: (CreateAuthorArgs) -> void
 		
@@ -151,6 +151,6 @@ module Mysql2Codegen
 		
 		def delete_author: (DeleteAuthorArgs) -> void
 		
-		def test: -> TestRow
+		def test: -> TestRow?
 	end
 end

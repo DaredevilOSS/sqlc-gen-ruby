@@ -93,14 +93,14 @@ module PgCodegen
 		@prepared_statements: Set[String]
 		def initialize: (Hash[String, String], Hash[String, String]) -> void
 		
-		def get_author: (GetAuthorArgs) -> GetAuthorRow
+		def get_author: (GetAuthorArgs) -> GetAuthorRow?
 		
-		def list_authors: -> ListAuthorsRow
+		def list_authors: -> Array[ListAuthorsRow]
 		
-		def create_author: (CreateAuthorArgs) -> CreateAuthorRow
+		def create_author: (CreateAuthorArgs) -> CreateAuthorRow?
 		
 		def delete_author: (DeleteAuthorArgs) -> void
 		
-		def test: -> TestRow
+		def test: -> TestRow?
 	end
 end
