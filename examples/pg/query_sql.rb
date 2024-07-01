@@ -7,14 +7,17 @@ module PgCodegen
 	GetAuthorSql = %q(SELECT id, name, bio FROM authors
 	WHERE id = $1 LIMIT 1)
 	
-	GetAuthorRow = Data.define(	:id, :name, :bio)
+	class GetAuthorRow < Data.define(:id, :name, :bio)
+	end
 	
-	GetAuthorArgs = Data.define(	:id)
+	class GetAuthorArgs < Data.define(:id)
+	end
 	
 	ListAuthorsSql = %q(SELECT id, name, bio FROM authors
 	ORDER BY name)
 	
-	ListAuthorsRow = Data.define(	:id, :name, :bio)
+	class ListAuthorsRow < Data.define(:id, :name, :bio)
+	end
 	
 	CreateAuthorSql = %q(INSERT INTO authors (
 	    name, bio
@@ -23,19 +26,22 @@ module PgCodegen
 	)
 	RETURNING id, name, bio)
 	
-	CreateAuthorRow = Data.define(	:id, :name, :bio)
+	class CreateAuthorRow < Data.define(:id, :name, :bio)
+	end
 	
-	CreateAuthorArgs = Data.define(	:name, :bio)
+	class CreateAuthorArgs < Data.define(:name, :bio)
+	end
 	
 	DeleteAuthorSql = %q(DELETE FROM authors
 	WHERE id = $1)
 	
-	DeleteAuthorArgs = Data.define(	:id)
+	class DeleteAuthorArgs < Data.define(:id)
+	end
 	
 	TestSql = %q(SELECT c_bit, c_smallint, c_boolean, c_integer, c_bigint, c_serial, c_decimal, c_numeric, c_real, c_double_precision, c_date, c_time, c_timestamp, c_char, c_varchar, c_bytea, c_text, c_json FROM node_postgres_types
 	LIMIT 1)
 	
-	TestRow = Data.define(
+	class TestRow < Data.define(
 		:c_bit,
 		:c_smallint,
 		:c_boolean,
@@ -55,10 +61,11 @@ module PgCodegen
 		:c_text,
 		:c_json
 	)
+	end
 	
 	class QuerySql
 		def initialize(connection_pool_params, pg_params)
-			@pool = ConnectionPool.new(	**connection_pool_params) {
+			@pool = ConnectionPool.new(**connection_pool_params) {
 				client = PG.connect(**pg_params)
 				client.type_map_for_results = PG::BasicTypeMapForResults.new client
 				client
@@ -68,7 +75,7 @@ module PgCodegen
 		
 		def get_author(get_author_args)
 			@pool.with do |client|
-				query_params = [	get_author_args.id]
+				query_params = [get_author_args.id]
 				unless @prepared_statements.include?('get_author')
 					client.prepare('get_author', GetAuthorSql)
 					@prepared_statements.add('get_author')
@@ -76,7 +83,7 @@ module PgCodegen
 				result = client.exec_prepared('get_author', query_params)
 				row = result.first
 				return nil if row.nil?
-				entity = GetAuthorRow.new(	row['id'], row['name'], row['bio'])
+				entity = GetAuthorRow.new(row['id'], row['name'], row['bio'])
 				return entity
 			end
 		end
@@ -90,7 +97,7 @@ module PgCodegen
 				result = client.exec_prepared('list_authors')
 				entities = []
 				result.each do |row|
-				entities << ListAuthorsRow.new(	row['id'], row['name'], row['bio'])
+				entities << ListAuthorsRow.new(row['id'], row['name'], row['bio'])
 				end
 				return entities
 			end
@@ -98,7 +105,7 @@ module PgCodegen
 		
 		def create_author(create_author_args)
 			@pool.with do |client|
-				query_params = [	create_author_args.name, create_author_args.bio]
+				query_params = [create_author_args.name, create_author_args.bio]
 				unless @prepared_statements.include?('create_author')
 					client.prepare('create_author', CreateAuthorSql)
 					@prepared_statements.add('create_author')
@@ -106,14 +113,14 @@ module PgCodegen
 				result = client.exec_prepared('create_author', query_params)
 				row = result.first
 				return nil if row.nil?
-				entity = CreateAuthorRow.new(	row['id'], row['name'], row['bio'])
+				entity = CreateAuthorRow.new(row['id'], row['name'], row['bio'])
 				return entity
 			end
 		end
 		
 		def delete_author(delete_author_args)
 			@pool.with do |client|
-				query_params = [	delete_author_args.id]
+				query_params = [delete_author_args.id]
 				unless @prepared_statements.include?('delete_author')
 					client.prepare('delete_author', DeleteAuthorSql)
 					@prepared_statements.add('delete_author')
