@@ -7,6 +7,7 @@
 ```yaml
 driver: pg
 rubyVersion: "3.3"
+generateTypes: true
 generateGemfile: false
 ```
 
@@ -18,6 +19,7 @@ generateGemfile: false
 ```yaml
 driver: mysql2
 rubyVersion: "3.3"
+generateTypes: true
 generateGemfile: false
 ```
 
