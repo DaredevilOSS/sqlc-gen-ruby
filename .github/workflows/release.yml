@@ -28,7 +28,6 @@ jobs:
         id: check_msg
         run: |
           LATEST_COMMIT_MSG=$(git log -1 --pretty=%B | cat)
-          echo "LATEST_COMMIT_MSG=${LATEST_COMMIT_MSG}" >> $GITHUB_OUTPUT
           
           if [[ ${LATEST_COMMIT_MSG} == *"[release]"* ]]; then
             echo "release message found - continuing with the release"
@@ -39,7 +38,7 @@ jobs:
           fi
           
           echo "IS_RELEASE=${IS_RELEASE}" >> $GITHUB_OUTPUT
-          echo "LATEST_COMMIT_MSG=${LATEST_COMMIT_MSG}" >> $GITHUB_OUTPUT
+          echo "LATEST_COMMIT_MSG=\"${LATEST_COMMIT_MSG}\"" >> $GITHUB_OUTPUT
           
   release:
     name: Release
