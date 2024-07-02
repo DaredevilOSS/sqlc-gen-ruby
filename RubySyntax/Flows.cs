@@ -78,7 +78,8 @@ public class ForeachLoop(string collectionVar, string controlVar, IList<IComposa
     {
         var foreachBody = statements
             .Select(s => s.BuildCode())
-            .JoinByNewLine();
+            .JoinByNewLine()
+            .Indent();
         var foreachLoop = $"{collectionVar}.each do |{controlVar}|\n{foreachBody}\nend";
         return foreachLoop;
     }

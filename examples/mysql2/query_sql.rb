@@ -118,7 +118,7 @@ module Mysql2Codegen
 				result = stmt.execute
 				entities = []
 				result.each do |row|
-				entities << ListAuthorsRow.new(row['id'], row['name'], row['bio'])
+					entities << ListAuthorsRow.new(row['id'], row['name'], row['bio'])
 				end
 				return entities
 			end

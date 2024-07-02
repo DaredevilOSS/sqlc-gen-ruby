@@ -1,0 +1,55 @@
+---
+- file: examples/mysql2/query_sql.rb
+  diagnostics:
+  - range:
+      start:
+        line: 98
+        character: 11
+      end:
+        line: 98
+        character: 25
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `ConnectionPool`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 99
+        character: 4
+      end:
+        line: 99
+        character: 10
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `Mysql2`'
+    code: Ruby::UnknownConstant
+- file: examples/pg/query_sql.rb
+  diagnostics:
+  - range:
+      start:
+        line: 68
+        character: 11
+      end:
+        line: 68
+        character: 25
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `ConnectionPool`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 69
+        character: 13
+      end:
+        line: 69
+        character: 15
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `PG`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 70
+        character: 34
+      end:
+        line: 70
+        character: 36
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `PG`'
+    code: Ruby::UnknownConstant

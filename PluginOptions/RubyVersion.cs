@@ -64,6 +64,6 @@ public static partial class RubyVersionExtensions
         return me.AtLeast(new RubyVersion(3, 2));
     }
 
-    [GeneratedRegex(@"^(0|[1-9][0-9]*)(?:\.(0|[1-9][0-9]*))?(?:\.(0|[1-9][0-9]*))?$")]
+    [GeneratedRegex(@"^\s*(0|[1-9][0-9]*)(?:\.(0|[1-9][0-9]*))?(?:\.(0|[1-9][0-9]*))?\s*$")]
     private static partial Regex SemanticVersionRegex();
 }

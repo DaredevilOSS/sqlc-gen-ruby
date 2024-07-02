@@ -6,6 +6,10 @@ Rake::TestTask.new(:end2end_tests) do |t| # called inside Docker
     t.pattern = "tests/end2end_*.rb" 
 end
 
+task :steep do
+    sh "bundle exec steep check --with-expectations"
+end
+
 task :run_end2end_tests do
     sh "./scripts/tests/run_end2end.sh" 
 end

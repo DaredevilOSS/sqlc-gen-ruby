@@ -30,7 +30,7 @@ public class MethodGen(DbDriver dbDriver)
             funcName,
             argInterface,
             GetMethodArgs(argInterface, parameters),
-            returnInterface,
+            $"{returnInterface}?",
             new List<IComposable>
             {
                 new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody.ToList())
@@ -56,8 +56,11 @@ public class MethodGen(DbDriver dbDriver)
                     dbDriver.PrepareStmt(funcName, queryTextConstant),
                     ExecuteAndAssign(funcName, queryParams),
                     new SimpleStatement(Variable.Entities.AsVar(), new SimpleExpression("[]")),
-                    new ForeachLoop(Variable.Result.AsVar(), Variable.Row.AsVar(),
-                        new List<IComposable> { listAppend }),
+                    new ForeachLoop(
+                    Variable.Result.AsVar(),
+                    Variable.Row.AsVar(),
+                    new List<IComposable> { listAppend }
+                    ),
                     new SimpleExpression($"return {Variable.Entities.AsVar()}")
                 ]
             );
@@ -66,10 +69,14 @@ public class MethodGen(DbDriver dbDriver)
             funcName,
             argInterface,
             GetMethodArgs(argInterface, parameters),
-            returnInterface,
+            $"Array[{returnInterface}]",
             new List<IComposable>
             {
-                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody.ToList())
+                new WithResource(
+                Variable.Pool.AsProperty(),
+                Variable.Client.AsVar(),
+                withResourceBody.ToList()
+                )
             });
     }
 
