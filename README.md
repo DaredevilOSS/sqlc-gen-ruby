@@ -4,6 +4,15 @@
 Why I didn't use Ruby to generate Ruby in [here](ruby-wasm-poc/README.md).
 
 ## Usage
+
+### Options Documentation
+| Option          | Possible values                                | Optional | Info                                                                                                        |
+|-----------------|------------------------------------------------|----------|-------------------------------------------------------------------------------------------------------------|
+| driver          | values: `mysql2`,`pg`                          | No       | Choosing the driver to use - refer to the [above](#supported-sql-engines) section on supported SQL engines. |
+| rubyVersion     | default: `3.3`<br/>values: `3.1`, `3.2`, `3.3` | Yes      | Determines the Ruby version the generated code should support..                                             |
+| generateGemfile | default: `false`<br/>values: `false`,`true`    | Yes      | Assists you with the integration of SQLC and Ruby by generating a `Gemfile` with the needed dependencies.   |
+| generateTypes   | default: `true`<br/>values: `false`,`true`     | Yes      | Determines whether to generate type signatures in addition to the code.                                     |
+
 ### Configuration
 ```yaml
 version: "2"
@@ -22,6 +31,9 @@ sql:
         out: examples/pg
         options:
           driver: pg
+          rubyVersion: "3.3"
+          generateTypes: true
+          generateGemfile: false
   # MySQL Example
   - schema: "examples/authors/mysql/schema.sql"
     queries: "examples/authors/mysql/query.sql"
@@ -31,14 +43,10 @@ sql:
         out: examples/mysql2
         options:
           driver: mysql2
+          rubyVersion: "3.3"
+          generateTypes: true
+          generateGemfile: false
 ```
-
-### Options Documentation
-| Option          | Possible values                                | Optional | Info                                                                                                        |
-|-----------------|------------------------------------------------|----------|-------------------------------------------------------------------------------------------------------------|
-| driver          | <br/>values: `mysql2`,`pg`                     | No       | Choosing the driver to use - refer to the [above](#supported-sql-engines) section on supported SQL engines. |
-| rubyVersion     | default: `3.3`<br/>values: `3.1`, `3.2`, `3.3` | Yes      | Determines the Ruby version the generated code should support..                                             |
-| generateGemfile | default: `false`<br/>values: `false`,`true`    | Yes      | Assists you with the integration of SQLC and Ruby by generating a `Gemfile` with the needed dependencies.   |
 
 ### [Generated Code Examples](docs/Examples.md)
 
