@@ -33,7 +33,7 @@ public partial class PgDriver : DbDriver
             "connection_pool_params, pg_params",
             null,
             [
-                new PropertyDeclaration(Variable.Pool.AsProperty(), "untyped", connectionPoolInit),
+                new PropertyDeclaration(Variable.Db.AsProperty(), "untyped", connectionPoolInit),
                 new PropertyDeclaration(Variable.PreparedStatements.AsProperty(), "Set[String]", new SimpleExpression("Set[]"))
             ]
         );
@@ -53,15 +53,15 @@ public partial class PgDriver : DbDriver
         }
     }
 
-    protected override List<(string, HashSet<string>)> GetColumnMapping()
+    protected override IEnumerable<ColumnMappingConfig> GetColumnMapping()
     {
         return
         [
-            ("bool", [
+            new ColumnMappingConfig("bool", [
                 "bool",
                 "boolean"
-            ]),
-            ("Array[Integer]", [
+            ], false),
+            new ColumnMappingConfig("Array[Integer]", [
                 "binary",
                 "bit",
                 "bytea",
@@ -70,8 +70,8 @@ public partial class PgDriver : DbDriver
                 "mediumblob",
                 "tinyblob",
                 "varbinary"
-            ]),
-            ("String", [
+            ], false),
+            new ColumnMappingConfig("String", [
                 "char",
                 "date",
                 "datetime",
@@ -84,20 +84,20 @@ public partial class PgDriver : DbDriver
                 "tinytext",
                 "varchar",
                 "json"
-            ]),
-            ("Integer", [
+            ], false),
+            new ColumnMappingConfig("Integer", [
                 "int2",
                 "int4",
                 "int8",
                 "serial",
                 "bigserial"
-            ]),
-            ("Float", [
+            ], false),
+            new ColumnMappingConfig("Float", [
                 "numeric",
                 "float4",
                 "float8",
                 "decimal"
-            ])
+            ], false)
         ];
     }
 
@@ -139,12 +139,6 @@ public partial class PgDriver : DbDriver
         IList<Parameter> parameters)
     {
         return MethodGen.ExecDeclare(funcName, queryTextConstant, argInterface, parameters);
-    }
-
-    public override MethodDeclaration ExecLastIdDeclare(string funcName, string queryTextConstant,
-        string argInterface, IList<Parameter> parameters)
-    {
-        return MethodGen.ExecLastIdDeclare(funcName, queryTextConstant, argInterface, parameters);
     }
 
     public override MethodDeclaration ManyDeclare(string funcName, string queryTextConstant, string argInterface,

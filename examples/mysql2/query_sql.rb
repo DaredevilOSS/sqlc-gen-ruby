@@ -95,13 +95,13 @@ module Mysql2Codegen
 	
 	class QuerySql
 		def initialize(connection_pool_params, mysql2_params)
-			@pool = ConnectionPool.new(**connection_pool_params) {
+			@db = ConnectionPool.new(**connection_pool_params) {
 				Mysql2::Client.new(**mysql2_params)
 			}
 		end
 		
 		def get_author(get_author_args)
-			@pool.with do |client|
+			@db.with do |client|
 				query_params = [get_author_args.id]
 				stmt = client.prepare(GetAuthorSql)
 				result = stmt.execute(*query_params)
@@ -113,7 +113,7 @@ module Mysql2Codegen
 		end
 		
 		def list_authors
-			@pool.with do |client|
+			@db.with do |client|
 				stmt = client.prepare(ListAuthorsSql)
 				result = stmt.execute
 				entities = []
@@ -125,7 +125,7 @@ module Mysql2Codegen
 		end
 		
 		def create_author(create_author_args)
-			@pool.with do |client|
+			@db.with do |client|
 				query_params = [create_author_args.name, create_author_args.bio]
 				stmt = client.prepare(CreateAuthorSql)
 				stmt.execute(*query_params)
@@ -133,7 +133,7 @@ module Mysql2Codegen
 		end
 		
 		def update_author(update_author_args)
-			@pool.with do |client|
+			@db.with do |client|
 				query_params = [update_author_args.bio, update_author_args.id]
 				stmt = client.prepare(UpdateAuthorSql)
 				stmt.execute(*query_params)
@@ -141,7 +141,7 @@ module Mysql2Codegen
 		end
 		
 		def create_author_return_id(create_author_return_id_args)
-			@pool.with do |client|
+			@db.with do |client|
 				query_params = [create_author_return_id_args.name, create_author_return_id_args.bio]
 				stmt = client.prepare(CreateAuthorReturnIdSql)
 				stmt.execute(*query_params)
@@ -150,7 +150,7 @@ module Mysql2Codegen
 		end
 		
 		def delete_author(delete_author_args)
-			@pool.with do |client|
+			@db.with do |client|
 				query_params = [delete_author_args.id]
 				stmt = client.prepare(DeleteAuthorSql)
 				stmt.execute(*query_params)
@@ -158,7 +158,7 @@ module Mysql2Codegen
 		end
 		
 		def test
-			@pool.with do |client|
+			@db.with do |client|
 				stmt = client.prepare(TestSql)
 				result = stmt.execute
 				row = result.first

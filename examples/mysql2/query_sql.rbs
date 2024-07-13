@@ -136,12 +136,12 @@ module Mysql2Codegen
 	end
 	
 	class QuerySql
-		@pool: untyped
+		@db: untyped
 		def initialize: (Hash[String, String], Hash[String, String]) -> void
 		
 		def get_author: (GetAuthorArgs) -> GetAuthorRow?
 		
-		def list_authors: -> Array[ListAuthorsRow]
+		def list_authors: -> void
 		
 		def create_author: (CreateAuthorArgs) -> void
 		

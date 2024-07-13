@@ -36,6 +36,7 @@ public class CodeGenerator
         {
             DriverName.Mysql2 => new Mysql2Driver(),
             DriverName.Pg => new PgDriver(),
+            DriverName.Sqlite3 => new Sqlite3Driver(),
             _ => throw new ArgumentException($"unknown driver: {Options.DriverName}")
         };
     }
@@ -194,7 +195,8 @@ public class CodeGenerator
             ":many" => DbDriver.ManyDeclare(funcName, queryTextConstant, argInterface, returnInterface,
                 query.Params, query.Columns),
             ":exec" => DbDriver.ExecDeclare(funcName, queryTextConstant, argInterface, query.Params),
-            ":execlastid" => DbDriver.ExecLastIdDeclare(funcName, queryTextConstant, argInterface, query.Params),
+            ":execlastid" => ((Mysql2Driver)DbDriver)
+                .ExecLastIdDeclare(funcName, queryTextConstant, argInterface, query.Params),
             _ => throw new InvalidDataException()
         };
 

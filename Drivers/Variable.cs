@@ -2,7 +2,7 @@ namespace SqlcGenRuby.Drivers;
 
 public enum Variable
 {
-    Pool,
+    Db,
     PreparedStatements,
     QueryParams,
     Client,

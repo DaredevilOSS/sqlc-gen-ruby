@@ -10,3 +10,5 @@ RUN bundle install
 
 COPY examples examples
 COPY tests tests
+
+RUN apt-get update && apt-get install sqlite3

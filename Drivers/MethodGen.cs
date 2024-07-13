@@ -1,5 +1,6 @@
 using Plugin;
 using RubyCodegen;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -7,10 +8,16 @@ namespace SqlcGenRuby.Drivers;
 
 public class MethodGen(DbDriver dbDriver)
 {
-    public MethodDeclaration OneDeclare(string funcName, string queryTextConstant, string argInterface,
-        string returnInterface, IList<Parameter> parameters, IList<Column> columns)
+    private static string? GetMethodArgs(string argInterface, IList<Parameter> parameters)
     {
-        var newObjectExpression = new NewObject(returnInterface, GetColumnsInitExpressions(columns));
+        return parameters.Count == 0 ? null : argInterface.SnakeCase();
+    }
+
+    public MethodDeclaration OneDeclare(string funcName, string queryTextConstant, string argInterface,
+        string returnInterface, IList<Parameter> parameters, IList<Column> columns, bool poolingEnabled = true,
+        RowDataType rowDataType = RowDataType.Hash)
+    {
+        var newObjectExpression = new NewObject(returnInterface, GetColumnsInitExpressions(columns, rowDataType));
         IEnumerable<IComposable> withResourceBody = new List<IComposable>();
         var queryParams = GetQueryParams(argInterface, parameters);
         withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
@@ -26,27 +33,34 @@ public class MethodGen(DbDriver dbDriver)
                 ]
             ).ToList();
 
-        return new MethodDeclaration(
-            funcName,
-            argInterface,
-            GetMethodArgs(argInterface, parameters),
-            $"{returnInterface}?",
-            new List<IComposable>
-            {
-                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody.ToList())
-            });
+        var methodArgs = GetMethodArgs(argInterface, parameters);
+        var methodBody = OptionallyAddPoolUsage(poolingEnabled, withResourceBody);
+        return new MethodDeclaration(funcName, argInterface, methodArgs, $"{returnInterface}?", methodBody);
     }
 
-    private static string? GetMethodArgs(string argInterface, IList<Parameter> parameters)
+    private static IEnumerable<IComposable> OptionallyAddPoolUsage(bool poolingEnabled, IEnumerable<IComposable> body)
     {
-        return parameters.Count == 0 ? null : argInterface.SnakeCase();
+        return poolingEnabled
+            ?
+            [
+                new WithResource(
+                    Variable.Db.AsProperty(),
+                    Variable.Client.AsVar(),
+                    body.ToList())
+            ]
+            : new List<IComposable>
+                {
+                    new SimpleExpression($"{Variable.Client.AsVar()} = {Variable.Db.AsProperty()}")
+                }
+                .Concat(body);
     }
 
     public MethodDeclaration ManyDeclare(string funcName, string queryTextConstant, string argInterface,
-        string returnInterface, IList<Parameter> parameters, IList<Column> columns)
+        string returnInterface, IList<Parameter> parameters, IList<Column> columns, bool poolingEnabled = true,
+        RowDataType rowDataType = RowDataType.Hash)
     {
         var listAppend = new ListAppend(Variable.Entities.AsVar(),
-            new NewObject(returnInterface, GetColumnsInitExpressions(columns)));
+            new NewObject(returnInterface, GetColumnsInitExpressions(columns, rowDataType)));
         IEnumerable<IComposable> withResourceBody = new List<IComposable>();
         var queryParams = GetQueryParams(argInterface, parameters);
         withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
@@ -65,23 +79,13 @@ public class MethodGen(DbDriver dbDriver)
                 ]
             );
 
-        return new MethodDeclaration(
-            funcName,
-            argInterface,
-            GetMethodArgs(argInterface, parameters),
-            $"Array[{returnInterface}]",
-            new List<IComposable>
-            {
-                new WithResource(
-                Variable.Pool.AsProperty(),
-                Variable.Client.AsVar(),
-                withResourceBody.ToList()
-                )
-            });
+        var methodArgs = GetMethodArgs(argInterface, parameters);
+        var methodBody = OptionallyAddPoolUsage(poolingEnabled, withResourceBody);
+        return new MethodDeclaration(funcName, argInterface, methodArgs, null, methodBody);
     }
 
     public MethodDeclaration ExecDeclare(string funcName, string queryTextConstant, string argInterface,
-        IList<Parameter> parameters)
+        IList<Parameter> parameters, bool poolingEnabled = true)
     {
         IEnumerable<IComposable> withResourceBody = new List<IComposable>();
         var queryParams = GetQueryParams(argInterface, parameters);
@@ -91,15 +95,9 @@ public class MethodGen(DbDriver dbDriver)
             .Append(dbDriver.ExecuteStmt(funcName, queryParams))
             .ToList();
 
-        return new MethodDeclaration(funcName,
-            argInterface,
-            GetMethodArgs(argInterface, parameters),
-            null,
-            new List<IComposable>
-            {
-                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(), withResourceBody.ToList()
-                )
-            });
+        var methodArgs = GetMethodArgs(argInterface, parameters);
+        var methodBody = OptionallyAddPoolUsage(poolingEnabled, withResourceBody);
+        return new MethodDeclaration(funcName, argInterface, methodArgs, null, methodBody);
     }
 
     public MethodDeclaration ExecLastIdDeclare(string funcName, string queryTextConstant, string argInterface,
@@ -124,7 +122,7 @@ public class MethodGen(DbDriver dbDriver)
             "Integer",
             new List<IComposable>
             {
-                new WithResource(Variable.Pool.AsProperty(), Variable.Client.AsVar(),
+                new WithResource(Variable.Db.AsProperty(), Variable.Client.AsVar(),
                     withResourceBody.ToList())
             }
         );
@@ -139,9 +137,11 @@ public class MethodGen(DbDriver dbDriver)
                 new SimpleExpression($"[{queryParams.JoinByCommaAndFormat()}]"));
     }
 
-    private static IList<SimpleExpression> GetColumnsInitExpressions(IList<Column> columns)
+    private static IList<SimpleExpression> GetColumnsInitExpressions(IList<Column> columns, RowDataType rowDataType)
     {
-        return columns.Select(c => new SimpleExpression($"{Variable.Row.AsVar()}['{c.Name}']")).ToList();
+        return rowDataType == RowDataType.Hash
+            ? columns.Select(c => new SimpleExpression($"{Variable.Row.AsVar()}['{c.Name}']")).ToList()
+            : columns.Select((_, i) => new SimpleExpression($"{Variable.Row.AsVar()}[{i}]")).ToList();
     }
 
     private SimpleStatement ExecuteAndAssign(string funcName, SimpleStatement? queryParams)
