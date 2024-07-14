@@ -23,3 +23,15 @@ generateTypes: true
 generateGemfile: false
 ```
 
+## Engine `sqlite`: [examples/sqlite3](../examples/sqlite3)
+
+### [Schema](../examples/authors/sqlite/schema.sql) | [Queries](../examples/authors/sqlite/query.sql) | [End2End Test](../tests/end2end_sqlite3.rb)
+
+### Config
+```yaml
+driver: sqlite3
+rubyVersion: "3.3"
+generateTypes: true
+generateGemfile: false
+```
+
