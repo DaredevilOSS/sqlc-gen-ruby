@@ -4,10 +4,10 @@
   - range:
       start:
         line: 98
-        character: 11
+        character: 9
       end:
         line: 98
-        character: 25
+        character: 23
     severity: WARNING
     message: 'Cannot find the declaration of constant: `ConnectionPool`'
     code: Ruby::UnknownConstant
@@ -26,10 +26,10 @@
   - range:
       start:
         line: 68
-        character: 11
+        character: 9
       end:
         line: 68
-        character: 25
+        character: 23
     severity: WARNING
     message: 'Cannot find the declaration of constant: `ConnectionPool`'
     code: Ruby::UnknownConstant

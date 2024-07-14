@@ -40,3 +40,4 @@ services:
       test: "pg_isready -d tests"
       timeout: 20s
       retries: 10
+      

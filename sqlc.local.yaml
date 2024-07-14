@@ -26,3 +26,14 @@ sql:
       rubyVersion: "3.3"
       generateTypes: true
       generateGemfile: false
+- schema: "examples/authors/sqlite/schema.sql"
+  queries: "examples/authors/sqlite/query.sql"
+  engine: "sqlite"
+  codegen:
+    - plugin: ruby
+      out: examples/sqlite3
+      options:
+        driver: sqlite3
+        rubyVersion: "3.3"
+        generateTypes: true
+        generateGemfile: false

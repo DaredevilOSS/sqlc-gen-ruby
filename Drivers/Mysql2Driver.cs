@@ -30,16 +30,16 @@ public class Mysql2Driver : DbDriver
             "connection_pool_params, mysql2_params",
             null,
             [
-                new PropertyDeclaration(Variable.Pool.AsProperty(), "untyped", connectionPoolInit)
+                new PropertyDeclaration(Variable.Db.AsProperty(), "untyped", connectionPoolInit)
             ]
         );
     }
 
-    protected override List<(string, HashSet<string>)> GetColumnMapping()
+    protected override IEnumerable<ColumnMappingConfig> GetColumnMapping()
     {
         return
         [
-            ("Array[Integer]", [
+            new ColumnMappingConfig("Array[Integer]", [
                 "binary",
                 "bit",
                 "blob",
@@ -47,8 +47,8 @@ public class Mysql2Driver : DbDriver
                 "mediumblob",
                 "tinyblob",
                 "varbinary"
-            ]),
-            ("String", [
+            ], false),
+            new ColumnMappingConfig("String", [
                 "char",
                 "date",
                 "datetime",
@@ -61,16 +61,16 @@ public class Mysql2Driver : DbDriver
                 "tinytext",
                 "varchar",
                 "json"
-            ]),
-            ("Integer", [
+            ], false),
+            new ColumnMappingConfig("Integer", [
                 "bigint",
                 "int",
                 "mediumint",
                 "smallint",
                 "tinyint",
                 "year"
-            ]),
-            ("Float", ["double", "float"]),
+            ], false),
+            new ColumnMappingConfig("Float", ["double", "float"], false),
         ];
     }
 
@@ -108,7 +108,7 @@ public class Mysql2Driver : DbDriver
         return MethodGen.ExecDeclare(funcName, queryTextConstant, argInterface, parameters);
     }
 
-    public override MethodDeclaration ExecLastIdDeclare(string funcName, string queryTextConstant,
+    public MethodDeclaration ExecLastIdDeclare(string funcName, string queryTextConstant,
         string argInterface, IList<Parameter> parameters)
     {
         return MethodGen.ExecLastIdDeclare(funcName, queryTextConstant, argInterface, parameters);

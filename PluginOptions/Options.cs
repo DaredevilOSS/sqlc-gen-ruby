@@ -9,7 +9,8 @@ namespace SqlcGenRuby;
 public enum DriverName
 {
     Mysql2,
-    Pg
+    Pg,
+    Sqlite3
 }
 
 public class Options

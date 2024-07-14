@@ -65,7 +65,7 @@ module PgCodegen
 	
 	class QuerySql
 		def initialize(connection_pool_params, pg_params)
-			@pool = ConnectionPool.new(**connection_pool_params) {
+			@db = ConnectionPool.new(**connection_pool_params) {
 				client = PG.connect(**pg_params)
 				client.type_map_for_results = PG::BasicTypeMapForResults.new client
 				client
@@ -74,7 +74,7 @@ module PgCodegen
 		end
 		
 		def get_author(get_author_args)
-			@pool.with do |client|
+			@db.with do |client|
 				query_params = [get_author_args.id]
 				unless @prepared_statements.include?('get_author')
 					client.prepare('get_author', GetAuthorSql)
@@ -89,7 +89,7 @@ module PgCodegen
 		end
 		
 		def list_authors
-			@pool.with do |client|
+			@db.with do |client|
 				unless @prepared_statements.include?('list_authors')
 					client.prepare('list_authors', ListAuthorsSql)
 					@prepared_statements.add('list_authors')
@@ -104,7 +104,7 @@ module PgCodegen
 		end
 		
 		def create_author(create_author_args)
-			@pool.with do |client|
+			@db.with do |client|
 				query_params = [create_author_args.name, create_author_args.bio]
 				unless @prepared_statements.include?('create_author')
 					client.prepare('create_author', CreateAuthorSql)
@@ -119,7 +119,7 @@ module PgCodegen
 		end
 		
 		def delete_author(delete_author_args)
-			@pool.with do |client|
+			@db.with do |client|
 				query_params = [delete_author_args.id]
 				unless @prepared_statements.include?('delete_author')
 					client.prepare('delete_author', DeleteAuthorSql)
@@ -130,7 +130,7 @@ module PgCodegen
 		end
 		
 		def test
-			@pool.with do |client|
+			@db.with do |client|
 				unless @prepared_statements.include?('test')
 					client.prepare('test', TestSql)
 					@prepared_statements.add('test')

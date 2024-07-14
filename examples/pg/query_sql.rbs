@@ -89,13 +89,13 @@ module PgCodegen
 	end
 	
 	class QuerySql
-		@pool: untyped
+		@db: untyped
 		@prepared_statements: Set[String]
 		def initialize: (Hash[String, String], Hash[String, String]) -> void
 		
 		def get_author: (GetAuthorArgs) -> GetAuthorRow?
 		
-		def list_authors: -> Array[ListAuthorsRow]
+		def list_authors: -> void
 		
 		def create_author: (CreateAuthorArgs) -> CreateAuthorRow?
 		
