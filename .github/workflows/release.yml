@@ -19,7 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       IS_RELEASE: ${{ steps.check_msg.outputs.IS_RELEASE }}
-      LATEST_COMMIT_MSG: ${{ steps.check_msg.outputs.LATEST_COMMIT_MSG }}
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
