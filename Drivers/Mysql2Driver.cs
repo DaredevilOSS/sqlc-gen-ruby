@@ -14,9 +14,9 @@ public class Mysql2Driver : DbDriver
         MethodGen = new MethodGen(this);
     }
 
-    public override IEnumerable<RequireGem> GetRequiredGems()
+    public override IList<RequireGem> GetRequiredGems()
     {
-        return GetCommonGems().Append(new RequireGem("mysql2"));
+        return GetCommonGems().Append(new RequireGem("mysql2")).ToList();
     }
 
     public override MethodDeclaration GetInitMethod()

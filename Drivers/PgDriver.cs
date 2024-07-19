@@ -15,11 +15,12 @@ public partial class PgDriver : DbDriver
         MethodGen = new MethodGen(this);
     }
 
-    public override IEnumerable<RequireGem> GetRequiredGems()
+    public override IList<RequireGem> GetRequiredGems()
     {
         return GetCommonGems()
             .Append(new RequireGem("pg"))
-            .Append(new RequireGem("set"));
+            .Append(new RequireGem("set"))
+            .ToList();
     }
 
     public override MethodDeclaration GetInitMethod()

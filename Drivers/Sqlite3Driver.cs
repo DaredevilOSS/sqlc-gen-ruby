@@ -14,9 +14,9 @@ public class Sqlite3Driver : DbDriver
         MethodGen = new MethodGen(this);
     }
 
-    public override IEnumerable<RequireGem> GetRequiredGems()
+    public override IList<RequireGem> GetRequiredGems()
     {
-        return GetCommonGems().Append(new RequireGem("sqlite3"));
+        return GetCommonGems().Append(new RequireGem("sqlite3")).ToList();
     }
 
     public override MethodDeclaration GetInitMethod()

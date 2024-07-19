@@ -4,6 +4,11 @@ public static class ListExtensions
 {
     private const int MaxElementsPerLine = 5;
 
+    public static IEnumerable<T> AppendIf<T>(this IEnumerable<T> me, T item, bool condition)
+    {
+        return condition ? me.Append(item) : me;
+    }
+
     public static IEnumerable<T> AppendIfNotNull<T>(this IEnumerable<T> me, T? item)
     {
         return item is not null ? me.Append(item) : me;
