@@ -1,6 +1,5 @@
 using Plugin;
 using RubyCodegen;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -59,38 +58,36 @@ public class MethodGen(DbDriver dbDriver)
         string returnInterface, IList<Parameter> parameters, IList<Column> columns, bool poolingEnabled = true,
         RowDataType rowDataType = RowDataType.Hash)
     {
-        var listAppend = new ListAppend(Variable.Entities.AsVar(),
-            new NewObject(returnInterface, GetColumnsInitExpressions(columns, rowDataType)));
-        IEnumerable<IComposable> withResourceBody = new List<IComposable>();
         var queryParams = GetQueryParams(argInterface, parameters);
-        withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
-        withResourceBody = withResourceBody
-            .Concat(
-                [
-                    dbDriver.PrepareStmt(funcName, queryTextConstant),
-                    ExecuteAndAssign(funcName, queryParams),
-                    new SimpleStatement(Variable.Entities.AsVar(), new SimpleExpression("[]")),
-                    new ForeachLoop(
-                    Variable.Result.AsVar(),
-                    Variable.Row.AsVar(),
-                    new List<IComposable> { listAppend }
-                    ),
-                    new SimpleExpression($"return {Variable.Entities.AsVar()}")
-                ]
-            );
+        var withResourceBody = new List<IComposable>()
+            .AppendIfNotNull(queryParams)
+            .Append(dbDriver.PrepareStmt(funcName, queryTextConstant))
+            .Append(ExecuteAndAssign(funcName, queryParams))
+            .Append(new SimpleStatement(Variable.Entities.AsVar(), new SimpleExpression("[]")))
+            .Append(AssignResultInForeach())
+            .Append(new SimpleExpression($"return {Variable.Entities.AsVar()}"));
 
         var methodArgs = GetMethodArgs(argInterface, parameters);
         var methodBody = OptionallyAddPoolUsage(poolingEnabled, withResourceBody);
         return new MethodDeclaration(funcName, argInterface, methodArgs, null, methodBody);
+
+        ForeachLoop AssignResultInForeach()
+        {
+            var listAppend = new ListAppend(Variable.Entities.AsVar(),
+                new NewObject(returnInterface, GetColumnsInitExpressions(columns, rowDataType)));
+            return new ForeachLoop(
+                Variable.Result.AsVar(),
+                Variable.Row.AsVar(),
+                new List<IComposable> { listAppend });
+        }
     }
 
     public MethodDeclaration ExecDeclare(string funcName, string queryTextConstant, string argInterface,
         IList<Parameter> parameters, bool poolingEnabled = true)
     {
-        IEnumerable<IComposable> withResourceBody = new List<IComposable>();
         var queryParams = GetQueryParams(argInterface, parameters);
-        withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
-        withResourceBody = withResourceBody
+        var withResourceBody = new List<IComposable>()
+            .AppendIfNotNull(queryParams)
             .Append(dbDriver.PrepareStmt(funcName, queryTextConstant))
             .Append(dbDriver.ExecuteStmt(funcName, queryParams))
             .ToList();
@@ -103,17 +100,12 @@ public class MethodGen(DbDriver dbDriver)
     public MethodDeclaration ExecLastIdDeclare(string funcName, string queryTextConstant, string argInterface,
         IList<Parameter> parameters)
     {
-        IEnumerable<IComposable> withResourceBody = new List<IComposable>();
         var queryParams = GetQueryParams(argInterface, parameters);
-        withResourceBody = withResourceBody.AppendIfNotNull(queryParams);
-        withResourceBody = withResourceBody
-            .Concat(
-                [
-                    dbDriver.PrepareStmt(funcName, queryTextConstant),
-                    dbDriver.ExecuteStmt(funcName, queryParams),
-                    new SimpleExpression($"return {Variable.Client.AsVar()}.last_id")
-                ]
-            );
+        var withResourceBody = new List<IComposable>()
+            .AppendIfNotNull(queryParams)
+            .Append(dbDriver.PrepareStmt(funcName, queryTextConstant))
+            .Append(dbDriver.ExecuteStmt(funcName, queryParams))
+            .Append(new SimpleExpression($"return {Variable.Client.AsVar()}.last_id"));
 
         return new MethodDeclaration(
             funcName,

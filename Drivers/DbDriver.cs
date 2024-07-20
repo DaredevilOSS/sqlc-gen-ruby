@@ -8,12 +8,12 @@ namespace SqlcGenRuby.Drivers;
 
 public abstract class DbDriver
 {
-    protected static IEnumerable<RequireGem> GetCommonGems()
+    protected static IList<RequireGem> GetCommonGems()
     {
         return [new RequireGem("connection_pool")];
     }
 
-    public abstract IEnumerable<RequireGem> GetRequiredGems();
+    public abstract IList<RequireGem> GetRequiredGems();
 
     public abstract MethodDeclaration GetInitMethod();
 
