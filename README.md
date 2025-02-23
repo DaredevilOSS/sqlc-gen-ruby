@@ -1,5 +1,7 @@
 [![CI](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/ci.yml)
 
+This project is up for grabs, in anyone is interested in developing it further. I decided to focus on the C# plugin.
+
 # sqlc-gen-ruby
 Why I didn't use Ruby to generate Ruby in [here](ruby-wasm-poc/README.md).
 
