@@ -12,6 +12,10 @@ Rake::TestTask.new(:end2end_tests) do |t| # called inside Docker
   t.pattern = 'tests/end2end_*.rb'
 end
 
+task :rubocop do
+  sh 'bundle exec rubocop examples'
+end
+
 task :steep do
   sh 'bundle exec steep check --with-expectations'
 end

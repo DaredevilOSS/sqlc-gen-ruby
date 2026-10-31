@@ -18,6 +18,8 @@ codec), and it is shipped as a single self-contained WebAssembly module — the 
 | generateGemfile | default: `false`<br/>values: `false`,`true`    | Yes      | Assists you with the integration of SQLC and Ruby by generating a `Gemfile` with the needed dependencies. |
 | generateTypes   | default: `true`<br/>values: `false`,`true`     | Yes      | Determines whether to generate type signatures in addition to the code.                                   |
 | overrides       | a list, see [below](#override-option)          | Yes      | Overrides the generated (RBS) type of specific columns / parameters.                                      |
+| moduleName      | default: `<Driver>Codegen` (e.g. `PgCodegen`)  | Yes      | The Ruby module the generated code lives in, e.g. `MyApp::Db`.                                            |
+| preparedStatements | default: `true`<br/>values: `false`,`true`  | Yes      | `pg` only: `false` sends the SQL with every call (`exec_params`) - needed behind pgbouncer in transaction mode. |
 
 ### Override option
 ```yaml
@@ -81,6 +83,30 @@ sql:
 
 ### [Generated Code Examples](docs/Examples.md)
 
+## Using the generated code
+```ruby
+require_relative 'db/query_sql'
+
+queries = PgCodegen::QuerySql.connect({ dbname: 'app', host: 'localhost' }, size: 5) # a ConnectionPool
+
+author = queries.create_author(name: 'Seuss', bio: nil)   # :one with RETURNING -> a frozen Data row
+queries.get_author(id: author.id)                          # => #<data GetAuthorRow id=1, name="Seuss", bio=nil> or nil
+queries.list_authors_paged(limit: 10, offset: 0)           # :many -> Array of rows
+queries.get_authors_by_ids(ids: [1, 2, 3])                 # sqlc.slice / array parameter
+queries.copy_authors([PgCodegen::CopyAuthorsArgs.new(name: 'a', bio: nil)])   # :copyfrom
+
+queries.transaction(isolation: :serializable) do |tx|      # COMMIT on return, ROLLBACK on error
+  id = tx.create_author_return_id(name: 'a', bio: nil)
+  tx.transaction { |inner| inner.create_book(name: 'b', author_id: id) }   # nested -> SAVEPOINT
+end
+```
+* **Keyword arguments:** every query parameter is a keyword argument (missing / unknown ones raise `ArgumentError`). Parameters named with `sqlc.arg` / `sqlc.narg` that are nullable default to `nil`; a plain nullable column (`INSERT ... VALUES ($1, $2)`) has to be passed explicitly. Names are snake_cased, Ruby keywords get a trailing underscore (`class_:`).
+* **Rows** are immutable `Data` objects (`Struct` for `rubyVersion` below 3.2), so they work with pattern matching: `case row in { id:, name: }`.
+* **Connections:** `QuerySql.connect(params, **pool_options)` builds a [`connection_pool`](https://github.com/mperham/connection_pool); to share a pool you already have (or to inject a fake in tests) use `QuerySql.new(pool)` - anything that responds to `#with` and yields a connection. For SQLite pass a `SQLite3::Database` to `QuerySql.new(db)`.
+* **Async / fibers:** the generated code is plain synchronous Ruby and works with the Fiber scheduler (the [`async`](https://github.com/socketry/async) gem): inside `Sync { ... }` pooled queries on `pg` and `mysql2` overlap instead of blocking (see `tests/end2end_pg.rb`). SQLite calls are synchronous C calls and do not overlap.
+* **SQL** is kept in frozen heredoc constants (`GET_AUTHOR_SQL`); query comments in the `.sql` file become doc comments on the method; `.rbs` signatures are generated for everything.
+* The generated code is RuboCop-clean (`rake rubocop`) and 2-space indented.
+
 ## Supported features
 ✅ supported · 🚫 not offered by the database / sqlc
 
@@ -92,7 +118,7 @@ sql:
 | `:exec`       | ✅ | ✅ | ✅ | |
 | `:execrows`   | ✅ | ✅ | ✅ | returns the number of affected rows |
 | `:execlastid` | ✅ | ✅ | ✅ | PostgreSQL / SQLite need a `RETURNING <id>` clause (the value of that column is returned); MySQL returns `client.last_id` |
-| `:copyfrom`   | ✅ | ✅ | ✅ | takes an `Array` of `<Query>Args`. PostgreSQL: `COPY ... FROM STDIN`. MySQL: `LOAD DATA LOCAL INFILE` from a temporary CSV - needs `local_infile: true` in the `Mysql2::Client` params and `local_infile=1` on the server. SQLite: batched multi-row `INSERT` |
+| `:copyfrom`   | ✅ | ✅ | ✅ | takes an `Array` of `<Query>Args` (a generated `Data` class). PostgreSQL: `COPY ... FROM STDIN`. MySQL: `LOAD DATA LOCAL INFILE` from a temporary CSV - needs `local_infile: true` in the `Mysql2::Client` params and `local_infile=1` on the server. SQLite: batched multi-row `INSERT` |
 
 ### Macros
 | Macro         | PostgreSQL | MySQL | SQLite | Notes |
@@ -104,12 +130,12 @@ sql:
 
 ### Other
 * **Models:** a `models.rb` / `models.rbs` with one `Data` (`Struct` below Ruby 3.2) class per table, and one module with constants per enum (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`). Enum columns are `String`s.
-* **Transactions:** `queries.transaction { |tx| tx.create_author(...) }` runs everything in the block on one connection in a transaction (commit when the block returns, rollback when it raises) and returns the block's value.
+* **Transactions:** `queries.transaction { |tx| tx.create_author(...) }` runs everything in the block on one connection in a transaction (commit when the block returns, rollback when it raises) and returns the block's value. Nested calls become savepoints; `isolation:` (`pg`, `mysql2`) / `mode:` (`sqlite3`) choose the isolation level / locking mode.
 * **Nullability:** nullable columns / parameters are typed `T?` in the `.rbs`.
 * **Arrays (PostgreSQL):** `Array[T]` for columns and parameters.
 * Types follow the Ruby classes the drivers actually return (e.g. `BigDecimal` for `numeric`/`decimal`, `Date`, `Time`, `IPAddr`; `json`/`jsonb` are parsed, so `untyped`).
 
-Not applicable to the Ruby plugin (they exist in the C# plugin because of its runtime): `withAsyncSuffix`, `withCancellationToken`, `useDapper`, target framework / csproj / namespace options.
+Not applicable to the Ruby plugin (they exist in the C# plugin because of its runtime): `withAsyncSuffix` / `withCancellationToken` (Ruby has no async/await: use the Fiber scheduler, see above), `useDapper`, target framework / csproj / namespace options (`moduleName` is the equivalent of the namespace).
 
 # Contributing
 ## Local plugin development

@@ -10,7 +10,7 @@ module RbsTypes
 
   # { 'c_date' => 'Date?', ... } for `class <class_name>` in an .rbs file
   def attributes(rbs_path, class_name)
-    body = File.read(rbs_path)[/^\t+class #{class_name}\n(.*?)^\t+end$/m, 1] or raise "#{class_name} not in #{rbs_path}"
+    body = File.read(rbs_path)[/^( *)class #{class_name}\n(.*?)^\1end$/m, 2] or raise "#{class_name} not in #{rbs_path}"
     body.scan(/attr_(?:reader|accessor) (\w+): (.+)$/).to_h
   end
 

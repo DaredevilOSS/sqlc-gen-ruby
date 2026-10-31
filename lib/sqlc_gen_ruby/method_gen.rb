@@ -3,36 +3,59 @@
 require_relative 'code'
 
 module SqlcGenRuby
-  # Port of Drivers/MethodGen.cs: builds the code (and RBS signature) of one generated query method,
-  # parameterised by the driver's pooling / row-access / statement flavour.
+  # Builds the code (and RBS signature) of one generated query method, parameterised by the driver's
+  # pooling / row-access / statement flavour. Query parameters become keyword arguments:
+  #   queries.get_author(id: 1)  queries.create_author(name: 'x', bio: nil)  queries.get_authors_by_ids(ids: [1, 2])
   class MethodGen
     SLICE_HELPER = [
-      "def slice_placeholders(values)\n\tvalues.empty? ? 'NULL' : Array.new(values.size, '?').join(', ')\nend",
-      'def slice_placeholders: (Array[untyped]) -> String'
+      "def slice_placeholders(values)\n  values.empty? ? 'NULL' : Array.new(values.size, '?').join(', ')\nend",
+      'def slice_placeholders: (Array[untyped] values) -> String'
     ].freeze
 
-    # layout: Generator#row_layout; types: TypeResolver
-    def initialize(driver, layout, types)
+    # optional: nullable and named by the user (sqlc.arg / sqlc.narg) -> keyword argument defaulting to nil
+    Param = Struct.new(:name, :column, :slice, :optional, :type)
+
+    # layout: RowLayout, types: TypeResolver, class_name: the generated query class (prefixes statement names)
+    def initialize(driver, layout, types, class_name)
       @driver = driver
       @layout = layout
       @types = types
+      @statement_prefix = Code.snake_case(class_name)
+    end
+
+    def params(query)
+      query.params.map do |p|
+        column = p.column
+        slice = column.is_sqlc_slice
+        type = slice ? @types.slice_type(column, query.name) : @types.type(column, query_name: query.name)
+        Param.new(Code.param_name(column.name), column, slice, column.is_named_param && @types.nullable?(column, query.name), type)
+      end
     end
 
     def code(query)
       func = Code.snake_case(query.name)
-      args_var = Code.snake_case("#{query.name}Args")
-      statements = query.cmd == ':copyfrom' ? copy_statements(query) : query_statements(query, func, args_var)
-      params = query.params.empty? ? '' : "(#{args_var})"
-      Code.block("def #{func}#{params}", method_body(statements, query.cmd))
+      params = params(query)
+      if query.cmd == ':copyfrom'
+        statements = copy_statements(query, params)
+        signature = '(rows)'
+      else
+        statements = query_statements(query, func, params)
+        signature = params.empty? ? '' : "(#{params.map { |p| p.optional ? "#{p.name}: nil" : "#{p.name}:" }.join(', ')})"
+      end
+      doc = query.comments.map { |c| "# #{c.strip}".rstrip }.join("\n")
+      method = Code.block("def #{func}#{signature}", method_body(statements))
+      doc.empty? ? method : "#{doc}\n#{method}"
     end
 
     def type(query)
       func = Code.snake_case(query.name)
-      params = if query.cmd == ':copyfrom' then "(Array[#{query.name}Args]) "
-               elsif query.params.empty? then ''
-               else "(#{query.name}Args) "
-               end
-      "\ndef #{func}: #{params}-> #{return_type(query)}"
+      if query.cmd == ':copyfrom'
+        signature = "(Array[#{query.name}Args] rows)"
+      else
+        list = params(query).map { |p| "#{p.optional ? '?' : ''}#{p.name}: #{p.type}" }
+        signature = list.empty? ? '' : "(#{list.join(', ')})"
+      end
+      "def #{func}: #{signature}#{signature.empty? ? '' : ' '}-> #{return_type(query)}"
     end
 
     # [[code, rbs]] of private helper methods the generated class needs for these queries.
@@ -63,80 +86,69 @@ module SqlcGenRuby
       @types.type(query.columns.first, query_name: query.name)
     end
 
-    def copy_statements(query)
+    def copy_statements(query, params)
       raise ArgumentError, "#{query.name}: :copyfrom without a target table" if query.insert_into_table.nil?
 
       table = query.insert_into_table
       name = table.schema.to_s.empty? ? table.name : "#{table.schema}.#{table.name}"
-      @driver.copy_from_lines(query, name, query.params.map { |p| p.column.name })
+      @driver.copy_from_lines('rows', name, params.map { |p| p.column.name }, params.map(&:name),
+                              Code.snake_case(query.name))
     end
 
-    def query_statements(query, func, args_var)
-      has_params = !query.params.empty?
+    def query_statements(query, func, params)
       if slice?(query) && !@driver.supports_slice?
         raise ArgumentError, "#{query.name}: sqlc.slice is not supported by the #{@driver.name} driver"
       end
 
       statements = []
-      statements << query_params(args_var, query.params) if has_params
-      sql_const = "#{query.name}Sql"
+      statements << query_params(params) unless params.empty?
+      const = Code.sql_constant(query.name)
       if slice?(query)
-        statements << slice_sql(sql_const, args_var, query.params)
-        sql_const = 'sql'
+        statements << slice_sql(const, params)
+        const = 'sql'
       end
-      statements << @driver.prepare_stmt(func, sql_const)
-      commands = command_statements(query, func, has_params)
+      stmt_name = "#{@statement_prefix}_#{func}"
+      prepare = @driver.prepare_stmt(stmt_name, const)
+      statements << prepare if prepare
+      commands = command_statements(query, stmt_name, const, !params.empty?)
       if @driver.closes_statements?
-        statements << Code.block('begin', commands.join("\n")).sub(/\nend\z/, "\nensure\n\tstmt.close\nend")
+        statements << Code.block('begin', commands.join("\n")).sub(/\nend\z/, "\nensure\n  stmt.close\nend")
       else
         statements.concat(commands)
       end
       statements
     end
 
-    def query_params(args_var, params)
-      list = params.map do |p|
-        access = "#{args_var}.#{p.column.name}"
-        p.column.is_sqlc_slice ? "*#{access}" : access
-      end
+    def query_params(params)
+      list = params.map { |p| p.slice ? "*#{p.name}" : p.name }
       "query_params = [#{Code.comma_join(list)}]"
     end
 
-    # sql = FooSql.sub('/*SLICE:ids*/?', slice_placeholders(args.ids)).sub(...)
-    def slice_sql(sql_const, args_var, params)
-      subs = params.select { |p| p.column.is_sqlc_slice }.map do |p|
-        ".sub('/*SLICE:#{p.column.name}*/?', slice_placeholders(#{args_var}.#{p.column.name}))"
-      end
-      "sql = #{sql_const}#{subs.join}"
+    # sql = FOO_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids)) - once per slice
+    def slice_sql(const, params)
+      params.select(&:slice).each_with_index.map do |p, i|
+        "sql = #{i.zero? ? const : 'sql'}.sub('/*SLICE:#{p.column.name}*/?', slice_placeholders(#{p.name}))"
+      end.join("\n")
     end
 
-    def command_statements(query, func, has_params)
-      array_rows = @layout.array_rows?(query)
-      exec = @driver.execute_stmt(func, has_params, array_rows: array_rows)
+    # The value of the last expression is the return value of the method (no explicit `return`).
+    def command_statements(query, stmt_name, const, has_params)
+      exec = @driver.execute_stmt(stmt_name, const, has_params, array_rows: @layout.array_rows?(query))
       case query.cmd
       when ':one'
-        ["result = #{exec}",
-         'row = result.first',
-         'return nil if row.nil?',
-         "entity = #{new_row(query)}",
-         'return entity']
+        ["result = #{exec}", 'row = result.first', "row && #{new_row(query)}"]
       when ':many'
-        ["result = #{exec}",
-         'entities = []',
-         Code.block('result.each do |row|', "entities << #{new_row(query)}"),
-         'return entities']
-      when ':exec' then [exec]
+        ["result = #{exec}", Code.block('result.map do |row|', new_row(query))]
+      when ':exec' then [exec, 'nil']
       when ':execrows' then @driver.exec_rows_lines(exec)
       when ':execlastid' then @driver.exec_last_id_lines(exec, query)
       else raise ArgumentError, "unsupported query command: #{query.cmd}"
       end
     end
 
-    # :execlastid / :copyfrom use the pool even where :one/:many/:exec would not (they were pooled in the C#
-    # implementation too).
-    def method_body(statements, _cmd)
+    def method_body(statements)
       body = statements.join("\n")
-      return Code.block('@db.with do |client|', body) if @driver.pooling_enabled?
+      return Code.block(@driver.client_block, body) if @driver.pooling_enabled?
 
       "client = @db\n#{body}"
     end

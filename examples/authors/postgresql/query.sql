@@ -1,4 +1,5 @@
 -- name: GetAuthor :one
+-- Returns the author with the given id, or nil when there is none.
 SELECT * FROM authors
 WHERE id = $1 LIMIT 1;
 
@@ -36,6 +37,7 @@ WHERE name LIKE COALESCE(sqlc.narg('name_pattern'), '%');
 INSERT INTO authors (name, bio) VALUES ($1, $2) RETURNING id;
 
 -- name: UpdateAuthorBios :execrows
+-- Sets the bio of every author that has one and returns how many were changed.
 UPDATE authors
 SET bio = $1
 WHERE bio IS NOT NULL;
@@ -49,6 +51,7 @@ SELECT * FROM authors
 WHERE id = ANY($1::BIGINT []) AND name = ANY($2::TEXT []);
 
 -- name: CopyAuthors :copyfrom
+-- Bulk insert: pass an Array of CopyAuthorsArgs.
 INSERT INTO authors (name, bio) VALUES ($1, $2);
 
 -- name: TruncateAuthors :exec

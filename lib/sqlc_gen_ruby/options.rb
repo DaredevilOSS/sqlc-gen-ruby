@@ -11,7 +11,8 @@ module SqlcGenRuby
     # `overrides:` entry - column is "<QueryName>:<column>" or "*:<column>"; type/not_null come from `ruby_type:`
     Override = Struct.new(:query, :column, :type, :not_null)
 
-    attr_reader :driver_name, :ruby_version, :generate_gemfile, :generate_types, :overrides
+    attr_reader :driver_name, :ruby_version, :generate_gemfile, :generate_types, :overrides, :module_name,
+                :prepared_statements
 
     def initialize(plugin_options_bytes)
       text = plugin_options_bytes.to_s.dup.force_encoding(Encoding::UTF_8)
@@ -25,6 +26,8 @@ module SqlcGenRuby
       @generate_types = fetch_bool(raw, 'generateTypes', true)
       @ruby_version = RubyVersion.parse(fetch_string(raw, 'rubyVersion', default: '3.3'))
       @overrides = parse_overrides(raw.fetch('overrides', []))
+      @module_name = raw.key?('moduleName') ? fetch_module_name(raw) : nil # default: <Driver>Codegen
+      @prepared_statements = fetch_bool(raw, 'preparedStatements', true)
     end
 
     # The override matching a result column / parameter of a query: "Query:col" wins over "*:col".
@@ -63,6 +66,15 @@ module SqlcGenRuby
       raise ArgumentError, "option #{key} must be a string" unless value.is_a?(String)
 
       value
+    end
+
+    def fetch_module_name(raw)
+      name = fetch_string(raw, 'moduleName')
+      unless name.match?(/\A[A-Z]\w*(::[A-Z]\w*)*\z/)
+        raise ArgumentError, "option moduleName must be a Ruby constant path (e.g. MyApp::Db), got #{name.inspect}"
+      end
+
+      name
     end
 
     def fetch_bool(raw, key, default)

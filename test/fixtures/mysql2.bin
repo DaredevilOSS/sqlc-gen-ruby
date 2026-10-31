@@ -70,13 +70,13 @@ c_longtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
 author_type0Rextended_biosbextended_bios_author_type":
 extended_bios_bio_typeAutobiography	BiographyMemoir"7
 extended_bios_author_typeAuthorEditor
-Translatorˆ
+TranslatorË
 6SELECT id, name, bio FROM authors
 WHERE id = ? LIMIT 1	GetAuthor:one"*
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
 bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*.*
-id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid:	query.sqlÔ
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid2A Returns the author with the given id, or nil when there is none.:	query.sqlÔ
 /SELECT id, name, bio FROM authors
 ORDER BY nameListAuthors:many"*
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
@@ -179,11 +179,11 @@ WHERE name LIKE COALESCE(?, '%')GetAuthorByNamePattern:many"*
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
 bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*84
-name_pattern0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sql’
+name_pattern0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sqlá
 0UPDATE authors
 SET bio = ?
 WHERE bio IS NOT NULLUpdateAuthorBios	:execrows*62
-bio0ÿÿÿÿÿÿÿÿÿ8Rpublicauthorsbtextzbio:	query.sqlœ
+bio0ÿÿÿÿÿÿÿÿÿ8Rpublicauthorsbtextzbio2M Sets the bio of every author that has one and returns how many were changed.:	query.sqlœ
 >SELECT id, name, bio FROM authors WHERE id IN (/*SLICE:ids*/?)GetAuthorsByIds:many"*
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
@@ -194,10 +194,10 @@ WHERE bio IS NOT NULLUpdateAuthorBios	:execrows*62
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
 bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*3/
 ids0ÿÿÿÿÿÿÿÿÿ8R	authorsbbiginthzid*51
-names0ÿÿÿÿÿÿÿÿÿ8R	authorsbtexthzname:	query.sqlÍ
+names0ÿÿÿÿÿÿÿÿÿ8R	authorsbtexthzname:	query.sqlþ
 -INSERT INTO authors (name, bio) VALUES (?, ?)CopyAuthors	:copyfrom*84
 name0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzname*40
-bio0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzbio:	query.sqlB	authors8
+bio0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzbio2/ Bulk insert: pass an Array of CopyAuthorsArgs.:	query.sqlB	authors8
 DELETE FROM authorsTruncateAuthors:exec:	query.sqlÜ
 1INSERT INTO books (name, author_id) VALUES (?, ?)
 CreateBook:execlastid*62

@@ -7,16 +7,11 @@ module SqlcGenRuby
 
     module_function
 
-    def indent(text)
-      text.split("\n", -1).map { |l| "\t#{l}" }.join("\n")
-    end
+    INDENT = '  '
 
-    # Strips from every line as many leading characters as the first line has
-    # leading whitespace (keeps multi-line values aligned after being indented).
-    def dedent_to_first_line(text)
-      lines = text.split("\n", -1)
-      n = lines.first[/\A\s*/].length
-      lines.map { |l| l[n..] || '' }.join("\n")
+    # Indents every non-blank line (blank lines stay empty: no trailing whitespace).
+    def indent(text)
+      text.split("\n", -1).map { |l| l.strip.empty? ? '' : "#{INDENT}#{l}" }.join("\n")
     end
 
     def comma_join(items)
@@ -57,6 +52,19 @@ module SqlcGenRuby
       name = "VALUE_#{name}" if name.empty? || name.match?(/\A[0-9]/)
       name
     end
+
+    RUBY_KEYWORDS = %w[BEGIN END alias and begin break case class def defined? do else elsif end ensure false for if in
+                       module next nil not or redo rescue retry return self super then true undef unless until when
+                       while yield __FILE__ __LINE__ __ENCODING__].freeze
+
+    # sqlc column / parameter name -> a valid keyword-argument name (userId -> user_id, class -> class_)
+    def param_name(name)
+      snake = snake_case(name)
+      RUBY_KEYWORDS.include?(snake) ? "#{snake}_" : snake
+    end
+
+    # GetAuthor => GET_AUTHOR_SQL
+    def sql_constant(query_name) = "#{snake_case(query_name).upcase}_SQL"
 
     def block(header, body)
       "#{header}\n#{indent(body)}\nend"

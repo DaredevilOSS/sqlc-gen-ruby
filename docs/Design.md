@@ -46,6 +46,13 @@ The previous C# implementation defined the expected behaviour. Its output is kep
 `test/codec_test.rb` cross-checks the hand-written protobuf codec against Google's official implementation (test-only
 dependency).
 
+## What the generated code looks like (and why)
+Generated code follows what Ruby code usually looks like rather than mirroring the C# plugin: keyword arguments instead of
+parameter objects, `Data` rows, implicit returns, `result.map { ... }`, 2-space indentation, a frozen-string-literal
+header, SQL in raw heredocs, `connection_pool` for pooling with an injectable pool, nested transactions via savepoints.
+Prepared statements are named per query class and remembered per *connection* (a module mixed into each connection),
+so several query objects can share a pool.
+
 ## Beyond the C# port
 The first version of the Ruby plugin reproduced the C# plugin's output exactly (verified against the C# binary, see git
 history). It has since gained the sqlc features of the sibling `sqlc-gen-csharp` plugin (`:execrows`, `:execlastid` for

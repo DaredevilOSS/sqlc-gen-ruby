@@ -101,6 +101,9 @@ jobs:
         run: ./scripts/tests/run_codegen.sh ${SQLC_CI_FILE} \
           ${{ matrix.ruby-version }} ${{ matrix.generate-types }} ${{ matrix.generate-gemfile }}
 
+      - name: RuboCop (generated code)
+        run: rake rubocop
+
       - name: Steep check
         if: ${{ matrix.generate-types == 'true' }}
         run: rake steep

@@ -17,6 +17,10 @@ module SqlcGenRuby
       not_null?(column, override) || base == 'untyped' ? base : "#{base}?"
     end
 
+    def nullable?(column, query_name)
+      !not_null?(column, @options.override_for(query_name, column.name)) && !column.is_sqlc_slice
+    end
+
     # A sqlc.slice parameter is passed as an Array of the element type.
     def slice_type(column, query_name)
       override = @options.override_for(query_name, column.name)

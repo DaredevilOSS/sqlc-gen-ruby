@@ -10,6 +10,8 @@ gem 'sqlite3'
 gem 'minitest'
 gem 'rake'
 gem 'steep'
+gem 'rubocop', require: false # the code generated into examples/ must stay RuboCop-clean (rake rubocop)
+gem 'async' # end-to-end tests run the generated code under the Fiber scheduler
 
 # Building dist/plugin.wasm (scripts/wasm/build.sh): provides `rbwasm pack`.
 group :wasm_build do

@@ -28,19 +28,19 @@ class FeaturesTest < Minitest::Test
 
   def test_array_parameters_and_columns
     rbs = generate(load_request('pg')).fetch('query_sql.rbs')
-    assert_includes rbs, 'attr_reader param1: Array[Integer]'
+    assert_includes rbs, 'def get_authors_by_ids: (param1: Array[Integer]) -> Array[GetAuthorsByIdsRow]'
     assert_includes rbs, 'attr_reader c_text_array: Array[String]?'
   end
 
   def test_unnamed_parameters_get_positional_names
     files = generate(load_request('pg'))
-    assert_includes files.fetch('query_sql.rb'), 'class GetAuthorsByIdsAndNamesArgs < Data.define(:param1, :param2)'
+    assert_includes files.fetch('query_sql.rb'), 'def get_authors_by_ids_and_names(param1:, param2:)'
   end
 
   def test_models_cover_tables_and_enums
     pg = generate(load_request('pg'))
     assert_includes pg.fetch('models.rb'), 'class Author < Data.define(:id, :name, :bio)'
-    assert_includes pg.fetch('models.rb'), "AUTOBIOGRAPHY = \"Autobiography\""
+    assert_includes pg.fetch('models.rb'), "AUTOBIOGRAPHY = 'Autobiography'"
     assert_includes pg.fetch('models.rb'), 'module ExtendedBioType'
     assert_includes pg.fetch('models.rbs'), 'attr_reader bio_type: String?'
     assert_includes pg.fetch('query_sql.rb'), "require_relative 'models'"
@@ -71,10 +71,10 @@ class FeaturesTest < Minitest::Test
 
   def test_slices_expand_at_runtime_and_are_array_typed
     files = generate(load_request('mysql2'))
-    assert_includes files.fetch('query_sql.rb'), "sql = GetAuthorsByIdsSql.sub('/*SLICE:ids*/?', slice_placeholders(get_authors_by_ids_args.ids))"
-    assert_includes files.fetch('query_sql.rb'), 'query_params = [*get_authors_by_ids_args.ids]'
-    assert_includes files.fetch('query_sql.rbs'), 'attr_reader ids: Array[Integer]'
-    assert_includes files.fetch('query_sql.rbs'), 'def slice_placeholders: (Array[untyped]) -> String'
+    assert_includes files.fetch('query_sql.rb'), "sql = GET_AUTHORS_BY_IDS_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))"
+    assert_includes files.fetch('query_sql.rb'), 'query_params = [*ids]'
+    assert_includes files.fetch('query_sql.rbs'), 'def get_authors_by_ids: (ids: Array[Integer]) -> Array[GetAuthorsByIdsRow]'
+    assert_includes files.fetch('query_sql.rbs'), 'def slice_placeholders: (Array[untyped] values) -> String'
   end
 
   def test_slices_are_rejected_for_postgres
@@ -83,14 +83,34 @@ class FeaturesTest < Minitest::Test
     assert_raises(RuntimeError) { generate(request) }
   end
 
-  def test_command_return_types
+  def test_command_signatures
     rbs = generate(load_request('pg')).fetch('query_sql.rbs')
-    assert_includes rbs, 'def update_author_bios: (UpdateAuthorBiosArgs) -> Integer'
-    assert_includes rbs, 'def create_author_return_id: (CreateAuthorReturnIdArgs) -> Integer'
-    assert_includes rbs, 'def create_book: (CreateBookArgs) -> String'
-    assert_includes rbs, 'def copy_authors: (Array[CopyAuthorsArgs]) -> void'
+    assert_includes rbs, 'def get_author: (id: Integer) -> GetAuthorRow?'
+    assert_includes rbs, 'def update_author_bios: (bio: String?) -> Integer'
+    assert_includes rbs, 'def create_author_return_id: (name: String, bio: String?) -> Integer'
+    assert_includes rbs, 'def create_book: (name: String, author_id: Integer) -> String'
+    assert_includes rbs, 'def copy_authors: (Array[CopyAuthorsArgs] rows) -> void'
     assert_includes rbs, 'def list_authors: -> Array[ListAuthorsRow]'
-    assert_includes rbs, 'def transaction: [T] () { (self) -> T } -> T'
+    assert_includes rbs, 'def delete_author: (id: Integer) -> void'
+    assert_includes rbs, 'def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | :serializable)?) { (instance) -> T } -> T'
+  end
+
+  def test_named_nullable_parameters_are_optional_keywords
+    files = generate(load_request('pg'))
+    assert_includes files.fetch('query_sql.rb'), 'def get_author_by_name_pattern(name_pattern: nil)'
+    assert_includes files.fetch('query_sql.rbs'), 'def get_author_by_name_pattern: (?name_pattern: String?) -> Array[GetAuthorByNamePatternRow]'
+    # a plain nullable INSERT column has to be passed explicitly
+    assert_includes files.fetch('query_sql.rb'), 'def create_author_return_id(name:, bio:)'
+  end
+
+  def test_reserved_words_and_camel_case_parameter_names
+    request = load_request('pg')
+    query(request, 'GetAuthor').params.first.column.name = 'class'
+    query(request, 'DeleteAuthor').params.first.column.name = 'authorId'
+    rb = generate(request).fetch('query_sql.rb')
+    assert_includes rb, 'def get_author(class_:)'
+    assert_includes rb, 'def delete_author(author_id:)'
+    assert_includes rb, 'query_params = [class_]'
   end
 
   def test_pg_and_sqlite_execlastid_need_returning
@@ -111,7 +131,88 @@ class FeaturesTest < Minitest::Test
 
   def test_sqlite_and_mysql_close_prepared_statements
     %w[mysql2 sqlite3].each do |driver|
-      assert_match(/ensure\n\t+stmt\.close\n/, generate(load_request(driver)).fetch('query_sql.rb'), driver)
+      assert_match(/ensure\n\s+stmt\.close\n/, generate(load_request(driver)).fetch('query_sql.rb'), driver)
     end
+  end
+
+  # ---- Ruby style of the generated code ------------------------------------------------------------------------
+
+  def test_generated_ruby_is_formatted_like_ruby
+    %w[pg mysql2 sqlite3].each do |driver|
+      generate(load_request(driver)).each do |name, contents|
+        refute_includes contents, "\t", "#{driver}/#{name} contains tabs"
+        assert_equal contents.lines.first.chomp, '# frozen_string_literal: true' if name.end_with?('.rb')
+        assert contents.end_with?("\n"), "#{driver}/#{name} should end with a newline"
+        outside_heredocs = contents.gsub(/<<~'(\w+)'\n.*?^\s*\1$/m, 'HEREDOC')
+        refute_match(/[ ]+$/, outside_heredocs, "#{driver}/#{name} has trailing whitespace")
+        next unless name.end_with?('.rb')
+
+        assert_equal 0, ruby_syntax_check(contents), "#{driver}/#{name} is not valid Ruby"
+      end
+    end
+  end
+
+  def ruby_syntax_check(source)
+    _out, _err, status = Open3.capture3(RbConfig.ruby, '-c', stdin_data: source)
+    status.exitstatus
+  end
+
+  def test_sql_is_a_frozen_raw_heredoc
+    rb = generate(load_request('pg')).fetch('query_sql.rb')
+    assert_includes rb, "GET_AUTHOR_SQL = <<~'SQL'\n    SELECT id, name, bio FROM authors\n    WHERE id = $1 LIMIT 1\n  SQL"
+  end
+
+  def test_heredoc_terminator_never_collides_with_the_query
+    request = load_request('sqlite3')
+    query(request, 'GetAuthor').text = "SELECT 1\nSQL\nFROM x"
+    assert_includes generate(request).fetch('query_sql.rb'), "<<~'SQL_'"
+  end
+
+  def test_query_comments_become_doc_comments
+    rb = generate(load_request('pg')).fetch('query_sql.rb')
+    assert_includes rb, "    # Returns the author with the given id, or nil when there is none.\n    def get_author(id:)"
+  end
+
+  def test_statements_are_named_after_the_query_class
+    rb = generate(load_request('pg')).fetch('query_sql.rb')
+    assert_includes rb, "client.exec_prepared('query_sql_get_author', query_params)"
+  end
+
+  def test_pg_can_skip_prepared_statements
+    rb = generate(load_request('pg', preparedStatements: false)).fetch('query_sql.rb')
+    assert_includes rb, 'client.exec_params(GET_AUTHOR_SQL, query_params)'
+    refute_includes rb, 'client.prepare('
+  end
+
+  def test_module_name_option
+    files = generate(load_request('pg', moduleName: 'MyApp::Db'))
+    files.each { |name, contents| assert_includes contents, 'module MyApp::Db' if name.end_with?('.rb', '.rbs') }
+    assert_raises(RuntimeError) { generate(load_request('pg', moduleName: 'not a constant')) }
+  end
+
+  def test_set_is_only_required_before_ruby_3_2
+    assert_includes generate(load_request('pg', rubyVersion: '3.1')).fetch('query_sql.rb'), "require 'set'"
+    refute_includes generate(load_request('pg')).fetch('query_sql.rb'), "require 'set'"
+  end
+
+  # Ruby < 3.2 has no Data: rows are Structs, whose members must be symbols (Struct.new(:id, :name)).
+  def test_struct_classes_are_valid_and_usable
+    files = generate(load_request('pg', rubyVersion: '3.1'))
+    assert_includes files.fetch('models.rb'), 'class Author < Struct.new(:id, :name, :bio)'
+    assert_includes files.fetch('query_sql.rb'), 'class GetAuthorRow < Struct.new(:id, :name, :bio)'
+    scope = Module.new
+    scope.module_eval(files.fetch('models.rb'))
+    author = scope::PgCodegen::Author.new(1, 'a', nil)
+    assert_equal({ id: 1, name: 'a', bio: nil }, author.to_h)
+    assert_equal 'a', author.name
+  end
+
+  def test_data_classes_are_usable
+    files = generate(load_request('pg'))
+    scope = Module.new
+    scope.module_eval(files.fetch('models.rb'))
+    author = scope::PgCodegen::Author.new(id: 1, name: 'a', bio: nil)
+    assert_equal 'a', author.name
+    assert author.frozen?
   end
 end

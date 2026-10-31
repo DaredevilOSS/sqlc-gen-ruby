@@ -4,48 +4,61 @@ require_relative 'base'
 
 module SqlcGenRuby
   module Drivers
-    # Port of Drivers/PgDriver.cs. Each *_code / *_type pair mirrors the
-    # BuildCode / BuildType of the C# syntax tree nodes.
+    # PostgreSQL via the `pg` gem. Prepared statements are named per query class and prepared once per connection.
     class Pg < Base
+      def initialize(prepared_statements: true)
+        super()
+        @prepared = prepared_statements
+      end
+
       def name = 'Pg'
 
-      def init_code
-        pool_body = [
-          'client = PG.connect(**pg_params)',
-          'type_map = PG::BasicTypeMapForResults.new client',
-          'type_map.default_type_map = PG::TypeMapAllStrings.new # uuid, enums, money, ... come back as Strings',
-          'client.type_map_for_results = type_map',
-          'client.type_map_for_queries = PG::BasicTypeMapForQueries.new client',
-          'client'
-        ].join("\n")
-        pool = "ConnectionPool.new(**connection_pool_params) {\n#{Code.indent(pool_body)}\n}"
-        body = ["@db = #{pool}", '@prepared_statements = {}.compare_by_identity'].join("\n")
-        Code.block('def initialize(connection_pool_params, pg_params)', body)
+      def module_members
+        [
+          [CONNECTION_STATE, "module ConnectionState\n  def prepared_statements: () -> Set[String]\nend"],
+          [ISOLATION_LEVELS, ISOLATION_RBS]
+        ]
       end
 
-      def init_type
-        "@db: untyped\n@prepared_statements: Hash[untyped, Set[String]]\n" \
-          'def initialize: (Hash[String, String], Hash[String, String]) -> void'
+      def class_methods
+        [
+          [CONNECT, 'def self.connect: (Hash[untyped, untyped] pg_params, **untyped pool_options) -> instance'],
+          ["def initialize(db)\n  @db = db\nend", 'def initialize: (untyped db) -> void'],
+          [TRANSACTION, TRANSACTION_RBS]
+        ]
       end
 
-      # PG::Connection#transaction commits when the block returns and rolls back when it raises.
-      def transaction_code
-        Code.block('def transaction', Code.block('@db.with do |client|', Code.block('client.transaction do', 'yield self')))
+      def private_methods
+        [
+          [WITH_CLIENT, 'def with_client: [T] () { (untyped) -> T } -> T'],
+          [CONFIGURE, 'def configure: (untyped client) -> void']
+        ]
       end
 
-      # Statements are prepared once per *connection*: each pooled connection has its own server-side statements.
-      def prepare_stmt(func_name, const)
-        body = "client.prepare('#{func_name}', #{const})\nprepared.add('#{func_name}')"
-        "prepared = (@prepared_statements[client] ||= Set[])\n" \
-          "#{Code.block("unless prepared.include?('#{func_name}')", body)}"
+      def client_block = 'with_client do |client|'
+
+      # Set is only autoloaded since Ruby 3.2
+      def extra_requires(_queries, ruby_version) = ruby_version.immutable_data_supported? ? [] : %w[set]
+
+      def prepare_stmt(stmt_name, const)
+        return nil unless @prepared
+
+        body = "client.prepare('#{stmt_name}', #{const})\nclient.prepared_statements.add('#{stmt_name}')"
+        Code.block("unless client.prepared_statements.include?('#{stmt_name}')", body)
       end
 
-      def execute_stmt(func_name, has_params, array_rows: false)
-        call = "client.exec_prepared('#{func_name}'#{has_params ? ', query_params' : ''})"
+      # With preparedStatements: false (e.g. behind pgbouncer in transaction mode) the SQL is sent with every call.
+      def execute_stmt(stmt_name, const, has_params, array_rows: false)
+        args = has_params ? ', query_params' : ''
+        call = if @prepared
+                 "client.exec_prepared('#{stmt_name}'#{args})"
+               else
+                 "client.exec_params(#{const}#{has_params ? ', query_params' : ', []'})"
+               end
         array_rows ? "#{call}.values" : call
       end
 
-      def exec_rows_lines(exec) = ["result = #{exec}", 'return result.cmd_tuples']
+      def exec_rows_lines(exec) = ["result = #{exec}", 'result.cmd_tuples']
 
       # Relies on a user-written `RETURNING <id>`.
       def exec_last_id_lines(exec, query)
@@ -53,23 +66,84 @@ module SqlcGenRuby
           raise ArgumentError, "#{query.name}: :execlastid on PostgreSQL needs a RETURNING clause"
         end
 
-        ["result = #{exec}", "return result.first['#{query.columns.first.name}']"]
+        ["result = #{exec}", "result.first['#{query.columns.first.name}']"]
       end
 
       # COPY ... FROM STDIN, one row at a time through the pg gem's CopyRow encoder.
-      def copy_from_lines(query, table, columns)
-        args = Code.snake_case("#{query.name}Args")
-        put = Code.block("#{args}.each do |item|",
-                         "client.put_copy_data([#{columns.map { |c| "item.#{c}" }.join(', ')}])")
+      def copy_from_lines(rows_var, table, columns, attrs, _label)
+        put = Code.block("#{rows_var}.each do |row|",
+                         "client.put_copy_data([#{attrs.map { |a| "row.#{a}" }.join(', ')}])")
         [
           'encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)',
-          Code.block("client.copy_data('COPY #{table} (#{columns.join(', ')}) FROM STDIN', encoder) do", put)
+          Code.block("client.copy_data('COPY #{table} (#{columns.join(', ')}) FROM STDIN', encoder) do", put),
+          'nil'
         ]
       end
 
+      CONNECTION_STATE = <<~'RUBY'.chomp
+        # State kept on every PG::Connection the first time it is used.
+        module ConnectionState
+          def prepared_statements
+            @prepared_statements ||= Set[]
+          end
+        end
+      RUBY
+
+      CONNECT = <<~'RUBY'.chomp
+        # Opens a pool of connections: QuerySql.connect({ dbname: 'app' }, size: 5, timeout: 5)
+        # (pool_options go to ConnectionPool.new). To share an existing pool use QuerySql.new(pool).
+        def self.connect(pg_params, **pool_options)
+          new(ConnectionPool.new(**pool_options) { PG.connect(**pg_params) })
+        end
+      RUBY
+
+      TRANSACTION = <<~'RUBY'.chomp
+        # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns,
+        # ROLLBACK when it raises. A nested call becomes a SAVEPOINT. Yields self, bound to that connection.
+        def transaction(isolation: nil)
+          with_client do |client|
+            outermost = client.transaction_status == PG::PQTRANS_IDLE
+            savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
+            if outermost
+              client.exec(isolation ? "BEGIN ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}" : 'BEGIN')
+            else
+              client.exec("SAVEPOINT #{savepoint}")
+            end
+            begin
+              result = yield self
+              client.exec(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
+              result
+            rescue Exception # rubocop:disable Lint/RescueException
+              client.exec(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+              raise
+            end
+          end
+        end
+      RUBY
+
+      WITH_CLIENT = <<~'RUBY'.chomp
+        def with_client
+          @db.with do |client|
+            configure(client) unless client.is_a?(ConnectionState)
+            yield client
+          end
+        end
+      RUBY
+
+      CONFIGURE = <<~'RUBY'.chomp
+        # Connections of an injected pool are set up on first use: typed results and Ruby arrays as parameters.
+        def configure(client)
+          type_map = PG::BasicTypeMapForResults.new(client)
+          type_map.default_type_map = PG::TypeMapAllStrings.new # uuid, enums, money, ... come back as Strings
+          client.type_map_for_results = type_map
+          client.type_map_for_queries = PG::BasicTypeMapForQueries.new(client)
+          client.extend(ConnectionState)
+        end
+      RUBY
+
       private
 
-      def driver_gems = %w[pg set]
+      def driver_gems = %w[pg]
 
       def column_mappings
         # Ruby classes as returned by the pg gem with PG::BasicTypeMapForResults (verified by tests/end2end_pg.rb);

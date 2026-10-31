@@ -8,10 +8,18 @@ require_relative 'test_helper'
 class GoldenTest < Minitest::Test
   include PluginHelper
 
-  { 'pg' => 'pg', 'mysql2' => 'mysql2', 'sqlite3' => 'sqlite3' }.each do |driver, example|
+  COMMON = %w[models.rb models.rbs query_sql.rb query_sql.rbs].freeze
+  FILES = {
+    'pg' => COMMON + %w[connection.rb connection.rbs],
+    'mysql2' => COMMON + %w[connection.rb connection.rbs],
+    'sqlite3' => COMMON
+  }.freeze
+
+  FILES.each do |driver, expected_files|
+    example = driver
     define_method("test_#{driver}_matches_examples") do
       files = generate(load_request(driver))
-      assert_equal %w[models.rb models.rbs query_sql.rb query_sql.rbs], files.keys.sort
+      assert_equal expected_files.sort, files.keys.sort
       files.each do |name, contents|
         expected = File.read(File.join(ROOT, 'examples', example, name))
         assert_equal normalize(expected), normalize(contents), "examples/#{example}/#{name} is stale"

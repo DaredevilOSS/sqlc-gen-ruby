@@ -22,27 +22,33 @@ module SqlcGenRuby
       def required_gems = ['connection_pool', *driver_gems]
 
       # Extra `require`s needed by generated code for these queries (stdlib or gems), beyond required_gems.
-      def extra_requires(_queries) = []
+      def extra_requires(_queries, _ruby_version) = []
 
       # Extra gems for the generated Gemfile (e.g. `csv`, a bundled gem since Ruby 3.4).
       def extra_gems(_queries) = []
 
-      def init_code = raise(NotImplementedError)
+      # Ruby source (and its RBS) placed in the module next to the query classes: shared helpers / constants.
+      # [[code, rbs], ...]
+      def module_members = []
 
-      def init_type = raise(NotImplementedError)
+      # Public methods of the generated query class that are not queries: constructor, `connect`, `transaction`.
+      # [[code, rbs], ...]
+      def class_methods = raise(NotImplementedError)
 
-      # `def transaction` of the query class: runs the block with all queries on one connection / transaction.
-      def transaction_code = raise(NotImplementedError)
+      # Private helpers of the query class. [[code, rbs], ...]
+      def private_methods = []
 
-      def transaction_type = "\ndef transaction: [T] () { (self) -> T } -> T"
+      # How a query method acquires the database connection (yielding `client`).
+      def client_block = '@db.with do |client|'
 
       # RHS of the generated `<Query>Sql` constant (without the constant name).
       def query_text(query) = query.text
 
-      def prepare_stmt(_func_name, _const) = raise(NotImplementedError)
+      # stmt_name: unique per query (e.g. query_sql_get_author), only meaningful for named server-side statements.
+      def prepare_stmt(_stmt_name, _const) = raise(NotImplementedError)
 
       # array_rows: rows are read by position (needed when column names are ambiguous, e.g. sqlc.embed).
-      def execute_stmt(_func_name, _has_params, array_rows: false) = raise(NotImplementedError)
+      def execute_stmt(_stmt_name, _const, _has_params, array_rows: false) = raise(NotImplementedError)
 
       # Whether generated methods borrow the client from a ConnectionPool (`@db.with do |client|`)
       # or use the single injected connection (`client = @db`).
@@ -62,9 +68,10 @@ module SqlcGenRuby
 
       def exec_last_id_lines(_exec, _query) = raise(NotImplementedError)
 
-      def copy_from_lines(_query, _table, _columns) = raise(NotImplementedError)
+      # table: SQL name; columns: SQL column names; attrs: matching reader names of the rows
+      def copy_from_lines(_rows_var, _table, _columns, _attrs, _label) = raise(NotImplementedError)
 
-      # Source of helper methods the class needs for these queries: [[code, rbs], ...]
+      # Private helper methods the class needs for these queries: [[code, rbs], ...]
       def helper_methods(_queries) = []
 
       # Ruby/RBS type of a column's DB type (no nullability / array wrapper). Enums are Strings.
@@ -86,10 +93,28 @@ module SqlcGenRuby
         raise ArgumentError, "Unsupported column type: #{column.type.name}"
       end
 
+      # The SQL as a frozen raw heredoc (no escaping issues, readable, no paren-balancing problems).
       def query_text_constant(query)
-        const = Code.upcase_first("#{query.name}Sql")
-        Code.dedent_to_first_line("#{const} = %q(#{query_text(query)})")
+        const = Code.sql_constant(query.name)
+        text = query_text(query)
+        terminator = 'SQL'
+        terminator += '_' while text.lines.any? { |line| line.strip == terminator }
+        "#{const} = <<~'#{terminator}'\n#{Code.indent(text)}\n#{terminator}"
       end
+
+      ISOLATION_LEVELS = <<~'RUBY'.chomp
+        ISOLATION_LEVELS = {
+          read_uncommitted: 'READ UNCOMMITTED',
+          read_committed: 'READ COMMITTED',
+          repeatable_read: 'REPEATABLE READ',
+          serializable: 'SERIALIZABLE'
+        }.freeze
+      RUBY
+
+      ISOLATION_RBS = 'ISOLATION_LEVELS: Hash[Symbol, String]'
+
+      TRANSACTION_RBS = 'def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | ' \
+                        ':serializable)?) { (instance) -> T } -> T'
 
       private
 

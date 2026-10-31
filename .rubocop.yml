@@ -1,0 +1,20 @@
+# Checks the code generated into examples/ (the plugin's output must stay RuboCop-clean).
+AllCops:
+  NewCops: disable
+  SuggestExtensions: false
+  TargetRubyVersion: 3.2
+  Exclude:
+    - 'vendor/**/*'
+
+# generated code is not hand-written: no metrics / docs cops, SQL lines are long
+Metrics:
+  Enabled: false
+Style/Documentation:
+  Enabled: false
+Layout/LineLength:
+  Enabled: false
+Layout/TrailingWhitespace:
+  AllowInHeredoc: true # trailing spaces inside the SQL text are kept as written
+# query names come from the SQL (GetAuthor -> get_author)
+Naming/AccessorMethodName:
+  Enabled: false

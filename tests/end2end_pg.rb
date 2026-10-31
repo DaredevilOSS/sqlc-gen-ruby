@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 gem 'minitest'     # ensures using the gem, and not the built-in MT
 require 'minitest/autorun'
+require 'async'
+require 'async/barrier'
 require 'bigdecimal'
 require 'ipaddr'
 require 'securerandom'
@@ -23,36 +25,36 @@ class TestPg < Minitest::Test
   end
 
   def setup
-    @query_sql = QuerySql.new({}, pg_params)
+    @query_sql = QuerySql.connect(pg_params)
     @query_sql.truncate_authors # cascades to books
     @query_sql.truncate_extended_bios
     @query_sql.truncate_extra_types
   end
 
   def create_author(name, bio = nil)
-    @query_sql.create_author_return_id(CreateAuthorReturnIdArgs.new(name: name, bio: bio))
+    @query_sql.create_author_return_id(name: name, bio: bio)
   end
 
   # ---- :one / :many / :exec -------------------------------------------------------------------------------------
 
   def test_flow
-    first = @query_sql.create_author(CreateAuthorArgs.new(name: Consts::BOJACK_AUTHOR, bio: Consts::BOJACK_THEME))
+    first = @query_sql.create_author(name: Consts::BOJACK_AUTHOR, bio: Consts::BOJACK_THEME)
     assert_equal CreateAuthorRow.new(first.id, Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME), first
-    second = @query_sql.create_author(CreateAuthorArgs.new(name: Consts::DR_SEUSS_AUTHOR, bio: Consts::DR_SEUSS_QUOTE))
+    second = @query_sql.create_author(name: Consts::DR_SEUSS_AUTHOR, bio: Consts::DR_SEUSS_QUOTE)
 
     assert_equal GetAuthorRow.new(first.id, Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME),
-                 @query_sql.get_author(GetAuthorArgs.new(id: first.id))
-    assert_nil @query_sql.get_author(GetAuthorArgs.new(id: -1))
+                 @query_sql.get_author(id: first.id)
+    assert_nil @query_sql.get_author(id: -1)
     assert_equal [second.name, first.name].sort, @query_sql.list_authors.map(&:name).sort
 
-    @query_sql.delete_author(DeleteAuthorArgs.new(id: first.id))
+    @query_sql.delete_author(id: first.id)
     assert_equal [ListAuthorsRow.new(second.id, Consts::DR_SEUSS_AUTHOR, Consts::DR_SEUSS_QUOTE)],
                  @query_sql.list_authors
   end
 
   def test_nullable_columns_round_trip_nil
     id = create_author('no bio', nil)
-    assert_nil @query_sql.get_author(GetAuthorArgs.new(id: id)).bio
+    assert_nil @query_sql.get_author(id: id).bio
   end
 
   def test_one_on_empty_table_returns_nil
@@ -70,7 +72,7 @@ class TestPg < Minitest::Test
 
   def test_execlastid_with_uuid_key
     author_id = create_author('a')
-    book_id = @query_sql.create_book(CreateBookArgs.new(name: 'book', author_id: author_id))
+    book_id = @query_sql.create_book(name: 'book', author_id: author_id)
     assert_match(/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/, book_id)
   end
 
@@ -78,23 +80,23 @@ class TestPg < Minitest::Test
     create_author('with bio', 'bio')
     create_author('with bio 2', 'bio')
     create_author('without bio', nil)
-    assert_equal 2, @query_sql.update_author_bios(UpdateAuthorBiosArgs.new(bio: 'new bio'))
-    assert_equal 0, (@query_sql.truncate_authors; @query_sql.update_author_bios(UpdateAuthorBiosArgs.new(bio: 'x')))
+    assert_equal 2, @query_sql.update_author_bios(bio: 'new bio')
+    assert_equal 0, (@query_sql.truncate_authors; @query_sql.update_author_bios(bio: 'x'))
   end
 
   # ---- sqlc.arg / sqlc.narg --------------------------------------------------------------------------------------
 
   def test_named_args_limit_and_offset
     %w[a b c d].each { |name| create_author(name) }
-    page = @query_sql.list_authors_paged(ListAuthorsPagedArgs.new(limit: 2, offset: 1))
+    page = @query_sql.list_authors_paged(limit: 2, offset: 1)
     assert_equal %w[b c], page.map(&:name)
   end
 
   def test_nullable_named_arg
     %w[abc abd xyz].each { |name| create_author(name) }
-    all = @query_sql.get_author_by_name_pattern(GetAuthorByNamePatternArgs.new(name_pattern: nil))
+    all = @query_sql.get_author_by_name_pattern(name_pattern: nil)
     assert_equal 3, all.size
-    ab = @query_sql.get_author_by_name_pattern(GetAuthorByNamePatternArgs.new(name_pattern: 'ab%'))
+    ab = @query_sql.get_author_by_name_pattern(name_pattern: 'ab%')
     assert_equal %w[abc abd], ab.map(&:name).sort
   end
 
@@ -103,9 +105,9 @@ class TestPg < Minitest::Test
   def test_array_parameters
     ids = %w[a b c].map { |name| create_author(name) }
     assert_equal ids.first(2).sort,
-                 @query_sql.get_authors_by_ids(GetAuthorsByIdsArgs.new(param1: ids.first(2))).map(&:id).sort
-    assert_empty @query_sql.get_authors_by_ids(GetAuthorsByIdsArgs.new(param1: []))
-    both = @query_sql.get_authors_by_ids_and_names(GetAuthorsByIdsAndNamesArgs.new(param1: ids, param2: %w[b c x]))
+                 @query_sql.get_authors_by_ids(param1: ids.first(2)).map(&:id).sort
+    assert_empty @query_sql.get_authors_by_ids(param1: [])
+    both = @query_sql.get_authors_by_ids_and_names(param1: ids, param2: %w[b c x])
     assert_equal %w[b c], both.map(&:name).sort
   end
 
@@ -134,8 +136,8 @@ class TestPg < Minitest::Test
   def test_embed
     first = create_author('a', 'bio a')
     second = create_author('b')
-    @query_sql.create_book(CreateBookArgs.new(name: 'book 1', author_id: first))
-    @query_sql.create_book(CreateBookArgs.new(name: 'book 2', author_id: second))
+    @query_sql.create_book(name: 'book 1', author_id: first)
+    @query_sql.create_book(name: 'book 2', author_id: second)
 
     rows = @query_sql.list_all_authors_books
     assert_equal %w[a b], rows.map { |r| r.author.name }
@@ -148,8 +150,8 @@ class TestPg < Minitest::Test
 
   def test_embed_with_plain_columns
     id = create_author('a', 'bio')
-    @query_sql.create_book(CreateBookArgs.new(name: 'the book', author_id: id))
-    row = @query_sql.get_authors_by_book_name(GetAuthorsByBookNameArgs.new(name: 'the book')).first
+    @query_sql.create_book(name: 'the book', author_id: id)
+    row = @query_sql.get_authors_by_book_name(name: 'the book').first
     assert_equal [id, 'a', 'bio'], [row.id, row.name, row.bio]
     assert_equal 'the book', row.book.name
   end
@@ -166,16 +168,16 @@ class TestPg < Minitest::Test
   # ---- enums -----------------------------------------------------------------------------------------------------
 
   def test_enum_column
-    @query_sql.create_extended_bio(CreateExtendedBioArgs.new(author_name: 'a', name: 'n1', bio_type: ExtendedBioType::MEMOIR))
-    @query_sql.create_extended_bio(CreateExtendedBioArgs.new(author_name: 'a', name: 'n2', bio_type: ExtendedBioType::BIOGRAPHY))
-    row = @query_sql.get_first_extended_bio_by_type(GetFirstExtendedBioByTypeArgs.new(bio_type: 'Biography'))
+    @query_sql.create_extended_bio(author_name: 'a', name: 'n1', bio_type: ExtendedBioType::MEMOIR)
+    @query_sql.create_extended_bio(author_name: 'a', name: 'n2', bio_type: ExtendedBioType::BIOGRAPHY)
+    row = @query_sql.get_first_extended_bio_by_type(bio_type: 'Biography')
     assert_equal GetFirstExtendedBioByTypeRow.new('a', 'n2', 'Biography'), row
     assert_equal %w[Autobiography Biography Memoir], ExtendedBioType::ALL
   end
 
   def test_enum_rejects_unknown_values
     assert_raises(PG::InvalidTextRepresentation) do
-      @query_sql.create_extended_bio(CreateExtendedBioArgs.new(author_name: 'a', name: 'n', bio_type: 'Fiction'))
+      @query_sql.create_extended_bio(author_name: 'a', name: 'n', bio_type: 'Fiction')
     end
   end
 
@@ -183,8 +185,8 @@ class TestPg < Minitest::Test
 
   def test_transaction_commits_and_returns_the_block_value
     result = @query_sql.transaction do |tx|
-      id = tx.create_author_return_id(CreateAuthorReturnIdArgs.new(name: 'in tx', bio: nil))
-      tx.create_book(CreateBookArgs.new(name: 'book', author_id: id))
+      id = tx.create_author_return_id(name: 'in tx', bio: nil)
+      tx.create_book(name: 'book', author_id: id)
       :done
     end
     assert_equal :done, result
@@ -194,7 +196,7 @@ class TestPg < Minitest::Test
   def test_transaction_rolls_back_on_error
     assert_raises(RuntimeError) do
       @query_sql.transaction do |tx|
-        tx.create_author_return_id(CreateAuthorReturnIdArgs.new(name: 'rolled back', bio: nil))
+        tx.create_author_return_id(name: 'rolled back', bio: nil)
         raise 'boom'
       end
     end
@@ -202,9 +204,9 @@ class TestPg < Minitest::Test
   end
 
   def test_transaction_is_isolated_until_commit
-    other = QuerySql.new({}, pg_params)
+    other = QuerySql.connect(pg_params)
     @query_sql.transaction do |tx|
-      tx.create_author_return_id(CreateAuthorReturnIdArgs.new(name: 'uncommitted', bio: nil))
+      tx.create_author_return_id(name: 'uncommitted', bio: nil)
       assert_empty other.list_authors
     end
     assert_equal ['uncommitted'], other.list_authors.map(&:name)
@@ -213,7 +215,7 @@ class TestPg < Minitest::Test
   # ---- connection pool -------------------------------------------------------------------------------------------
 
   def test_every_pooled_connection_prepares_its_own_statements
-    pooled = QuerySql.new({ size: 3 }, pg_params)
+    pooled = QuerySql.connect(pg_params, size: 3)
     pool = pooled.instance_variable_get(:@db)
     held = Queue.new
     gates = Array.new(3) { Queue.new }
@@ -240,10 +242,10 @@ class TestPg < Minitest::Test
   def test_extra_types_round_trip
     uuid = '0e52082f-bf69-480e-aff0-1a85139a1074'
     time = Time.utc(2024, 5, 6, 7, 8, 9)
-    @query_sql.insert_extra_types(InsertExtraTypesArgs.new(
+    @query_sql.insert_extra_types(
       c_uuid: uuid, c_jsonb: { 'a' => [1, 2, { 'b' => nil }] }.to_json, c_text_array: ['x', nil, 'y z'],
       c_integer_array: [1, 2, 3], c_timestamptz: time, c_inet: '10.1.2.3', c_money: '12.50', c_not_null: 'nn'
-    ))
+    )
     row = @query_sql.get_extra_types
     assert_equal uuid, row.c_uuid
     assert_equal({ 'a' => [1, 2, { 'b' => nil }] }, row.c_jsonb)
@@ -256,10 +258,10 @@ class TestPg < Minitest::Test
   end
 
   def test_extra_types_nulls
-    @query_sql.insert_extra_types(InsertExtraTypesArgs.new(
+    @query_sql.insert_extra_types(
       c_uuid: nil, c_jsonb: nil, c_text_array: nil, c_integer_array: nil, c_timestamptz: nil, c_inet: nil,
       c_money: nil, c_not_null: 'x'
-    ))
+    )
     row = @query_sql.get_extra_types
     assert_equal [nil] * 7, row.to_h.values_at(:c_uuid, :c_jsonb, :c_text_array, :c_integer_array, :c_timestamptz,
                                               :c_inet, :c_money)
@@ -298,12 +300,92 @@ class TestPg < Minitest::Test
   end
 
   def test_extra_types_match_declared_types
-    @query_sql.insert_extra_types(InsertExtraTypesArgs.new(
+    @query_sql.insert_extra_types(
       c_uuid: SecureRandom.uuid, c_jsonb: '[1]', c_text_array: %w[a], c_integer_array: [1], c_timestamptz: Time.now,
       c_inet: '::1', c_money: '1', c_not_null: 'x'
-    ))
+    )
     assert_empty RbsTypes.mismatches(@query_sql.get_extra_types, File.expand_path('../examples/pg/query_sql.rbs', __dir__),
                                      'GetExtraTypesRow')
+  end
+
+  def test_nested_transaction_rolls_back_to_a_savepoint
+    @query_sql.transaction do |tx|
+      tx.create_author_return_id(name: 'outer', bio: nil)
+      assert_raises(RuntimeError) do
+        tx.transaction do |inner|
+          inner.create_author_return_id(name: 'inner, rolled back', bio: nil)
+          raise 'boom'
+        end
+      end
+      tx.create_author_return_id(name: 'outer 2', bio: nil)
+    end
+    assert_equal ['outer', 'outer 2'], @query_sql.list_authors.map(&:name).sort
+  end
+
+  def test_nested_transaction_commits_with_the_outer_one
+    @query_sql.transaction do |tx|
+      assert_equal 7, tx.transaction { |inner| inner.create_author_return_id(name: 'inner', bio: nil) && 7 }
+    end
+    assert_equal ['inner'], @query_sql.list_authors.map(&:name)
+    assert_raises(RuntimeError) do
+      @query_sql.transaction do |tx|
+        tx.transaction { |inner| inner.create_author_return_id(name: 'inner 2', bio: nil) }
+        raise 'boom'
+      end
+    end
+    assert_equal ['inner'], @query_sql.list_authors.map(&:name)
+  end
+
+  def test_missing_keyword_arguments_are_errors
+    assert_raises(ArgumentError) { @query_sql.get_author }
+    assert_raises(ArgumentError) { @query_sql.get_author(id: 1, unknown: 2) }
+  end
+
+  def test_named_nullable_arguments_are_optional
+    create_author('abc')
+    assert_equal ['abc'], @query_sql.get_author_by_name_pattern.map(&:name)
+  end
+
+  def test_transaction_isolation_level
+    @query_sql.transaction(isolation: :serializable) do
+      level = @query_sql.instance_variable_get(:@db).with { |c| c.exec('SHOW transaction_isolation').getvalue(0, 0) }
+      assert_equal 'serializable', level
+    end
+    assert_raises(KeyError) { @query_sql.transaction(isolation: :bogus) { nil } }
+  end
+
+  def test_queries_can_share_an_injected_pool
+    pool = ConnectionPool.new(size: 2) { PG.connect(**pg_params.transform_keys(&:to_sym)) }
+    first = QuerySql.new(pool)
+    second = QuerySql.new(pool) # same connections and statement names: must not clash
+    id = first.create_author_return_id(name: 'shared', bio: nil)
+    assert_equal 'shared', second.get_author(id: id).name
+    assert_equal 'shared', first.get_author(id: id).name
+    assert_kind_of Integer, id # connection was configured on first use (typed results)
+  end
+
+  # The generated classes are plain synchronous Ruby; under the Fiber scheduler (the `async` gem) the pooled
+  # queries overlap because pg and connection_pool are fiber aware.
+  def test_queries_run_concurrently_under_the_fiber_scheduler
+    queries = QuerySql.connect(pg_params, size: 5)
+    pool = queries.instance_variable_get(:@db)
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    Sync do
+      barrier = Async::Barrier.new
+      5.times { barrier.async { pool.with { |client| client.exec('select pg_sleep(0.4)') } } }
+      barrier.wait
+    end
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    assert_operator elapsed, :<, 1.5, "5 x 0.4s queries took #{elapsed}s: they ran one after the other"
+
+    names = Sync do
+      barrier = Async::Barrier.new
+      tasks = Array.new(10) { |i| barrier.async { queries.create_author_return_id(name: "fiber #{i}", bio: nil) } }
+      barrier.wait
+      tasks.map(&:wait)
+    end
+    assert_equal 10, names.uniq.size
+    assert_equal 10, @query_sql.list_authors.size
   end
 
   # ---- models ----------------------------------------------------------------------------------------------------

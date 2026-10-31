@@ -20,8 +20,8 @@ class CodecTest < Minitest::Test
     official = Fixture.k('GenerateResponse').decode(out).files.to_h { |f| [f.name, f.contents] }
     own = Plugin::GenerateResponse.decode(out).files.to_h { |f| [f.name, f.contents] }
     assert_equal official, own
-    assert_equal %w[query_sql.rb query_sql.rbs], own.keys.sort
-    assert_includes own.fetch('query_sql.rb'), 'GetAuthorSql = %q(SELECT id, name, bio FROM authors'
+    assert_includes own.keys, 'query_sql.rb'
+    assert_includes own.fetch('query_sql.rb'), "GET_AUTHOR_SQL = <<~'SQL'\n    SELECT id, name, bio FROM authors"
   end
 
   def test_own_encoding_is_readable_by_the_official_implementation
