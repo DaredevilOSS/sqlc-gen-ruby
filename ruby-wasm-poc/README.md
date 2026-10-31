@@ -25,25 +25,29 @@ cd ruby-wasm-poc && bundle install && bundle exec ruby test/golden_test.rb
 Scope of the port: only the `pg` driver and the `:one` / `:many` / `:exec` commands. `mysql2`,
 `sqlite3` and `:execlastid` still need porting (the structure in `drivers/pg.rb` is the template).
 
-## What is NOT verified: the `.wasm`
+## The WASM plugin (verified end to end)
 
-This was developed in a sandbox where downloading and running the release binaries
-(ruby.wasm, wasi-vfs, wasmtime, sqlc) was blocked, so **nothing was run inside WASM and
-`sqlc generate` was never run against the plugin**. `scripts/build_wasm.sh` is the intended route:
-use the *prebuilt* `ruby-3.3-wasm32-unknown-wasip1-full` release (which sidesteps the old
-`rbwasm build` `dln.c` / `Dl_info` failure) and `rbwasm pack` the stdlib and `lib/` + `exe/` into it.
+`scripts/build_wasm.sh` produces `dist/plugin.wasm` (~37 MB, one self-contained file):
 
-### Open problem: argv
-sqlc runs a wasm plugin with no arguments, so a bare `ruby` would try to read its *script from stdin*,
-which is where the protobuf request arrives. Something has to make the interpreter run
-`/app/exe/plugin.rb`. Candidates, in order of preference to try:
-1. Check whether `rbwasm pack` / wasi-vfs in the current version can bake in argv.
-2. Wrap the module with a tiny shim that overrides `wasi_snapshot_preview1.args_get/args_sizes_get`
-   to return `["ruby", "/app/exe/plugin.rb"]` (e.g. via `wasm-merge`/`wasm-tools compose`).
-3. Build a custom ruby.wasm whose `main` is fixed.
+1. downloads the *prebuilt* `ruby-3.3-wasm32-unknown-wasip1-full` release (this sidesteps the old
+   `rbwasm build` `dln.c` / `Dl_info` failure entirely);
+2. stages a slim filesystem (core stdlib minus bundler/rdoc/irb/etc. + `lib/` + `exe/`);
+3. embeds it into the interpreter with `rbwasm pack` (wasi-vfs), since sqlc gives plugins no filesystem.
 
-### Next steps to finish the proof
-1. `scripts/build_wasm.sh`, then `wasmtime run dist/plugin.wasm < request.bin` to check the wasm path.
-2. Solve argv (above).
-3. Point `sqlc.ci.yaml` at `dist/plugin.wasm` and run `sqlc generate`; diff against `examples/`.
-4. Port the mysql2 / sqlite3 drivers.
+**The argv problem is solved by a trick:** sqlc runs the module as `plugin.wasm /plugin.CodegenService/Generate`,
+so the interpreter treats that path as its script. The build embeds a file at exactly that path containing
+`load '/app/exe/plugin.rb'`.
+
+Verified with sqlc v1.27.0 (`wasm: url: file://...dist/plugin.wasm`) on `examples/authors/postgresql`:
+`sqlc generate` takes ~2s and the generated `query_sql.rb` / `.rbs` are identical to the C# plugin's
+(`examples/pg`), ignoring CRs. Also checked under wasmtime v27: WASM output is byte-identical to native Ruby.
+
+```bash
+gem install ruby_wasm && ruby-wasm-poc/scripts/build_wasm.sh   # set RBWASM="ruby /path/to/rbwasm" if rbwasm isn't on PATH
+```
+
+## Remaining work
+- Port the `mysql2` and `sqlite3` drivers and `:execlastid` (use `drivers/pg.rb` as the template).
+- Port the remaining C# options/edge cases (e.g. `generateGemfile` path is written but untested).
+- Shrink the wasm (37 MB, mostly the interpreter) and wire it into CI (`sqlc.ci.yaml`).
+- Decide on removing the C# projects once the Ruby port has parity.
