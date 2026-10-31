@@ -101,6 +101,8 @@ queries.transaction(isolation: :serializable) do |tx|      # COMMIT on return, R
 end
 ```
 * **Keyword arguments:** every query parameter is a keyword argument (missing / unknown ones raise `ArgumentError`). Parameters named with `sqlc.arg` / `sqlc.narg` that are nullable default to `nil`; a plain nullable column (`INSERT ... VALUES ($1, $2)`) has to be passed explicitly. Names are snake_cased, Ruby keywords get a trailing underscore (`class_:`).
+* **Bang finders:** every `:one` query also gets a `get_author!` that raises `QuerySql::NotFound` instead of returning `nil` (like `find_by` vs `find`).
+* **Logging:** `QuerySql.connect(params, logger: Rails.logger)` / `QuerySql.new(pool, logger: logger)` logs `QuerySql#get_author (0.4ms)` at debug level for every query and transaction (SQL parameters are never logged). Without a logger there is no overhead.
 * **Rows** are immutable `Data` objects (`Struct` for `rubyVersion` below 3.2), so they work with pattern matching: `case row in { id:, name: }`.
 * **Connections:** `QuerySql.connect(params, **pool_options)` builds a [`connection_pool`](https://github.com/mperham/connection_pool); to share a pool you already have (or to inject a fake in tests) use `QuerySql.new(pool)` - anything that responds to `#with` and yields a connection. For SQLite pass a `SQLite3::Database` to `QuerySql.new(db)`.
 * **Async / fibers:** the generated code is plain synchronous Ruby and works with the Fiber scheduler (the [`async`](https://github.com/socketry/async) gem): inside `Sync { ... }` pooled queries on `pg` and `mysql2` overlap instead of blocking (see `tests/end2end_pg.rb`). SQLite calls are synchronous C calls and do not overlap.

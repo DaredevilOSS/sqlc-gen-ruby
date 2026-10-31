@@ -39,7 +39,7 @@ module SqlcGenRuby
       def private_methods = []
 
       # How a query method acquires the database connection (yielding `client`).
-      def client_block = '@db.with do |client|'
+      def client_block(func) = "with_client('#{func}') do |client|"
 
       # RHS of the generated `<Query>Sql` constant (without the constant name).
       def query_text(query) = query.text
@@ -49,10 +49,6 @@ module SqlcGenRuby
 
       # array_rows: rows are read by position (needed when column names are ambiguous, e.g. sqlc.embed).
       def execute_stmt(_stmt_name, _const, _has_params, array_rows: false) = raise(NotImplementedError)
-
-      # Whether generated methods borrow the client from a ConnectionPool (`@db.with do |client|`)
-      # or use the single injected connection (`client = @db`).
-      def pooling_enabled? = true
 
       # Whether the prepared `stmt` must be closed after use (mysql2 / sqlite3 prepare on every call; unclosed
       # statements leak server resources and make SQLite refuse to COMMIT).
@@ -109,6 +105,28 @@ module SqlcGenRuby
           repeatable_read: 'REPEATABLE READ',
           serializable: 'SERIALIZABLE'
         }.freeze
+      RUBY
+
+      # Logs "QuerySql#get_author (0.4ms)" at debug level when the object was created with `logger:`.
+      INSTRUMENT = <<~'RUBY'.chomp
+        def instrument(name)
+          return yield unless @logger
+
+          started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          begin
+            yield
+          ensure
+            elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+            @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
+          end
+        end
+      RUBY
+
+      INSTRUMENT_RBS = 'def instrument: [T] (String name) { () -> T } -> T'
+
+      NOT_FOUND = <<~'RUBY'.chomp
+        # Raised by the bang variants (get_author!) when the query returns no row.
+        class NotFound < StandardError; end
       RUBY
 
       ISOLATION_RBS = 'ISOLATION_LEVELS: Hash[Symbol, String]'

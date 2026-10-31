@@ -13,20 +13,26 @@ module PgCodegen
   SQL
 
   class My_queriesSql
-    # Opens a pool of connections: QuerySql.connect({ dbname: 'app' }, size: 5, timeout: 5)
+    # Raised by the bang variants (get_author!) when the query returns no row.
+    class NotFound < StandardError; end
+
+    # Opens a pool of connections: QuerySql.connect({ dbname: 'app' }, size: 5, timeout: 5, logger: Logger.new($stdout))
     # (pool_options go to ConnectionPool.new). To share an existing pool use QuerySql.new(pool).
-    def self.connect(pg_params, **pool_options)
-      new(ConnectionPool.new(**pool_options) { PG.connect(**pg_params) })
+    def self.connect(pg_params, logger: nil, **pool_options)
+      new(ConnectionPool.new(**pool_options) { PG.connect(**pg_params) }, logger: logger)
     end
 
-    def initialize(db)
+    # db: a ConnectionPool (or anything that responds to #with and yields a PG::Connection).
+    # logger: optional, anything with #debug (Logger, Rails.logger); logs the name and duration of every query.
+    def initialize(db, logger: nil)
       @db = db
+      @logger = logger
     end
 
     # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns,
     # ROLLBACK when it raises. A nested call becomes a SAVEPOINT. Yields self, bound to that connection.
     def transaction(isolation: nil)
-      with_client do |client|
+      with_client('transaction') do |client|
         outermost = client.transaction_status == PG::PQTRANS_IDLE
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         if outermost
@@ -46,7 +52,7 @@ module PgCodegen
     end
 
     def with_numbers2_go(c0:)
-      with_client do |client|
+      with_client('with_numbers2_go') do |client|
         query_params = [c0]
         unless client.prepared_statements.include?('my_queries_sql_with_numbers2_go')
           client.prepare('my_queries_sql_with_numbers2_go', WITH_NUMBERS2_GO_SQL)
@@ -59,10 +65,24 @@ module PgCodegen
 
     private
 
-    def with_client
-      @db.with do |client|
-        configure(client) unless client.is_a?(ConnectionState)
-        yield client
+    def instrument(name)
+      return yield unless @logger
+
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      begin
+        yield
+      ensure
+        elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+        @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
+      end
+    end
+
+    def with_client(name)
+      instrument(name) do
+        @db.with do |client|
+          configure(client) unless client.is_a?(ConnectionState)
+          yield client
+        end
       end
     end
 

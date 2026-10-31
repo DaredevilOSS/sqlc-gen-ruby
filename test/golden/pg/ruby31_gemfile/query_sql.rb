@@ -235,20 +235,26 @@ module PgCodegen
   end
 
   class QuerySql
-    # Opens a pool of connections: QuerySql.connect({ dbname: 'app' }, size: 5, timeout: 5)
+    # Raised by the bang variants (get_author!) when the query returns no row.
+    class NotFound < StandardError; end
+
+    # Opens a pool of connections: QuerySql.connect({ dbname: 'app' }, size: 5, timeout: 5, logger: Logger.new($stdout))
     # (pool_options go to ConnectionPool.new). To share an existing pool use QuerySql.new(pool).
-    def self.connect(pg_params, **pool_options)
-      new(ConnectionPool.new(**pool_options) { PG.connect(**pg_params) })
+    def self.connect(pg_params, logger: nil, **pool_options)
+      new(ConnectionPool.new(**pool_options) { PG.connect(**pg_params) }, logger: logger)
     end
 
-    def initialize(db)
+    # db: a ConnectionPool (or anything that responds to #with and yields a PG::Connection).
+    # logger: optional, anything with #debug (Logger, Rails.logger); logs the name and duration of every query.
+    def initialize(db, logger: nil)
       @db = db
+      @logger = logger
     end
 
     # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns,
     # ROLLBACK when it raises. A nested call becomes a SAVEPOINT. Yields self, bound to that connection.
     def transaction(isolation: nil)
-      with_client do |client|
+      with_client('transaction') do |client|
         outermost = client.transaction_status == PG::PQTRANS_IDLE
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         if outermost
@@ -269,7 +275,7 @@ module PgCodegen
 
     # Returns the author with the given id, or nil when there is none.
     def get_author(id:)
-      with_client do |client|
+      with_client('get_author') do |client|
         query_params = [id]
         unless client.prepared_statements.include?('query_sql_get_author')
           client.prepare('query_sql_get_author', GET_AUTHOR_SQL)
@@ -281,8 +287,13 @@ module PgCodegen
       end
     end
 
+    # Like #get_author, but raises NotFound when there is no row.
+    def get_author!(...)
+      get_author(...) || raise(NotFound, 'GetAuthor returned no row')
+    end
+
     def list_authors
-      with_client do |client|
+      with_client('list_authors') do |client|
         unless client.prepared_statements.include?('query_sql_list_authors')
           client.prepare('query_sql_list_authors', LIST_AUTHORS_SQL)
           client.prepared_statements.add('query_sql_list_authors')
@@ -295,7 +306,7 @@ module PgCodegen
     end
 
     def create_author(name:, bio:)
-      with_client do |client|
+      with_client('create_author') do |client|
         query_params = [name, bio]
         unless client.prepared_statements.include?('query_sql_create_author')
           client.prepare('query_sql_create_author', CREATE_AUTHOR_SQL)
@@ -307,8 +318,13 @@ module PgCodegen
       end
     end
 
+    # Like #create_author, but raises NotFound when there is no row.
+    def create_author!(...)
+      create_author(...) || raise(NotFound, 'CreateAuthor returned no row')
+    end
+
     def delete_author(id:)
-      with_client do |client|
+      with_client('delete_author') do |client|
         query_params = [id]
         unless client.prepared_statements.include?('query_sql_delete_author')
           client.prepare('query_sql_delete_author', DELETE_AUTHOR_SQL)
@@ -320,7 +336,7 @@ module PgCodegen
     end
 
     def test
-      with_client do |client|
+      with_client('test') do |client|
         unless client.prepared_statements.include?('query_sql_test')
           client.prepare('query_sql_test', TEST_SQL)
           client.prepared_statements.add('query_sql_test')
@@ -350,8 +366,13 @@ module PgCodegen
       end
     end
 
+    # Like #test, but raises NotFound when there is no row.
+    def test!(...)
+      test(...) || raise(NotFound, 'Test returned no row')
+    end
+
     def list_authors_paged(offset:, limit:)
-      with_client do |client|
+      with_client('list_authors_paged') do |client|
         query_params = [offset, limit]
         unless client.prepared_statements.include?('query_sql_list_authors_paged')
           client.prepare('query_sql_list_authors_paged', LIST_AUTHORS_PAGED_SQL)
@@ -365,7 +386,7 @@ module PgCodegen
     end
 
     def get_author_by_name_pattern(name_pattern: nil)
-      with_client do |client|
+      with_client('get_author_by_name_pattern') do |client|
         query_params = [name_pattern]
         unless client.prepared_statements.include?('query_sql_get_author_by_name_pattern')
           client.prepare('query_sql_get_author_by_name_pattern', GET_AUTHOR_BY_NAME_PATTERN_SQL)
@@ -379,7 +400,7 @@ module PgCodegen
     end
 
     def create_author_return_id(name:, bio:)
-      with_client do |client|
+      with_client('create_author_return_id') do |client|
         query_params = [name, bio]
         unless client.prepared_statements.include?('query_sql_create_author_return_id')
           client.prepare('query_sql_create_author_return_id', CREATE_AUTHOR_RETURN_ID_SQL)
@@ -392,7 +413,7 @@ module PgCodegen
 
     # Sets the bio of every author that has one and returns how many were changed.
     def update_author_bios(bio:)
-      with_client do |client|
+      with_client('update_author_bios') do |client|
         query_params = [bio]
         unless client.prepared_statements.include?('query_sql_update_author_bios')
           client.prepare('query_sql_update_author_bios', UPDATE_AUTHOR_BIOS_SQL)
@@ -404,7 +425,7 @@ module PgCodegen
     end
 
     def get_authors_by_ids(param1:)
-      with_client do |client|
+      with_client('get_authors_by_ids') do |client|
         query_params = [param1]
         unless client.prepared_statements.include?('query_sql_get_authors_by_ids')
           client.prepare('query_sql_get_authors_by_ids', GET_AUTHORS_BY_IDS_SQL)
@@ -418,7 +439,7 @@ module PgCodegen
     end
 
     def get_authors_by_ids_and_names(param1:, param2:)
-      with_client do |client|
+      with_client('get_authors_by_ids_and_names') do |client|
         query_params = [param1, param2]
         unless client.prepared_statements.include?('query_sql_get_authors_by_ids_and_names')
           client.prepare('query_sql_get_authors_by_ids_and_names', GET_AUTHORS_BY_IDS_AND_NAMES_SQL)
@@ -433,7 +454,7 @@ module PgCodegen
 
     # Bulk insert: pass an Array of CopyAuthorsArgs.
     def copy_authors(rows)
-      with_client do |client|
+      with_client('copy_authors') do |client|
         encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
         client.copy_data('COPY authors (name, bio) FROM STDIN', encoder) do
           rows.each do |row|
@@ -445,7 +466,7 @@ module PgCodegen
     end
 
     def truncate_authors
-      with_client do |client|
+      with_client('truncate_authors') do |client|
         unless client.prepared_statements.include?('query_sql_truncate_authors')
           client.prepare('query_sql_truncate_authors', TRUNCATE_AUTHORS_SQL)
           client.prepared_statements.add('query_sql_truncate_authors')
@@ -456,7 +477,7 @@ module PgCodegen
     end
 
     def create_book(name:, author_id:)
-      with_client do |client|
+      with_client('create_book') do |client|
         query_params = [name, author_id]
         unless client.prepared_statements.include?('query_sql_create_book')
           client.prepare('query_sql_create_book', CREATE_BOOK_SQL)
@@ -468,7 +489,7 @@ module PgCodegen
     end
 
     def list_all_authors_books
-      with_client do |client|
+      with_client('list_all_authors_books') do |client|
         unless client.prepared_statements.include?('query_sql_list_all_authors_books')
           client.prepare('query_sql_list_all_authors_books', LIST_ALL_AUTHORS_BOOKS_SQL)
           client.prepared_statements.add('query_sql_list_all_authors_books')
@@ -481,7 +502,7 @@ module PgCodegen
     end
 
     def get_duplicate_authors
-      with_client do |client|
+      with_client('get_duplicate_authors') do |client|
         unless client.prepared_statements.include?('query_sql_get_duplicate_authors')
           client.prepare('query_sql_get_duplicate_authors', GET_DUPLICATE_AUTHORS_SQL)
           client.prepared_statements.add('query_sql_get_duplicate_authors')
@@ -494,7 +515,7 @@ module PgCodegen
     end
 
     def get_authors_by_book_name(name:)
-      with_client do |client|
+      with_client('get_authors_by_book_name') do |client|
         query_params = [name]
         unless client.prepared_statements.include?('query_sql_get_authors_by_book_name')
           client.prepare('query_sql_get_authors_by_book_name', GET_AUTHORS_BY_BOOK_NAME_SQL)
@@ -508,7 +529,7 @@ module PgCodegen
     end
 
     def create_extended_bio(author_name:, name:, bio_type:)
-      with_client do |client|
+      with_client('create_extended_bio') do |client|
         query_params = [author_name, name, bio_type]
         unless client.prepared_statements.include?('query_sql_create_extended_bio')
           client.prepare('query_sql_create_extended_bio', CREATE_EXTENDED_BIO_SQL)
@@ -520,7 +541,7 @@ module PgCodegen
     end
 
     def get_first_extended_bio_by_type(bio_type:)
-      with_client do |client|
+      with_client('get_first_extended_bio_by_type') do |client|
         query_params = [bio_type]
         unless client.prepared_statements.include?('query_sql_get_first_extended_bio_by_type')
           client.prepare('query_sql_get_first_extended_bio_by_type', GET_FIRST_EXTENDED_BIO_BY_TYPE_SQL)
@@ -532,8 +553,13 @@ module PgCodegen
       end
     end
 
+    # Like #get_first_extended_bio_by_type, but raises NotFound when there is no row.
+    def get_first_extended_bio_by_type!(...)
+      get_first_extended_bio_by_type(...) || raise(NotFound, 'GetFirstExtendedBioByType returned no row')
+    end
+
     def truncate_extended_bios
-      with_client do |client|
+      with_client('truncate_extended_bios') do |client|
         unless client.prepared_statements.include?('query_sql_truncate_extended_bios')
           client.prepare('query_sql_truncate_extended_bios', TRUNCATE_EXTENDED_BIOS_SQL)
           client.prepared_statements.add('query_sql_truncate_extended_bios')
@@ -544,7 +570,7 @@ module PgCodegen
     end
 
     def insert_extra_types(c_uuid:, c_jsonb:, c_text_array:, c_integer_array:, c_timestamptz:, c_inet:, c_money:, c_not_null:)
-      with_client do |client|
+      with_client('insert_extra_types') do |client|
         query_params = [
           c_uuid,
           c_jsonb,
@@ -565,7 +591,7 @@ module PgCodegen
     end
 
     def get_extra_types
-      with_client do |client|
+      with_client('get_extra_types') do |client|
         unless client.prepared_statements.include?('query_sql_get_extra_types')
           client.prepare('query_sql_get_extra_types', GET_EXTRA_TYPES_SQL)
           client.prepared_statements.add('query_sql_get_extra_types')
@@ -585,8 +611,13 @@ module PgCodegen
       end
     end
 
+    # Like #get_extra_types, but raises NotFound when there is no row.
+    def get_extra_types!(...)
+      get_extra_types(...) || raise(NotFound, 'GetExtraTypes returned no row')
+    end
+
     def truncate_extra_types
-      with_client do |client|
+      with_client('truncate_extra_types') do |client|
         unless client.prepared_statements.include?('query_sql_truncate_extra_types')
           client.prepare('query_sql_truncate_extra_types', TRUNCATE_EXTRA_TYPES_SQL)
           client.prepared_statements.add('query_sql_truncate_extra_types')
@@ -597,7 +628,7 @@ module PgCodegen
     end
 
     def many_params(c0:, c1:, c2:, c3:, c4:)
-      with_client do |client|
+      with_client('many_params') do |client|
         query_params = [
           c0,
           c1,
@@ -615,8 +646,13 @@ module PgCodegen
       end
     end
 
+    # Like #many_params, but raises NotFound when there is no row.
+    def many_params!(...)
+      many_params(...) || raise(NotFound, 'ManyParams returned no row')
+    end
+
     def many_rows(c0:)
-      with_client do |client|
+      with_client('many_rows') do |client|
         query_params = [c0]
         unless client.prepared_statements.include?('query_sql_many_rows')
           client.prepare('query_sql_many_rows', MANY_ROWS_SQL)
@@ -636,7 +672,7 @@ module PgCodegen
     end
 
     def four_cols
-      with_client do |client|
+      with_client('four_cols') do |client|
         unless client.prepared_statements.include?('query_sql_four_cols')
           client.prepare('query_sql_four_cols', FOUR_COLS_SQL)
           client.prepared_statements.add('query_sql_four_cols')
@@ -650,10 +686,24 @@ module PgCodegen
 
     private
 
-    def with_client
-      @db.with do |client|
-        configure(client) unless client.is_a?(ConnectionState)
-        yield client
+    def instrument(name)
+      return yield unless @logger
+
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      begin
+        yield
+      ensure
+        elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+        @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
+      end
+    end
+
+    def with_client(name)
+      instrument(name) do
+        @db.with do |client|
+          configure(client) unless client.is_a?(ConnectionState)
+          yield client
+        end
       end
     end
 

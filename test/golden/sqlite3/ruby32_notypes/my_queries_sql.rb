@@ -12,37 +12,63 @@ module Sqlite3Codegen
   SQL
 
   class My_queriesSql
-    # @param db [SQLite3::Database] a single connection (SQLite3::Database is not shared across threads)
-    def initialize(db)
+    # Raised by the bang variants (get_author!) when the query returns no row.
+    class NotFound < StandardError; end
+
+    # db: a SQLite3::Database (a single connection, not shared across threads).
+    # logger: optional, anything with #debug (Logger, Rails.logger); logs the name and duration of every query.
+    def initialize(db, logger: nil)
       @db = db
+      @logger = logger
     end
 
     # Runs the block in a transaction and returns its value: COMMIT when the block returns, ROLLBACK when it
     # raises. A nested call becomes a SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
     def transaction(mode: nil)
-      outermost = !@db.transaction_active?
-      savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
-      @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
-      begin
-        result = yield self
-        @db.execute(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-        result
-      rescue Exception # rubocop:disable Lint/RescueException
-        @db.execute(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
-        raise
+      instrument('transaction') do
+        outermost = !@db.transaction_active?
+        savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
+        @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
+        begin
+          result = yield self
+          @db.execute(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
+          result
+        rescue Exception # rubocop:disable Lint/RescueException
+          @db.execute(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+          raise
+        end
       end
     end
 
     def with_numbers2_go(c0:)
-      client = @db
-      query_params = [c0]
-      stmt = client.prepare(WITH_NUMBERS2_GO_SQL)
-      begin
-        stmt.execute(*query_params)
-        nil
-      ensure
-        stmt.close
+      with_client('with_numbers2_go') do |client|
+        query_params = [c0]
+        stmt = client.prepare(WITH_NUMBERS2_GO_SQL)
+        begin
+          stmt.execute(*query_params)
+          nil
+        ensure
+          stmt.close
+        end
       end
+    end
+
+    private
+
+    def instrument(name)
+      return yield unless @logger
+
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      begin
+        yield
+      ensure
+        elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+        @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
+      end
+    end
+
+    def with_client(name, &block)
+      instrument(name) { block.call(@db) }
     end
   end
 end

@@ -14,9 +14,17 @@ module SqlcGenRuby
 
       def class_methods
         [
-          ["# @param db [SQLite3::Database] a single connection (SQLite3::Database is not shared across threads)\n" \
-           "def initialize(db)\n  @db = db\nend", 'def initialize: (untyped db) -> void'],
+          [NOT_FOUND, "class NotFound < StandardError\nend"],
+          [INITIALIZE, 'def initialize: (untyped db, ?logger: untyped) -> void'],
           [TRANSACTION, "def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (instance) -> T } -> T"]
+        ]
+      end
+
+      def private_methods
+        [
+          [INSTRUMENT, INSTRUMENT_RBS],
+          ["def with_client(name, &block)\n  instrument(name) { block.call(@db) }\nend",
+           'def with_client: [T] (String name) { (untyped) -> T } -> T']
         ]
       end
 
@@ -25,8 +33,6 @@ module SqlcGenRuby
       def execute_stmt(_stmt_name, _const, has_params, array_rows: false)
         has_params ? 'stmt.execute(*query_params)' : 'stmt.execute'
       end
-
-      def pooling_enabled? = false
 
       def row_data_type = :array
 
@@ -56,20 +62,31 @@ module SqlcGenRuby
         [Code.block("#{rows_var}.each_slice(#{rows_per_batch}) do |batch|", body), 'nil']
       end
 
+      INITIALIZE = <<~'RUBY'.chomp
+        # db: a SQLite3::Database (a single connection, not shared across threads).
+        # logger: optional, anything with #debug (Logger, Rails.logger); logs the name and duration of every query.
+        def initialize(db, logger: nil)
+          @db = db
+          @logger = logger
+        end
+      RUBY
+
       TRANSACTION = <<~'RUBY'.chomp
         # Runs the block in a transaction and returns its value: COMMIT when the block returns, ROLLBACK when it
         # raises. A nested call becomes a SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
         def transaction(mode: nil)
-          outermost = !@db.transaction_active?
-          savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
-          @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
-          begin
-            result = yield self
-            @db.execute(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-            result
-          rescue Exception # rubocop:disable Lint/RescueException
-            @db.execute(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
-            raise
+          instrument('transaction') do
+            outermost = !@db.transaction_active?
+            savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
+            @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
+            begin
+              result = yield self
+              @db.execute(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
+              result
+            rescue Exception # rubocop:disable Lint/RescueException
+              @db.execute(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+              raise
+            end
           end
         end
       RUBY

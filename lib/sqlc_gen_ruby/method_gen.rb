@@ -43,8 +43,15 @@ module SqlcGenRuby
         signature = params.empty? ? '' : "(#{params.map { |p| p.optional ? "#{p.name}: nil" : "#{p.name}:" }.join(', ')})"
       end
       doc = query.comments.map { |c| "# #{c.strip}".rstrip }.join("\n")
-      method = Code.block("def #{func}#{signature}", method_body(statements))
-      doc.empty? ? method : "#{doc}\n#{method}"
+      method = Code.block("def #{func}#{signature}", method_body(func, statements))
+      method = "#{doc}\n#{method}" unless doc.empty?
+      query.cmd == ':one' ? "#{method}\n\n#{bang_method(query, func)}" : method
+    end
+
+    # get_author! raises NotFound instead of returning nil (like find_by vs find!)
+    def bang_method(query, func)
+      Code.block("# Like ##{func}, but raises NotFound when there is no row.\ndef #{func}!(...)",
+                 "#{func}(...) || raise(NotFound, '#{query.name} returned no row')")
     end
 
     def type(query)
@@ -55,7 +62,10 @@ module SqlcGenRuby
         list = params(query).map { |p| "#{p.optional ? '?' : ''}#{p.name}: #{p.type}" }
         signature = list.empty? ? '' : "(#{list.join(', ')})"
       end
-      "def #{func}: #{signature}#{signature.empty? ? '' : ' '}-> #{return_type(query)}"
+      rbs = "def #{func}: #{signature}#{signature.empty? ? '' : ' '}-> #{return_type(query)}"
+      return rbs unless query.cmd == ':one'
+
+      "#{rbs}\n\ndef #{func}!: #{signature}#{signature.empty? ? '' : ' '}-> #{query.name}Row"
     end
 
     # [[code, rbs]] of private helper methods the generated class needs for these queries.
@@ -146,11 +156,8 @@ module SqlcGenRuby
       end
     end
 
-    def method_body(statements)
-      body = statements.join("\n")
-      return Code.block(@driver.client_block, body) if @driver.pooling_enabled?
-
-      "client = @db\n#{body}"
+    def method_body(func, statements)
+      Code.block(@driver.client_block(func), statements.join("\n"))
     end
 
     def new_row(query)

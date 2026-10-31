@@ -109,11 +109,16 @@ module Sqlite3Codegen
   end
 
   class QuerySql
-    def initialize: (untyped db) -> void
+    class NotFound < StandardError
+    end
+
+    def initialize: (untyped db, ?logger: untyped) -> void
 
     def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (instance) -> T } -> T
 
     def get_author: (id: Integer) -> GetAuthorRow?
+
+    def get_author!: (id: Integer) -> GetAuthorRow
 
     def list_authors: -> Array[ListAuthorsRow]
 
@@ -146,6 +151,10 @@ module Sqlite3Codegen
     def get_authors_by_book_name: (name: String) -> Array[GetAuthorsByBookNameRow]
 
     private
+
+    def instrument: [T] (String name) { () -> T } -> T
+
+    def with_client: [T] (String name) { (untyped) -> T } -> T
 
     def slice_placeholders: (Array[untyped] values) -> String
   end

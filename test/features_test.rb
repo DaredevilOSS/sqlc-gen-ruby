@@ -216,4 +216,27 @@ class FeaturesTest < Minitest::Test
     assert_equal 'a', author.name
     assert author.frozen?
   end
+
+  # ---- Ruby conventions ----------------------------------------------------------------------------------------
+
+  def test_bang_finders_for_one_queries
+    %w[pg mysql2 sqlite3].each do |driver|
+      files = generate(load_request(driver))
+      assert_includes files.fetch('query_sql.rb'), "def get_author!(...)\n      get_author(...) || raise(NotFound, 'GetAuthor returned no row')"
+      assert_includes files.fetch('query_sql.rb'), 'class NotFound < StandardError'
+      assert_includes files.fetch('query_sql.rbs'), 'def get_author!: (id: Integer) -> GetAuthorRow'
+      refute_includes files.fetch('query_sql.rb'), 'def list_authors!' # only :one queries
+    end
+  end
+
+  def test_logger_support
+    %w[pg mysql2 sqlite3].each do |driver|
+      rb = generate(load_request(driver)).fetch('query_sql.rb')
+      assert_includes rb, 'def initialize(db, logger: nil)'
+      assert_includes rb, "with_client('get_author') do |client|"
+      assert_includes rb, 'def instrument(name)'
+      assert_includes generate(load_request(driver)).fetch('query_sql.rbs'), 'def instrument: [T] (String name) { () -> T } -> T'
+    end
+    assert_includes generate(load_request('pg')).fetch('query_sql.rb'), 'def self.connect(pg_params, logger: nil, **pool_options)'
+  end
 end

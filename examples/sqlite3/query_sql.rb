@@ -128,238 +128,282 @@ module Sqlite3Codegen
   end
 
   class QuerySql
-    # @param db [SQLite3::Database] a single connection (SQLite3::Database is not shared across threads)
-    def initialize(db)
+    # Raised by the bang variants (get_author!) when the query returns no row.
+    class NotFound < StandardError; end
+
+    # db: a SQLite3::Database (a single connection, not shared across threads).
+    # logger: optional, anything with #debug (Logger, Rails.logger); logs the name and duration of every query.
+    def initialize(db, logger: nil)
       @db = db
+      @logger = logger
     end
 
     # Runs the block in a transaction and returns its value: COMMIT when the block returns, ROLLBACK when it
     # raises. A nested call becomes a SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
     def transaction(mode: nil)
-      outermost = !@db.transaction_active?
-      savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
-      @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
-      begin
-        result = yield self
-        @db.execute(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-        result
-      rescue Exception # rubocop:disable Lint/RescueException
-        @db.execute(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
-        raise
+      instrument('transaction') do
+        outermost = !@db.transaction_active?
+        savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
+        @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
+        begin
+          result = yield self
+          @db.execute(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
+          result
+        rescue Exception # rubocop:disable Lint/RescueException
+          @db.execute(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+          raise
+        end
       end
     end
 
     # Returns the author with the given id, or nil when there is none.
     def get_author(id:)
-      client = @db
-      query_params = [id]
-      stmt = client.prepare(GET_AUTHOR_SQL)
-      begin
-        result = stmt.execute(*query_params)
-        row = result.first
-        row && GetAuthorRow.new(row[0], row[1], row[2])
-      ensure
-        stmt.close
+      with_client('get_author') do |client|
+        query_params = [id]
+        stmt = client.prepare(GET_AUTHOR_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          row = result.first
+          row && GetAuthorRow.new(row[0], row[1], row[2])
+        ensure
+          stmt.close
+        end
       end
     end
 
+    # Like #get_author, but raises NotFound when there is no row.
+    def get_author!(...)
+      get_author(...) || raise(NotFound, 'GetAuthor returned no row')
+    end
+
     def list_authors
-      client = @db
-      stmt = client.prepare(LIST_AUTHORS_SQL)
-      begin
-        result = stmt.execute
-        result.map do |row|
-          ListAuthorsRow.new(row[0], row[1], row[2])
+      with_client('list_authors') do |client|
+        stmt = client.prepare(LIST_AUTHORS_SQL)
+        begin
+          result = stmt.execute
+          result.map do |row|
+            ListAuthorsRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
         end
-      ensure
-        stmt.close
       end
     end
 
     def create_author(name:, bio:)
-      client = @db
-      query_params = [name, bio]
-      stmt = client.prepare(CREATE_AUTHOR_SQL)
-      begin
-        stmt.execute(*query_params)
-        nil
-      ensure
-        stmt.close
+      with_client('create_author') do |client|
+        query_params = [name, bio]
+        stmt = client.prepare(CREATE_AUTHOR_SQL)
+        begin
+          stmt.execute(*query_params)
+          nil
+        ensure
+          stmt.close
+        end
       end
     end
 
     def delete_author(id:)
-      client = @db
-      query_params = [id]
-      stmt = client.prepare(DELETE_AUTHOR_SQL)
-      begin
-        stmt.execute(*query_params)
-        nil
-      ensure
-        stmt.close
+      with_client('delete_author') do |client|
+        query_params = [id]
+        stmt = client.prepare(DELETE_AUTHOR_SQL)
+        begin
+          stmt.execute(*query_params)
+          nil
+        ensure
+          stmt.close
+        end
       end
     end
 
     def list_authors_paged(offset:, limit:)
-      client = @db
-      query_params = [offset, limit]
-      stmt = client.prepare(LIST_AUTHORS_PAGED_SQL)
-      begin
-        result = stmt.execute(*query_params)
-        result.map do |row|
-          ListAuthorsPagedRow.new(row[0], row[1], row[2])
+      with_client('list_authors_paged') do |client|
+        query_params = [offset, limit]
+        stmt = client.prepare(LIST_AUTHORS_PAGED_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            ListAuthorsPagedRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
         end
-      ensure
-        stmt.close
       end
     end
 
     def get_author_by_name_pattern(name_pattern: nil)
-      client = @db
-      query_params = [name_pattern]
-      stmt = client.prepare(GET_AUTHOR_BY_NAME_PATTERN_SQL)
-      begin
-        result = stmt.execute(*query_params)
-        result.map do |row|
-          GetAuthorByNamePatternRow.new(row[0], row[1], row[2])
+      with_client('get_author_by_name_pattern') do |client|
+        query_params = [name_pattern]
+        stmt = client.prepare(GET_AUTHOR_BY_NAME_PATTERN_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            GetAuthorByNamePatternRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
         end
-      ensure
-        stmt.close
       end
     end
 
     def create_author_return_id(name:, bio:)
-      client = @db
-      query_params = [name, bio]
-      stmt = client.prepare(CREATE_AUTHOR_RETURN_ID_SQL)
-      begin
-        result = stmt.execute(*query_params)
-        row = result.first
-        row && row[0]
-      ensure
-        stmt.close
+      with_client('create_author_return_id') do |client|
+        query_params = [name, bio]
+        stmt = client.prepare(CREATE_AUTHOR_RETURN_ID_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          row = result.first
+          row && row[0]
+        ensure
+          stmt.close
+        end
       end
     end
 
     # Sets the bio of every author that has one and returns how many were changed.
     def update_author_bios(bio:)
-      client = @db
-      query_params = [bio]
-      stmt = client.prepare(UPDATE_AUTHOR_BIOS_SQL)
-      begin
-        stmt.execute(*query_params)
-        client.changes
-      ensure
-        stmt.close
+      with_client('update_author_bios') do |client|
+        query_params = [bio]
+        stmt = client.prepare(UPDATE_AUTHOR_BIOS_SQL)
+        begin
+          stmt.execute(*query_params)
+          client.changes
+        ensure
+          stmt.close
+        end
       end
     end
 
     def get_authors_by_ids(ids:)
-      client = @db
-      query_params = [*ids]
-      sql = GET_AUTHORS_BY_IDS_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))
-      stmt = client.prepare(sql)
-      begin
-        result = stmt.execute(*query_params)
-        result.map do |row|
-          GetAuthorsByIdsRow.new(row[0], row[1], row[2])
+      with_client('get_authors_by_ids') do |client|
+        query_params = [*ids]
+        sql = GET_AUTHORS_BY_IDS_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))
+        stmt = client.prepare(sql)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            GetAuthorsByIdsRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
         end
-      ensure
-        stmt.close
       end
     end
 
     def get_authors_by_ids_and_names(ids:, names:)
-      client = @db
-      query_params = [*ids, *names]
-      sql = GET_AUTHORS_BY_IDS_AND_NAMES_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))
-      sql = sql.sub('/*SLICE:names*/?', slice_placeholders(names))
-      stmt = client.prepare(sql)
-      begin
-        result = stmt.execute(*query_params)
-        result.map do |row|
-          GetAuthorsByIdsAndNamesRow.new(row[0], row[1], row[2])
+      with_client('get_authors_by_ids_and_names') do |client|
+        query_params = [*ids, *names]
+        sql = GET_AUTHORS_BY_IDS_AND_NAMES_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))
+        sql = sql.sub('/*SLICE:names*/?', slice_placeholders(names))
+        stmt = client.prepare(sql)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            GetAuthorsByIdsAndNamesRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
         end
-      ensure
-        stmt.close
       end
     end
 
     # Bulk insert: pass an Array of CopyAuthorsArgs.
     def copy_authors(rows)
-      client = @db
-      rows.each_slice(499) do |batch|
-        sql = "INSERT INTO authors (name, bio) VALUES #{Array.new(batch.size, '(?, ?)').join(', ')}"
-        client.execute(sql, batch.flat_map { |row| [row.name, row.bio] })
+      with_client('copy_authors') do |client|
+        rows.each_slice(499) do |batch|
+          sql = "INSERT INTO authors (name, bio) VALUES #{Array.new(batch.size, '(?, ?)').join(', ')}"
+          client.execute(sql, batch.flat_map { |row| [row.name, row.bio] })
+        end
+        nil
       end
-      nil
     end
 
     def truncate_authors
-      client = @db
-      stmt = client.prepare(TRUNCATE_AUTHORS_SQL)
-      begin
-        stmt.execute
-        nil
-      ensure
-        stmt.close
+      with_client('truncate_authors') do |client|
+        stmt = client.prepare(TRUNCATE_AUTHORS_SQL)
+        begin
+          stmt.execute
+          nil
+        ensure
+          stmt.close
+        end
       end
     end
 
     def create_book(name:, author_id:)
-      client = @db
-      query_params = [name, author_id]
-      stmt = client.prepare(CREATE_BOOK_SQL)
-      begin
-        result = stmt.execute(*query_params)
-        row = result.first
-        row && row[0]
-      ensure
-        stmt.close
+      with_client('create_book') do |client|
+        query_params = [name, author_id]
+        stmt = client.prepare(CREATE_BOOK_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          row = result.first
+          row && row[0]
+        ensure
+          stmt.close
+        end
       end
     end
 
     def list_all_authors_books
-      client = @db
-      stmt = client.prepare(LIST_ALL_AUTHORS_BOOKS_SQL)
-      begin
-        result = stmt.execute
-        result.map do |row|
-          ListAllAuthorsBooksRow.new(Author.new(row[0], row[1], row[2]), Book.new(row[3], row[4], row[5], row[6]))
+      with_client('list_all_authors_books') do |client|
+        stmt = client.prepare(LIST_ALL_AUTHORS_BOOKS_SQL)
+        begin
+          result = stmt.execute
+          result.map do |row|
+            ListAllAuthorsBooksRow.new(Author.new(row[0], row[1], row[2]), Book.new(row[3], row[4], row[5], row[6]))
+          end
+        ensure
+          stmt.close
         end
-      ensure
-        stmt.close
       end
     end
 
     def get_duplicate_authors
-      client = @db
-      stmt = client.prepare(GET_DUPLICATE_AUTHORS_SQL)
-      begin
-        result = stmt.execute
-        result.map do |row|
-          GetDuplicateAuthorsRow.new(Author.new(row[0], row[1], row[2]), Author.new(row[3], row[4], row[5]))
+      with_client('get_duplicate_authors') do |client|
+        stmt = client.prepare(GET_DUPLICATE_AUTHORS_SQL)
+        begin
+          result = stmt.execute
+          result.map do |row|
+            GetDuplicateAuthorsRow.new(Author.new(row[0], row[1], row[2]), Author.new(row[3], row[4], row[5]))
+          end
+        ensure
+          stmt.close
         end
-      ensure
-        stmt.close
       end
     end
 
     def get_authors_by_book_name(name:)
-      client = @db
-      query_params = [name]
-      stmt = client.prepare(GET_AUTHORS_BY_BOOK_NAME_SQL)
-      begin
-        result = stmt.execute(*query_params)
-        result.map do |row|
-          GetAuthorsByBookNameRow.new(row[0], row[1], row[2], Book.new(row[3], row[4], row[5], row[6]))
+      with_client('get_authors_by_book_name') do |client|
+        query_params = [name]
+        stmt = client.prepare(GET_AUTHORS_BY_BOOK_NAME_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            GetAuthorsByBookNameRow.new(row[0], row[1], row[2], Book.new(row[3], row[4], row[5], row[6]))
+          end
+        ensure
+          stmt.close
         end
-      ensure
-        stmt.close
       end
     end
 
     private
+
+    def instrument(name)
+      return yield unless @logger
+
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      begin
+        yield
+      ensure
+        elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+        @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
+      end
+    end
+
+    def with_client(name, &block)
+      instrument(name) { block.call(@db) }
+    end
 
     def slice_placeholders(values)
       values.empty? ? 'NULL' : Array.new(values.size, '?').join(', ')

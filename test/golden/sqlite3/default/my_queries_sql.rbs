@@ -3,10 +3,19 @@ module Sqlite3Codegen
   WITH_NUMBERS2_GO_SQL: String
 
   class My_queriesSql
-    def initialize: (untyped db) -> void
+    class NotFound < StandardError
+    end
+
+    def initialize: (untyped db, ?logger: untyped) -> void
 
     def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (instance) -> T } -> T
 
     def with_numbers2_go: (c0: Integer) -> void
+
+    private
+
+    def instrument: [T] (String name) { () -> T } -> T
+
+    def with_client: [T] (String name) { (untyped) -> T } -> T
   end
 end

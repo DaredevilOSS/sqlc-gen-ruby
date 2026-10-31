@@ -12,7 +12,10 @@ module Sqlite3Codegen
   COUNT_ROWS_SQL: String
 
   class OtherSql
-    def initialize: (untyped db) -> void
+    class NotFound < StandardError
+    end
+
+    def initialize: (untyped db, ?logger: untyped) -> void
 
     def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (instance) -> T } -> T
 
@@ -20,6 +23,14 @@ module Sqlite3Codegen
 
     def other_one: -> OtherOneRow?
 
+    def other_one!: -> OtherOneRow
+
     def count_rows: (c0: Integer) -> Integer
+
+    private
+
+    def instrument: [T] (String name) { () -> T } -> T
+
+    def with_client: [T] (String name) { (untyped) -> T } -> T
   end
 end

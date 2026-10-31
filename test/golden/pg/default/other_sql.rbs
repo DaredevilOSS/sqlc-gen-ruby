@@ -12,9 +12,12 @@ module PgCodegen
   COUNT_ROWS_SQL: String
 
   class OtherSql
-    def self.connect: (Hash[untyped, untyped] pg_params, **untyped pool_options) -> instance
+    class NotFound < StandardError
+    end
 
-    def initialize: (untyped db) -> void
+    def self.connect: (Hash[untyped, untyped] pg_params, ?logger: untyped, **untyped pool_options) -> instance
+
+    def initialize: (untyped db, ?logger: untyped) -> void
 
     def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | :serializable)?) { (instance) -> T } -> T
 
@@ -22,11 +25,15 @@ module PgCodegen
 
     def other_one: -> OtherOneRow?
 
+    def other_one!: -> OtherOneRow
+
     def count_rows: (c0: bool) -> Integer
 
     private
 
-    def with_client: [T] () { (untyped) -> T } -> T
+    def instrument: [T] (String name) { () -> T } -> T
+
+    def with_client: [T] (String name) { (untyped) -> T } -> T
 
     def configure: (untyped client) -> void
   end

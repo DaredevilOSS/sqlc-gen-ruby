@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 gem 'minitest'     # ensures using the gem, and not the built-in MT
 require 'minitest/autorun'
+require 'logger'
+require 'stringio'
 require 'sqlite3'
 require_relative 'consts'
 require_relative 'rbs_types'
@@ -213,6 +215,26 @@ class TestSqlite3 < Minitest::Test
 
   def test_transaction_mode
     assert_equal 1, @query_sql.transaction(mode: :immediate) { 1 }
+  end
+
+  # ---- Ruby conventions: bang finders, logger ----------------------------------------------------------------
+
+  def test_bang_finder_raises_not_found
+    id = create_author('a', nil)
+    assert_equal 'a', @query_sql.get_author!(id: id).name
+    error = assert_raises(QuerySql::NotFound) { @query_sql.get_author!(id: -1) }
+    assert_equal 'GetAuthor returned no row', error.message
+    assert_nil @query_sql.get_author(id: -1) # the plain finder still returns nil
+  end
+
+  def test_logger_receives_query_names_and_durations
+    io = StringIO.new
+    logged = QuerySql.new(@db, logger: Logger.new(io, level: Logger::DEBUG))
+    logged.list_authors
+    logged.transaction { |tx| tx.list_authors }
+    assert_match(/QuerySql#list_authors \(\d+\.\dms\)/, io.string)
+    assert_match(/QuerySql#transaction \(\d+\.\dms\)/, io.string)
+    @query_sql.list_authors # no logger: nothing is logged, nothing breaks
   end
 
   # ---- models ----------------------------------------------------------------------------------------------------

@@ -189,20 +189,26 @@ module Mysql2Codegen
   SQL
 
   class QuerySql
-    # Opens a pool of connections: QuerySql.connect({ database: 'app' }, size: 5, timeout: 5)
+    # Raised by the bang variants (get_author!) when the query returns no row.
+    class NotFound < StandardError; end
+
+    # Opens a pool of connections: QuerySql.connect({ database: 'app' }, size: 5, timeout: 5, logger: Logger.new($stdout))
     # (pool_options go to ConnectionPool.new). To share an existing pool use QuerySql.new(pool).
-    def self.connect(mysql2_params, **pool_options)
-      new(ConnectionPool.new(**pool_options) { Mysql2::Client.new(**mysql2_params) })
+    def self.connect(mysql2_params, logger: nil, **pool_options)
+      new(ConnectionPool.new(**pool_options) { Mysql2::Client.new(**mysql2_params) }, logger: logger)
     end
 
-    def initialize(db)
+    # db: a ConnectionPool (or anything that responds to #with and yields a Mysql2::Client).
+    # logger: optional, anything with #debug (Logger, Rails.logger); logs the name and duration of every query.
+    def initialize(db, logger: nil)
       @db = db
+      @logger = logger
     end
 
     # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns,
     # ROLLBACK when it raises. A nested call becomes a SAVEPOINT. Yields self, bound to that connection.
     def transaction(isolation: nil)
-      with_client do |client|
+      with_client('transaction') do |client|
         outermost = !client.in_transaction
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         if outermost
@@ -227,7 +233,7 @@ module Mysql2Codegen
 
     # Returns the author with the given id, or nil when there is none.
     def get_author(id:)
-      with_client do |client|
+      with_client('get_author') do |client|
         query_params = [id]
         stmt = client.prepare(GET_AUTHOR_SQL)
         begin
@@ -240,8 +246,13 @@ module Mysql2Codegen
       end
     end
 
+    # Like #get_author, but raises NotFound when there is no row.
+    def get_author!(...)
+      get_author(...) || raise(NotFound, 'GetAuthor returned no row')
+    end
+
     def list_authors
-      with_client do |client|
+      with_client('list_authors') do |client|
         stmt = client.prepare(LIST_AUTHORS_SQL)
         begin
           result = stmt.execute
@@ -255,7 +266,7 @@ module Mysql2Codegen
     end
 
     def create_author(name:, bio:)
-      with_client do |client|
+      with_client('create_author') do |client|
         query_params = [name, bio]
         stmt = client.prepare(CREATE_AUTHOR_SQL)
         begin
@@ -268,7 +279,7 @@ module Mysql2Codegen
     end
 
     def update_author(bio:, id:)
-      with_client do |client|
+      with_client('update_author') do |client|
         query_params = [bio, id]
         stmt = client.prepare(UPDATE_AUTHOR_SQL)
         begin
@@ -281,7 +292,7 @@ module Mysql2Codegen
     end
 
     def create_author_return_id(name:, bio:)
-      with_client do |client|
+      with_client('create_author_return_id') do |client|
         query_params = [name, bio]
         stmt = client.prepare(CREATE_AUTHOR_RETURN_ID_SQL)
         begin
@@ -294,7 +305,7 @@ module Mysql2Codegen
     end
 
     def delete_author(id:)
-      with_client do |client|
+      with_client('delete_author') do |client|
         query_params = [id]
         stmt = client.prepare(DELETE_AUTHOR_SQL)
         begin
@@ -307,7 +318,7 @@ module Mysql2Codegen
     end
 
     def test
-      with_client do |client|
+      with_client('test') do |client|
         stmt = client.prepare(TEST_SQL)
         begin
           result = stmt.execute
@@ -357,8 +368,13 @@ module Mysql2Codegen
       end
     end
 
+    # Like #test, but raises NotFound when there is no row.
+    def test!(...)
+      test(...) || raise(NotFound, 'Test returned no row')
+    end
+
     def list_authors_paged(limit:, offset:)
-      with_client do |client|
+      with_client('list_authors_paged') do |client|
         query_params = [limit, offset]
         stmt = client.prepare(LIST_AUTHORS_PAGED_SQL)
         begin
@@ -373,7 +389,7 @@ module Mysql2Codegen
     end
 
     def get_author_by_name_pattern(name_pattern: nil)
-      with_client do |client|
+      with_client('get_author_by_name_pattern') do |client|
         query_params = [name_pattern]
         stmt = client.prepare(GET_AUTHOR_BY_NAME_PATTERN_SQL)
         begin
@@ -389,7 +405,7 @@ module Mysql2Codegen
 
     # Sets the bio of every author that has one and returns how many were changed.
     def update_author_bios(bio: nil)
-      with_client do |client|
+      with_client('update_author_bios') do |client|
         query_params = [bio]
         stmt = client.prepare(UPDATE_AUTHOR_BIOS_SQL)
         begin
@@ -402,7 +418,7 @@ module Mysql2Codegen
     end
 
     def get_authors_by_ids(ids:)
-      with_client do |client|
+      with_client('get_authors_by_ids') do |client|
         query_params = [*ids]
         sql = GET_AUTHORS_BY_IDS_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))
         stmt = client.prepare(sql)
@@ -418,7 +434,7 @@ module Mysql2Codegen
     end
 
     def get_authors_by_ids_and_names(ids:, names:)
-      with_client do |client|
+      with_client('get_authors_by_ids_and_names') do |client|
         query_params = [*ids, *names]
         sql = GET_AUTHORS_BY_IDS_AND_NAMES_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))
         sql = sql.sub('/*SLICE:names*/?', slice_placeholders(names))
@@ -436,7 +452,7 @@ module Mysql2Codegen
 
     # Bulk insert: pass an Array of CopyAuthorsArgs.
     def copy_authors(rows)
-      with_client do |client|
+      with_client('copy_authors') do |client|
         return if rows.empty?
 
         Tempfile.create(['copy_authors', '.csv']) do |file|
@@ -451,7 +467,7 @@ module Mysql2Codegen
     end
 
     def truncate_authors
-      with_client do |client|
+      with_client('truncate_authors') do |client|
         stmt = client.prepare(TRUNCATE_AUTHORS_SQL)
         begin
           stmt.execute
@@ -463,7 +479,7 @@ module Mysql2Codegen
     end
 
     def create_book(name:, author_id:)
-      with_client do |client|
+      with_client('create_book') do |client|
         query_params = [name, author_id]
         stmt = client.prepare(CREATE_BOOK_SQL)
         begin
@@ -476,7 +492,7 @@ module Mysql2Codegen
     end
 
     def list_all_authors_books
-      with_client do |client|
+      with_client('list_all_authors_books') do |client|
         stmt = client.prepare(LIST_ALL_AUTHORS_BOOKS_SQL)
         begin
           result = stmt.execute(as: :array)
@@ -490,7 +506,7 @@ module Mysql2Codegen
     end
 
     def get_duplicate_authors
-      with_client do |client|
+      with_client('get_duplicate_authors') do |client|
         stmt = client.prepare(GET_DUPLICATE_AUTHORS_SQL)
         begin
           result = stmt.execute(as: :array)
@@ -504,7 +520,7 @@ module Mysql2Codegen
     end
 
     def get_authors_by_book_name(name:)
-      with_client do |client|
+      with_client('get_authors_by_book_name') do |client|
         query_params = [name]
         stmt = client.prepare(GET_AUTHORS_BY_BOOK_NAME_SQL)
         begin
@@ -519,7 +535,7 @@ module Mysql2Codegen
     end
 
     def create_extended_bio(author_name:, name:, bio_type:, author_type:)
-      with_client do |client|
+      with_client('create_extended_bio') do |client|
         query_params = [author_name, name, bio_type, author_type]
         stmt = client.prepare(CREATE_EXTENDED_BIO_SQL)
         begin
@@ -532,7 +548,7 @@ module Mysql2Codegen
     end
 
     def get_first_extended_bio_by_type(bio_type:)
-      with_client do |client|
+      with_client('get_first_extended_bio_by_type') do |client|
         query_params = [bio_type]
         stmt = client.prepare(GET_FIRST_EXTENDED_BIO_BY_TYPE_SQL)
         begin
@@ -545,8 +561,13 @@ module Mysql2Codegen
       end
     end
 
+    # Like #get_first_extended_bio_by_type, but raises NotFound when there is no row.
+    def get_first_extended_bio_by_type!(...)
+      get_first_extended_bio_by_type(...) || raise(NotFound, 'GetFirstExtendedBioByType returned no row')
+    end
+
     def truncate_extended_bios
-      with_client do |client|
+      with_client('truncate_extended_bios') do |client|
         stmt = client.prepare(TRUNCATE_EXTENDED_BIOS_SQL)
         begin
           stmt.execute
@@ -559,10 +580,24 @@ module Mysql2Codegen
 
     private
 
-    def with_client
-      @db.with do |client|
-        client.extend(ConnectionState) unless client.is_a?(ConnectionState)
-        yield client
+    def instrument(name)
+      return yield unless @logger
+
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      begin
+        yield
+      ensure
+        elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+        @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
+      end
+    end
+
+    def with_client(name)
+      instrument(name) do
+        @db.with do |client|
+          client.extend(ConnectionState) unless client.is_a?(ConnectionState)
+          yield client
+        end
       end
     end
 

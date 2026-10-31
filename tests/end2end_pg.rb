@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 gem 'minitest'     # ensures using the gem, and not the built-in MT
 require 'minitest/autorun'
+require 'logger'
+require 'stringio'
 require 'async'
 require 'async/barrier'
 require 'bigdecimal'
@@ -386,6 +388,26 @@ class TestPg < Minitest::Test
     end
     assert_equal 10, names.uniq.size
     assert_equal 10, @query_sql.list_authors.size
+  end
+
+  # ---- Ruby conventions: bang finders, logger ----------------------------------------------------------------
+
+  def test_bang_finder_raises_not_found
+    id = create_author('a', nil)
+    assert_equal 'a', @query_sql.get_author!(id: id).name
+    error = assert_raises(QuerySql::NotFound) { @query_sql.get_author!(id: -1) }
+    assert_equal 'GetAuthor returned no row', error.message
+    assert_nil @query_sql.get_author(id: -1) # the plain finder still returns nil
+  end
+
+  def test_logger_receives_query_names_and_durations
+    io = StringIO.new
+    logged = QuerySql.connect(pg_params, logger: Logger.new(io, level: Logger::DEBUG))
+    logged.list_authors
+    logged.transaction { |tx| tx.list_authors }
+    assert_match(/QuerySql#list_authors \(\d+\.\dms\)/, io.string)
+    assert_match(/QuerySql#transaction \(\d+\.\dms\)/, io.string)
+    @query_sql.list_authors # no logger: nothing is logged, nothing breaks
   end
 
   # ---- models ----------------------------------------------------------------------------------------------------

@@ -22,20 +22,20 @@ module SqlcGenRuby
 
       def class_methods
         [
-          [CONNECT, 'def self.connect: (Hash[untyped, untyped] pg_params, **untyped pool_options) -> instance'],
-          ["def initialize(db)\n  @db = db\nend", 'def initialize: (untyped db) -> void'],
+          [NOT_FOUND, "class NotFound < StandardError\nend"],
+          [CONNECT, 'def self.connect: (Hash[untyped, untyped] pg_params, ?logger: untyped, **untyped pool_options) -> instance'],
+          [INITIALIZE, 'def initialize: (untyped db, ?logger: untyped) -> void'],
           [TRANSACTION, TRANSACTION_RBS]
         ]
       end
 
       def private_methods
         [
-          [WITH_CLIENT, 'def with_client: [T] () { (untyped) -> T } -> T'],
+          [INSTRUMENT, INSTRUMENT_RBS],
+          [WITH_CLIENT, 'def with_client: [T] (String name) { (untyped) -> T } -> T'],
           [CONFIGURE, 'def configure: (untyped client) -> void']
         ]
       end
-
-      def client_block = 'with_client do |client|'
 
       # Set is only autoloaded since Ruby 3.2
       def extra_requires(_queries, ruby_version) = ruby_version.immutable_data_supported? ? [] : %w[set]
@@ -89,11 +89,20 @@ module SqlcGenRuby
         end
       RUBY
 
+      INITIALIZE = <<~'RUBY'.chomp
+        # db: a ConnectionPool (or anything that responds to #with and yields a PG::Connection).
+        # logger: optional, anything with #debug (Logger, Rails.logger); logs the name and duration of every query.
+        def initialize(db, logger: nil)
+          @db = db
+          @logger = logger
+        end
+      RUBY
+
       CONNECT = <<~'RUBY'.chomp
-        # Opens a pool of connections: QuerySql.connect({ dbname: 'app' }, size: 5, timeout: 5)
+        # Opens a pool of connections: QuerySql.connect({ dbname: 'app' }, size: 5, timeout: 5, logger: Logger.new($stdout))
         # (pool_options go to ConnectionPool.new). To share an existing pool use QuerySql.new(pool).
-        def self.connect(pg_params, **pool_options)
-          new(ConnectionPool.new(**pool_options) { PG.connect(**pg_params) })
+        def self.connect(pg_params, logger: nil, **pool_options)
+          new(ConnectionPool.new(**pool_options) { PG.connect(**pg_params) }, logger: logger)
         end
       RUBY
 
@@ -101,7 +110,7 @@ module SqlcGenRuby
         # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns,
         # ROLLBACK when it raises. A nested call becomes a SAVEPOINT. Yields self, bound to that connection.
         def transaction(isolation: nil)
-          with_client do |client|
+          with_client('transaction') do |client|
             outermost = client.transaction_status == PG::PQTRANS_IDLE
             savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
             if outermost
@@ -122,10 +131,12 @@ module SqlcGenRuby
       RUBY
 
       WITH_CLIENT = <<~'RUBY'.chomp
-        def with_client
-          @db.with do |client|
-            configure(client) unless client.is_a?(ConnectionState)
-            yield client
+        def with_client(name)
+          instrument(name) do
+            @db.with do |client|
+              configure(client) unless client.is_a?(ConnectionState)
+              yield client
+            end
           end
         end
       RUBY
