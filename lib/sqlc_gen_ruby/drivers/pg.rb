@@ -19,12 +19,12 @@ module SqlcGenRuby
           'client'
         ].join("\n")
         pool = "ConnectionPool.new(**connection_pool_params) {\n#{Code.indent(pool_body)}\n}"
-        body = ["@db = #{pool}", '@prepared_statements = Set[]'].join("\n")
+        body = ["@db = #{pool}", '@prepared_statements = {}.compare_by_identity'].join("\n")
         Code.block('def initialize(connection_pool_params, pg_params)', body)
       end
 
       def init_type
-        "@db: untyped\n@prepared_statements: Set[String]\n" \
+        "@db: untyped\n@prepared_statements: Hash[untyped, Set[String]]\n" \
           'def initialize: (Hash[String, String], Hash[String, String]) -> void'
       end
 
@@ -33,9 +33,11 @@ module SqlcGenRuby
         Code.block('def transaction', Code.block('@db.with do |client|', Code.block('client.transaction do', 'yield self')))
       end
 
+      # Statements are prepared once per *connection*: each pooled connection has its own server-side statements.
       def prepare_stmt(func_name, const)
-        body = "client.prepare('#{func_name}', #{const})\n@prepared_statements.add('#{func_name}')"
-        Code.block("unless @prepared_statements.include?('#{func_name}')", body)
+        body = "client.prepare('#{func_name}', #{const})\nprepared.add('#{func_name}')"
+        "prepared = (@prepared_statements[client] ||= Set[])\n" \
+          "#{Code.block("unless prepared.include?('#{func_name}')", body)}"
       end
 
       def execute_stmt(func_name, has_params, array_rows: false)

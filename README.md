@@ -17,6 +17,20 @@ codec), and it is shipped as a single self-contained WebAssembly module — the 
 | rubyVersion     | default: `3.3`<br/>values: `3.1`, `3.2`, `3.3` | Yes      | Determines the Ruby version the generated code should support..                                           |
 | generateGemfile | default: `false`<br/>values: `false`,`true`    | Yes      | Assists you with the integration of SQLC and Ruby by generating a `Gemfile` with the needed dependencies. |
 | generateTypes   | default: `true`<br/>values: `false`,`true`     | Yes      | Determines whether to generate type signatures in addition to the code.                                   |
+| overrides       | a list, see [below](#override-option)          | Yes      | Overrides the generated (RBS) type of specific columns / parameters.                                      |
+
+### Override option
+```yaml
+overrides:
+  - column: "<query-name>:<column-name>"   # one query, e.g. "GetAuthor:bio"
+    ruby_type:
+      type: "Symbol"
+      notNull: true
+  - column: "*:<column-name>"              # every query
+    ruby_type:
+      type: "Pathname"
+      notNull: false
+```
 
 ### Configuration
 ```yaml
@@ -66,6 +80,36 @@ sql:
 ```
 
 ### [Generated Code Examples](docs/Examples.md)
+
+## Supported features
+✅ supported · 🚫 not offered by the database / sqlc
+
+### Query annotations
+| Annotation    | PostgreSQL | MySQL | SQLite | Notes |
+|---------------|:---:|:---:|:---:|-------|
+| `:one`        | ✅ | ✅ | ✅ | returns the row or `nil` |
+| `:many`       | ✅ | ✅ | ✅ | returns an `Array` of rows |
+| `:exec`       | ✅ | ✅ | ✅ | |
+| `:execrows`   | ✅ | ✅ | ✅ | returns the number of affected rows |
+| `:execlastid` | ✅ | ✅ | ✅ | PostgreSQL / SQLite need a `RETURNING <id>` clause (the value of that column is returned); MySQL returns `client.last_id` |
+| `:copyfrom`   | ✅ | ✅ | ✅ | takes an `Array` of `<Query>Args`. PostgreSQL: `COPY ... FROM STDIN`. MySQL: `LOAD DATA LOCAL INFILE` from a temporary CSV - needs `local_infile: true` in the `Mysql2::Client` params and `local_infile=1` on the server. SQLite: batched multi-row `INSERT` |
+
+### Macros
+| Macro         | PostgreSQL | MySQL | SQLite | Notes |
+|---------------|:---:|:---:|:---:|-------|
+| `sqlc.arg`    | ✅ | ✅ | ✅ | names the attribute of the `<Query>Args` class (anonymous parameters such as `ANY($1::BIGINT[])` are called `param1`, `param2`, ...) |
+| `sqlc.narg`   | ✅ | ✅ | ✅ | nullable parameter, typed `T?` |
+| `sqlc.slice`  | 🚫 | ✅ | ✅ | the `IN (...)` list is expanded at runtime (an empty list matches nothing). PostgreSQL: pass an array to `= ANY($1::T[])` instead |
+| `sqlc.embed`  | ✅ | ✅ | ✅ | the row gets an attribute holding the table's model (`author`, `author2` for the same table twice) |
+
+### Other
+* **Models:** a `models.rb` / `models.rbs` with one `Data` (`Struct` below Ruby 3.2) class per table, and one module with constants per enum (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`). Enum columns are `String`s.
+* **Transactions:** `queries.transaction { |tx| tx.create_author(...) }` runs everything in the block on one connection in a transaction (commit when the block returns, rollback when it raises) and returns the block's value.
+* **Nullability:** nullable columns / parameters are typed `T?` in the `.rbs`.
+* **Arrays (PostgreSQL):** `Array[T]` for columns and parameters.
+* Types follow the Ruby classes the drivers actually return (e.g. `BigDecimal` for `numeric`/`decimal`, `Date`, `Time`, `IPAddr`; `json`/`jsonb` are parsed, so `untyped`).
+
+Not applicable to the Ruby plugin (they exist in the C# plugin because of its runtime): `withAsyncSuffix`, `withCancellationToken`, `useDapper`, target framework / csproj / namespace options.
 
 # Contributing
 ## Local plugin development

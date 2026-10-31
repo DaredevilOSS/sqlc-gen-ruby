@@ -293,7 +293,7 @@ module PgCodegen
 	
 	class QuerySql
 		@db: untyped
-		@prepared_statements: Set[String]
+		@prepared_statements: Hash[untyped, Set[String]]
 		def initialize: (Hash[String, String], Hash[String, String]) -> void
 		
 		def transaction: [T] () { (self) -> T } -> T

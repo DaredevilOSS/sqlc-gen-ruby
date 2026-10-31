@@ -21,7 +21,7 @@ module PgCodegen
 				client.type_map_for_queries = PG::BasicTypeMapForQueries.new client
 				client
 			}
-			@prepared_statements = Set[]
+			@prepared_statements = {}.compare_by_identity
 		end
 		
 		def transaction
@@ -35,9 +35,10 @@ module PgCodegen
 		def with_numbers2_go(with_numbers2_go_args)
 			@db.with do |client|
 				query_params = [with_numbers2_go_args.c0]
-				unless @prepared_statements.include?('with_numbers2_go')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('with_numbers2_go')
 					client.prepare('with_numbers2_go', WithNumbers2GoSql)
-					@prepared_statements.add('with_numbers2_go')
+					prepared.add('with_numbers2_go')
 				end
 				client.exec_prepared('with_numbers2_go', query_params)
 			end

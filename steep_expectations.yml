@@ -3,53 +3,93 @@
   diagnostics:
   - range:
       start:
-        line: 98
+        line: 192
         character: 9
       end:
-        line: 98
+        line: 192
         character: 23
     severity: WARNING
     message: 'Cannot find the declaration of constant: `ConnectionPool`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 99
+        line: 193
         character: 4
       end:
-        line: 99
+        line: 193
         character: 10
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 565
+        character: 3
+      end:
+        line: 565
+        character: 6
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `CSV`'
     code: Ruby::UnknownConstant
 - file: examples/pg/query_sql.rb
   diagnostics:
   - range:
       start:
-        line: 68
+        line: 213
         character: 9
       end:
-        line: 68
+        line: 213
         character: 23
     severity: WARNING
     message: 'Cannot find the declaration of constant: `ConnectionPool`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 69
+        line: 214
         character: 13
       end:
-        line: 69
+        line: 214
         character: 15
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 70
+        line: 215
+        character: 15
+      end:
+        line: 215
+        character: 17
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `PG`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 216
+        character: 32
+      end:
+        line: 216
+        character: 34
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `PG`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 218
         character: 34
       end:
-        line: 70
+        line: 218
         character: 36
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `PG`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 422
+        character: 14
+      end:
+        line: 422
+        character: 16
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant

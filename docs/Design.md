@@ -11,8 +11,10 @@ process or as a WASI module. This plugin is pure Ruby and is distributed as a WA
 | `lib/sqlc_gen_ruby/proto.rb` | ~150 line protobuf wire codec. `google-protobuf` is a C extension and cannot be loaded inside ruby.wasm, so the plugin brings its own |
 | `lib/sqlc_gen_ruby/plugin_pb.rb` | the subset of sqlc's `codegen.proto` the generator needs (field numbers must match upstream) |
 | `lib/sqlc_gen_ruby/options.rb`, `ruby_version.rb` | the `options:` JSON, `rubyVersion` parsing / validation (3.1 – 3.3; `Struct` below 3.2, `Data` from 3.2) |
-| `lib/sqlc_gen_ruby/generator.rb` | module / class / dataclass (`Data.define`, `Struct.new`) layout, `.rb` / `.rbs` / `Gemfile` files |
-| `lib/sqlc_gen_ruby/method_gen.rb` | one generated method per query: `:one`, `:many`, `:exec`, `:execlastid` |
+| `lib/sqlc_gen_ruby/generator.rb` | module / class / dataclass (`Data.define`, `Struct.new`) layout, `.rb` / `.rbs` / `Gemfile` files, `models.rb` (tables + enums) |
+| `lib/sqlc_gen_ruby/method_gen.rb` | one generated method per query: `:one`, `:many`, `:exec`, `:execrows`, `:execlastid`, `:copyfrom`, `sqlc.slice` |
+| `lib/sqlc_gen_ruby/row_layout.rb` | how result columns become `<Query>Row` attributes (`sqlc.embed` expands a table into one model attribute) |
+| `lib/sqlc_gen_ruby/type_resolver.rb`, `catalog.rb` | RBS type of a column (DB type mapping + array + nullability + `overrides:`), tables / enums of the catalog |
 | `lib/sqlc_gen_ruby/drivers/*.rb` | `Base` + `Pg`, `Mysql2`, `Sqlite3`: column type mapping, statement preparation / execution, pooling, row access |
 | `lib/sqlc_gen_ruby/code.rb` | indent / snake_case helpers (formatting must stay byte-identical with the original implementation) |
 
@@ -44,7 +46,21 @@ The previous C# implementation defined the expected behaviour. Its output is kep
 `test/codec_test.rb` cross-checks the hand-written protobuf codec against Google's official implementation (test-only
 dependency).
 
-## Known quirks kept for output compatibility
+## Beyond the C# port
+The first version of the Ruby plugin reproduced the C# plugin's output exactly (verified against the C# binary, see git
+history). It has since gained the sqlc features of the sibling `sqlc-gen-csharp` plugin (`:execrows`, `:execlastid` for
+every driver, `:copyfrom`, `sqlc.slice`, `sqlc.embed`, enums, models, transactions, nullability, `overrides`) and
+its type tables were corrected to the classes the drivers really return, so the output is no longer identical.
+`tests/end2end_*.rb` run the generated code against real databases; `tests/rbs_types.rb` checks returned values
+against the generated signatures.
+
+## Known limitations
+* `%q(...)` SQL constants break if the query text has unbalanced parentheses (inside a string literal).
+* The SQLite `NUMERIC` affinity can return Integers where `Float` is declared.
+* `:copyfrom` for MySQL writes binary (`BLOB`) values through a text CSV; only text-safe values round-trip.
+* The generated query classes are not thread-safe for SQLite (a single connection is injected).
+
+## Known quirks kept from the C# implementation
 * With Ruby < 3.2 the generated `Struct.new(id, name)` lists bare identifiers, not symbols (`:id, :name`).
   This is what the C# plugin generated, so it is preserved.
 * `3.3.x` (a patch version) is rejected: the original version comparison treats a patch as greater than "no patch".

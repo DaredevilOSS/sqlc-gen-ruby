@@ -12,14 +12,17 @@ require_relative '../examples/pg/query_sql'
 class TestPg < Minitest::Test
   include PgCodegen
 
-  def setup
-    pg_params = {
+  def pg_params
+    {
       'dbname' => ENV['DB_NAME'],
       'host' => ENV['POSTGRES_HOST'],
       'port' => ENV['POSTGRES_PORT'], # optional
       'user' => ENV['DB_USER'],
       'password' => ENV['DB_PASS']
     }.compact
+  end
+
+  def setup
     @query_sql = QuerySql.new({}, pg_params)
     @query_sql.truncate_authors # cascades to books
     @query_sql.truncate_extended_bios
@@ -199,13 +202,37 @@ class TestPg < Minitest::Test
   end
 
   def test_transaction_is_isolated_until_commit
-    other = QuerySql.new({}, { 'dbname' => ENV['DB_NAME'], 'host' => ENV['POSTGRES_HOST'], 'port' => ENV['POSTGRES_PORT'],
-                               'user' => ENV['DB_USER'], 'password' => ENV['DB_PASS'] }.compact)
+    other = QuerySql.new({}, pg_params)
     @query_sql.transaction do |tx|
       tx.create_author_return_id(CreateAuthorReturnIdArgs.new(name: 'uncommitted', bio: nil))
       assert_empty other.list_authors
     end
     assert_equal ['uncommitted'], other.list_authors.map(&:name)
+  end
+
+  # ---- connection pool -------------------------------------------------------------------------------------------
+
+  def test_every_pooled_connection_prepares_its_own_statements
+    pooled = QuerySql.new({ size: 3 }, pg_params)
+    pool = pooled.instance_variable_get(:@db)
+    held = Queue.new
+    gates = Array.new(3) { Queue.new }
+    # three threads, each holding a different connection until it is released
+    threads = gates.map do |gate|
+      Thread.new do
+        pool.with do |client|
+          held << client.object_id
+          gate.pop
+          pooled.list_authors # reentrant: runs on the connection this thread holds
+        end
+      end
+    end
+    assert_equal 3, Array.new(3) { held.pop }.uniq.size, 'expected three distinct connections'
+    # one after the other, so that the first run has finished (and "remembered" the statement) before the next one
+    threads.zip(gates).each do |thread, gate|
+      gate << true
+      assert_equal [], thread.value
+    end
   end
 
   # ---- more data types -------------------------------------------------------------------------------------------
@@ -239,8 +266,7 @@ class TestPg < Minitest::Test
   end
 
   def raw_client
-    PG.connect(dbname: ENV['DB_NAME'], host: ENV['POSTGRES_HOST'], port: ENV['POSTGRES_PORT'], user: ENV['DB_USER'],
-               password: ENV['DB_PASS'])
+    PG.connect(**pg_params.transform_keys(&:to_sym))
   end
 
   def test_declared_types_match_runtime_values

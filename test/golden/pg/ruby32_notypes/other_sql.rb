@@ -39,7 +39,7 @@ module PgCodegen
 				client.type_map_for_queries = PG::BasicTypeMapForQueries.new client
 				client
 			}
-			@prepared_statements = Set[]
+			@prepared_statements = {}.compare_by_identity
 		end
 		
 		def transaction
@@ -59,9 +59,10 @@ module PgCodegen
 					no_cols_args.c3,
 					no_cols_args.c4
 				]
-				unless @prepared_statements.include?('no_cols')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('no_cols')
 					client.prepare('no_cols', NoColsSql)
-					@prepared_statements.add('no_cols')
+					prepared.add('no_cols')
 				end
 				client.exec_prepared('no_cols', query_params)
 			end
@@ -69,9 +70,10 @@ module PgCodegen
 		
 		def other_one
 			@db.with do |client|
-				unless @prepared_statements.include?('other_one')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('other_one')
 					client.prepare('other_one', OtherOneSql)
-					@prepared_statements.add('other_one')
+					prepared.add('other_one')
 				end
 				result = client.exec_prepared('other_one')
 				row = result.first
@@ -84,9 +86,10 @@ module PgCodegen
 		def count_rows(count_rows_args)
 			@db.with do |client|
 				query_params = [count_rows_args.c0]
-				unless @prepared_statements.include?('count_rows')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('count_rows')
 					client.prepare('count_rows', CountRowsSql)
-					@prepared_statements.add('count_rows')
+					prepared.add('count_rows')
 				end
 				result = client.exec_prepared('count_rows', query_params)
 				return result.cmd_tuples

@@ -218,7 +218,7 @@ module PgCodegen
 				client.type_map_for_queries = PG::BasicTypeMapForQueries.new client
 				client
 			}
-			@prepared_statements = Set[]
+			@prepared_statements = {}.compare_by_identity
 		end
 		
 		def transaction
@@ -232,9 +232,10 @@ module PgCodegen
 		def get_author(get_author_args)
 			@db.with do |client|
 				query_params = [get_author_args.id]
-				unless @prepared_statements.include?('get_author')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('get_author')
 					client.prepare('get_author', GetAuthorSql)
-					@prepared_statements.add('get_author')
+					prepared.add('get_author')
 				end
 				result = client.exec_prepared('get_author', query_params)
 				row = result.first
@@ -246,9 +247,10 @@ module PgCodegen
 		
 		def list_authors
 			@db.with do |client|
-				unless @prepared_statements.include?('list_authors')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('list_authors')
 					client.prepare('list_authors', ListAuthorsSql)
-					@prepared_statements.add('list_authors')
+					prepared.add('list_authors')
 				end
 				result = client.exec_prepared('list_authors')
 				entities = []
@@ -262,9 +264,10 @@ module PgCodegen
 		def create_author(create_author_args)
 			@db.with do |client|
 				query_params = [create_author_args.name, create_author_args.bio]
-				unless @prepared_statements.include?('create_author')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('create_author')
 					client.prepare('create_author', CreateAuthorSql)
-					@prepared_statements.add('create_author')
+					prepared.add('create_author')
 				end
 				result = client.exec_prepared('create_author', query_params)
 				row = result.first
@@ -277,9 +280,10 @@ module PgCodegen
 		def delete_author(delete_author_args)
 			@db.with do |client|
 				query_params = [delete_author_args.id]
-				unless @prepared_statements.include?('delete_author')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('delete_author')
 					client.prepare('delete_author', DeleteAuthorSql)
-					@prepared_statements.add('delete_author')
+					prepared.add('delete_author')
 				end
 				client.exec_prepared('delete_author', query_params)
 			end
@@ -287,9 +291,10 @@ module PgCodegen
 		
 		def test
 			@db.with do |client|
-				unless @prepared_statements.include?('test')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('test')
 					client.prepare('test', TestSql)
-					@prepared_statements.add('test')
+					prepared.add('test')
 				end
 				result = client.exec_prepared('test')
 				row = result.first
@@ -321,9 +326,10 @@ module PgCodegen
 		def list_authors_paged(list_authors_paged_args)
 			@db.with do |client|
 				query_params = [list_authors_paged_args.offset, list_authors_paged_args.limit]
-				unless @prepared_statements.include?('list_authors_paged')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('list_authors_paged')
 					client.prepare('list_authors_paged', ListAuthorsPagedSql)
-					@prepared_statements.add('list_authors_paged')
+					prepared.add('list_authors_paged')
 				end
 				result = client.exec_prepared('list_authors_paged', query_params)
 				entities = []
@@ -337,9 +343,10 @@ module PgCodegen
 		def get_author_by_name_pattern(get_author_by_name_pattern_args)
 			@db.with do |client|
 				query_params = [get_author_by_name_pattern_args.name_pattern]
-				unless @prepared_statements.include?('get_author_by_name_pattern')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('get_author_by_name_pattern')
 					client.prepare('get_author_by_name_pattern', GetAuthorByNamePatternSql)
-					@prepared_statements.add('get_author_by_name_pattern')
+					prepared.add('get_author_by_name_pattern')
 				end
 				result = client.exec_prepared('get_author_by_name_pattern', query_params)
 				entities = []
@@ -353,9 +360,10 @@ module PgCodegen
 		def create_author_return_id(create_author_return_id_args)
 			@db.with do |client|
 				query_params = [create_author_return_id_args.name, create_author_return_id_args.bio]
-				unless @prepared_statements.include?('create_author_return_id')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('create_author_return_id')
 					client.prepare('create_author_return_id', CreateAuthorReturnIdSql)
-					@prepared_statements.add('create_author_return_id')
+					prepared.add('create_author_return_id')
 				end
 				result = client.exec_prepared('create_author_return_id', query_params)
 				return result.first['id']
@@ -365,9 +373,10 @@ module PgCodegen
 		def update_author_bios(update_author_bios_args)
 			@db.with do |client|
 				query_params = [update_author_bios_args.bio]
-				unless @prepared_statements.include?('update_author_bios')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('update_author_bios')
 					client.prepare('update_author_bios', UpdateAuthorBiosSql)
-					@prepared_statements.add('update_author_bios')
+					prepared.add('update_author_bios')
 				end
 				result = client.exec_prepared('update_author_bios', query_params)
 				return result.cmd_tuples
@@ -377,9 +386,10 @@ module PgCodegen
 		def get_authors_by_ids(get_authors_by_ids_args)
 			@db.with do |client|
 				query_params = [get_authors_by_ids_args.param1]
-				unless @prepared_statements.include?('get_authors_by_ids')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('get_authors_by_ids')
 					client.prepare('get_authors_by_ids', GetAuthorsByIdsSql)
-					@prepared_statements.add('get_authors_by_ids')
+					prepared.add('get_authors_by_ids')
 				end
 				result = client.exec_prepared('get_authors_by_ids', query_params)
 				entities = []
@@ -393,9 +403,10 @@ module PgCodegen
 		def get_authors_by_ids_and_names(get_authors_by_ids_and_names_args)
 			@db.with do |client|
 				query_params = [get_authors_by_ids_and_names_args.param1, get_authors_by_ids_and_names_args.param2]
-				unless @prepared_statements.include?('get_authors_by_ids_and_names')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('get_authors_by_ids_and_names')
 					client.prepare('get_authors_by_ids_and_names', GetAuthorsByIdsAndNamesSql)
-					@prepared_statements.add('get_authors_by_ids_and_names')
+					prepared.add('get_authors_by_ids_and_names')
 				end
 				result = client.exec_prepared('get_authors_by_ids_and_names', query_params)
 				entities = []
@@ -419,9 +430,10 @@ module PgCodegen
 		
 		def truncate_authors
 			@db.with do |client|
-				unless @prepared_statements.include?('truncate_authors')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('truncate_authors')
 					client.prepare('truncate_authors', TruncateAuthorsSql)
-					@prepared_statements.add('truncate_authors')
+					prepared.add('truncate_authors')
 				end
 				client.exec_prepared('truncate_authors')
 			end
@@ -430,9 +442,10 @@ module PgCodegen
 		def create_book(create_book_args)
 			@db.with do |client|
 				query_params = [create_book_args.name, create_book_args.author_id]
-				unless @prepared_statements.include?('create_book')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('create_book')
 					client.prepare('create_book', CreateBookSql)
-					@prepared_statements.add('create_book')
+					prepared.add('create_book')
 				end
 				result = client.exec_prepared('create_book', query_params)
 				return result.first['id']
@@ -441,9 +454,10 @@ module PgCodegen
 		
 		def list_all_authors_books
 			@db.with do |client|
-				unless @prepared_statements.include?('list_all_authors_books')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('list_all_authors_books')
 					client.prepare('list_all_authors_books', ListAllAuthorsBooksSql)
-					@prepared_statements.add('list_all_authors_books')
+					prepared.add('list_all_authors_books')
 				end
 				result = client.exec_prepared('list_all_authors_books').values
 				entities = []
@@ -456,9 +470,10 @@ module PgCodegen
 		
 		def get_duplicate_authors
 			@db.with do |client|
-				unless @prepared_statements.include?('get_duplicate_authors')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('get_duplicate_authors')
 					client.prepare('get_duplicate_authors', GetDuplicateAuthorsSql)
-					@prepared_statements.add('get_duplicate_authors')
+					prepared.add('get_duplicate_authors')
 				end
 				result = client.exec_prepared('get_duplicate_authors').values
 				entities = []
@@ -472,9 +487,10 @@ module PgCodegen
 		def get_authors_by_book_name(get_authors_by_book_name_args)
 			@db.with do |client|
 				query_params = [get_authors_by_book_name_args.name]
-				unless @prepared_statements.include?('get_authors_by_book_name')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('get_authors_by_book_name')
 					client.prepare('get_authors_by_book_name', GetAuthorsByBookNameSql)
-					@prepared_statements.add('get_authors_by_book_name')
+					prepared.add('get_authors_by_book_name')
 				end
 				result = client.exec_prepared('get_authors_by_book_name', query_params).values
 				entities = []
@@ -488,9 +504,10 @@ module PgCodegen
 		def create_extended_bio(create_extended_bio_args)
 			@db.with do |client|
 				query_params = [create_extended_bio_args.author_name, create_extended_bio_args.name, create_extended_bio_args.bio_type]
-				unless @prepared_statements.include?('create_extended_bio')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('create_extended_bio')
 					client.prepare('create_extended_bio', CreateExtendedBioSql)
-					@prepared_statements.add('create_extended_bio')
+					prepared.add('create_extended_bio')
 				end
 				client.exec_prepared('create_extended_bio', query_params)
 			end
@@ -499,9 +516,10 @@ module PgCodegen
 		def get_first_extended_bio_by_type(get_first_extended_bio_by_type_args)
 			@db.with do |client|
 				query_params = [get_first_extended_bio_by_type_args.bio_type]
-				unless @prepared_statements.include?('get_first_extended_bio_by_type')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('get_first_extended_bio_by_type')
 					client.prepare('get_first_extended_bio_by_type', GetFirstExtendedBioByTypeSql)
-					@prepared_statements.add('get_first_extended_bio_by_type')
+					prepared.add('get_first_extended_bio_by_type')
 				end
 				result = client.exec_prepared('get_first_extended_bio_by_type', query_params)
 				row = result.first
@@ -513,9 +531,10 @@ module PgCodegen
 		
 		def truncate_extended_bios
 			@db.with do |client|
-				unless @prepared_statements.include?('truncate_extended_bios')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('truncate_extended_bios')
 					client.prepare('truncate_extended_bios', TruncateExtendedBiosSql)
-					@prepared_statements.add('truncate_extended_bios')
+					prepared.add('truncate_extended_bios')
 				end
 				client.exec_prepared('truncate_extended_bios')
 			end
@@ -533,9 +552,10 @@ module PgCodegen
 					insert_extra_types_args.c_money,
 					insert_extra_types_args.c_not_null
 				]
-				unless @prepared_statements.include?('insert_extra_types')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('insert_extra_types')
 					client.prepare('insert_extra_types', InsertExtraTypesSql)
-					@prepared_statements.add('insert_extra_types')
+					prepared.add('insert_extra_types')
 				end
 				client.exec_prepared('insert_extra_types', query_params)
 			end
@@ -543,9 +563,10 @@ module PgCodegen
 		
 		def get_extra_types
 			@db.with do |client|
-				unless @prepared_statements.include?('get_extra_types')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('get_extra_types')
 					client.prepare('get_extra_types', GetExtraTypesSql)
-					@prepared_statements.add('get_extra_types')
+					prepared.add('get_extra_types')
 				end
 				result = client.exec_prepared('get_extra_types')
 				row = result.first
@@ -566,9 +587,10 @@ module PgCodegen
 		
 		def truncate_extra_types
 			@db.with do |client|
-				unless @prepared_statements.include?('truncate_extra_types')
+				prepared = (@prepared_statements[client] ||= Set[])
+				unless prepared.include?('truncate_extra_types')
 					client.prepare('truncate_extra_types', TruncateExtraTypesSql)
-					@prepared_statements.add('truncate_extra_types')
+					prepared.add('truncate_extra_types')
 				end
 				client.exec_prepared('truncate_extra_types')
 			end
