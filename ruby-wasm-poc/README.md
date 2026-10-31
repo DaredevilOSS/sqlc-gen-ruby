@@ -1,42 +1,49 @@
-# Ruby & WASM - POC
+# sqlc-gen-ruby in Ruby (POC)
 
-## Background
-Intended to generate code in Ruby, it will (hopefully) be used by Ruby developers.
-I believe that the best way to keep an open-source project maintainable, is to have its users likely to maintain it.<br>
-In the C# plugin I wrote for SQLC, I used C# Roslyn to generate my code.
-When coming to implement a Ruby plugin, I wanted to take a similar approach.
+Goal: write the sqlc plugin in Ruby instead of C#, and ship it as a `.wasm`.
 
-## The Blocker
-In order to have a production SQLC plugin, we need to publish it as a standalone WASM file.
-The approach I took was using the [rbwasm CLI](https://github.com/ruby/ruby.wasm) which was the only viable option I
-found. <br>
-After a lot of other errors that I did solve, I reached the error below and after some thorough investigation
-I called quits on this angle - for now.
+## What works (verified)
 
-```text
-./build/checkouts/3.2/dln.c:275:5: error: use of undeclared identifier 'Dl_info'
-  275 |     Dl_info dli;
-      |     ^
-./build/checkouts/3.2/dln.c:279:9: error: call to undeclared function 'dladdr'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
-  279 |     if (dladdr(ex, &dli)) {
-      |         ^
-./build/checkouts/3.2/dln.c:279:21: error: use of undeclared identifier 'dli'
-  279 |     if (dladdr(ex, &dli)) {
-      |                     ^
-./ruby-wasm-poc/build/checkouts/3.2/dln.c:280:20: error: use of undeclared identifier 'dli'
-  280 |         *libname = dli.dli_fname;
-      |                    ^
-4 errors generated.
+The plugin logic is now **pure Ruby with zero native dependencies**:
+
+| File | Replaces |
+|---|---|
+| `lib/sqlc_gen_ruby/proto.rb` | `google-protobuf` (a C extension, which cannot run inside ruby.wasm). A ~150 line wire-format codec. |
+| `lib/sqlc_gen_ruby/plugin_pb.rb` | The generated `GenerateRequest/Query/Column/...` classes (subset of `codegen.proto`). |
+| `lib/sqlc_gen_ruby/generator.rb`, `drivers/pg.rb`, `options.rb`, `code.rb` | `CodeGenerator.cs`, `PgDriver.cs`, `MethodGen.cs`, `RubySyntax/*`, `PluginOptions/*`. |
+| `exe/plugin.rb` | `PluginRunner.cs`: stdin = `GenerateRequest`, stdout = `GenerateResponse`. |
+
+`test/golden_test.rb` runs `exe/plugin.rb` as a subprocess over stdin/stdout (the way sqlc does)
+with a request built by the official `google-protobuf` gem, and asserts the generated
+`query_sql.rb` / `query_sql.rbs` equal what the C# plugin produced (`examples/pg`), ignoring CRs
+and the trailing newline.
+
+```bash
+cd ruby-wasm-poc && bundle install && bundle exec ruby test/golden_test.rb
 ```
 
-## Solution?
-I reached the conclusion that, at this point, it's not worth the effort trying to get rbwasm to work for me,
-So I decided not to let it block releasing a Ruby plugin, and I reused the code from my C# plugin to generate Ruby,
-taking a vert Roslyn-inspired approach for it.
+Scope of the port: only the `pg` driver and the `:one` / `:many` / `:exec` commands. `mysql2`,
+`sqlite3` and `:execlastid` still need porting (the structure in `drivers/pg.rb` is the template).
 
-### Going Forward
-While the C# code works just fine, I think using Ruby to generate Ruby is a much cleaner approach then using C# to do
-so, especially in the case of Ruby which is well known in its superb metaprogramming capabilities.
-Of course contributions to the project will be welcome in general, but more specifically - if anyone is interested in 
-cooperating on the rbwasm approach, or some other approach that results in a Ruby code that is packaged in WASM file -
-you're more then welcome to contact me.
+## What is NOT verified: the `.wasm`
+
+This was developed in a sandbox where downloading and running the release binaries
+(ruby.wasm, wasi-vfs, wasmtime, sqlc) was blocked, so **nothing was run inside WASM and
+`sqlc generate` was never run against the plugin**. `scripts/build_wasm.sh` is the intended route:
+use the *prebuilt* `ruby-3.3-wasm32-unknown-wasip1-full` release (which sidesteps the old
+`rbwasm build` `dln.c` / `Dl_info` failure) and `rbwasm pack` the stdlib and `lib/` + `bin/` into it.
+
+### Open problem: argv
+sqlc runs a wasm plugin with no arguments, so a bare `ruby` would try to read its *script from stdin*,
+which is where the protobuf request arrives. Something has to make the interpreter run
+`/app/exe/plugin.rb`. Candidates, in order of preference to try:
+1. Check whether `rbwasm pack` / wasi-vfs in the current version can bake in argv.
+2. Wrap the module with a tiny shim that overrides `wasi_snapshot_preview1.args_get/args_sizes_get`
+   to return `["ruby", "/app/exe/plugin.rb"]` (e.g. via `wasm-merge`/`wasm-tools compose`).
+3. Build a custom ruby.wasm whose `main` is fixed.
+
+### Next steps to finish the proof
+1. `scripts/build_wasm.sh`, then `wasmtime run dist/plugin.wasm < request.bin` to check the wasm path.
+2. Solve argv (above).
+3. Point `sqlc.ci.yaml` at `dist/plugin.wasm` and run `sqlc generate`; diff against `examples/`.
+4. Port the mysql2 / sqlite3 drivers.
