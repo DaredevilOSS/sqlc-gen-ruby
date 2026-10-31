@@ -208,6 +208,7 @@ class FeaturesTest < Minitest::Test
   end
 
   def test_data_classes_are_usable
+    skip 'Data needs Ruby 3.2' unless defined?(Data)
     files = generate(load_request('pg'))
     scope = Module.new
     scope.module_eval(files.fetch('models.rb'))
