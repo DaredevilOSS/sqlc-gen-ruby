@@ -1,59 +1,0 @@
-Š
-6SELECT id, name, bio FROM authors
-WHERE id = ? LIMIT 1	GetAuthor:one"+
-id0ÿÿÿÿÿÿÿÿÿR	authorsb	INTEGERzid",
-name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
-bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*/+
-id0ÿÿÿÿÿÿÿÿÿR	authorsb	INTEGERzid:	query.sqlÕ
-/SELECT id, name, bio FROM authors
-ORDER BY nameListAuthors:many"+
-id0ÿÿÿÿÿÿÿÿÿR	authorsb	INTEGERzid",
-name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
-bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio:	query.sqlÎ
-5INSERT INTO authors (
-  name, bio
-) VALUES (
-  ?, ?
-)CreateAuthor:exec*62
-name0ÿÿÿÿÿÿÿÿÿRmainauthorsbtextzname*2.
-bio0ÿÿÿÿÿÿÿÿÿRmainauthorsbtextzbio:	query.sqlB	authorss
- DELETE FROM authors
-WHERE id = ?DeleteAuthor:exec*/+
-id0ÿÿÿÿÿÿÿÿÿR	authorsb	INTEGERzid:	query.sqlÊ
-SELECT 1 -- ? ?
-	  WHERE a = ?
-ManyParams:one"
-c0b	integer"
-c1btext*
-c0b	integer*
-c1btext*
-c2breal*
-c3bblob*
-c4b	boolean:	query.sql©
-SELECT 1 -- ? ?
-	  WHERE a = ?manyRows:many"
-c0b	integer"
-c1btext"
-c2breal"
-c3bblob"
-c4b	boolean*
-c0b	integer:	query.sql
-SELECT 1 -- ? ?
-	  WHERE a = ?FourCols:many"
-c0b	integer"
-c1btext"
-c2breal"
-c3bblob:	query.sql¤
-SELECT 1 -- ? ?
-	  WHERE a = ?NoCols:exec*
-c0b	integer*
-c1btext*
-c2breal*
-c3bblob*
-c4b	boolean:	other.sqlN
-SELECT 1 -- ? ?
-	  WHERE a = ?OtherOne:one"
-c0b	integer:	other.sql^
-SELECT 1 -- ? ?
-	  WHERE a = ?WithNumbers2Go:exec*
-c0b	integer:my_queries.sql"v1.27.0*U{"driver":"sqlite3","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

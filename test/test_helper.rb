@@ -2,6 +2,7 @@
 
 require 'open3'
 require 'json'
+require 'fileutils'
 require 'minitest/autorun'
 $LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 require 'sqlc_gen_ruby/plugin_pb'

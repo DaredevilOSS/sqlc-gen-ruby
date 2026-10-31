@@ -13,22 +13,22 @@ require_relative 'test_helper'
 class CodecTest < Minitest::Test
   include PluginHelper
 
-  def test_official_request_decodes_and_generates_same_output_as_captured_one
-    official = Fixture.k('GenerateRequest').encode(Fixture.request)
-    out, err, status = run_plugin(official)
+  # request encoded by the official gem -> plugin (own decoder) -> response decoded by both implementations
+  def test_official_request_and_response_agree_with_own_codec
+    out, err, status = run_plugin(Fixture.k('GenerateRequest').encode(Fixture.request))
     assert status.success?, err
-    files = Fixture.k('GenerateResponse').decode(out).files.to_h { |f| [f.name, f.contents] }
-    %w[query_sql.rb query_sql.rbs].each do |name|
-      assert_equal normalize(File.read(File.join(ROOT, 'examples/pg', name))), normalize(files.fetch(name))
-    end
+    official = Fixture.k('GenerateResponse').decode(out).files.to_h { |f| [f.name, f.contents] }
+    own = Plugin::GenerateResponse.decode(out).files.to_h { |f| [f.name, f.contents] }
+    assert_equal official, own
+    assert_equal %w[query_sql.rb query_sql.rbs], own.keys.sort
+    assert_includes own.fetch('query_sql.rb'), 'GetAuthorSql = %q(SELECT id, name, bio FROM authors'
   end
 
-  def test_captured_sqlc_request_roundtrips_through_the_codec
-    bytes = File.binread(File.join(FIXTURES, 'pg.bin'))
-    decoded = Plugin::GenerateRequest.decode(bytes)
-    official = Fixture.k('GenerateRequest').decode(Fixture.k('GenerateRequest').encode(Fixture.request))
-    assert_equal official.queries.map(&:name), %w[GetAuthor ListAuthors CreateAuthor DeleteAuthor Test]
-    refute_empty decoded.queries
-    assert_equal decoded.queries.size, Plugin::GenerateRequest.decode(decoded.encode).queries.size
+  def test_own_encoding_is_readable_by_the_official_implementation
+    request = load_request('pg')
+    # the official fixture schema only models a subset of the request; unknown fields must be skipped
+    decoded = Fixture.k('GenerateRequest').decode(request.encode)
+    assert_equal request.queries.map(&:name), decoded.queries.map(&:name)
+    assert_equal request.queries.first.params.first.column.name, decoded.queries.first.params.first.column.name
   end
 end

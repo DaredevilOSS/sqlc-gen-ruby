@@ -54,8 +54,36 @@ module SqlcGenRuby
       field :insert_into_table, 8, :message, klass: Identifier
     end
 
+    class Enum < P
+      field :name, 1, :string
+      field :vals, 2, :string, repeated: true
+      field :comment, 3, :string
+    end
+
+    class Table < P
+      field :rel, 1, :message, klass: Identifier
+      field :columns, 2, :message, repeated: true, klass: Column
+      field :comment, 3, :string
+    end
+
+    class Schema < P
+      # composite_types(5) is skipped
+      field :comment, 1, :string
+      field :name, 2, :string
+      field :tables, 3, :message, repeated: true, klass: Table
+      field :enums, 4, :message, repeated: true, klass: Enum
+    end
+
+    class Catalog < P
+      field :comment, 1, :string
+      field :default_schema, 2, :string
+      field :name, 3, :string
+      field :schemas, 4, :message, repeated: true, klass: Schema
+    end
+
     class GenerateRequest < P
-      # settings(1) and catalog(2) are skipped: the generator does not need them.
+      # settings(1) is skipped: the generator does not need it.
+      field :catalog, 2, :message, klass: Catalog
       field :queries, 3, :message, repeated: true, klass: Query
       field :sqlc_version, 4, :string
       field :plugin_options, 5, :bytes

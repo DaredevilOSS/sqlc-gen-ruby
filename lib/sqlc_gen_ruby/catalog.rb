@@ -1,0 +1,70 @@
+# frozen_string_literal: true
+
+require_relative 'code'
+
+module SqlcGenRuby
+  # Read-only view of the GenerateRequest catalog: tables (-> model classes, sqlc.embed) and enums.
+  class Catalog
+    INTERNAL_SCHEMAS = %w[pg_catalog information_schema pg_temp].freeze
+
+    Table = Struct.new(:schema, :name, :columns, :model_name)
+
+    attr_reader :tables, :enums
+
+    def initialize(proto_catalog)
+      @default_schema = proto_catalog&.default_schema.to_s
+      schemas = (proto_catalog&.schemas || []).reject { |s| INTERNAL_SCHEMAS.include?(s.name) }
+      @tables = schemas.flat_map do |schema|
+        schema.tables.map do |t|
+          Table.new(schema.name, t.rel.name, t.columns, nil)
+        end
+      end
+      assign_model_names
+      # qualified enum name => values; default-schema enums are reachable both bare and qualified
+      @enums = {}
+      schemas.each do |schema|
+        schema.enums.each do |e|
+          @enums["#{schema.name}.#{e.name}"] = e.vals.to_a
+          @enums[e.name] = e.vals.to_a if default_schema?(schema.name)
+        end
+      end
+    end
+
+    def enum?(type) = @enums.key?(qualified_name(type))
+
+    def enum_values(type) = @enums[qualified_name(type)]
+
+    # Enums with their Ruby module names, one entry per distinct enum.
+    def enum_modules
+      @enums.reject { |name, _| name.include?('.') && default_schema?(name.split('.').first) }
+            .map { |name, vals| [Code.camelize(name), vals] }
+    end
+
+    # embed_table: Identifier(schema, name) as sqlc sends it for sqlc.embed
+    def table_for(identifier)
+      @tables.find do |t|
+        t.name == identifier.name && (identifier.schema.empty? || t.schema == identifier.schema ||
+                                      (t.schema == @default_schema && identifier.schema == @default_schema))
+      end
+    end
+
+    private
+
+    def default_schema?(name) = name.empty? || name == @default_schema
+
+    # Identifier / column type -> "schema.name" for non default schemas
+    def qualified_name(type)
+      name = type.name.to_s.sub(/\Apg_catalog\./, '')
+      return name if name.include?('.') || type.schema.to_s.empty? || type.schema == 'pg_catalog'
+
+      "#{type.schema}.#{name}"
+    end
+
+    def assign_model_names
+      @tables.each do |t|
+        base = Code.camelize(Code.singularize(t.name))
+        t.model_name = default_schema?(t.schema) ? base : Code.camelize(t.schema) + base
+      end
+    end
+  end
+end

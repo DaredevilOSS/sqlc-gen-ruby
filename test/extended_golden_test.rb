@@ -1,24 +1,32 @@
 # frozen_string_literal: true
 
 require_relative 'test_helper'
+require_relative 'synthetic_requests'
 
-# Snapshots of the C# plugin's output (recorded while it still existed) for the sqlc-captured queries plus
-# synthetic ones (5+ params/columns, lower-case names, several query files) under different options:
-# Ruby 3.1 (Struct) / 3.2 / generateGemfile / generateTypes=false.
+# Snapshots of the plugin's output for the sqlc-captured queries plus synthetic ones, under different options:
+# Ruby 3.1 (Struct) / 3.2 / generateGemfile / generateTypes=false. Review the diff when they change:
+#   UPDATE_GOLDEN=1 ruby -Itest test/extended_golden_test.rb
 class ExtendedGoldenTest < Minitest::Test
   include PluginHelper
 
   GOLDEN = File.join(PluginHelper::ROOT, 'test/golden')
+  VARIANTS = {
+    'default' => {},
+    'ruby31_gemfile' => { rubyVersion: '3.1', generateGemfile: true },
+    'ruby32_notypes' => { rubyVersion: '3.2', generateTypes: false }
+  }.freeze
 
-  Dir.glob(File.join(GOLDEN, '*/*/')).sort.each do |dir|
-    driver_case = File.basename(File.dirname(dir))
-    variant = File.basename(dir)
-    define_method("test_#{driver_case}_#{variant}") do
-      options = JSON.parse(File.read(File.join(dir, 'options.json')))
-      files = generate(load_request(driver_case, **options.transform_keys(&:to_sym)))
-      expected = Dir.children(dir).reject { |f| f == 'options.json' }.sort
-      assert_equal expected, files.keys.sort
-      expected.each { |name| assert_equal File.binread(File.join(dir, name)), files.fetch(name), name }
+  %w[pg mysql2 sqlite3].product(VARIANTS.to_a).each do |driver, (variant, options)|
+    define_method("test_#{driver}_extended_#{variant}") do
+      dir = File.join(GOLDEN, driver, variant)
+      files = generate(SyntheticRequests.extended_request(driver, **options))
+      if ENV['UPDATE_GOLDEN']
+        FileUtils.rm_rf(dir)
+        FileUtils.mkdir_p(dir)
+        files.each { |name, contents| File.binwrite(File.join(dir, name), contents) }
+      end
+      assert_equal Dir.children(dir).sort, files.keys.sort
+      files.each { |name, contents| assert_equal File.binread(File.join(dir, name)), contents, "#{dir}/#{name}" }
     end
   end
 end

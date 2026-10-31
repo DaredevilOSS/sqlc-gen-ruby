@@ -2,6 +2,7 @@
 require 'connection_pool'
 require 'pg'
 require 'set'
+require_relative 'models'
 
 module PgCodegen
 	GetAuthorSql = %q(SELECT id, name, bio FROM authors
@@ -63,14 +64,169 @@ module PgCodegen
 	)
 	end
 	
+	ListAuthorsPagedSql = %q(SELECT id, name, bio FROM authors
+	ORDER BY name
+	LIMIT $2
+	OFFSET $1)
+	
+	class ListAuthorsPagedRow < Data.define(:id, :name, :bio)
+	end
+	
+	class ListAuthorsPagedArgs < Data.define(:offset, :limit)
+	end
+	
+	GetAuthorByNamePatternSql = %q(SELECT id, name, bio FROM authors
+	WHERE name LIKE COALESCE($1, '%'))
+	
+	class GetAuthorByNamePatternRow < Data.define(:id, :name, :bio)
+	end
+	
+	class GetAuthorByNamePatternArgs < Data.define(:name_pattern)
+	end
+	
+	CreateAuthorReturnIdSql = %q(INSERT INTO authors (name, bio) VALUES ($1, $2) RETURNING id)
+	
+	class CreateAuthorReturnIdRow < Data.define(:id)
+	end
+	
+	class CreateAuthorReturnIdArgs < Data.define(:name, :bio)
+	end
+	
+	UpdateAuthorBiosSql = %q(UPDATE authors
+	SET bio = $1
+	WHERE bio IS NOT NULL)
+	
+	class UpdateAuthorBiosArgs < Data.define(:bio)
+	end
+	
+	GetAuthorsByIdsSql = %q(SELECT id, name, bio FROM authors
+	WHERE id = ANY($1::BIGINT []))
+	
+	class GetAuthorsByIdsRow < Data.define(:id, :name, :bio)
+	end
+	
+	class GetAuthorsByIdsArgs < Data.define(:param1)
+	end
+	
+	GetAuthorsByIdsAndNamesSql = %q(SELECT id, name, bio FROM authors
+	WHERE id = ANY($1::BIGINT []) AND name = ANY($2::TEXT []))
+	
+	class GetAuthorsByIdsAndNamesRow < Data.define(:id, :name, :bio)
+	end
+	
+	class GetAuthorsByIdsAndNamesArgs < Data.define(:param1, :param2)
+	end
+	
+	class CopyAuthorsArgs < Data.define(:name, :bio)
+	end
+	
+	TruncateAuthorsSql = %q(TRUNCATE TABLE authors CASCADE)
+	
+	CreateBookSql = %q(INSERT INTO books (name, author_id) VALUES ($1, $2) RETURNING id)
+	
+	class CreateBookRow < Data.define(:id)
+	end
+	
+	class CreateBookArgs < Data.define(:name, :author_id)
+	end
+	
+	ListAllAuthorsBooksSql = %q(SELECT
+	    authors.id, authors.name, authors.bio,
+	    books.id, books.name, books.author_id, books.description
+	FROM authors
+	INNER JOIN books ON authors.id = books.author_id
+	ORDER BY authors.name)
+	
+	class ListAllAuthorsBooksRow < Data.define(:author, :book)
+	end
+	
+	GetDuplicateAuthorsSql = %q(SELECT
+	    authors1.id, authors1.name, authors1.bio,
+	    authors2.id, authors2.name, authors2.bio
+	FROM authors AS authors1
+	INNER JOIN authors AS authors2 ON authors1.name = authors2.name
+	WHERE authors1.id < authors2.id)
+	
+	class GetDuplicateAuthorsRow < Data.define(:author, :author2)
+	end
+	
+	GetAuthorsByBookNameSql = %q(SELECT
+	    authors.id, authors.name, authors.bio,
+	    books.id, books.name, books.author_id, books.description
+	FROM authors INNER JOIN books ON authors.id = books.author_id
+	WHERE books.name = $1)
+	
+	class GetAuthorsByBookNameRow < Data.define(:id, :name, :bio, :book)
+	end
+	
+	class GetAuthorsByBookNameArgs < Data.define(:name)
+	end
+	
+	CreateExtendedBioSql = %q(INSERT INTO extended.bios (author_name, name, bio_type) VALUES ($1, $2, $3))
+	
+	class CreateExtendedBioArgs < Data.define(:author_name, :name, :bio_type)
+	end
+	
+	GetFirstExtendedBioByTypeSql = %q(SELECT author_name, name, bio_type FROM extended.bios WHERE bio_type = $1 LIMIT 1)
+	
+	class GetFirstExtendedBioByTypeRow < Data.define(:author_name, :name, :bio_type)
+	end
+	
+	class GetFirstExtendedBioByTypeArgs < Data.define(:bio_type)
+	end
+	
+	TruncateExtendedBiosSql = %q(TRUNCATE TABLE extended.bios)
+	
+	InsertExtraTypesSql = %q(INSERT INTO postgres_extra_types (c_uuid, c_jsonb, c_text_array, c_integer_array, c_timestamptz, c_inet, c_money, c_not_null)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8))
+	
+	class InsertExtraTypesArgs < Data.define(
+		:c_uuid,
+		:c_jsonb,
+		:c_text_array,
+		:c_integer_array,
+		:c_timestamptz,
+		:c_inet,
+		:c_money,
+		:c_not_null
+	)
+	end
+	
+	GetExtraTypesSql = %q(SELECT c_uuid, c_jsonb, c_text_array, c_integer_array, c_timestamptz, c_inet, c_money, c_not_null FROM postgres_extra_types LIMIT 1)
+	
+	class GetExtraTypesRow < Data.define(
+		:c_uuid,
+		:c_jsonb,
+		:c_text_array,
+		:c_integer_array,
+		:c_timestamptz,
+		:c_inet,
+		:c_money,
+		:c_not_null
+	)
+	end
+	
+	TruncateExtraTypesSql = %q(TRUNCATE TABLE postgres_extra_types)
+	
 	class QuerySql
 		def initialize(connection_pool_params, pg_params)
 			@db = ConnectionPool.new(**connection_pool_params) {
 				client = PG.connect(**pg_params)
-				client.type_map_for_results = PG::BasicTypeMapForResults.new client
+				type_map = PG::BasicTypeMapForResults.new client
+				type_map.default_type_map = PG::TypeMapAllStrings.new # uuid, enums, money, ... come back as Strings
+				client.type_map_for_results = type_map
+				client.type_map_for_queries = PG::BasicTypeMapForQueries.new client
 				client
 			}
 			@prepared_statements = Set[]
+		end
+		
+		def transaction
+			@db.with do |client|
+				client.transaction do
+					yield self
+				end
+			end
 		end
 		
 		def get_author(get_author_args)
@@ -159,6 +315,262 @@ module PgCodegen
 					row['c_json']
 				)
 				return entity
+			end
+		end
+		
+		def list_authors_paged(list_authors_paged_args)
+			@db.with do |client|
+				query_params = [list_authors_paged_args.offset, list_authors_paged_args.limit]
+				unless @prepared_statements.include?('list_authors_paged')
+					client.prepare('list_authors_paged', ListAuthorsPagedSql)
+					@prepared_statements.add('list_authors_paged')
+				end
+				result = client.exec_prepared('list_authors_paged', query_params)
+				entities = []
+				result.each do |row|
+					entities << ListAuthorsPagedRow.new(row['id'], row['name'], row['bio'])
+				end
+				return entities
+			end
+		end
+		
+		def get_author_by_name_pattern(get_author_by_name_pattern_args)
+			@db.with do |client|
+				query_params = [get_author_by_name_pattern_args.name_pattern]
+				unless @prepared_statements.include?('get_author_by_name_pattern')
+					client.prepare('get_author_by_name_pattern', GetAuthorByNamePatternSql)
+					@prepared_statements.add('get_author_by_name_pattern')
+				end
+				result = client.exec_prepared('get_author_by_name_pattern', query_params)
+				entities = []
+				result.each do |row|
+					entities << GetAuthorByNamePatternRow.new(row['id'], row['name'], row['bio'])
+				end
+				return entities
+			end
+		end
+		
+		def create_author_return_id(create_author_return_id_args)
+			@db.with do |client|
+				query_params = [create_author_return_id_args.name, create_author_return_id_args.bio]
+				unless @prepared_statements.include?('create_author_return_id')
+					client.prepare('create_author_return_id', CreateAuthorReturnIdSql)
+					@prepared_statements.add('create_author_return_id')
+				end
+				result = client.exec_prepared('create_author_return_id', query_params)
+				return result.first['id']
+			end
+		end
+		
+		def update_author_bios(update_author_bios_args)
+			@db.with do |client|
+				query_params = [update_author_bios_args.bio]
+				unless @prepared_statements.include?('update_author_bios')
+					client.prepare('update_author_bios', UpdateAuthorBiosSql)
+					@prepared_statements.add('update_author_bios')
+				end
+				result = client.exec_prepared('update_author_bios', query_params)
+				return result.cmd_tuples
+			end
+		end
+		
+		def get_authors_by_ids(get_authors_by_ids_args)
+			@db.with do |client|
+				query_params = [get_authors_by_ids_args.param1]
+				unless @prepared_statements.include?('get_authors_by_ids')
+					client.prepare('get_authors_by_ids', GetAuthorsByIdsSql)
+					@prepared_statements.add('get_authors_by_ids')
+				end
+				result = client.exec_prepared('get_authors_by_ids', query_params)
+				entities = []
+				result.each do |row|
+					entities << GetAuthorsByIdsRow.new(row['id'], row['name'], row['bio'])
+				end
+				return entities
+			end
+		end
+		
+		def get_authors_by_ids_and_names(get_authors_by_ids_and_names_args)
+			@db.with do |client|
+				query_params = [get_authors_by_ids_and_names_args.param1, get_authors_by_ids_and_names_args.param2]
+				unless @prepared_statements.include?('get_authors_by_ids_and_names')
+					client.prepare('get_authors_by_ids_and_names', GetAuthorsByIdsAndNamesSql)
+					@prepared_statements.add('get_authors_by_ids_and_names')
+				end
+				result = client.exec_prepared('get_authors_by_ids_and_names', query_params)
+				entities = []
+				result.each do |row|
+					entities << GetAuthorsByIdsAndNamesRow.new(row['id'], row['name'], row['bio'])
+				end
+				return entities
+			end
+		end
+		
+		def copy_authors(copy_authors_args)
+			@db.with do |client|
+				encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
+				client.copy_data('COPY authors (name, bio) FROM STDIN', encoder) do
+					copy_authors_args.each do |item|
+						client.put_copy_data([item.name, item.bio])
+					end
+				end
+			end
+		end
+		
+		def truncate_authors
+			@db.with do |client|
+				unless @prepared_statements.include?('truncate_authors')
+					client.prepare('truncate_authors', TruncateAuthorsSql)
+					@prepared_statements.add('truncate_authors')
+				end
+				client.exec_prepared('truncate_authors')
+			end
+		end
+		
+		def create_book(create_book_args)
+			@db.with do |client|
+				query_params = [create_book_args.name, create_book_args.author_id]
+				unless @prepared_statements.include?('create_book')
+					client.prepare('create_book', CreateBookSql)
+					@prepared_statements.add('create_book')
+				end
+				result = client.exec_prepared('create_book', query_params)
+				return result.first['id']
+			end
+		end
+		
+		def list_all_authors_books
+			@db.with do |client|
+				unless @prepared_statements.include?('list_all_authors_books')
+					client.prepare('list_all_authors_books', ListAllAuthorsBooksSql)
+					@prepared_statements.add('list_all_authors_books')
+				end
+				result = client.exec_prepared('list_all_authors_books').values
+				entities = []
+				result.each do |row|
+					entities << ListAllAuthorsBooksRow.new(Author.new(row[0], row[1], row[2]), Book.new(row[3], row[4], row[5], row[6]))
+				end
+				return entities
+			end
+		end
+		
+		def get_duplicate_authors
+			@db.with do |client|
+				unless @prepared_statements.include?('get_duplicate_authors')
+					client.prepare('get_duplicate_authors', GetDuplicateAuthorsSql)
+					@prepared_statements.add('get_duplicate_authors')
+				end
+				result = client.exec_prepared('get_duplicate_authors').values
+				entities = []
+				result.each do |row|
+					entities << GetDuplicateAuthorsRow.new(Author.new(row[0], row[1], row[2]), Author.new(row[3], row[4], row[5]))
+				end
+				return entities
+			end
+		end
+		
+		def get_authors_by_book_name(get_authors_by_book_name_args)
+			@db.with do |client|
+				query_params = [get_authors_by_book_name_args.name]
+				unless @prepared_statements.include?('get_authors_by_book_name')
+					client.prepare('get_authors_by_book_name', GetAuthorsByBookNameSql)
+					@prepared_statements.add('get_authors_by_book_name')
+				end
+				result = client.exec_prepared('get_authors_by_book_name', query_params).values
+				entities = []
+				result.each do |row|
+					entities << GetAuthorsByBookNameRow.new(row[0], row[1], row[2], Book.new(row[3], row[4], row[5], row[6]))
+				end
+				return entities
+			end
+		end
+		
+		def create_extended_bio(create_extended_bio_args)
+			@db.with do |client|
+				query_params = [create_extended_bio_args.author_name, create_extended_bio_args.name, create_extended_bio_args.bio_type]
+				unless @prepared_statements.include?('create_extended_bio')
+					client.prepare('create_extended_bio', CreateExtendedBioSql)
+					@prepared_statements.add('create_extended_bio')
+				end
+				client.exec_prepared('create_extended_bio', query_params)
+			end
+		end
+		
+		def get_first_extended_bio_by_type(get_first_extended_bio_by_type_args)
+			@db.with do |client|
+				query_params = [get_first_extended_bio_by_type_args.bio_type]
+				unless @prepared_statements.include?('get_first_extended_bio_by_type')
+					client.prepare('get_first_extended_bio_by_type', GetFirstExtendedBioByTypeSql)
+					@prepared_statements.add('get_first_extended_bio_by_type')
+				end
+				result = client.exec_prepared('get_first_extended_bio_by_type', query_params)
+				row = result.first
+				return nil if row.nil?
+				entity = GetFirstExtendedBioByTypeRow.new(row['author_name'], row['name'], row['bio_type'])
+				return entity
+			end
+		end
+		
+		def truncate_extended_bios
+			@db.with do |client|
+				unless @prepared_statements.include?('truncate_extended_bios')
+					client.prepare('truncate_extended_bios', TruncateExtendedBiosSql)
+					@prepared_statements.add('truncate_extended_bios')
+				end
+				client.exec_prepared('truncate_extended_bios')
+			end
+		end
+		
+		def insert_extra_types(insert_extra_types_args)
+			@db.with do |client|
+				query_params = [
+					insert_extra_types_args.c_uuid,
+					insert_extra_types_args.c_jsonb,
+					insert_extra_types_args.c_text_array,
+					insert_extra_types_args.c_integer_array,
+					insert_extra_types_args.c_timestamptz,
+					insert_extra_types_args.c_inet,
+					insert_extra_types_args.c_money,
+					insert_extra_types_args.c_not_null
+				]
+				unless @prepared_statements.include?('insert_extra_types')
+					client.prepare('insert_extra_types', InsertExtraTypesSql)
+					@prepared_statements.add('insert_extra_types')
+				end
+				client.exec_prepared('insert_extra_types', query_params)
+			end
+		end
+		
+		def get_extra_types
+			@db.with do |client|
+				unless @prepared_statements.include?('get_extra_types')
+					client.prepare('get_extra_types', GetExtraTypesSql)
+					@prepared_statements.add('get_extra_types')
+				end
+				result = client.exec_prepared('get_extra_types')
+				row = result.first
+				return nil if row.nil?
+				entity = GetExtraTypesRow.new(
+					row['c_uuid'],
+					row['c_jsonb'],
+					row['c_text_array'],
+					row['c_integer_array'],
+					row['c_timestamptz'],
+					row['c_inet'],
+					row['c_money'],
+					row['c_not_null']
+				)
+				return entity
+			end
+		end
+		
+		def truncate_extra_types
+			@db.with do |client|
+				unless @prepared_statements.include?('truncate_extra_types')
+					client.prepare('truncate_extra_types', TruncateExtraTypesSql)
+					@prepared_statements.add('truncate_extra_types')
+				end
+				client.exec_prepared('truncate_extra_types')
 			end
 		end
 	end

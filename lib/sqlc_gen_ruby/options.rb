@@ -8,7 +8,10 @@ module SqlcGenRuby
   class Options
     DRIVERS = %w[mysql2 pg sqlite3].freeze
 
-    attr_reader :driver_name, :ruby_version, :generate_gemfile, :generate_types
+    # `overrides:` entry - column is "<QueryName>:<column>" or "*:<column>"; type/not_null come from `ruby_type:`
+    Override = Struct.new(:query, :column, :type, :not_null)
+
+    attr_reader :driver_name, :ruby_version, :generate_gemfile, :generate_types, :overrides
 
     def initialize(plugin_options_bytes)
       text = plugin_options_bytes.to_s.dup.force_encoding(Encoding::UTF_8)
@@ -21,9 +24,37 @@ module SqlcGenRuby
       @generate_gemfile = fetch_bool(raw, 'generateGemfile', false) # not generating Gemfile by default
       @generate_types = fetch_bool(raw, 'generateTypes', true)
       @ruby_version = RubyVersion.parse(fetch_string(raw, 'rubyVersion', default: '3.3'))
+      @overrides = parse_overrides(raw.fetch('overrides', []))
+    end
+
+    # The override matching a result column / parameter of a query: "Query:col" wins over "*:col".
+    def override_for(query_name, column_name)
+      overrides.find { |o| o.query == query_name && o.column == column_name } ||
+        overrides.find { |o| o.query == '*' && o.column == column_name }
     end
 
     private
+
+    def parse_overrides(list)
+      raise ArgumentError, 'option overrides must be a list' unless list.is_a?(Array)
+
+      list.map do |entry|
+        raise ArgumentError, 'each override must be an object' unless entry.is_a?(Hash)
+
+        query, column = entry['column'].to_s.split(':', 2)
+        raise ArgumentError, "override column must look like '<query>:<column>' or '*:<column>'" if column.to_s.empty?
+
+        type = entry['ruby_type']
+        raise ArgumentError, "override #{entry['column']} needs ruby_type.type" unless type.is_a?(Hash) && type['type'].is_a?(String)
+
+        not_null = type['notNull']
+        unless [nil, true, false].include?(not_null)
+          raise ArgumentError, "override #{entry['column']}: notNull must be a boolean"
+        end
+
+        Override.new(query, column, type['type'], not_null)
+      end
+    end
 
     def fetch_string(raw, key, default: nil, required: false)
       raise ArgumentError, "missing required option: #{key}" if required && !raw.key?(key)

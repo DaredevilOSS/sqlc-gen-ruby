@@ -35,6 +35,29 @@ module SqlcGenRuby
       str[0].upcase + str[1..]
     end
 
+    # authors => author, policies => policy, statuses => status, addresses => address, books => book
+    def singularize(word)
+      case word
+      when /ies\z/ then word.sub(/ies\z/, 'y')
+      when /(ss|sh|ch|x|z|u)es\z/ then word.sub(/es\z/, '')
+      when /(ss|us|is)\z/ then word
+      when /s\z/ then word.chomp('s')
+      else word
+      end
+    end
+
+    # node_postgres_types => NodePostgresTypes
+    def camelize(word)
+      word.split(/[^A-Za-z0-9]+/).reject(&:empty?).map { |w| w[0].upcase + w[1..] }.join
+    end
+
+    # 'Auto biography' => AUTO_BIOGRAPHY (valid constant name)
+    def constant_name(value)
+      name = value.to_s.gsub(/[^A-Za-z0-9]+/, '_').gsub(/\A_+|_+\z/, '').upcase
+      name = "VALUE_#{name}" if name.empty? || name.match?(/\A[0-9]/)
+      name
+    end
+
     def block(header, body)
       "#{header}\n#{indent(body)}\nend"
     end

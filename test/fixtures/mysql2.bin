@@ -1,8 +1,76 @@
+”public"‰public€
+	authors&
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtext÷
+node_mysql_types$
+c_bit0Rnode_mysql_typesbbit5
+	c_tinyint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb	tinyint)
+c_bool0Rnode_mysql_typesb	tinyint,
+	c_boolean0Rnode_mysql_typesb	tinyint7
 
-ý
-2mysql!examples/authors/mysql/schema.sql" examples/authors/mysql/query.sqlb«
-e/tmp/claude-0/-home-user-sqlc-gen-ruby/5ee7feff-4b4b-542d-a5a8-7a5a095e775a/scratchpad/cap/out_mysql2rubyT{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}*f
-d/tmp/claude-0/-home-user-sqlc-gen-ruby/5ee7feff-4b4b-542d-a5a8-7a5a095e775a/scratchpad/cap/mysql2.shˆ
+c_smallint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
+smallint9
+c_mediumint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb	mediumint-
+c_int0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbint1
+	c_integer0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbint3
+c_bigint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbbigint8
+c_serial0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbbigint€,
+	c_decimal0Rnode_mysql_typesb	decimal(
+c_dec0Rnode_mysql_typesb	decimal,
+	c_numeric0Rnode_mysql_typesb	decimal*
+c_fixed0Rnode_mysql_typesb	decimal1
+c_float0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbfloat3
+c_double0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbdouble=
+c_double_precision0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbdouble/
+c_date0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbdate&
+c_time0
+Rnode_mysql_typesbtime.
+
+c_datetime0Rnode_mysql_typesb
+datetime0
+c_timestamp0Rnode_mysql_typesb	timestamp/
+c_year0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbyear/
+c_char0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbchar0
+c_nchar0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbchar8
+c_national_char0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbchar,
+	c_varchar0
+Rnode_mysql_typesb	varchar3
+c_binary0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbbinary0
+c_varbinary0
+Rnode_mysql_typesb	varbinary7
+
+c_tinyblob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
+tinyblob7
+
+c_tinytext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
+tinytext/
+c_blob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbblob/
+c_text0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbtext;
+c_mediumblob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
+mediumblob;
+c_mediumtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
+mediumtext7
+
+c_longblob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
+longblob7
+
+c_longtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
+longtext/
+c_json0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbjson­
+books$
+id0ÿÿÿÿÿÿÿÿÿRbooksbbigint$
+name0ÿÿÿÿÿÿÿÿÿRbooksbtext+
+	author_id0ÿÿÿÿÿÿÿÿÿRbooksbbigint)
+description0ÿÿÿÿÿÿÿÿÿRbooksbtextÜ
+extended_bios+
+author_name0dRextended_biosb	varchar$
+name0dRextended_biosb	varchar7
+bio_type0Rextended_biosbextended_bios_bio_type=
+author_type0Rextended_biosbextended_bios_author_type":
+extended_bios_bio_typeAutobiography	BiographyMemoir"7
+extended_bios_author_typeAuthorEditor
+Translatorˆ
 6SELECT id, name, bio FROM authors
 WHERE id = ? LIMIT 1	GetAuthor:one"*
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
@@ -97,4 +165,71 @@ c_longblob"C
 c_longtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
 longtextz
 c_longtext"7
-c_json0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbjsonzc_json:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+c_json0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbjsonzc_json:	query.sqlµ
+@SELECT id, name, bio FROM authors
+ORDER BY name
+LIMIT ? OFFSET ?ListAuthorsPaged:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*#
+limit0ÿÿÿÿÿÿÿÿÿb	integer*$ 
+offset0ÿÿÿÿÿÿÿÿÿb	integer:	query.sql¬
+BSELECT id, name, bio FROM authors
+WHERE name LIKE COALESCE(?, '%')GetAuthorByNamePattern:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*84
+name_pattern0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sql’
+0UPDATE authors
+SET bio = ?
+WHERE bio IS NOT NULLUpdateAuthorBios	:execrows*62
+bio0ÿÿÿÿÿÿÿÿÿ8Rpublicauthorsbtextzbio:	query.sqlœ
+>SELECT id, name, bio FROM authors WHERE id IN (/*SLICE:ids*/?)GetAuthorsByIds:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*3/
+ids0ÿÿÿÿÿÿÿÿÿ8R	authorsbbiginthzid:	query.sqlú
+]SELECT id, name, bio FROM authors WHERE id IN (/*SLICE:ids*/?) AND name IN (/*SLICE:names*/?)GetAuthorsByIdsAndNames:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*3/
+ids0ÿÿÿÿÿÿÿÿÿ8R	authorsbbiginthzid*51
+names0ÿÿÿÿÿÿÿÿÿ8R	authorsbtexthzname:	query.sqlÍ
+-INSERT INTO authors (name, bio) VALUES (?, ?)CopyAuthors	:copyfrom*84
+name0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzname*40
+bio0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzbio:	query.sqlB	authors8
+DELETE FROM authorsTruncateAuthors:exec:	query.sqlÜ
+1INSERT INTO books (name, author_id) VALUES (?, ?)
+CreateBook:execlastid*62
+name0ÿÿÿÿÿÿÿÿÿRpublicbooksbtextzname*B>
+	author_id0ÿÿÿÿÿÿÿÿÿRpublicbooksbbigintz	author_id:	query.sqlBbooks 
+´SELECT authors.id, authors.name, authors.bio, books.id, books.name, books.author_id, books.description
+FROM authors JOIN books ON authors.id = books.author_id
+ORDER BY authors.nameListAllAuthorsBooks:many"!
+authors0ÿÿÿÿÿÿÿÿÿb r	authors"
+books0ÿÿÿÿÿÿÿÿÿb rbooks:	query.sql¶
+ÆSELECT authors1.id, authors1.name, authors1.bio, authors2.id, authors2.name, authors2.bio
+FROM authors authors1 JOIN authors authors2 ON authors1.name = authors2.name
+WHERE authors1.id < authors2.idGetDuplicateAuthors:many"!
+authors0ÿÿÿÿÿÿÿÿÿb r	authors"!
+authors0ÿÿÿÿÿÿÿÿÿb r	authors:	query.sql±
+³SELECT authors.id, authors.name, authors.bio, books.id, books.name, books.author_id, books.description
+FROM authors JOIN books ON authors.id = books.author_id
+WHERE books.name = ?GetAuthorsByBookName:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio"
+books0ÿÿÿÿÿÿÿÿÿb rbooks*.*
+name0ÿÿÿÿÿÿÿÿÿRbooksbtextzname:	query.sqlµ
+XINSERT INTO extended_bios (author_name, name, bio_type, author_type) VALUES (?, ?, ?, ?)CreateExtendedBio:exec*D@
+author_name0dRpublicextended_biosb	varcharzauthor_name*62
+name0dRpublicextended_biosb	varcharzname*MI
+bio_type0Rpublicextended_biosbextended_bios_bio_typezbio_type*VR
+author_type0Rpublicextended_biosbextended_bios_author_typezauthor_type:	query.sqlBextended_biosÇ
+]SELECT author_name, name, bio_type, author_type FROM extended_bios WHERE bio_type = ? LIMIT 1GetFirstExtendedBioByType:one"8
+author_name0dRextended_biosb	varcharzauthor_name"*
+name0dRextended_biosb	varcharzname"A
+bio_type0Rextended_biosbextended_bios_bio_typezbio_type"J
+author_type0Rextended_biosbextended_bios_author_typezauthor_type*EA
+bio_type0Rextended_biosbextended_bios_bio_typezbio_type:	query.sqlC
+DELETE FROM extended_biosTruncateExtendedBios:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
