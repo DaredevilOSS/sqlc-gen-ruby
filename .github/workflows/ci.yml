@@ -32,7 +32,7 @@ jobs:
           ruby-version: '3.3'
           bundler-cache: true
 
-      # unit tests + golden tests against the output of the original C# implementation
+      # unit tests + golden tests
       - name: Unit & golden tests
         run: bundle exec rake test
 

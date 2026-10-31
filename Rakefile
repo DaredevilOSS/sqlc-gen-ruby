@@ -44,16 +44,3 @@ task :sqlc_generate_wasm => [:wasm_build, :update_wasm_plugin] do
 end
 
 task :test_wasm_plugin => [:test, :sqlc_generate_wasm, :update_wasm_plugin, :run_tests]
-
-# --- Legacy C# implementation (removed once the Ruby port is the only plugin) ---
-task :protobuf_generate do
-  sh './scripts/generate_protobuf.sh'
-end
-
-task :dotnet_format do
-  sh 'dotnet format --exclude GeneratedProtobuf'
-end
-
-task :dotnet_publish_process => [:protobuf_generate, :dotnet_format] do
-  sh 'dotnet publish LocalRunner -c release --output dist/'
-end
