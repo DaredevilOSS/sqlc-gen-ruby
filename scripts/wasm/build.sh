@@ -3,7 +3,9 @@
 # Needs: ruby + `gem install ruby_wasm` (for `rbwasm pack`), curl, tar.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-RUBY_WASM_VERSION="${RUBY_WASM_VERSION:-2.7.1}"
+# shellcheck source=../tool-versions.env
+source scripts/tool-versions.env
+RUBY_WASM_VERSION="${RUBY_WASM_VERSION}"
 FLAVOR="ruby-3.3-wasm32-unknown-wasip1-full"
 # `rbwasm` comes from the ruby_wasm gem (see Gemfile, group :wasm_build)
 if [ -z "${RBWASM:-}" ]; then

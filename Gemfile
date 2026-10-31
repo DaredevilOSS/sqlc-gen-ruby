@@ -4,6 +4,7 @@ source 'https://rubygems.org'
 
 # Gems used by the *generated* code (examples/ + end-to-end tests under tests/).
 gem 'connection_pool'
+gem 'csv' # used by the generated mysql2 code (:copyfrom); a bundled gem since Ruby 3.4
 gem 'mysql2'
 gem 'pg', '1.5.2'
 gem 'sqlite3'

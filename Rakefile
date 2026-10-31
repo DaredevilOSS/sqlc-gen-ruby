@@ -12,6 +12,14 @@ Rake::TestTask.new(:end2end_tests) do |t| # called inside Docker
   t.pattern = 'tests/end2end_*.rb'
 end
 
+# one database at a time (CI runs them as separate jobs against service containers)
+%w[pg mysql2 sqlite3].each do |driver|
+  Rake::TestTask.new("end2end_#{driver}") do |t|
+    t.description = "End-to-end tests of the #{driver} examples against a real database"
+    t.pattern = "tests/end2end_#{driver}.rb"
+  end
+end
+
 task :rubocop do
   sh 'bundle exec rubocop examples'
 end
@@ -40,6 +48,11 @@ end
 
 task :update_wasm_plugin do
   sh './scripts/wasm/update_sha.sh sqlc.ci.yaml'
+end
+
+# regenerates docs/Examples.md from sqlc.ci.yaml
+task :docs do
+  sh 'ruby scripts/docs/generate_examples.rb docs/Examples.md'
 end
 
 task :sqlc_generate_wasm => [:wasm_build, :update_wasm_plugin] do

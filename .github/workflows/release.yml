@@ -9,7 +9,7 @@ permissions:
 
 on:
   workflow_run: 
-    workflows: [CI]
+    workflows: [Build]
     types: [completed]
     branches: [main]
     
@@ -21,7 +21,7 @@ jobs:
       IS_RELEASE: ${{ steps.check_msg.outputs.IS_RELEASE }}
     steps:
       - name: Check out Git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check latest commit message
         id: check_msg
@@ -45,7 +45,7 @@ jobs:
       IS_RELEASE: ${{  needs.check_commit.outputs.IS_RELEASE }}
     steps:
       - name: Check out Git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           
@@ -54,7 +54,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{secrets.GITHUB_TOKEN}}
-          workflow: ci.yml
+          workflow: build.yml
           workflow_conclusion: success
           name: wasm-file
           

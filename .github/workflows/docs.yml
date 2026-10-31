@@ -1,4 +1,7 @@
 name: Docs
+
+concurrency: docs-regeneration
+
 defaults:
   run:
     shell: bash
@@ -8,30 +11,35 @@ permissions:
   pull-requests: write
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main" ]
     paths:
       - "sqlc.ci.yaml"
-      - "examples/**"
-      - "tests/**"
-      - "lib/**"
+      - "examples/authors/**"
+      - "scripts/docs/**"
 
 jobs:
-  generate-and-push-docs:
+  generate-docs:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
 
       - name: Updating Examples doc
-        run: ./scripts/docs/generate_examples.sh docs/Examples.md
+        run: ruby scripts/docs/generate_examples.rb docs/Examples.md
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          base: main
           title: update auto-generated docs
           commit-message: update docs
           branch: update-docs

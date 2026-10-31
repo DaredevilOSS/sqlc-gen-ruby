@@ -1,0 +1,16 @@
+name: Feature request
+description: Support another sqlc feature, driver or Ruby idiom in the generated code
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like the generated code to support?
+      description: Show how you would like to call it from Ruby.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Database, driver gem, framework (Rails, Sinatra, Roda, ...), links.

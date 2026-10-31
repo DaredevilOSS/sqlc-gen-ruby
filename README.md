@@ -141,9 +141,9 @@ Not applicable to the Ruby plugin (they exist in the C# plugin because of its ru
 ## Local plugin development
 ### Prerequisites
 * Ruby 3.3 and `bundle install`
-* [sqlc](https://docs.sqlc.dev/en/latest/overview/install.html) (v1.27.0 was used for verification)
+* [sqlc](https://docs.sqlc.dev/en/latest/overview/install.html) (version in [`scripts/tool-versions.env`](scripts/tool-versions.env))
 * `curl` + `tar` for building the WASM plugin (it downloads the prebuilt ruby.wasm interpreter)
-* Docker + docker-compose, for the end-to-end tests only (they need real MySQL / PostgreSQL servers)
+* PostgreSQL / MySQL servers for the end-to-end tests (or Docker, see below)
 
 ### Layout
 | Path | What |
@@ -152,34 +152,34 @@ Not applicable to the Ruby plugin (they exist in the C# plugin because of its ru
 | `lib/sqlc_gen_ruby/` | the generator (`generator.rb`, `method_gen.rb`, `drivers/*.rb`, `options.rb`, ...) |
 | `test/` | unit + golden tests (`rake test`); `test/fixtures` are real requests captured from sqlc |
 | `tests/` | end-to-end tests of the generated code against real databases |
+| `examples/` | the plugin's output for `examples/authors/*` (kept in sync, CI runs `sqlc diff`) |
 | `scripts/wasm/` | building the WASM plugin |
 
-### Unit & golden tests
+### Everyday commands
 ```
-bundle exec rake test
+bundle exec rake test                 # unit + golden tests (no database needed)
+rake sqlc_generate_process            # regenerate examples/ with exe/plugin.rb (needs `ruby` on PATH)
+rake sqlc_generate_wasm               # build dist/plugin.wasm, then regenerate examples/ with it
+bundle exec rake rubocop steep        # the generated code must stay RuboCop- and Steep-clean
+rake end2end_sqlite3                  # end-to-end, no server needed
+rake end2end_pg end2end_mysql2        # end-to-end, needs the servers below
+rake run_end2end_tests                # all of it in Docker (docker-compose)
 ```
-The golden tests feed the plugin real `GenerateRequest`s captured from sqlc and diff the result against
-[examples/](examples) (and against `test/golden`, recorded from the original C# implementation).
+The end-to-end tests read `DB_NAME`, `DB_USER`, `DB_PASS`, `POSTGRES_HOST`, `MYSQL_HOST` (and optionally
+`POSTGRES_PORT`, `MYSQL_PORT`); load `examples/authors/<db>/schema.sql` into the database first. MySQL needs
+`local_infile=1` for `:copyfrom`.
+
+The golden tests feed the plugin real `GenerateRequest`s captured from sqlc and compare with [examples/](examples) and
+`test/golden` (`UPDATE_GOLDEN=1 ruby -Itest test/extended_golden_test.rb` rewrites the snapshots - review the diff).
 To refresh a fixture see `scripts/capture_request.rb`.
 
-### Generating code
-SQLC utilizes our process / WASM plugin to generate code
-```
-rake sqlc_generate_process   # runs exe/plugin.rb directly (needs `ruby` on PATH)
-rake sqlc_generate_wasm      # builds dist/plugin.wasm first and runs that
-```
-
-### Testing generated code
-Testing the SQLC generated code via a predefined flow:
-```
-rake test_process_plugin
-rake test_wasm_plugin
-```
-
-### Building the WASM plugin
-```
-rake wasm_build   # == ./scripts/wasm/build.sh, writes dist/plugin.wasm (~18 MB)
-```
+### CI
+* **Build** (`build.yml`): builds `plugin.wasm`; lint (Ruby warnings, RuboCop on the generated code); codegen tests -
+  `sqlc diff` for the WASM *and* the process plugin, Steep, and generation with different options (Ruby 3.1 / 3.2 / 3.3,
+  types, Gemfile) checked with the matching Ruby.
+* **Tests** (`tests.yml`): unit tests, the plugin on Ruby 3.1 / 3.2 / 3.4, and the end-to-end tests against PostgreSQL
+  and MySQL service containers and SQLite.
+* Tool versions live in `scripts/tool-versions.env`; dependabot keeps actions and gems current.
 
 ## Release flow
 The release flow in this repo follows the semver conventions, building tag as `v[major].[minor].[patch]`.

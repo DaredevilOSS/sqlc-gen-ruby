@@ -1,0 +1,146 @@
+name: Build
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "*" ]
+    paths:
+      - "**"
+      - "!**.md"
+
+jobs:
+  build-wasm:
+    name: Build (WASM)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      # the plugin (pure Ruby) + the prebuilt ruby.wasm interpreter, packed into one self-contained module
+      - name: Build WASM plugin
+        run: ./scripts/wasm/build.sh
+
+      - name: upload wasm plugin as artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: wasm-file
+          path: dist/plugin.wasm
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Ruby syntax and warnings (plugin and scripts)
+        run: |
+          set -e
+          for file in $(git ls-files '*.rb' ':!examples' ':!test/golden'); do
+            ruby -wc "${file}" > /dev/null
+          done
+
+      # the code generated into examples/ has to stay RuboCop-clean
+      - name: RuboCop (generated code)
+        run: bundle exec rake rubocop
+
+  codegen-tests:
+    name: Codegen Tests
+    needs: [build-wasm]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Load tool versions
+        run: cat scripts/tool-versions.env >> "$GITHUB_ENV"
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: '${{ env.SQLC_VERSION }}'
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: wasm-file
+          path: dist
+
+      - name: Updating plugin sha
+        run: ./scripts/wasm/update_sha.sh sqlc.ci.yaml
+
+      # examples/ is the plugin's output for examples/authors: it must be committed in sync with the plugin
+      - name: Verify pushed generated code is synced (WASM plugin)
+        run: sqlc -f sqlc.ci.yaml diff
+
+      - name: Verify pushed generated code is synced (process plugin)
+        run: sqlc -f sqlc.local.yaml diff
+
+      - name: Steep check
+        run: bundle exec rake steep
+
+  codegen-options:
+    name: Codegen Options (ruby ${{ matrix.ruby-version }}, types=${{ matrix.generate-types }}, gemfile=${{ matrix.generate-gemfile }})
+    needs: [build-wasm]
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { ruby-version: '3.1', generate-types: 'true', generate-gemfile: 'true' }
+          - { ruby-version: '3.2', generate-types: 'false', generate-gemfile: 'false' }
+          - { ruby-version: '3.3', generate-types: 'true', generate-gemfile: 'false' }
+          - { ruby-version: '3.3', generate-types: 'false', generate-gemfile: 'true' }
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Load tool versions
+        run: cat scripts/tool-versions.env >> "$GITHUB_ENV"
+
+      # the generated code for rubyVersion X is checked with a Ruby X interpreter
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+
+      - uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: '${{ env.SQLC_VERSION }}'
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: wasm-file
+          path: dist
+
+      - name: Updating plugin sha
+        run: ./scripts/wasm/update_sha.sh sqlc.ci.yaml
+
+      - name: Generate with these options and check the output
+        run: >-
+          ./scripts/tests/run_codegen.rb sqlc.ci.yaml
+          "${{ matrix.ruby-version }}" ${{ matrix.generate-types }} ${{ matrix.generate-gemfile }}
