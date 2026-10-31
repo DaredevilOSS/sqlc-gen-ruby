@@ -31,7 +31,7 @@ This was developed in a sandbox where downloading and running the release binari
 (ruby.wasm, wasi-vfs, wasmtime, sqlc) was blocked, so **nothing was run inside WASM and
 `sqlc generate` was never run against the plugin**. `scripts/build_wasm.sh` is the intended route:
 use the *prebuilt* `ruby-3.3-wasm32-unknown-wasip1-full` release (which sidesteps the old
-`rbwasm build` `dln.c` / `Dl_info` failure) and `rbwasm pack` the stdlib and `lib/` + `bin/` into it.
+`rbwasm build` `dln.c` / `Dl_info` failure) and `rbwasm pack` the stdlib and `lib/` + `exe/` into it.
 
 ### Open problem: argv
 sqlc runs a wasm plugin with no arguments, so a bare `ruby` would try to read its *script from stdin*,
