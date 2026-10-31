@@ -1,53 +1,51 @@
-# sqlc-gen-ruby in Ruby (POC)
+# Design: a sqlc plugin written in Ruby, shipped as WASM
 
-Goal: write the sqlc plugin in Ruby instead of C#, and ship it as a `.wasm`.
+sqlc plugins receive a protobuf `GenerateRequest` on stdin and answer with a `GenerateResponse` on stdout, either as a
+process or as a WASI module. This plugin is pure Ruby and is distributed as a WASI module (`plugin.wasm`).
 
-## What works (verified)
+## Source layout
 
-The plugin logic is now **pure Ruby with zero native dependencies**:
-
-| File | Replaces |
+| File | Role |
 |---|---|
-| `lib/sqlc_gen_ruby/proto.rb` | `google-protobuf` (a C extension, which cannot run inside ruby.wasm). A ~150 line wire-format codec. |
-| `lib/sqlc_gen_ruby/plugin_pb.rb` | The generated `GenerateRequest/Query/Column/...` classes (subset of `codegen.proto`). |
-| `lib/sqlc_gen_ruby/generator.rb`, `drivers/pg.rb`, `options.rb`, `code.rb` | `CodeGenerator.cs`, `PgDriver.cs`, `MethodGen.cs`, `RubySyntax/*`, `PluginOptions/*`. |
-| `exe/plugin.rb` | `PluginRunner.cs`: stdin = `GenerateRequest`, stdout = `GenerateResponse`. |
+| `exe/plugin.rb` | entry point (stdin → `Generator` → stdout) |
+| `lib/sqlc_gen_ruby/proto.rb` | ~150 line protobuf wire codec. `google-protobuf` is a C extension and cannot be loaded inside ruby.wasm, so the plugin brings its own |
+| `lib/sqlc_gen_ruby/plugin_pb.rb` | the subset of sqlc's `codegen.proto` the generator needs (field numbers must match upstream) |
+| `lib/sqlc_gen_ruby/options.rb`, `ruby_version.rb` | the `options:` JSON, `rubyVersion` parsing / validation (3.1 – 3.3; `Struct` below 3.2, `Data` from 3.2) |
+| `lib/sqlc_gen_ruby/generator.rb` | module / class / dataclass (`Data.define`, `Struct.new`) layout, `.rb` / `.rbs` / `Gemfile` files |
+| `lib/sqlc_gen_ruby/method_gen.rb` | one generated method per query: `:one`, `:many`, `:exec`, `:execlastid` |
+| `lib/sqlc_gen_ruby/drivers/*.rb` | `Base` + `Pg`, `Mysql2`, `Sqlite3`: column type mapping, statement preparation / execution, pooling, row access |
+| `lib/sqlc_gen_ruby/code.rb` | indent / snake_case helpers (formatting must stay byte-identical with the original implementation) |
 
-`test/golden_test.rb` runs `exe/plugin.rb` as a subprocess over stdin/stdout (the way sqlc does)
-with a request built by the official `google-protobuf` gem, and asserts the generated
-`query_sql.rb` / `query_sql.rbs` equal what the C# plugin produced (`examples/pg`), ignoring CRs
-and the trailing newline.
+Driver differences are data, not copy/paste: `Base` has `pooling_enabled?` (ConnectionPool vs a single injected
+connection), `row_data_type` (`row['col']` vs `row[0]`), `supports_exec_last_id?` (mysql2 only) and a column mapping
+table (exact or prefix based matching).
 
-```bash
-cd ruby-wasm-poc && bundle install && bundle exec ruby test/golden_test.rb
-```
+## The WASM build (`scripts/wasm/build.sh`)
 
-Scope of the port: only the `pg` driver and the `:one` / `:many` / `:exec` commands. `mysql2`,
-`sqlite3` and `:execlastid` still need porting (the structure in `drivers/pg.rb` is the template).
+1. downloads the *prebuilt* `ruby-3.3-wasm32-unknown-wasip1-full` release from ruby/ruby.wasm (this avoids compiling
+   CRuby with a wasi-sdk);
+2. strips the ~18 MB of DWARF debug info / name section from the interpreter (`strip_wasm.rb`);
+3. stages a slim stdlib (the plugin only uses core + `json`) + `lib/` + `exe/`;
+4. embeds that filesystem into the interpreter with `rbwasm pack` (wasi-vfs), because sqlc gives plugins no filesystem.
 
-## The WASM plugin (verified end to end)
+**The argv trick:** sqlc runs the module as `plugin.wasm /plugin.CodegenService/Generate`, so the interpreter treats that
+path as its script. The build embeds a file at exactly that path containing `load '/app/exe/plugin.rb'`.
 
-`scripts/build_wasm.sh` produces `dist/plugin.wasm` (~37 MB, one self-contained file):
+## Verification strategy
 
-1. downloads the *prebuilt* `ruby-3.3-wasm32-unknown-wasip1-full` release (this sidesteps the old
-   `rbwasm build` `dln.c` / `Dl_info` failure entirely);
-2. stages a slim filesystem (core stdlib minus bundler/rdoc/irb/etc. + `lib/` + `exe/`);
-3. embeds it into the interpreter with `rbwasm pack` (wasi-vfs), since sqlc gives plugins no filesystem.
+The previous C# implementation defined the expected behaviour. Its output is kept as test data:
 
-**The argv problem is solved by a trick:** sqlc runs the module as `plugin.wasm /plugin.CodegenService/Generate`,
-so the interpreter treats that path as its script. The build embeds a file at exactly that path containing
-`load '/app/exe/plugin.rb'`.
+* `examples/{pg,mysql2,sqlite3}` — checked-in output of the C# plugin for the example schemas;
+* `test/golden/*` — C# output for option variants (Ruby 3.1 `Struct`, 3.2 / no types, `generateGemfile`) over the sqlc
+  captured queries plus synthetic ones (5+ params / columns for the multi-line formatting, lower-case names, several
+  query files);
+* `test/fixtures/*.bin` — real `GenerateRequest`s captured from `sqlc generate` (v1.27.0).
 
-Verified with sqlc v1.27.0 (`wasm: url: file://...dist/plugin.wasm`) on `examples/authors/postgresql`:
-`sqlc generate` takes ~2s and the generated `query_sql.rb` / `.rbs` are identical to the C# plugin's
-(`examples/pg`), ignoring CRs. Also checked under wasmtime v27: WASM output is byte-identical to native Ruby.
+`test/codec_test.rb` cross-checks the hand-written protobuf codec against Google's official implementation (test-only
+dependency).
 
-```bash
-gem install ruby_wasm && ruby-wasm-poc/scripts/build_wasm.sh   # set RBWASM="ruby /path/to/rbwasm" if rbwasm isn't on PATH
-```
-
-## Remaining work
-- Port the `mysql2` and `sqlite3` drivers and `:execlastid` (use `drivers/pg.rb` as the template).
-- Port the remaining C# options/edge cases (e.g. `generateGemfile` path is written but untested).
-- Shrink the wasm (37 MB, mostly the interpreter) and wire it into CI (`sqlc.ci.yaml`).
-- Decide on removing the C# projects once the Ruby port has parity.
+## Known quirks kept for output compatibility
+* With Ruby < 3.2 the generated `Struct.new(id, name)` lists bare identifiers, not symbols (`:id, :name`).
+  This is what the C# plugin generated, so it is preserved.
+* `3.3.x` (a patch version) is rejected: the original version comparison treats a patch as greater than "no patch".
+* An unknown `driver` is an error here (the C# enum parse silently fell back to `mysql2`).

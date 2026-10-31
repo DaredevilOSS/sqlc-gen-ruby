@@ -3,11 +3,12 @@
 # Needs: ruby + `gem install ruby_wasm` (for `rbwasm pack`), curl, tar.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-
-
 RUBY_WASM_VERSION="${RUBY_WASM_VERSION:-2.7.1}"
 FLAVOR="ruby-3.3-wasm32-unknown-wasip1-full"
-RBWASM="${RBWASM:-rbwasm}"
+# `rbwasm` comes from the ruby_wasm gem (see Gemfile, group :wasm_build)
+if [ -z "${RBWASM:-}" ]; then
+  if command -v rbwasm >/dev/null 2>&1; then RBWASM="rbwasm"; else RBWASM="bundle exec rbwasm"; fi
+fi
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -16,12 +17,20 @@ curl -fsSL -o "$WORK/ruby.tgz" \
   "https://github.com/ruby/ruby.wasm/releases/download/${RUBY_WASM_VERSION}/${FLAVOR}.tar.gz"
 tar -xzf "$WORK/ruby.tgz" -C "$WORK"
 SRC="$WORK/$FLAVOR/usr/local"
+# the prebuilt interpreter carries ~18 MB of DWARF debug info + names: strip it
+ruby scripts/wasm/strip_wasm.rb "$SRC/bin/ruby"
 
 # 2. stage a slim filesystem to embed: core stdlib only + the plugin. sqlc gives plugins no filesystem.
 STAGE="$WORK/stage"
 mkdir -p "$STAGE/usr/local/lib/ruby" "$STAGE/app"
 cp -r "$SRC/lib/ruby/3.3.0" "$STAGE/usr/local/lib/ruby/3.3.0"
-(cd "$STAGE/usr/local/lib/ruby/3.3.0" && rm -rf bundler rdoc irb reline net ruby_vm rbs typeprof debug)
+# Not needed by the plugin (it only uses core + json). Anything required at interpreter boot (rubygems,
+# monitor, ...) must stay; test/wasm_smoke_test.sh / `sqlc generate` catch an over-trimmed stdlib.
+(cd "$STAGE/usr/local/lib/ruby/3.3.0" && rm -rf bundler rdoc irb reline net ruby_vm rbs typeprof debug \
+  prism syntax_suggest csv csv.rb drb drb.rb cgi cgi.rb openssl openssl.rb mkmf.rb resolv.rb resolv-replace.rb \
+  psych psych.rb yaml yaml.rb unicode_normalize optparse optparse.rb open3 open3.rb ripper ripper.rb \
+  random rinda benchmark benchmark.rb pstore.rb tempfile.rb tmpdir.rb un.rb webrick expect.rb getoptlong.rb \
+  observer.rb abbrev.rb base64.rb mutex_m.rb nkf.rb syslog.rb)
 mkdir -p "$STAGE/usr/local/lib/ruby/site_ruby" "$STAGE/usr/local/lib/ruby/vendor_ruby" "$STAGE/usr/local/lib/ruby/gems"
 cp -r lib exe "$STAGE/app/"
 # sqlc runs the module as `plugin.wasm /plugin.CodegenService/Generate`, so the interpreter treats that

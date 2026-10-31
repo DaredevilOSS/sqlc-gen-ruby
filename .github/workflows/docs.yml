@@ -14,7 +14,7 @@ on:
       - "sqlc.ci.yaml"
       - "examples/**"
       - "tests/**"
-      - "Drivers/**"
+      - "lib/**"
 
 jobs:
   generate-and-push-docs:

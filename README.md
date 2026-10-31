@@ -1,9 +1,12 @@
 [![CI](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/ci.yml)
 
-This project is up for grabs, in anyone is interested in developing it further. I decided to focus on the C# plugin.
-
 # sqlc-gen-ruby
-Why I didn't use Ruby to generate Ruby in [here](ruby-wasm-poc/README.md).
+A [sqlc](https://sqlc.dev) plugin that generates Ruby code (plus optional RBS type signatures) from SQL.
+Supported drivers: `pg`, `mysql2` and `sqlite3`.
+
+The plugin itself is written in Ruby: it is pure Ruby with no native dependencies (it has its own tiny protobuf
+codec), and it is shipped as a single self-contained WebAssembly module — the Ruby interpreter
+([ruby.wasm](https://github.com/ruby/ruby.wasm)) with the plugin embedded. See [docs/Design.md](docs/Design.md).
 
 ## Usage
 
@@ -64,33 +67,36 @@ sql:
 
 ### [Generated Code Examples](docs/Examples.md)
 
-### Next features
-1. Supporting sqlite engine, utilizing sqlite3 gem
-2. Adding type support to generated code by generating .rbs files
-
 # Contributing
 ## Local plugin development
 ### Prerequisites
-make sure that the following applications are installed and exposed in your path
+* Ruby 3.3 and `bundle install`
+* [sqlc](https://docs.sqlc.dev/en/latest/overview/install.html) (v1.27.0 was used for verification)
+* `curl` + `tar` for building the WASM plugin (it downloads the prebuilt ruby.wasm interpreter)
+* Docker + docker-compose, for the end-to-end tests only (they need real MySQL / PostgreSQL servers)
 
-Follow the instructions in each of these:
-* Ruby - [Ruby Installation](https://www.ruby-lang.org/en/downloads/)
-* Dotnet CLI - [Dotnet Installation](https://github.com/dotnet/sdk) - use version `.NET 8.0 (latest)`
-* buf build - [Buf Build](https://buf.build/docs/installation)
-* WASM related - [WASM libs](https://www.strathweb.com/2023/09/dotnet-wasi-applications-in-net-8-0/)
+### Layout
+| Path | What |
+|---|---|
+| `exe/plugin.rb` | plugin entry point: `GenerateRequest` on stdin → `GenerateResponse` on stdout |
+| `lib/sqlc_gen_ruby/` | the generator (`generator.rb`, `method_gen.rb`, `drivers/*.rb`, `options.rb`, ...) |
+| `test/` | unit + golden tests (`rake test`); `test/fixtures` are real requests captured from sqlc |
+| `tests/` | end-to-end tests of the generated code against real databases |
+| `scripts/wasm/` | building the WASM plugin |
 
-### Protobuf
-SQLC protobuf are defined in sqlc-dev/sqlc repository.
-Generating Ruby code from protocol buffer files:
+### Unit & golden tests
 ```
-rake protobuf_generate
+bundle exec rake test
 ```
+The golden tests feed the plugin real `GenerateRequest`s captured from sqlc and diff the result against
+[examples/](examples) (and against `test/golden`, recorded from the original C# implementation).
+To refresh a fixture see `scripts/capture_request.rb`.
 
 ### Generating code
 SQLC utilizes our process / WASM plugin to generate code
 ```
-rake sqlc_generate_process
-rake sqlc_generate_wasm
+rake sqlc_generate_process   # runs exe/plugin.rb directly (needs `ruby` on PATH)
+rake sqlc_generate_wasm      # builds dist/plugin.wasm first and runs that
 ```
 
 ### Testing generated code
@@ -98,6 +104,11 @@ Testing the SQLC generated code via a predefined flow:
 ```
 rake test_process_plugin
 rake test_wasm_plugin
+```
+
+### Building the WASM plugin
+```
+rake wasm_build   # == ./scripts/wasm/build.sh, writes dist/plugin.wasm (~18 MB)
 ```
 
 ## Release flow
