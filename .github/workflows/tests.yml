@@ -7,10 +7,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: tests-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
+  workflow_call: # the Release workflow runs the full gate on the exact commit it releases
   push:
     branches: [ "main" ]
   pull_request:

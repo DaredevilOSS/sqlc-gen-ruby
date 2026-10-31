@@ -16,7 +16,7 @@ process or as a WASI module. This plugin is pure Ruby and is distributed as a WA
 | `lib/sqlc_gen_ruby/row_layout.rb` | how result columns become `<Query>Row` attributes (`sqlc.embed` expands a table into one model attribute) |
 | `lib/sqlc_gen_ruby/type_resolver.rb`, `catalog.rb` | RBS type of a column (DB type mapping + array + nullability + `overrides:`), tables / enums of the catalog |
 | `lib/sqlc_gen_ruby/drivers/*.rb` | `Base` + `Pg`, `Mysql2`, `Sqlite3`: column type mapping, statement preparation / execution, pooling, row access |
-| `lib/sqlc_gen_ruby/code.rb` | indent / snake_case helpers (formatting must stay byte-identical with the original implementation) |
+| `lib/sqlc_gen_ruby/code.rb` | indent / snake_case helpers |
 
 Driver differences are data, not copy/paste: `Base` has `pooling_enabled?` (ConnectionPool vs a single injected
 connection), `row_data_type` (`row['col']` vs `row[0]`), `supports_exec_last_id?` (mysql2 only) and a column mapping
@@ -33,18 +33,9 @@ table (exact or prefix based matching).
 **The argv trick:** sqlc runs the module as `plugin.wasm /plugin.CodegenService/Generate`, so the interpreter treats that
 path as its script. The build embeds a file at exactly that path containing `load '/app/exe/plugin.rb'`.
 
-## Verification strategy
-
-The previous C# implementation defined the expected behaviour. Its output is kept as test data:
-
-* `examples/{pg,mysql2,sqlite3}` — checked-in output of the C# plugin for the example schemas;
-* `test/golden/*` — C# output for option variants (Ruby 3.1 `Struct`, 3.2 / no types, `generateGemfile`) over the sqlc
-  captured queries plus synthetic ones (5+ params / columns for the multi-line formatting, lower-case names, several
-  query files);
-* `test/fixtures/*.bin` — real `GenerateRequest`s captured from `sqlc generate` (v1.27.0).
-
-`test/codec_test.rb` cross-checks the hand-written protobuf codec against Google's official implementation (test-only
-dependency).
+## Verification
+How the plugin is tested (golden files from real sqlc requests, `sqlc diff` over `examples/`, end-to-end tests
+against real databases) is described in [Testing.md](Testing.md); how it works inside in [Architecture.md](Architecture.md).
 
 ## What the generated code looks like (and why)
 Generated code follows what Ruby code usually looks like rather than mirroring the C# plugin: keyword arguments instead of
@@ -53,22 +44,15 @@ header, SQL in raw heredocs, `connection_pool` for pooling with an injectable po
 Prepared statements are named per query class and remembered per *connection* (a module mixed into each connection),
 so several query objects can share a pool.
 
-## Beyond the C# port
-The first version of the Ruby plugin reproduced the C# plugin's output exactly (verified against the C# binary, see git
-history). It has since gained the sqlc features of the sibling `sqlc-gen-csharp` plugin (`:execrows`, `:execlastid` for
-every driver, `:copyfrom`, `sqlc.slice`, `sqlc.embed`, enums, models, transactions, nullability, `overrides`) and
-its type tables were corrected to the classes the drivers really return, so the output is no longer identical.
-`tests/end2end_*.rb` run the generated code against real databases; `tests/rbs_types.rb` checks returned values
-against the generated signatures.
+## History
+The plugin started as a port of the C# `sqlc-gen-csharp` plugin and reproduced its output byte for byte (verified
+against the C# binary; see the git history before the commit that removed the C# code). It has since gained the sqlc features of
+that plugin (`:execrows`, `:execlastid` for every driver, `:copyfrom`, `sqlc.slice`, `sqlc.embed`, enums, models,
+transactions, nullability, `overrides`) and Ruby conventions (bang finders, logger, pooling), so the output is
+now idiomatic Ruby rather than a copy of the C# one.
 
 ## Known limitations
-* `%q(...)` SQL constants break if the query text has unbalanced parentheses (inside a string literal).
 * The SQLite `NUMERIC` affinity can return Integers where `Float` is declared.
 * `:copyfrom` for MySQL writes binary (`BLOB`) values through a text CSV; only text-safe values round-trip.
 * The generated query classes are not thread-safe for SQLite (a single connection is injected).
-
-## Known quirks kept from the C# implementation
-* With Ruby < 3.2 the generated `Struct.new(id, name)` lists bare identifiers, not symbols (`:id, :name`).
-  This is what the C# plugin generated, so it is preserved.
-* `3.3.x` (a patch version) is rejected: the original version comparison treats a patch as greater than "no patch".
-* An unknown `driver` is an error here (the C# enum parse silently fell back to `mysql2`).
+* `3.3.x` (a patch version) is rejected as `rubyVersion`; use `3.3`.

@@ -1,4 +1,5 @@
-[![CI](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/ci.yml)
+[![Build](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/build.yml)
+[![Tests](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/DaredevilOSS/sqlc-gen-ruby/actions/workflows/tests.yml)
 
 # sqlc-gen-ruby
 A [sqlc](https://sqlc.dev) plugin that generates Ruby code (plus optional RBS type signatures) from SQL.
@@ -6,7 +7,7 @@ Supported drivers: `pg`, `mysql2` and `sqlite3`.
 
 The plugin itself is written in Ruby: it is pure Ruby with no native dependencies (it has its own tiny protobuf
 codec), and it is shipped as a single self-contained WebAssembly module — the Ruby interpreter
-([ruby.wasm](https://github.com/ruby/ruby.wasm)) with the plugin embedded. See [docs/Design.md](docs/Design.md).
+([ruby.wasm](https://github.com/ruby/ruby.wasm)) with the plugin embedded. See [How it works](#documentation).
 
 ## Usage
 
@@ -184,15 +185,16 @@ To refresh a fixture see `scripts/capture_request.rb`.
 * Tool versions live in `scripts/tool-versions.env`; dependabot keeps actions and gems current.
 
 ## Release flow
-The release flow in this repo follows the semver conventions, building tag as `v[major].[minor].[patch]`.
+Releases are started by hand and fully automated after that: **Actions → Release → Run workflow** (patch / minor / major,
+optional dry run). The workflow runs the whole test gate on the commit, then tags, publishes the GitHub release with the
+tested `sqlc-gen-ruby.wasm` and its sha256, and verifies the published file with sqlc. Details: [docs/Releasing.md](docs/Releasing.md).
 
-* In order to create a release you need to add `[release]` somewhere in your commit message when merging to master
-
-### Version bumping (built on tags)
-**By default, the release script will bump the patch version.**, by adding `[release]` to your commit message the release script will create a new tag with `v[major].[minor].[patch]+1`.
-* Bump `minor` version by adding `[minor]` to your commit message resulting in a new tag with `v[major].[minor]+1.0`<br/>
-* Bump `major` version by adding `[major]` to your commit message resulting in a new tag with `v[major]+1.0.0`
-
-### Release structure
-The new created tag will create a draft release with it, in the release there will be the wasm plugin embedded in the release.<br/>
-> Publish the draft
+## Documentation
+| Doc | What |
+|---|---|
+| [docs/Architecture.md](docs/Architecture.md) | how the generator works, where to change what, adding a feature / driver / option |
+| [docs/Testing.md](docs/Testing.md) | the test layers, CI workflows, what to run before pushing |
+| [docs/Releasing.md](docs/Releasing.md) | the release process and versioning rules |
+| [docs/Design.md](docs/Design.md) | the WASM packaging, design decisions, known limitations |
+| [docs/Examples.md](docs/Examples.md) | per-driver configs and links to the generated examples |
+| [CLAUDE.md](CLAUDE.md) | the same orientation condensed for AI coding assistants |

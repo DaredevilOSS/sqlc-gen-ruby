@@ -1,145 +1,160 @@
 name: Release
+
+# A release is a decision, so it is started by hand: Actions -> Release -> Run workflow (or `gh workflow run release.yml`).
+# Everything after that is automatic: the full test gate runs on the commit, the tag + GitHub release are created
+# with the exact plugin.wasm that was tested, and the published asset is verified by running sqlc with it.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version to bump (ignored when 'version' is set)
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: "Explicit version instead of a bump, e.g. v1.0.0 (optional)"
+        type: string
+        required: false
+      dry_run:
+        description: Only compute the version and the release notes, publish nothing
+        type: boolean
+        default: false
+      draft:
+        description: Create a draft release that you publish by hand
+        type: boolean
+        default: false
+
 defaults:
   run:
     shell: bash
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
-on:
-  workflow_run: 
-    workflows: [Build]
-    types: [completed]
-    branches: [main]
-    
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  check_commit:
-    name: Check Commit
+  plan:
+    name: Plan
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' # releases are cut from main only
     outputs:
-      IS_RELEASE: ${{ steps.check_msg.outputs.IS_RELEASE }}
+      version: ${{ steps.next.outputs.version }}
+      previous: ${{ steps.next.outputs.previous }}
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v7
-
-      - name: Check latest commit message
-        id: check_msg
-        run: |
-          LATEST_COMMIT_MSG=$(git log -1 --pretty=%B | cat)
-          if [[ ${LATEST_COMMIT_MSG} == *"[release]"* ]]; then
-            echo "release message found - continuing with the release"
-            IS_RELEASE="true"
-          else
-            echo "no release message found - skipping..."
-            IS_RELEASE="false"
-          fi
-          echo "IS_RELEASE=${IS_RELEASE}" >> $GITHUB_OUTPUT
-          
-  release:
-    name: Release
-    needs: [check_commit]
-    runs-on: ubuntu-latest
-    if: ${{ needs.check_commit.outputs.IS_RELEASE == 'true' }}
-    env:
-      IS_RELEASE: ${{  needs.check_commit.outputs.IS_RELEASE }}
-    steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-          
-      - name: Download artifact
-        id: download-artifact
-        uses: dawidd6/action-download-artifact@v6
-        with:
-          github_token: ${{secrets.GITHUB_TOKEN}}
-          workflow: build.yml
-          workflow_conclusion: success
-          name: wasm-file
-          
-      - name: Bump version
-        run: |
-          set -e
-          LATEST_COMMIT_MSG=$(git log -1 --pretty=%B | cat)
-          
-          echo "Extract the latest tag version"
-          LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
-          
-          BUMP_TYPE="patch" # Initialize the default version bump type to patch
-          if [[ "${LATEST_COMMIT_MSG}" == *"[major]"* ]]; then
-            BUMP_TYPE="major"
-          elif [[ "${LATEST_COMMIT_MSG}" == *"[minor]"* ]]; then
-            BUMP_TYPE="minor"
-          fi
+          fetch-depth: 0 # all tags
 
-          case ${BUMP_TYPE} in
-            "major")
-              NEW_TAG=$(echo "${LATEST_TAG}" | awk -F. '{OFS="."; $1="v" substr($1,2)+1; $2="0"; $3="0"; print}')
-              ;;
-            "minor")
-              NEW_TAG=$(echo "${LATEST_TAG}" | awk -F. '{OFS="."; $2=$2+1; $3="0"; print}')
-              ;;
-            "patch")
-              NEW_TAG=$(echo "${LATEST_TAG}" | awk -F. '{OFS="."; $3=$3+1; print}')
-              ;;
-          esac
-          
-          echo "LATEST_TAG=${LATEST_TAG}" >> $GITHUB_ENV
-          echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
-
-      - name: Push tag
-        run: |
-          NEW_TAG=${{ env.NEW_TAG }}
-          
-          git tag ${NEW_TAG}
-          git push origin ${NEW_TAG}
-          
-      - name: Calculate sha256
-        run: |
-          SHA256_HASH=$(sha256sum plugin.wasm | awk '{ print $1 }')
-          echo "SHA256_HASH=${SHA256_HASH}" >> $GITHUB_ENV
-          echo "The calculated sha256 is $SHA256_HASH"
-
-      - name: Create release draft
+      - name: Compute the next version
+        id: next
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUMP: ${{ inputs.bump }}
+          EXPLICIT_VERSION: ${{ inputs.version }}
         run: |
-          set -e
-          
-          LATEST_TAG=${{ env.LATEST_TAG }}
-          NEW_TAG=${{ env.NEW_TAG }}
-          SHA256_HASH=${{ env.SHA256_HASH }}
+          version=$(./scripts/releasing/next_version.sh "${BUMP}" "${EXPLICIT_VERSION}")
+          previous=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n 1)
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "previous=${previous}" >> "$GITHUB_OUTPUT"
+          echo "### Releasing ${version} (previous: ${previous:-none}) from \`${GITHUB_SHA::7}\`" >> "$GITHUB_STEP_SUMMARY"
 
-          CHANGE_LOG=$(git --no-pager log ${LATEST_TAG}..HEAD --pretty=format:'%h - %an, %ar : %s')
+  build:
+    name: Build
+    needs: [plan]
+    uses: ./.github/workflows/build.yml
 
-          # Define the release notes template
-          RELEASE_NOTES=$(cat <<EOF
-          ## Release version ${NEW_TAG}
-          Release sha256 is \`${SHA256_HASH}\`
+  tests:
+    name: Tests
+    needs: [plan]
+    uses: ./.github/workflows/tests.yml
 
-          ## Configuration example
-          \`\`\`yaml
-          version: '2'
-          plugins:
-          - name: ruby
-            wasm:
-              url: https://github.com/DaredevilOSS/sqlc-gen-ruby/releases/download/${NEW_TAG}/sqlc-gen-ruby.wasm
-              sha256: ${SHA256_HASH}
-          \`\`\`
-          ## Changelog 
-          ${CHANGE_LOG}
+  release:
+    name: Release ${{ needs.plan.outputs.version }}
+    needs: [plan, build, tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # tag + release
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      PREVIOUS: ${{ needs.plan.outputs.previous }}
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      sha256: ${{ steps.asset.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v7
 
-          ## Contributors
-          * @SockworkOrange
-          EOF
-          )
+      # the very plugin.wasm the Build + Tests jobs of this run verified
+      - uses: actions/download-artifact@v8
+        with:
+          name: wasm-file
+          path: dist
 
-          # change file name to convention
-          mv plugin.wasm sqlc-gen-ruby.wasm
+      - name: Prepare the release asset
+        id: asset
+        run: |
+          mkdir release
+          cp dist/plugin.wasm release/sqlc-gen-ruby.wasm
+          sha256=$(sha256sum release/sqlc-gen-ruby.wasm | awk '{ print $1 }')
+          echo "${sha256}  sqlc-gen-ruby.wasm" > release/sqlc-gen-ruby.wasm.sha256
+          echo "sha256=${sha256}" >> "$GITHUB_OUTPUT"
 
-          # Create a draft release
-          gh release create ${NEW_TAG} sqlc-gen-ruby.wasm \
-          --draft \
-          --title "${NEW_TAG}" \
-          --notes "${RELEASE_NOTES}"
+      - name: Write the release notes
+        env:
+          SHA256: ${{ steps.asset.outputs.sha256 }}
+        run: |
+          generated=$(gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="${VERSION}" -f target_commitish="${GITHUB_SHA}" \
+            ${PREVIOUS:+-f previous_tag_name="${PREVIOUS}"} --jq .body)
+          {
+            echo "Plugin sha256: \`${SHA256}\`"
+            echo
+            echo "## Usage"
+            echo '```yaml'
+            echo "version: '2'"
+            echo "plugins:"
+            echo "- name: ruby"
+            echo "  wasm:"
+            echo "    url: https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/sqlc-gen-ruby.wasm"
+            echo "    sha256: ${SHA256}"
+            echo '```'
+            echo
+            echo "${generated}"
+          } > release/notes.md
+          cat release/notes.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create the release (tag ${{ env.VERSION }})
+        if: ${{ !inputs.dry_run }}
+        run: |
+          gh release create "${VERSION}" \
+            release/sqlc-gen-ruby.wasm release/sqlc-gen-ruby.wasm.sha256 \
+            --target "${GITHUB_SHA}" \
+            --title "${VERSION}" \
+            --notes-file release/notes.md \
+            ${{ inputs.draft && '--draft' || '' }}
+
+  # a user's view of the release: download it by its public URL, check the checksum and generate code with sqlc
+  verify:
+    name: Verify the published release
+    needs: [plan, release]
+    if: ${{ !inputs.dry_run && !inputs.draft }}
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      SHA256: ${{ needs.release.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Load tool versions
+        run: grep -E '^[A-Z_]+=' scripts/tool-versions.env >> "$GITHUB_ENV"
+
+      - uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: '${{ env.SQLC_VERSION }}'
+
+      - name: sqlc diff with the released plugin
+        run: |
+          sed -E -e "s#^([[:space:]]*url:[[:space:]]*).*#\1https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/sqlc-gen-ruby.wasm#" \
+                 -e "s#^([[:space:]]*sha256:[[:space:]]*).*#\1${SHA256}#" sqlc.ci.yaml > sqlc.release.yaml
+          sqlc -f sqlc.release.yaml diff

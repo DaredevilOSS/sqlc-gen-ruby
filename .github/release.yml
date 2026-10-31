@@ -1,0 +1,16 @@
+# Categories for the notes GitHub generates for a release (labels of the merged pull requests).
+changelog:
+  exclude:
+    labels: [skip-changelog]
+    authors: [dependabot]
+  categories:
+    - title: Breaking changes (generated code or options changed incompatibly)
+      labels: [breaking]
+    - title: New features
+      labels: [enhancement, feature]
+    - title: Bug fixes
+      labels: [bug]
+    - title: Documentation
+      labels: [documentation]
+    - title: Other changes
+      labels: ["*"]
