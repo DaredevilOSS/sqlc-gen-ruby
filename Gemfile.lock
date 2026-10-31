@@ -120,6 +120,7 @@ PLATFORMS
 DEPENDENCIES
   async
   connection_pool
+  csv
   google-protobuf (~> 4.0)
   minitest
   mysql2
