@@ -1,0 +1,26 @@
+
+ƒ
+2sqlite"examples/authors/sqlite/schema.sql"!examples/authors/sqlite/query.sqlb®
+f/tmp/claude-0/-home-user-sqlc-gen-ruby/5ee7feff-4b4b-542d-a5a8-7a5a095e775a/scratchpad/cap/out_sqlite3rubyU{"driver":"sqlite3","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}*g
+e/tmp/claude-0/-home-user-sqlc-gen-ruby/5ee7feff-4b4b-542d-a5a8-7a5a095e775a/scratchpad/cap/sqlite3.shŠ
+6SELECT id, name, bio FROM authors
+WHERE id = ? LIMIT 1	GetAuthor:one"+
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	INTEGERzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*/+
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	INTEGERzid:	query.sqlÕ
+/SELECT id, name, bio FROM authors
+ORDER BY nameListAuthors:many"+
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	INTEGERzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio:	query.sqlÎ
+5INSERT INTO authors (
+  name, bio
+) VALUES (
+  ?, ?
+)CreateAuthor:exec*62
+name0ÿÿÿÿÿÿÿÿÿRmainauthorsbtextzname*2.
+bio0ÿÿÿÿÿÿÿÿÿRmainauthorsbtextzbio:	query.sqlB	authorss
+ DELETE FROM authors
+WHERE id = ?DeleteAuthor:exec*/+
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	INTEGERzid:	query.sql"v1.27.0*U{"driver":"sqlite3","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

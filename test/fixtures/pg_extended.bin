@@ -1,0 +1,98 @@
+
+7SELECT id, name, bio FROM authors
+WHERE id = $1 LIMIT 1	GetAuthor:one"-
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*1-
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid:	query.sql×
+/SELECT id, name, bio FROM authors
+ORDER BY nameListAuthors:many"-
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio:	query.sqlö
+SINSERT INTO authors (
+    name, bio
+) VALUES (
+    $1, $2
+)
+RETURNING id, name, bioCreateAuthor:one"-
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*84
+name0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzname*40
+bio0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzbio:	query.sqlB	authorsv
+!DELETE FROM authors
+WHERE id = $1DeleteAuthor:exec*1-
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid:	query.sql²
+ŞSELECT c_bit, c_smallint, c_boolean, c_integer, c_bigint, c_serial, c_decimal, c_numeric, c_real, c_double_precision, c_date, c_time, c_timestamp, c_char, c_varchar, c_bytea, c_text, c_json FROM node_postgres_types
+LIMIT 1Test:one"C
+c_bit0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalogbitzc_bit"N
+
+c_smallint0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalogint2z
+c_smallint"L
+	c_boolean0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalogboolz	c_boolean"L
+	c_integer0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalogint4z	c_integer"J
+c_bigint0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalogint8zc_bigint"@
+c_serial0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbserialzc_serial"O
+	c_decimal0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalognumericz	c_decimal"O
+	c_numeric0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalognumericz	c_numeric"H
+c_real0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalogfloat4zc_real"`
+c_double_precision0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalogfloat8zc_double_precision":
+c_date0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbdatezc_date"F
+c_time0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalogtimezc_time"U
+c_timestamp0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalog	timestampzc_timestamp"H
+c_char0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalogbpcharzc_char"O
+	c_varchar0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
+pg_catalogvarcharz	c_varchar"=
+c_bytea0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbbyteazc_bytea":
+c_text0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbtextzc_text":
+c_json0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbjsonzc_json:	query.sqlÄ
+SELECT 1 -- ? ?
+	  WHERE a = ?
+ManyParams:one"
+c0bbool"
+c1bint4*
+c0bbool*
+c1bint4*
+c2btext*
+c3bfloat8*
+c4bbytea:	query.sql£
+SELECT 1 -- ? ?
+	  WHERE a = ?manyRows:many"
+c0bbool"
+c1bint4"
+c2btext"
+c3bfloat8"
+c4bbytea*
+c0bbool:	query.sql~
+SELECT 1 -- ? ?
+	  WHERE a = ?FourCols:many"
+c0bbool"
+c1bint4"
+c2btext"
+c3bfloat8:	query.sql¡
+SELECT 1 -- ? ?
+	  WHERE a = ?NoCols:exec*
+c0bbool*
+c1bint4*
+c2btext*
+c3bfloat8*
+c4bbytea:	other.sqlK
+SELECT 1 -- ? ?
+	  WHERE a = ?OtherOne:one"
+c0bbool:	other.sql[
+SELECT 1 -- ? ?
+	  WHERE a = ?WithNumbers2Go:exec*
+c0bbool:my_queries.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
