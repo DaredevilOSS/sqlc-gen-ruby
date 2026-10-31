@@ -15,43 +15,43 @@ module PgCodegen
 	end
 	
 	class NodePostgresType
-		attr_reader c_bit: Array[Integer]?
+		attr_reader c_bit: String?
 		attr_reader c_smallint: Integer?
 		attr_reader c_boolean: bool?
 		attr_reader c_integer: Integer?
 		attr_reader c_bigint: Integer?
 		attr_reader c_serial: Integer?
-		attr_reader c_decimal: Float?
-		attr_reader c_numeric: Float?
+		attr_reader c_decimal: BigDecimal?
+		attr_reader c_numeric: BigDecimal?
 		attr_reader c_real: Float?
 		attr_reader c_double_precision: Float?
-		attr_reader c_date: String?
+		attr_reader c_date: Date?
 		attr_reader c_time: String?
-		attr_reader c_timestamp: String?
+		attr_reader c_timestamp: Time?
 		attr_reader c_char: String?
 		attr_reader c_varchar: String?
-		attr_reader c_bytea: Array[Integer]?
+		attr_reader c_bytea: String?
 		attr_reader c_text: String?
-		attr_reader c_json: String?
+		attr_reader c_json: untyped
 		def initialize: (	
-				Array[Integer]? c_bit,
+				String? c_bit,
 				Integer? c_smallint,
 				bool? c_boolean,
 				Integer? c_integer,
 				Integer? c_bigint,
 				Integer? c_serial,
-				Float? c_decimal,
-				Float? c_numeric,
+				BigDecimal? c_decimal,
+				BigDecimal? c_numeric,
 				Float? c_real,
 				Float? c_double_precision,
-				String? c_date,
+				Date? c_date,
 				String? c_time,
-				String? c_timestamp,
+				Time? c_timestamp,
 				String? c_char,
 				String? c_varchar,
-				Array[Integer]? c_bytea,
+				String? c_bytea,
 				String? c_text,
-				String? c_json
+				untyped c_json
 			) -> void
 	end
 	

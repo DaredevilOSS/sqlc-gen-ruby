@@ -108,12 +108,15 @@ module SqlcGenRuby
       def driver_gems = %w[mysql2]
 
       def column_mappings
+        # Ruby classes as returned by the mysql2 gem (verified by tests/end2end_mysql2.rb)
         @column_mappings ||= [
-          mapping('Array[Integer]', %w[binary bit blob longblob mediumblob tinyblob varbinary]),
-          mapping('String', %w[char date datetime decimal longtext mediumtext text time timestamp tinytext
-                               varchar json]),
+          mapping('String', %w[char varchar tinytext text mediumtext longtext json binary varbinary bit tinyblob blob
+                               mediumblob longblob]),
           mapping('Integer', %w[bigint int mediumint smallint tinyint year integer]),
-          mapping('Float', %w[double float])
+          mapping('Float', %w[double float]),
+          mapping('BigDecimal', %w[decimal numeric dec fixed]),
+          mapping('Date', %w[date]),
+          mapping('Time', %w[datetime timestamp time])
         ]
       end
     end

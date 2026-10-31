@@ -3,7 +3,9 @@ gem 'minitest'     # ensures using the gem, and not the built-in MT
 require 'minitest/autorun'
 require 'bigdecimal'
 require 'ipaddr'
+require 'securerandom'
 require_relative 'consts'
+require_relative 'rbs_types'
 require_relative '../examples/pg/query_sql'
 
 # End-to-end tests of the code generated for examples/authors/postgresql, against a real PostgreSQL server.
@@ -234,6 +236,48 @@ class TestPg < Minitest::Test
     row = @query_sql.get_extra_types
     assert_equal [nil] * 7, row.to_h.values_at(:c_uuid, :c_jsonb, :c_text_array, :c_integer_array, :c_timestamptz,
                                               :c_inet, :c_money)
+  end
+
+  def raw_client
+    PG.connect(dbname: ENV['DB_NAME'], host: ENV['POSTGRES_HOST'], port: ENV['POSTGRES_PORT'], user: ENV['DB_USER'],
+               password: ENV['DB_PASS'])
+  end
+
+  def test_declared_types_match_runtime_values
+    client = raw_client
+    client.exec('DELETE FROM node_postgres_types')
+    client.exec(<<~SQL)
+      INSERT INTO node_postgres_types VALUES (B'1', 2, true, 4, 5, 6, 1.5, 2.5, 1.25, 2.25, '2024-01-02', '03:04:05',
+        '2024-01-02 03:04:05', 'a', 'b', '\\x0102', 'c', '{"a": 1}')
+    SQL
+    row = @query_sql.test
+    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/pg/query_sql.rbs', __dir__), 'TestRow')
+    assert_equal Date.new(2024, 1, 2), row.c_date
+    assert_equal BigDecimal('1.5'), row.c_decimal
+    assert_equal({ 'a' => 1 }, row.c_json)
+    assert_equal "\x01\x02".b, row.c_bytea.b
+  ensure
+    client&.exec('DELETE FROM node_postgres_types')
+  end
+
+  def test_declared_types_match_runtime_values_for_nulls
+    client = raw_client
+    client.exec('DELETE FROM node_postgres_types')
+    client.exec('INSERT INTO node_postgres_types (c_integer) VALUES (NULL)')
+    row = @query_sql.test
+    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/pg/query_sql.rbs', __dir__), 'TestRow')
+    assert_equal [nil], row.to_h.except(:c_serial).values.uniq # c_serial is filled by its default
+  ensure
+    client&.exec('DELETE FROM node_postgres_types')
+  end
+
+  def test_extra_types_match_declared_types
+    @query_sql.insert_extra_types(InsertExtraTypesArgs.new(
+      c_uuid: SecureRandom.uuid, c_jsonb: '[1]', c_text_array: %w[a], c_integer_array: [1], c_timestamptz: Time.now,
+      c_inet: '::1', c_money: '1', c_not_null: 'x'
+    ))
+    assert_empty RbsTypes.mismatches(@query_sql.get_extra_types, File.expand_path('../examples/pg/query_sql.rbs', __dir__),
+                                     'GetExtraTypesRow')
   end
 
   # ---- models ----------------------------------------------------------------------------------------------------

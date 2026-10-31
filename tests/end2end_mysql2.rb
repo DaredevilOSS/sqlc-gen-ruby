@@ -2,6 +2,7 @@
 gem 'minitest'     # ensures using the gem, and not the built-in MT
 require 'minitest/autorun'
 require_relative 'consts'
+require_relative 'rbs_types'
 require_relative '../examples/mysql2/query_sql'
 
 # End-to-end tests of the code generated for examples/authors/mysql, against a real MySQL / MariaDB server.
@@ -210,6 +211,33 @@ class TestMysql2 < Minitest::Test
       assert_empty other.list_authors
     end
     assert_equal ['uncommitted'], other.list_authors.map(&:name)
+  end
+
+  def test_declared_types_match_runtime_values
+    client = Mysql2::Client.new(mysql2_params)
+    client.query('DELETE FROM node_mysql_types')
+    client.query(<<~SQL)
+      INSERT INTO node_mysql_types VALUES (b'1', 1, 1, 0, 2, 3, 4, 5, 6, 7, 1.5, 2.5, 3.5, 4.5, 1.25, 2.25, 3.25,
+        '2024-01-02', '03:04:05', '2024-01-02 03:04:05', '2024-01-02 03:04:05', 2024, 'a', 'b', 'c', 'dd', 'x', 'yy',
+        'tb', 'tt', 'bl', 'te', 'mb', 'mt', 'lb', 'lt', '{"a": 1}')
+    SQL
+    row = @query_sql.test
+    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/mysql2/query_sql.rbs', __dir__), 'TestRow')
+    assert_equal Date.new(2024, 1, 2), row.c_date
+    assert_equal BigDecimal('1.5'), row.c_decimal
+    assert_equal 2024, row.c_year
+  ensure
+    client&.query('DELETE FROM node_mysql_types')
+  end
+
+  def test_declared_types_match_runtime_values_for_nulls
+    client = Mysql2::Client.new(mysql2_params)
+    client.query('DELETE FROM node_mysql_types')
+    client.query('INSERT INTO node_mysql_types (c_int) VALUES (NULL)')
+    row = @query_sql.test
+    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/mysql2/query_sql.rbs', __dir__), 'TestRow')
+  ensure
+    client&.query('DELETE FROM node_mysql_types')
   end
 
   # ---- models ----------------------------------------------------------------------------------------------------

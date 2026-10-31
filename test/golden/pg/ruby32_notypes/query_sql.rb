@@ -249,7 +249,7 @@ module PgCodegen
 			@db = ConnectionPool.new(**connection_pool_params) {
 				client = PG.connect(**pg_params)
 				type_map = PG::BasicTypeMapForResults.new client
-				type_map.add_coder(PG::TextDecoder::String.new(oid: 2950, name: 'uuid')) # uuid has no default decoder
+				type_map.default_type_map = PG::TypeMapAllStrings.new # uuid, enums, money, ... come back as Strings
 				client.type_map_for_results = type_map
 				client.type_map_for_queries = PG::BasicTypeMapForQueries.new client
 				client

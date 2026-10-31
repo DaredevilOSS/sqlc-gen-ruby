@@ -57,7 +57,7 @@ module Mysql2Codegen
 	TestSql: String
 	
 	class TestRow
-		attr_reader c_bit: Array[Integer]?
+		attr_reader c_bit: String?
 		attr_reader c_tinyint: Integer?
 		attr_reader c_bool: Integer?
 		attr_reader c_boolean: Integer?
@@ -67,35 +67,35 @@ module Mysql2Codegen
 		attr_reader c_integer: Integer?
 		attr_reader c_bigint: Integer?
 		attr_reader c_serial: Integer
-		attr_reader c_decimal: String?
-		attr_reader c_dec: String?
-		attr_reader c_numeric: String?
-		attr_reader c_fixed: String?
+		attr_reader c_decimal: BigDecimal?
+		attr_reader c_dec: BigDecimal?
+		attr_reader c_numeric: BigDecimal?
+		attr_reader c_fixed: BigDecimal?
 		attr_reader c_float: Float?
 		attr_reader c_double: Float?
 		attr_reader c_double_precision: Float?
-		attr_reader c_date: String?
-		attr_reader c_time: String?
-		attr_reader c_datetime: String?
-		attr_reader c_timestamp: String?
+		attr_reader c_date: Date?
+		attr_reader c_time: Time?
+		attr_reader c_datetime: Time?
+		attr_reader c_timestamp: Time?
 		attr_reader c_year: Integer?
 		attr_reader c_char: String?
 		attr_reader c_nchar: String?
 		attr_reader c_national_char: String?
 		attr_reader c_varchar: String?
-		attr_reader c_binary: Array[Integer]?
-		attr_reader c_varbinary: Array[Integer]?
-		attr_reader c_tinyblob: Array[Integer]?
+		attr_reader c_binary: String?
+		attr_reader c_varbinary: String?
+		attr_reader c_tinyblob: String?
 		attr_reader c_tinytext: String?
-		attr_reader c_blob: Array[Integer]?
+		attr_reader c_blob: String?
 		attr_reader c_text: String?
-		attr_reader c_mediumblob: Array[Integer]?
+		attr_reader c_mediumblob: String?
 		attr_reader c_mediumtext: String?
-		attr_reader c_longblob: Array[Integer]?
+		attr_reader c_longblob: String?
 		attr_reader c_longtext: String?
 		attr_reader c_json: String?
 		def initialize: (	
-				Array[Integer]? c_bit,
+				String? c_bit,
 				Integer? c_tinyint,
 				Integer? c_bool,
 				Integer? c_boolean,
@@ -105,31 +105,31 @@ module Mysql2Codegen
 				Integer? c_integer,
 				Integer? c_bigint,
 				Integer c_serial,
-				String? c_decimal,
-				String? c_dec,
-				String? c_numeric,
-				String? c_fixed,
+				BigDecimal? c_decimal,
+				BigDecimal? c_dec,
+				BigDecimal? c_numeric,
+				BigDecimal? c_fixed,
 				Float? c_float,
 				Float? c_double,
 				Float? c_double_precision,
-				String? c_date,
-				String? c_time,
-				String? c_datetime,
-				String? c_timestamp,
+				Date? c_date,
+				Time? c_time,
+				Time? c_datetime,
+				Time? c_timestamp,
 				Integer? c_year,
 				String? c_char,
 				String? c_nchar,
 				String? c_national_char,
 				String? c_varchar,
-				Array[Integer]? c_binary,
-				Array[Integer]? c_varbinary,
-				Array[Integer]? c_tinyblob,
+				String? c_binary,
+				String? c_varbinary,
+				String? c_tinyblob,
 				String? c_tinytext,
-				Array[Integer]? c_blob,
+				String? c_blob,
 				String? c_text,
-				Array[Integer]? c_mediumblob,
+				String? c_mediumblob,
 				String? c_mediumtext,
-				Array[Integer]? c_longblob,
+				String? c_longblob,
 				String? c_longtext,
 				String? c_json
 			) -> void

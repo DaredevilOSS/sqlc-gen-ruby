@@ -15,43 +15,43 @@ module PgCodegen
 	end
 	
 	class NodePostgresType < ::Struct
-		attr_accessor c_bit: Array[Integer]?
+		attr_accessor c_bit: String?
 		attr_accessor c_smallint: Integer?
 		attr_accessor c_boolean: bool?
 		attr_accessor c_integer: Integer?
 		attr_accessor c_bigint: Integer?
 		attr_accessor c_serial: Integer?
-		attr_accessor c_decimal: Float?
-		attr_accessor c_numeric: Float?
+		attr_accessor c_decimal: BigDecimal?
+		attr_accessor c_numeric: BigDecimal?
 		attr_accessor c_real: Float?
 		attr_accessor c_double_precision: Float?
-		attr_accessor c_date: String?
+		attr_accessor c_date: Date?
 		attr_accessor c_time: String?
-		attr_accessor c_timestamp: String?
+		attr_accessor c_timestamp: Time?
 		attr_accessor c_char: String?
 		attr_accessor c_varchar: String?
-		attr_accessor c_bytea: Array[Integer]?
+		attr_accessor c_bytea: String?
 		attr_accessor c_text: String?
-		attr_accessor c_json: String?
+		attr_accessor c_json: untyped
 		def self.new: (	
-				Array[Integer]? c_bit,
+				String? c_bit,
 				Integer? c_smallint,
 				bool? c_boolean,
 				Integer? c_integer,
 				Integer? c_bigint,
 				Integer? c_serial,
-				Float? c_decimal,
-				Float? c_numeric,
+				BigDecimal? c_decimal,
+				BigDecimal? c_numeric,
 				Float? c_real,
 				Float? c_double_precision,
-				String? c_date,
+				Date? c_date,
 				String? c_time,
-				String? c_timestamp,
+				Time? c_timestamp,
 				String? c_char,
 				String? c_varchar,
-				Array[Integer]? c_bytea,
+				String? c_bytea,
 				String? c_text,
-				String? c_json
+				untyped c_json
 			) -> NodePostgresType
 	end
 	

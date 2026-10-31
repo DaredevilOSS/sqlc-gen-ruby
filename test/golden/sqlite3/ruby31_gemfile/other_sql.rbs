@@ -6,14 +6,14 @@ module Sqlite3Codegen
 		attr_accessor c0: Integer
 		attr_accessor c1: String
 		attr_accessor c2: Float
-		attr_accessor c3: Array[Integer]
-		attr_accessor c4: bool
+		attr_accessor c3: String
+		attr_accessor c4: Integer
 		def self.new: (	
 				Integer c0,
 				String c1,
 				Float c2,
-				Array[Integer] c3,
-				bool c4
+				String c3,
+				Integer c4
 			) -> NoColsArgs
 	end
 	

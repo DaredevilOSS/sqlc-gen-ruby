@@ -3,6 +3,7 @@ gem 'minitest'     # ensures using the gem, and not the built-in MT
 require 'minitest/autorun'
 require 'sqlite3'
 require_relative 'consts'
+require_relative 'rbs_types'
 require_relative '../examples/sqlite3/query_sql'
 
 # End-to-end tests of the code generated for examples/authors/sqlite, against a real (in-memory) SQLite database.
@@ -163,6 +164,13 @@ class TestSqlite3 < Minitest::Test
       end
     end
     assert_empty @query_sql.list_authors
+  end
+
+  def test_declared_types_match_runtime_values
+    @db.execute('INSERT INTO authors (id, name, bio) VALUES (1, ?, ?)', ['a', 'b'])
+    @db.execute('INSERT INTO authors (id, name, bio) VALUES (2, ?, NULL)', ['c'])
+    rbs = File.expand_path('../examples/sqlite3/query_sql.rbs', __dir__)
+    @query_sql.list_authors.each { |row| assert_empty RbsTypes.mismatches(row, rbs, 'ListAuthorsRow') }
   end
 
   # ---- models ----------------------------------------------------------------------------------------------------

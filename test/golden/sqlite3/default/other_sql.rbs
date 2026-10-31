@@ -6,14 +6,14 @@ module Sqlite3Codegen
 		attr_reader c0: Integer
 		attr_reader c1: String
 		attr_reader c2: Float
-		attr_reader c3: Array[Integer]
-		attr_reader c4: bool
+		attr_reader c3: String
+		attr_reader c4: Integer
 		def initialize: (	
 				Integer c0,
 				String c1,
 				Float c2,
-				Array[Integer] c3,
-				bool c4
+				String c3,
+				Integer c4
 			) -> void
 	end
 	

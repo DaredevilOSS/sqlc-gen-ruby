@@ -70,16 +70,20 @@ module SqlcGenRuby
       def driver_gems = %w[pg set]
 
       def column_mappings
+        # Ruby classes as returned by the pg gem with PG::BasicTypeMapForResults (verified by tests/end2end_pg.rb);
+        # types without a decoder (uuid, money, interval, enums, ...) come back as Strings.
         @column_mappings ||= [
           mapping('bool', %w[bool boolean]),
-          mapping('Array[Integer]', %w[binary bit bytea blob longblob mediumblob tinyblob varbinary]),
-          mapping('String', %w[char date datetime longtext mediumtext text bpchar time timestamp tinytext
-                               varchar json uuid money macaddr macaddr8 interval xml name citext]),
+          mapping('String', %w[char bpchar varchar text time uuid money macaddr macaddr8 interval xml name citext
+                               bit varbit bytea tinytext mediumtext longtext tinyblob blob mediumblob longblob
+                               binary varbinary]),
           mapping('Integer', %w[int2 int4 int8 serial bigserial integer smallint bigint int smallserial]),
-          mapping('Float', %w[numeric float4 float8 decimal real double]),
-          mapping('Time', %w[timestamptz]),
+          mapping('Float', %w[float4 float8 real double]),
+          mapping('BigDecimal', %w[numeric decimal]),
+          mapping('Date', %w[date]),
+          mapping('Time', %w[timestamp timestamptz datetime]),
           mapping('IPAddr', %w[inet cidr]),
-          mapping('untyped', %w[jsonb])
+          mapping('untyped', %w[json jsonb])
         ]
       end
     end

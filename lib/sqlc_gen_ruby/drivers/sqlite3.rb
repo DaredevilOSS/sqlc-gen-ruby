@@ -60,10 +60,11 @@ module SqlcGenRuby
       def driver_gems = %w[sqlite3]
 
       def column_mappings
+        # Ruby classes as returned by the sqlite3 gem (verified by tests/end2end_sqlite3.rb): booleans are 0/1
+        # Integers, blobs are Strings, dates are text.
         @column_mappings ||= [
-          mapping('Integer', %w[int integer tinyint smallint mediumint bigint unsignedbigint int2 int8]),
-          mapping('bool', %w[boolean bool]),
-          mapping('Array[Integer]', %w[blob]),
+          mapping('Integer', %w[int integer tinyint smallint mediumint bigint unsignedbigint int2 int8 boolean bool]),
+          mapping('String', %w[blob datetime date timestamp time]),
           mapping('String', %w[character varchar varyingcharacter nchar nativecharacter nvarchar text clob],
                   prefix_based: true),
           mapping('Float', %w[real double doubleprecision float decimal numeric], prefix_based: true)

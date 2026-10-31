@@ -7,13 +7,13 @@ module PgCodegen
 		attr_reader c1: Integer
 		attr_reader c2: String
 		attr_reader c3: Float
-		attr_reader c4: Array[Integer]
+		attr_reader c4: String
 		def initialize: (	
 				bool c0,
 				Integer c1,
 				String c2,
 				Float c3,
-				Array[Integer] c4
+				String c4
 			) -> void
 	end
 	
