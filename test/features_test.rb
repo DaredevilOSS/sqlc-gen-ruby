@@ -319,7 +319,7 @@ class FeaturesTest < Minitest::Test
   end
 
   def test_nested_module_name_is_self_contained
-    files = generate(load_request('pg', moduleName: 'MyApp::Db'))
+    files = generate(load_request('pg', moduleName: 'MyApp::Db', rubyVersion: '3.1'))
     scope = Module.new
     scope.module_eval(files.fetch('models.rb'))
     assert scope::MyApp::Db::Author
