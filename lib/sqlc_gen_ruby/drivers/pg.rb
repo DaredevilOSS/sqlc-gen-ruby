@@ -60,6 +60,9 @@ module SqlcGenRuby
 
       def exec_rows_lines(exec) = ["result = #{exec}", 'result.cmd_tuples']
 
+      # PostgreSQL has no last insert id (use RETURNING).
+      def exec_result_lines(exec) = ["result = #{exec}", 'ExecResult.new(result.cmd_tuples, nil)']
+
       # Relies on a user-written `RETURNING <id>`.
       def exec_last_id_lines(exec, query)
         if query.columns.empty?
@@ -169,14 +172,18 @@ module SqlcGenRuby
           mapping('bool', %w[bool boolean]),
           mapping('String', %w[char bpchar varchar text time uuid money macaddr macaddr8 interval xml name citext
                                bit varbit bytea tinytext mediumtext longtext tinyblob blob mediumblob longblob
-                               binary varbinary]),
-          mapping('Integer', %w[int2 int4 int8 serial bigserial integer smallint bigint int smallserial]),
+                               binary varbinary timetz tsvector tsquery hstore ltree lquery ltxtquery
+                               point line lseg box path polygon circle int4range int8range numrange tsrange
+                               tstzrange daterange int4multirange int8multirange nummultirange tsmultirange
+                               tstzmultirange datemultirange regclass regproc regtype pg_lsn int2vector oidvector
+                               tid xid cid]),
+          mapping('Integer', %w[int2 int4 int8 serial bigserial integer smallint bigint int smallserial oid]),
           mapping('Float', %w[float4 float8 real double]),
           mapping('BigDecimal', %w[numeric decimal]),
           mapping('Date', %w[date]),
           mapping('Time', %w[timestamp timestamptz datetime]),
           mapping('IPAddr', %w[inet cidr]),
-          mapping('untyped', %w[json jsonb])
+          mapping('untyped', %w[json jsonb any anyelement anyarray record void unknown])
         ]
       end
     end

@@ -67,13 +67,16 @@ module SqlcGenRuby
       # table: SQL name; columns: SQL column names; attrs: matching reader names of the rows
       def copy_from_lines(_rows_var, _table, _columns, _attrs, _label) = raise(NotImplementedError)
 
+      # :execresult -> ExecResult.new(rows_affected, last_insert_id)
+      def exec_result_lines(_exec) = raise(NotImplementedError)
+
       # Private helper methods the class needs for these queries: [[code, rbs], ...]
       def helper_methods(_queries) = []
 
       # Ruby/RBS type of a column's DB type (no nullability / array wrapper). Enums are Strings.
       # With fallback: nil unknown types return it instead of raising (used for models, which cover every table).
       def column_type(column, fallback: :raise)
-        return 'String' if catalog&.enum?(column.type)
+        return 'String' if catalog&.enum?(column.type) || catalog&.composite?(column.type)
 
         db_type = normalize_type(column.type.name)
         column_mappings.each do |mapping|
@@ -84,6 +87,8 @@ module SqlcGenRuby
                     end
           return mapping.ruby_type if matched
         end
+        affinity = affinity_type(db_type)
+        return affinity if affinity
         return fallback unless fallback == :raise
 
         raise ArgumentError, "Unsupported column type: #{column.type.name}"
@@ -138,6 +143,9 @@ module SqlcGenRuby
 
       # from sqlc - char(5), int4, pg_catalog.int8, BLOB, ...
       def normalize_type(type_name) = type_name.downcase.delete_prefix('pg_catalog.')
+
+      # Type of a declared type no mapping matched (SQLite's type affinity), nil for none.
+      def affinity_type(_db_type) = nil
 
       def driver_gems = raise(NotImplementedError)
 

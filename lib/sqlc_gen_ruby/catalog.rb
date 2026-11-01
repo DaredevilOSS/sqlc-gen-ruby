@@ -22,6 +22,11 @@ module SqlcGenRuby
       assign_model_names
       # qualified enum name => values; default-schema enums are reachable both bare and qualified
       @enums = {}
+      @composites = schemas.flat_map do |schema|
+        schema.composite_types.flat_map do |c|
+          default_schema?(schema.name) ? [c.name, "#{schema.name}.#{c.name}"] : ["#{schema.name}.#{c.name}"]
+        end
+      end
       schemas.each do |schema|
         schema.enums.each do |e|
           @enums["#{schema.name}.#{e.name}"] = e.vals.to_a
@@ -31,6 +36,9 @@ module SqlcGenRuby
     end
 
     def enum?(type) = @enums.key?(qualified_name(type))
+
+    # CREATE TYPE ... AS (...): the pg gem returns the record text, e.g. "(1,abc)"
+    def composite?(type) = @composites.include?(qualified_name(type))
 
     def enum_values(type) = @enums[qualified_name(type)]
 

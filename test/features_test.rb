@@ -55,10 +55,52 @@ class FeaturesTest < Minitest::Test
     assert_includes generate(request).fetch('models.rbs'), 'attr_reader id: untyped'
   end
 
-  def test_unknown_types_in_queries_fail
+  def test_unknown_types_in_queries_fall_back_to_untyped
     request = load_request('pg')
     query(request, 'GetAuthor').columns.first.type.name = 'geometry'
-    assert_raises(RuntimeError) { generate(request) }
+    query(request, 'GetAuthor').params.first.column.type.name = 'geometry'
+    rbs = generate(request).fetch('query_sql.rbs')
+    assert_includes rbs, "class GetAuthorRow\n    attr_reader id: untyped\n"
+    assert_includes rbs, 'def get_author: (id: untyped) -> GetAuthorRow?'
+  end
+
+  def test_more_postgres_types_composites_and_domains
+    rbs = generate(load_request('pg')).fetch('query_sql.rbs')
+    %w[c_timetz c_tsvector c_point c_int4range c_dimensions].each { |c| assert_includes rbs, "attr_reader #{c}: String?" }
+    assert_includes rbs, 'attr_reader c_oid: Integer?'
+    assert_includes rbs, 'attr_reader c_positive: untyped' # sqlc does not send the base type of a domain
+  end
+
+  def test_sqlite_declared_types_follow_type_affinity
+    rbs = generate(load_request('sqlite3')).fetch('query_sql.rbs')
+    assert_match(/attr_reader c_varchar: String\?\n\s+attr_reader c_decimal: Float\?\n\s+attr_reader c_unsigned_big_int: Integer\?/, rbs)
+    request = load_request('sqlite3')
+    query(request, 'GetAuthor').columns.first.type.name = 'MEDIUMINT(4)'
+    query(request, 'GetAuthor').columns[1].type.name = 'STRING'
+    assert_match(/class GetAuthorRow\n\s+attr_reader id: Integer\n\s+attr_reader name: Float\n/, generate(request).fetch('query_sql.rbs'))
+  end
+
+  def test_execresult_returns_rows_affected_and_last_insert_id
+    { 'pg' => 'ExecResult.new(result.cmd_tuples, nil)', 'mysql2' => 'ExecResult.new(stmt.affected_rows, client.last_id)',
+      'sqlite3' => 'ExecResult.new(client.changes, client.last_insert_row_id)' }.each do |driver, line|
+      files = generate(load_request(driver))
+      assert_includes files.fetch('query_sql.rb'), line
+      assert_includes files.fetch('query_sql.rb'), 'class ExecResult < Data.define(:rows_affected, :last_insert_id)'
+      assert_includes files.fetch('query_sql.rbs'), 'def create_author_result: (name: String, bio: String?) -> ExecResult'
+    end
+  end
+
+  def test_batch_commands_take_an_array_of_args
+    %w[pg mysql2 sqlite3].each do |driver|
+      files = generate(load_request(driver))
+      rbs = files.fetch('query_sql.rbs')
+      assert_includes rbs, 'def create_authors_batch: (Array[CreateAuthorsBatchArgs] rows) -> void'
+      assert_includes rbs, 'def get_author_batch: (Array[GetAuthorBatchArgs] rows) -> Array[GetAuthorBatchRow?]'
+      assert_includes rbs, 'def list_authors_by_name_batch: (Array[ListAuthorsByNameBatchArgs] rows) -> ' \
+                           'Array[Array[ListAuthorsByNameBatchRow]]'
+      assert_includes files.fetch('query_sql.rb'), 'class CreateAuthorsBatchArgs < Data.define(:name, :bio)'
+      assert_includes files.fetch('query_sql.rb'), "rows.map do |args|\n"
+    end
   end
 
   def test_embedded_tables_become_model_attributes

@@ -66,12 +66,17 @@ module SqlcGenRuby
       field :comment, 3, :string
     end
 
+    class CompositeType < P
+      field :name, 1, :string
+      field :comment, 2, :string
+    end
+
     class Schema < P
-      # composite_types(5) is skipped
       field :comment, 1, :string
       field :name, 2, :string
       field :tables, 3, :message, repeated: true, klass: Table
       field :enums, 4, :message, repeated: true, klass: Enum
+      field :composite_types, 5, :message, repeated: true, klass: CompositeType
     end
 
     class Catalog < P

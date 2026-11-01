@@ -108,6 +108,65 @@ module Sqlite3Codegen
     def initialize: (  Integer id, String name, String? bio, Book book) -> void
   end
 
+  CREATE_AUTHOR_RESULT_SQL: String
+
+  CREATE_AUTHORS_BATCH_SQL: String
+
+  class CreateAuthorsBatchArgs
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  String name, String? bio) -> void
+  end
+
+  GET_AUTHOR_BATCH_SQL: String
+
+  class GetAuthorBatchRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
+  class GetAuthorBatchArgs
+    attr_reader id: Integer
+    def initialize: (  Integer id) -> void
+  end
+
+  LIST_AUTHORS_BY_NAME_BATCH_SQL: String
+
+  class ListAuthorsByNameBatchRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
+  class ListAuthorsByNameBatchArgs
+    attr_reader name: String
+    def initialize: (  String name) -> void
+  end
+
+  INSERT_DECLARED_TYPES_SQL: String
+
+  GET_DECLARED_TYPES_SQL: String
+
+  class GetDeclaredTypesRow
+    attr_reader c_varchar: String?
+    attr_reader c_decimal: Float?
+    attr_reader c_unsigned_big_int: Integer?
+    attr_reader c_native: String?
+    attr_reader c_double: Float?
+    def initialize: (
+        String? c_varchar,
+        Float? c_decimal,
+        Integer? c_unsigned_big_int,
+        String? c_native,
+        Float? c_double
+    ) -> void
+  end
+
+  TRUNCATE_DECLARED_TYPES_SQL: String
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow
@@ -151,6 +210,12 @@ module Sqlite3Codegen
 
     def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (self) -> T } -> T
 
+    class ExecResult
+      attr_reader rows_affected: Integer
+      attr_reader last_insert_id: Integer?
+      def initialize: (  Integer rows_affected, Integer? last_insert_id) -> void
+    end
+
     def get_author: (id: Integer) -> GetAuthorRow?
 
     def get_author!: (id: Integer) -> GetAuthorRow
@@ -184,6 +249,22 @@ module Sqlite3Codegen
     def get_duplicate_authors: -> Array[GetDuplicateAuthorsRow]
 
     def get_authors_by_book_name: (name: String) -> Array[GetAuthorsByBookNameRow]
+
+    def create_author_result: (name: String, bio: String?) -> ExecResult
+
+    def create_authors_batch: (Array[CreateAuthorsBatchArgs] rows) -> void
+
+    def get_author_batch: (Array[GetAuthorBatchArgs] rows) -> Array[GetAuthorBatchRow?]
+
+    def list_authors_by_name_batch: (Array[ListAuthorsByNameBatchArgs] rows) -> Array[Array[ListAuthorsByNameBatchRow]]
+
+    def insert_declared_types: (c_varchar: String?, c_decimal: Float?, c_unsigned_big_int: Integer?, c_native: String?, c_double: Float?) -> void
+
+    def get_declared_types: -> GetDeclaredTypesRow?
+
+    def get_declared_types!: -> GetDeclaredTypesRow
+
+    def truncate_declared_types: -> void
 
     def many_params: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow?
 

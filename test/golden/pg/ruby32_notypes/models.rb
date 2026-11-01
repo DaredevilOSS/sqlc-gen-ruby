@@ -53,6 +53,17 @@ module PgCodegen
   class PostgresArrayType < Data.define(:c_uuid_array, :c_bio_type_array, :c_integer_matrix)
   end
 
+  class PostgresSpecialType < Data.define(
+    :c_timetz,
+    :c_tsvector,
+    :c_point,
+    :c_int4range,
+    :c_oid,
+    :c_dimensions,
+    :c_positive
+  )
+  end
+
   class ExtendedBio < Data.define(:author_name, :name, :bio_type)
   end
 end

@@ -42,6 +42,8 @@ module SqlcGenRuby
 
       def exec_rows_lines(exec) = [exec, 'client.changes']
 
+      def exec_result_lines(exec) = [exec, 'ExecResult.new(client.changes, client.last_insert_row_id)']
+
       # Relies on a user-written `RETURNING <id>`.
       def exec_last_id_lines(exec, query)
         if query.columns.empty?
@@ -92,6 +94,19 @@ module SqlcGenRuby
       RUBY
 
       private
+
+      # VARCHAR(255) -> varchar, UNSIGNED BIG INT -> unsignedbigint
+      def normalize_type(type_name) = super.sub(/\(.*\z/m, '').delete(" \t\n")
+
+      # https://www.sqlite.org/datatype3.html#determination_of_column_affinity
+      def affinity_type(db_type)
+        case db_type
+        when /int/ then 'Integer'
+        when /char|clob|text/, /blob/, '' then 'String'
+        when /real|floa|doub/ then 'Float'
+        else 'Float' # NUMERIC affinity, see decimal / numeric above
+        end
+      end
 
       def driver_gems = %w[sqlite3]
 

@@ -64,3 +64,17 @@ CREATE TABLE postgres_array_types (
     c_bio_type_array extended.bio_type [],
     c_integer_matrix INTEGER [][]
 );
+
+CREATE TYPE extended.dimensions AS (width INTEGER, height INTEGER);
+
+CREATE DOMAIN positive_int AS INTEGER CHECK (VALUE > 0);
+
+CREATE TABLE postgres_special_types (
+    c_timetz TIMETZ,
+    c_tsvector TSVECTOR,
+    c_point POINT,
+    c_int4range INT4RANGE,
+    c_oid OID,
+    c_dimensions extended.dimensions,
+    c_positive positive_int
+);

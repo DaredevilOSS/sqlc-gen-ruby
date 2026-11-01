@@ -91,6 +91,25 @@ module PgCodegen
     def self.new: (  Array[String]? c_uuid_array, Array[String]? c_bio_type_array, Array[Array[Integer]]? c_integer_matrix) -> PostgresArrayType
   end
 
+  class PostgresSpecialType < ::Struct
+    attr_accessor c_timetz: String?
+    attr_accessor c_tsvector: String?
+    attr_accessor c_point: String?
+    attr_accessor c_int4range: String?
+    attr_accessor c_oid: Integer?
+    attr_accessor c_dimensions: String?
+    attr_accessor c_positive: untyped
+    def self.new: (
+        String? c_timetz,
+        String? c_tsvector,
+        String? c_point,
+        String? c_int4range,
+        Integer? c_oid,
+        String? c_dimensions,
+        untyped c_positive
+    ) -> PostgresSpecialType
+  end
+
   class ExtendedBio < ::Struct
     attr_accessor author_name: String
     attr_accessor name: String

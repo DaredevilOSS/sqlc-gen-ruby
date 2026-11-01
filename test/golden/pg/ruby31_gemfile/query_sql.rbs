@@ -228,6 +228,69 @@ module PgCodegen
     def self.new: (  Integer id, String name, String? bio) -> ListAuthorsBetweenIdsRow
   end
 
+  INSERT_SPECIAL_TYPES_SQL: String
+
+  GET_SPECIAL_TYPES_SQL: String
+
+  class GetSpecialTypesRow < ::Struct
+    attr_accessor c_timetz: String?
+    attr_accessor c_tsvector: String?
+    attr_accessor c_point: String?
+    attr_accessor c_int4range: String?
+    attr_accessor c_oid: Integer?
+    attr_accessor c_dimensions: String?
+    attr_accessor c_positive: untyped
+    def self.new: (
+        String? c_timetz,
+        String? c_tsvector,
+        String? c_point,
+        String? c_int4range,
+        Integer? c_oid,
+        String? c_dimensions,
+        untyped c_positive
+    ) -> GetSpecialTypesRow
+  end
+
+  TRUNCATE_SPECIAL_TYPES_SQL: String
+
+  CREATE_AUTHOR_RESULT_SQL: String
+
+  CREATE_AUTHORS_BATCH_SQL: String
+
+  class CreateAuthorsBatchArgs < ::Struct
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def self.new: (  String name, String? bio) -> CreateAuthorsBatchArgs
+  end
+
+  GET_AUTHOR_BATCH_SQL: String
+
+  class GetAuthorBatchRow < ::Struct
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def self.new: (  Integer id, String name, String? bio) -> GetAuthorBatchRow
+  end
+
+  class GetAuthorBatchArgs < ::Struct
+    attr_accessor id: Integer
+    def self.new: (  Integer id) -> GetAuthorBatchArgs
+  end
+
+  LIST_AUTHORS_BY_NAME_BATCH_SQL: String
+
+  class ListAuthorsByNameBatchRow < ::Struct
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def self.new: (  Integer id, String name, String? bio) -> ListAuthorsByNameBatchRow
+  end
+
+  class ListAuthorsByNameBatchArgs < ::Struct
+    attr_accessor name: String
+    def self.new: (  String name) -> ListAuthorsByNameBatchArgs
+  end
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow < ::Struct
@@ -272,6 +335,12 @@ module PgCodegen
     def initialize: (untyped db, ?logger: untyped) -> void
 
     def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | :serializable)?) { (self) -> T } -> T
+
+    class ExecResult < ::Struct
+      attr_accessor rows_affected: Integer
+      attr_accessor last_insert_id: Integer?
+      def self.new: (  Integer rows_affected, Integer? last_insert_id) -> ExecResult
+    end
 
     def get_author: (id: Integer) -> GetAuthorRow?
 
@@ -340,6 +409,22 @@ module PgCodegen
     def list_authors_with_optional_book: -> Array[ListAuthorsWithOptionalBookRow]
 
     def list_authors_between_ids: (id: Integer, id_2: Integer) -> Array[ListAuthorsBetweenIdsRow]
+
+    def insert_special_types: (c_timetz: String?, c_tsvector: String?, c_point: String?, c_int4range: String?, c_oid: Integer?, c_dimensions: String?, c_positive: untyped) -> void
+
+    def get_special_types: -> GetSpecialTypesRow?
+
+    def get_special_types!: -> GetSpecialTypesRow
+
+    def truncate_special_types: -> void
+
+    def create_author_result: (name: String, bio: String?) -> ExecResult
+
+    def create_authors_batch: (Array[CreateAuthorsBatchArgs] rows) -> void
+
+    def get_author_batch: (Array[GetAuthorBatchArgs] rows) -> Array[GetAuthorBatchRow?]
+
+    def list_authors_by_name_batch: (Array[ListAuthorsByNameBatchArgs] rows) -> Array[Array[ListAuthorsByNameBatchRow]]
 
     def many_params: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow?
 

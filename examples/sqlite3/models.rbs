@@ -14,4 +14,19 @@ module Sqlite3Codegen
     attr_reader description: String?
     def initialize: (  Integer id, String name, Integer author_id, String? description) -> void
   end
+
+  class DeclaredType
+    attr_reader c_varchar: String?
+    attr_reader c_decimal: Float?
+    attr_reader c_unsigned_big_int: Integer?
+    attr_reader c_native: String?
+    attr_reader c_double: Float?
+    def initialize: (
+        String? c_varchar,
+        Float? c_decimal,
+        Integer? c_unsigned_big_int,
+        String? c_native,
+        Float? c_double
+    ) -> void
+  end
 end

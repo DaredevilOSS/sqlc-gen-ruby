@@ -121,6 +121,8 @@ end
 | `:exec`       | ✅ | ✅ | ✅ | |
 | `:execrows`   | ✅ | ✅ | ✅ | returns the number of affected rows |
 | `:execlastid` | ✅ | ✅ | ✅ | PostgreSQL / SQLite need a `RETURNING <id>` clause (the value of that column is returned); MySQL returns `client.last_id` |
+| `:execresult` | ✅ | ✅ | ✅ | returns `ExecResult` (`rows_affected`, `last_insert_id`; `last_insert_id` is `nil` on PostgreSQL, use `RETURNING`) |
+| `:batchexec` / `:batchone` / `:batchmany` | ✅ | ✅ | ✅ | take an `Array` of `<Query>Args` and run the prepared statement once per element on one connection; return `nil` / `Array[Row?]` / `Array[Array[Row]]` |
 | `:copyfrom`   | ✅ | ✅ | ✅ | takes an `Array` of `<Query>Args` (a generated `Data` class). PostgreSQL: `COPY ... FROM STDIN`. MySQL: `LOAD DATA LOCAL INFILE` from a temporary CSV - needs `local_infile: true` in the `Mysql2::Client` params and `local_infile=1` on the server. SQLite: batched multi-row `INSERT` |
 
 ### Macros
@@ -137,6 +139,8 @@ end
 * **Nullability:** nullable columns / parameters are typed `T?` in the `.rbs`.
 * **Arrays (PostgreSQL):** `Array[T]` for columns and parameters (`Array[Array[T]]` for `T[][]`); arrays of types without a decoder (`uuid[]`, enum arrays, ...) are `Array[String]`.
 * **Names:** a parameter repeated in a query gets a suffix (`id:`, `id_2:`); result columns named like a keyword or a method every row has (`class`, `hash`, `end`, ...) get a trailing `_` (`class_`); a table `authors` next to a table `author` keeps its plural model name (`Authors`). Query names that would replace a generated method (`Transaction`, `Initialize`, ...) are rejected.
+* **Other PostgreSQL types:** geometric, range / multirange, full-text, `hstore`, `ltree`, `timetz`, `reg*` and composite types are `String`s (the text the pg gem returns); domains and types the plugin does not know are `untyped` instead of failing the generation.
+* **SQLite declared types** (`VARCHAR(255)`, `DECIMAL(10,5)`, `UNSIGNED BIG INT`, ...) follow SQLite's [type affinity](https://www.sqlite.org/datatype3.html#determination_of_column_affinity).
 * Types follow the Ruby classes the drivers actually return (e.g. `BigDecimal` for `numeric`/`decimal`, `Date`, `Time`, `IPAddr`; `json`/`jsonb` are parsed, so `untyped`).
 
 Not applicable to the Ruby plugin (they exist in the C# plugin because of its runtime): `withAsyncSuffix` / `withCancellationToken` (Ruby has no async/await: use the Fiber scheduler, see above), `useDapper`, target framework / csproj / namespace options (`moduleName` is the equivalent of the namespace).

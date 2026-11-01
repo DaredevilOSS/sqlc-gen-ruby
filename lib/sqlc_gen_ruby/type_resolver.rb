@@ -10,7 +10,7 @@ module SqlcGenRuby
 
     # query_name: used to look up `overrides:` entries; nil for model (table) columns.
     # fallback: see Drivers::Base#column_type.
-    def type(column, query_name: nil, fallback: :raise)
+    def type(column, query_name: nil, fallback: 'untyped')
       override = query_name && @options.override_for(query_name, column.name)
       base = override ? override.type : @driver.column_type(column, fallback: fallback)
       base = array_of(base, column) if column.is_array && !override
@@ -24,7 +24,7 @@ module SqlcGenRuby
     # A sqlc.slice parameter is passed as an Array of the element type.
     def slice_type(column, query_name)
       override = @options.override_for(query_name, column.name)
-      "Array[#{override ? override.type : @driver.column_type(column)}]"
+      "Array[#{override ? override.type : @driver.column_type(column, fallback: 'untyped')}]"
     end
 
     private

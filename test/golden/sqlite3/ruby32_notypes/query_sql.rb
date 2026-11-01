@@ -127,6 +127,58 @@ module Sqlite3Codegen
   class GetAuthorsByBookNameRow < Data.define(:id, :name, :bio, :book)
   end
 
+  CREATE_AUTHOR_RESULT_SQL = <<~'SQL'
+    INSERT INTO authors (name, bio) VALUES (?, ?)
+  SQL
+
+  CREATE_AUTHORS_BATCH_SQL = <<~'SQL'
+    INSERT INTO authors (name, bio) VALUES (?, ?)
+  SQL
+
+  class CreateAuthorsBatchArgs < Data.define(:name, :bio)
+  end
+
+  GET_AUTHOR_BATCH_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors WHERE id = ?
+  SQL
+
+  class GetAuthorBatchRow < Data.define(:id, :name, :bio)
+  end
+
+  class GetAuthorBatchArgs < Data.define(:id)
+  end
+
+  LIST_AUTHORS_BY_NAME_BATCH_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors WHERE name = ? ORDER BY id
+  SQL
+
+  class ListAuthorsByNameBatchRow < Data.define(:id, :name, :bio)
+  end
+
+  class ListAuthorsByNameBatchArgs < Data.define(:name)
+  end
+
+  INSERT_DECLARED_TYPES_SQL = <<~'SQL'
+    INSERT INTO declared_types (c_varchar, c_decimal, c_unsigned_big_int, c_native, c_double) VALUES (?, ?, ?, ?, ?)
+  SQL
+
+  GET_DECLARED_TYPES_SQL = <<~'SQL'
+    SELECT c_varchar, c_decimal, c_unsigned_big_int, c_native, c_double FROM declared_types LIMIT 1
+  SQL
+
+  class GetDeclaredTypesRow < Data.define(
+    :c_varchar,
+    :c_decimal,
+    :c_unsigned_big_int,
+    :c_native,
+    :c_double
+  )
+  end
+
+  TRUNCATE_DECLARED_TYPES_SQL = <<~'SQL'
+    DELETE FROM declared_types
+  SQL
+
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
@@ -184,6 +236,9 @@ module Sqlite3Codegen
           raise
         end
       end
+    end
+
+    class ExecResult < Data.define(:rows_affected, :last_insert_id)
     end
 
     # Returns the author with the given id, or nil when there is none.
@@ -411,6 +466,122 @@ module Sqlite3Codegen
           result.map do |row|
             GetAuthorsByBookNameRow.new(row[0], row[1], row[2], Book.new(row[3], row[4], row[5], row[6]))
           end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def create_author_result(name:, bio:)
+      with_client('create_author_result') do |client|
+        query_params = [name, bio]
+        stmt = client.prepare(CREATE_AUTHOR_RESULT_SQL)
+        begin
+          stmt.execute(*query_params)
+          ExecResult.new(client.changes, client.last_insert_row_id)
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def create_authors_batch(rows)
+      with_client('create_authors_batch') do |client|
+        stmt = client.prepare(CREATE_AUTHORS_BATCH_SQL)
+        begin
+          rows.each do |args|
+            query_params = [args.name, args.bio]
+            stmt.execute(*query_params)
+          end
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def get_author_batch(rows)
+      with_client('get_author_batch') do |client|
+        stmt = client.prepare(GET_AUTHOR_BATCH_SQL)
+        begin
+          rows.map do |args|
+            query_params = [args.id]
+            result = stmt.execute(*query_params)
+            row = result.first
+            row && GetAuthorBatchRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def list_authors_by_name_batch(rows)
+      with_client('list_authors_by_name_batch') do |client|
+        stmt = client.prepare(LIST_AUTHORS_BY_NAME_BATCH_SQL)
+        begin
+          rows.map do |args|
+            query_params = [args.name]
+            result = stmt.execute(*query_params)
+            result.map do |row|
+              ListAuthorsByNameBatchRow.new(row[0], row[1], row[2])
+            end
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def insert_declared_types(c_varchar:, c_decimal:, c_unsigned_big_int:, c_native:, c_double:)
+      with_client('insert_declared_types') do |client|
+        query_params = [
+          c_varchar,
+          c_decimal,
+          c_unsigned_big_int,
+          c_native,
+          c_double
+        ]
+        stmt = client.prepare(INSERT_DECLARED_TYPES_SQL)
+        begin
+          stmt.execute(*query_params)
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def get_declared_types
+      with_client('get_declared_types') do |client|
+        stmt = client.prepare(GET_DECLARED_TYPES_SQL)
+        begin
+          result = stmt.execute
+          row = result.first
+          row && GetDeclaredTypesRow.new(
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4]
+          )
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    # Like #get_declared_types, but raises NotFound when there is no row.
+    def get_declared_types!(...)
+      get_declared_types(...) || raise(NotFound, 'GetDeclaredTypes returned no row')
+    end
+
+    def truncate_declared_types
+      with_client('truncate_declared_types') do |client|
+        stmt = client.prepare(TRUNCATE_DECLARED_TYPES_SQL)
+        begin
+          stmt.execute
+          nil
         ensure
           stmt.close
         end

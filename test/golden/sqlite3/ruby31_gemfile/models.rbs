@@ -14,4 +14,19 @@ module Sqlite3Codegen
     attr_accessor description: String?
     def self.new: (  Integer id, String name, Integer author_id, String? description) -> Book
   end
+
+  class DeclaredType < ::Struct
+    attr_accessor c_varchar: String?
+    attr_accessor c_decimal: Float?
+    attr_accessor c_unsigned_big_int: Integer?
+    attr_accessor c_native: String?
+    attr_accessor c_double: Float?
+    def self.new: (
+        String? c_varchar,
+        Float? c_decimal,
+        Integer? c_unsigned_big_int,
+        String? c_native,
+        Float? c_double
+    ) -> DeclaredType
+  end
 end

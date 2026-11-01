@@ -8,4 +8,13 @@ module Sqlite3Codegen
 
   class Book < Struct.new(:id, :name, :author_id, :description)
   end
+
+  class DeclaredType < Struct.new(
+    :c_varchar,
+    :c_decimal,
+    :c_unsigned_big_int,
+    :c_native,
+    :c_double
+  )
+  end
 end

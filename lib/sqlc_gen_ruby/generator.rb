@@ -126,7 +126,7 @@ module SqlcGenRuby
         members << [@driver.query_text_constant(query), "#{Code.sql_constant(query.name)}: String"]
       end
       members << dataclass("#{Code.upcase_first(query.name)}Row", row_pairs(query)) unless query.columns.empty?
-      if query.cmd == ':copyfrom'
+      if MethodGen::ROWS_COMMANDS.include?(query.cmd)
         pairs = method_gen.params(query).map { |p| [Code.attr_name(p.name), p.type] }
         members << dataclass("#{Code.upcase_first(query.name)}Args", pairs)
       end
@@ -138,6 +138,10 @@ module SqlcGenRuby
     # constructor / connect / transaction, one method per query, then the private helpers
     def class_members(queries, method_gen)
       members = @driver.class_methods.dup
+      if queries.any? { |q| q.cmd == ':execresult' }
+        # last_insert_id is nil on PostgreSQL (use RETURNING)
+        members << dataclass('ExecResult', [%w[rows_affected Integer], ['last_insert_id', 'Integer?']])
+      end
       members.concat(queries.map { |q| [method_gen.code(q), method_gen.type(q)] })
       helpers = @driver.private_methods + method_gen.helper_methods(queries)
       unless helpers.empty?

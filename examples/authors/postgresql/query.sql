@@ -123,3 +123,25 @@ ORDER BY authors.name;
 SELECT * FROM authors
 WHERE id > $1 AND id < $2
 ORDER BY id;
+
+-- name: InsertSpecialTypes :exec
+INSERT INTO postgres_special_types (c_timetz, c_tsvector, c_point, c_int4range, c_oid, c_dimensions, c_positive)
+VALUES ($1, $2, $3, $4, $5, $6, $7);
+
+-- name: GetSpecialTypes :one
+SELECT * FROM postgres_special_types LIMIT 1;
+
+-- name: TruncateSpecialTypes :exec
+TRUNCATE TABLE postgres_special_types;
+
+-- name: CreateAuthorResult :execresult
+INSERT INTO authors (name, bio) VALUES ($1, $2);
+
+-- name: CreateAuthorsBatch :batchexec
+INSERT INTO authors (name, bio) VALUES ($1, $2);
+
+-- name: GetAuthorBatch :batchone
+SELECT * FROM authors WHERE id = $1;
+
+-- name: ListAuthorsByNameBatch :batchmany
+SELECT * FROM authors WHERE name = $1 ORDER BY id;
