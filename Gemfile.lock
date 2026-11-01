@@ -40,6 +40,9 @@ GEM
     google-protobuf (4.36.2-arm64-darwin)
       bigdecimal
       rake (~> 13.3)
+    google-protobuf (4.36.2-x86_64-linux-gnu)
+      bigdecimal
+      rake (~> 13.3)
     i18n (1.14.5)
       concurrent-ruby (~> 1.0)
     io-event (1.22.3)
@@ -87,10 +90,13 @@ GEM
       logger
     ruby_wasm (2.10.1-arm64-darwin)
       logger
+    ruby_wasm (2.10.1-x86_64-linux)
+      logger
     securerandom (0.3.1)
     sqlite3 (2.0.2)
       mini_portile2 (~> 2.8.0)
     sqlite3 (2.0.2-arm64-darwin)
+    sqlite3 (2.0.2-x86_64-linux-gnu)
     steep (1.6.0)
       activesupport (>= 5.1)
       concurrent-ruby (>= 1.1.10)
@@ -116,6 +122,7 @@ GEM
 PLATFORMS
   arm64-darwin-23
   ruby
+  x86_64-linux
 
 DEPENDENCIES
   async
