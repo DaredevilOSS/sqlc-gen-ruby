@@ -6,7 +6,7 @@ source 'https://rubygems.org'
 gem 'connection_pool'
 gem 'csv' # used by the generated mysql2 code (:copyfrom); a bundled gem since Ruby 3.4
 gem 'mysql2'
-gem 'pg', '1.5.2'
+gem 'pg', '1.7.0'
 gem 'sqlite3'
 gem 'minitest'
 gem 'rake'

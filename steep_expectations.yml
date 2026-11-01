@@ -23,6 +23,16 @@
     code: Ruby::UnknownConstant
   - range:
       start:
+        line: 198
+        character: 66
+      end:
+        line: 198
+        character: 81
+    severity: WARNING
+    message: Empty kwargs doesn't have type annotation
+    code: Ruby::UnannotatedEmptyCollection
+  - range:
+      start:
         line: 615
         character: 6
       end:
@@ -53,6 +63,16 @@
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 213
+        character: 58
+      end:
+        line: 213
+        character: 69
+    severity: WARNING
+    message: Empty kwargs doesn't have type annotation
+    code: Ruby::UnannotatedEmptyCollection
   - range:
       start:
         line: 227

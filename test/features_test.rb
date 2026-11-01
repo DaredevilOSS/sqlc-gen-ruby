@@ -92,7 +92,7 @@ class FeaturesTest < Minitest::Test
     assert_includes rbs, 'def copy_authors: (Array[CopyAuthorsArgs] rows) -> void'
     assert_includes rbs, 'def list_authors: -> Array[ListAuthorsRow]'
     assert_includes rbs, 'def delete_author: (id: Integer) -> void'
-    assert_includes rbs, 'def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | :serializable)?) { (instance) -> T } -> T'
+    assert_includes rbs, 'def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | :serializable)?) { (self) -> T } -> T'
   end
 
   def test_named_nullable_parameters_are_optional_keywords

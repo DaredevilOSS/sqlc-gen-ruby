@@ -17,7 +17,7 @@ module Sqlite3Codegen
 
     def initialize: (untyped db, ?logger: untyped) -> void
 
-    def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (instance) -> T } -> T
+    def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (self) -> T } -> T
 
     def no_cols: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> void
 

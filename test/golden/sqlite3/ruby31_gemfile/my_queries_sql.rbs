@@ -8,7 +8,7 @@ module Sqlite3Codegen
 
     def initialize: (untyped db, ?logger: untyped) -> void
 
-    def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (instance) -> T } -> T
+    def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (self) -> T } -> T
 
     def with_numbers2_go: (c0: Integer) -> void
 
