@@ -34,4 +34,3 @@ rubyVersion: "3.3"
 generateTypes: true
 generateGemfile: false
 ```
-

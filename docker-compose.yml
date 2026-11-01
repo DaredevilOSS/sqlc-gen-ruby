@@ -15,6 +15,7 @@ services:
   mysqldb:
     container_name: mysqldb
     build: ./examples/authors/mysql
+    command: --local-infile=1 # :copyfrom uses LOAD DATA LOCAL INFILE
     restart: always
     ports:
       - "3306:3306"

@@ -1,0 +1,31 @@
+name: Bug report
+description: The plugin fails, or the generated Ruby code is wrong
+labels: [bug]
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Plugin release, sqlc, Ruby, database driver gem
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: sqlc config (the plugin `options:`)
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: sql
+    attributes:
+      label: Schema and query that reproduce it
+      render: sql
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What was generated / what happened, and what you expected
+    validations:
+      required: true

@@ -2,7 +2,9 @@ version: "2"
 plugins:
 - name: ruby
   process:
-    cmd: ./dist/LocalRunner
+    cmd: ./exe/plugin.rb
+  env:
+  - PATH # sqlc runs plugins with an empty environment; exe/plugin.rb needs `ruby` on PATH
 sql:
 - schema: "examples/authors/postgresql/schema.sql"
   queries: "examples/authors/postgresql/query.sql"

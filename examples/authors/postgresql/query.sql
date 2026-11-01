@@ -1,4 +1,5 @@
 -- name: GetAuthor :one
+-- Returns the author with the given id, or nil when there is none.
 SELECT * FROM authors
 WHERE id = $1 LIMIT 1;
 
@@ -18,6 +19,85 @@ RETURNING *;
 DELETE FROM authors
 WHERE id = $1;
 
-/* name: Test :one */
+-- name: Test :one
 SELECT * FROM node_postgres_types
 LIMIT 1;
+
+-- name: ListAuthorsPaged :many
+SELECT * FROM authors
+ORDER BY name
+LIMIT sqlc.arg('limit')
+OFFSET sqlc.arg('offset');
+
+-- name: GetAuthorByNamePattern :many
+SELECT * FROM authors
+WHERE name LIKE COALESCE(sqlc.narg('name_pattern'), '%');
+
+-- name: CreateAuthorReturnId :execlastid
+INSERT INTO authors (name, bio) VALUES ($1, $2) RETURNING id;
+
+-- name: UpdateAuthorBios :execrows
+-- Sets the bio of every author that has one and returns how many were changed.
+UPDATE authors
+SET bio = $1
+WHERE bio IS NOT NULL;
+
+-- name: GetAuthorsByIds :many
+SELECT * FROM authors
+WHERE id = ANY($1::BIGINT []);
+
+-- name: GetAuthorsByIdsAndNames :many
+SELECT * FROM authors
+WHERE id = ANY($1::BIGINT []) AND name = ANY($2::TEXT []);
+
+-- name: CopyAuthors :copyfrom
+-- Bulk insert: pass an Array of CopyAuthorsArgs.
+INSERT INTO authors (name, bio) VALUES ($1, $2);
+
+-- name: TruncateAuthors :exec
+TRUNCATE TABLE authors CASCADE;
+
+-- name: CreateBook :execlastid
+INSERT INTO books (name, author_id) VALUES ($1, $2) RETURNING id;
+
+-- name: ListAllAuthorsBooks :many
+SELECT
+    sqlc.embed(authors),
+    sqlc.embed(books)
+FROM authors
+INNER JOIN books ON authors.id = books.author_id
+ORDER BY authors.name;
+
+-- name: GetDuplicateAuthors :many
+SELECT
+    sqlc.embed(authors1),
+    sqlc.embed(authors2)
+FROM authors AS authors1
+INNER JOIN authors AS authors2 ON authors1.name = authors2.name
+WHERE authors1.id < authors2.id;
+
+-- name: GetAuthorsByBookName :many
+SELECT
+    authors.*,
+    sqlc.embed(books)
+FROM authors INNER JOIN books ON authors.id = books.author_id
+WHERE books.name = $1;
+
+-- name: CreateExtendedBio :exec
+INSERT INTO extended.bios (author_name, name, bio_type) VALUES ($1, $2, $3);
+
+-- name: GetFirstExtendedBioByType :one
+SELECT * FROM extended.bios WHERE bio_type = $1 LIMIT 1;
+
+-- name: TruncateExtendedBios :exec
+TRUNCATE TABLE extended.bios;
+
+-- name: InsertExtraTypes :exec
+INSERT INTO postgres_extra_types (c_uuid, c_jsonb, c_text_array, c_integer_array, c_timestamptz, c_inet, c_money, c_not_null)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+
+-- name: GetExtraTypes :one
+SELECT * FROM postgres_extra_types LIMIT 1;
+
+-- name: TruncateExtraTypes :exec
+TRUNCATE TABLE postgres_extra_types;

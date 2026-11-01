@@ -1,3 +1,0 @@
-using SqlcGenRuby;
-
-PluginRunner.Run();
