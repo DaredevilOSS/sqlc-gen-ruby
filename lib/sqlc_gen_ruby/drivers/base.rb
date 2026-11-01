@@ -132,7 +132,7 @@ module SqlcGenRuby
       ISOLATION_RBS = 'ISOLATION_LEVELS: Hash[Symbol, String]'
 
       TRANSACTION_RBS = 'def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | ' \
-                        ':serializable)?) { (instance) -> T } -> T'
+                        ':serializable)?) { (self) -> T } -> T'
 
       private
 

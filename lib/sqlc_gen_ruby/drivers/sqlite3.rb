@@ -16,7 +16,7 @@ module SqlcGenRuby
         [
           [NOT_FOUND, "class NotFound < StandardError\nend"],
           [INITIALIZE, 'def initialize: (untyped db, ?logger: untyped) -> void'],
-          [TRANSACTION, "def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (instance) -> T } -> T"]
+          [TRANSACTION, "def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (self) -> T } -> T"]
         ]
       end
 
