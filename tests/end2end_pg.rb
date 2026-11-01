@@ -31,6 +31,7 @@ class TestPg < Minitest::Test
     @query_sql.truncate_authors # cascades to books
     @query_sql.truncate_extended_bios
     @query_sql.truncate_extra_types
+    @query_sql.truncate_regressions
   end
 
   def create_author(name, bio = nil)
@@ -416,5 +417,64 @@ class TestPg < Minitest::Test
     assert_equal %i[id name bio], Author.members
     assert_equal %i[id name author_id description], Book.members
     assert_equal %i[author_name name bio_type], ExtendedBio.members
+  end
+
+  # ---- regressions -----------------------------------------------------------------------------------------------
+
+  def test_bytea_json_arrays_and_string_arrays_round_trip
+    binary = "\x00\xFFa\x00".b
+    uid = SecureRandom.uuid
+    row = @query_sql.create_regression!(id: 1, order: 'o', payload: binary, doc: [1, { 'a' => 'é' }],
+                                        bio_types: ['Memoir', nil], uids: [uid])
+    assert_equal [binary, [1, { 'a' => 'é' }], ['Memoir', nil], [uid]], [row.payload, row.doc, row.bio_types, row.uids]
+    assert_equal row.to_h, @query_sql.list_regressions.first.to_h
+  end
+
+  def test_execlastid_is_nil_when_no_row_is_returned
+    assert_equal 7, @query_sql.create_regression_if_new(id: 7, order: 'first')
+    assert_nil @query_sql.create_regression_if_new(id: 7, order: 'again')
+  end
+
+  def test_copyfrom_quotes_identifiers_and_encodes_bytea_and_json
+    binary = "\x00\x01\xFE".b
+    @query_sql.copy_regressions([CopyRegressionsArgs.new(id: 1, order: 'a', payload: binary, doc: [1, 2]),
+                                 CopyRegressionsArgs.new(id: 2, order: 'b', payload: nil, doc: nil)])
+    assert_equal [[1, 'a', binary, [1, 2]], [2, 'b', nil, nil]],
+                 @query_sql.list_regressions.map { |r| [r.id, r.order, r.payload, r.doc] }
+  end
+
+  def test_casted_narg_is_optional
+    @query_sql.create_regression_if_new(id: 1, order: 'a')
+    @query_sql.create_regression_if_new(id: 2, order: 'b')
+    assert_equal [1, 2], @query_sql.list_regressions.map(&:id)
+    assert_equal [2], @query_sql.list_regressions(order_name: 'b').map(&:id)
+  end
+
+  def test_prepared_statements_survive_a_connection_reset
+    client = PG.connect(**pg_params)
+    query_sql = QuerySql.new(ConnectionPool.new(size: 1) { client })
+    query_sql.list_authors
+    client.reset
+    assert_empty query_sql.list_authors
+  ensure
+    client&.close
+  end
+
+  def test_transaction_left_with_break_or_throw_commits_and_frees_the_connection
+    pooled = QuerySql.connect(pg_params, size: 1)
+    2.times do |i|
+      pooled.transaction do |tx|
+        tx.create_author_return_id(name: "break #{i}", bio: nil)
+        break
+      end
+    end
+    catch(:out) do
+      pooled.transaction do |tx|
+        tx.create_author_return_id(name: 'throw', bio: nil)
+        throw :out
+      end
+    end
+    pooled.instance_variable_get(:@db).with { |client| assert_equal PG::PQTRANS_IDLE, client.transaction_status }
+    assert_equal ['break 0', 'break 1', 'throw'], @query_sql.list_authors.map(&:name).sort
   end
 end

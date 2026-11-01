@@ -203,6 +203,48 @@ module PgCodegen
     TRUNCATE TABLE postgres_extra_types
   SQL
 
+  CREATE_REGRESSION_SQL = <<~'SQL'
+    INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, "order", payload, doc, bio_types, uids
+  SQL
+
+  class CreateRegressionRow < Data.define(
+    :id,
+    :order,
+    :payload,
+    :doc,
+    :bio_types,
+    :uids
+  )
+  end
+
+  CREATE_REGRESSION_IF_NEW_SQL = <<~'SQL'
+    INSERT INTO regressions (id, "order") VALUES ($1, $2) ON CONFLICT (id) DO NOTHING RETURNING id
+  SQL
+
+  class CreateRegressionIfNewRow < Data.define(:id)
+  end
+
+  class CopyRegressionsArgs < Data.define(:id, :order, :payload, :doc)
+  end
+
+  LIST_REGRESSIONS_SQL = <<~'SQL'
+    SELECT id, "order", payload, doc, bio_types, uids FROM regressions WHERE ($1::text IS NULL OR "order" = $1) ORDER BY id
+  SQL
+
+  class ListRegressionsRow < Data.define(
+    :id,
+    :order,
+    :payload,
+    :doc,
+    :bio_types,
+    :uids
+  )
+  end
+
+  TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
+    TRUNCATE TABLE regressions
+  SQL
+
   class QuerySql
     # Raised by the bang variants (get_author!) when the query returns no row.
     class NotFound < StandardError; end
@@ -220,8 +262,9 @@ module PgCodegen
       @logger = logger
     end
 
-    # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns,
-    # ROLLBACK when it raises. A nested call becomes a SAVEPOINT. Yields self, bound to that connection.
+    # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
+    # (also through break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call
+    # becomes a SAVEPOINT. Yields self, bound to that connection.
     def transaction(isolation: nil)
       with_client('transaction') do |client|
         outermost = client.transaction_status == PG::PQTRANS_IDLE
@@ -231,13 +274,19 @@ module PgCodegen
         else
           client.exec("SAVEPOINT #{savepoint}")
         end
+        rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        failed = false
         begin
-          result = yield self
-          client.exec(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-          result
+          yield self
         rescue Exception # rubocop:disable Lint/RescueException
-          client.exec(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+          failed = true
+          client.exec(rollback)
           raise
+        ensure
+          unless failed
+            commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+            client.exec(Thread.current.status == 'aborting' ? rollback : commit)
+          end
         end
       end
     end
@@ -376,7 +425,8 @@ module PgCodegen
           client.prepared_statements.add('query_sql_create_author_return_id')
         end
         result = client.exec_prepared('query_sql_create_author_return_id', query_params)
-        result.first['id']
+        row = result.first
+        row && row['id']
       end
     end
 
@@ -425,7 +475,7 @@ module PgCodegen
     def copy_authors(rows)
       with_client('copy_authors') do |client|
         encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
-        client.copy_data('COPY authors (name, bio) FROM STDIN', encoder) do
+        client.copy_data('COPY "authors" ("name", "bio") FROM STDIN', encoder) do
           rows.each do |row|
             client.put_copy_data([row.name, row.bio])
           end
@@ -453,7 +503,8 @@ module PgCodegen
           client.prepared_statements.add('query_sql_create_book')
         end
         result = client.exec_prepared('query_sql_create_book', query_params)
-        result.first['id']
+        row = result.first
+        row && row['id']
       end
     end
 
@@ -465,7 +516,10 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_list_all_authors_books').values
         result.map do |row|
-          ListAllAuthorsBooksRow.new(Author.new(row[0], row[1], row[2]), Book.new(row[3], row[4], row[5], row[6]))
+          ListAllAuthorsBooksRow.new(
+            Author.new(row[0], row[1], row[2]),
+            Book.new(row[3], row[4], row[5], row[6])
+          )
         end
       end
     end
@@ -542,7 +596,7 @@ module PgCodegen
       with_client('insert_extra_types') do |client|
         query_params = [
           c_uuid,
-          c_jsonb,
+          encode_json(c_jsonb),
           c_text_array,
           c_integer_array,
           c_timestamptz,
@@ -596,6 +650,95 @@ module PgCodegen
       end
     end
 
+    def create_regression(id:, order:, payload:, doc:, bio_types:, uids:)
+      with_client('create_regression') do |client|
+        query_params = [
+          id,
+          order,
+          encode_bytea(payload),
+          encode_json(doc),
+          bio_types,
+          uids
+        ]
+        unless client.prepared_statements.include?('query_sql_create_regression')
+          client.prepare('query_sql_create_regression', CREATE_REGRESSION_SQL)
+          client.prepared_statements.add('query_sql_create_regression')
+        end
+        result = client.exec_prepared('query_sql_create_regression', query_params)
+        row = result.first
+        row && CreateRegressionRow.new(
+          row['id'],
+          row['order'],
+          row['payload'],
+          row['doc'],
+          row['bio_types'],
+          row['uids']
+        )
+      end
+    end
+
+    # Like #create_regression, but raises NotFound when there is no row.
+    def create_regression!(...)
+      create_regression(...) || raise(NotFound, 'CreateRegression returned no row')
+    end
+
+    def create_regression_if_new(id:, order:)
+      with_client('create_regression_if_new') do |client|
+        query_params = [id, order]
+        unless client.prepared_statements.include?('query_sql_create_regression_if_new')
+          client.prepare('query_sql_create_regression_if_new', CREATE_REGRESSION_IF_NEW_SQL)
+          client.prepared_statements.add('query_sql_create_regression_if_new')
+        end
+        result = client.exec_prepared('query_sql_create_regression_if_new', query_params)
+        row = result.first
+        row && row['id']
+      end
+    end
+
+    def copy_regressions(rows)
+      with_client('copy_regressions') do |client|
+        encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
+        client.copy_data('COPY "regressions" ("id", "order", "payload", "doc") FROM STDIN', encoder) do
+          rows.each do |row|
+            client.put_copy_data([row.id, row.order, encode_bytea(row.payload), encode_json(row.doc)])
+          end
+        end
+        nil
+      end
+    end
+
+    def list_regressions(order_name: nil)
+      with_client('list_regressions') do |client|
+        query_params = [order_name]
+        unless client.prepared_statements.include?('query_sql_list_regressions')
+          client.prepare('query_sql_list_regressions', LIST_REGRESSIONS_SQL)
+          client.prepared_statements.add('query_sql_list_regressions')
+        end
+        result = client.exec_prepared('query_sql_list_regressions', query_params)
+        result.map do |row|
+          ListRegressionsRow.new(
+            row['id'],
+            row['order'],
+            row['payload'],
+            row['doc'],
+            row['bio_types'],
+            row['uids']
+          )
+        end
+      end
+    end
+
+    def truncate_regressions
+      with_client('truncate_regressions') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_regressions')
+          client.prepare('query_sql_truncate_regressions', TRUNCATE_REGRESSIONS_SQL)
+          client.prepared_statements.add('query_sql_truncate_regressions')
+        end
+        client.exec_prepared('query_sql_truncate_regressions')
+        nil
+      end
+    end
+
     private
 
     def instrument(name)
@@ -622,10 +765,32 @@ module PgCodegen
     # Connections of an injected pool are set up on first use: typed results and Ruby arrays as parameters.
     def configure(client)
       type_map = PG::BasicTypeMapForResults.new(client)
-      type_map.default_type_map = PG::TypeMapAllStrings.new # uuid, enums, money, ... come back as Strings
+      type_map.default_type_map = string_arrays(client) # uuid, enums, money, ... come back as Strings
       client.type_map_for_results = type_map
       client.type_map_for_queries = PG::BasicTypeMapForQueries.new(client)
       client.extend(ConnectionState)
+    end
+
+    # Arrays of types without a decoder (uuid[], enum[], ...) become Arrays of Strings, other types Strings.
+    def string_arrays(client)
+      strings = PG::TypeMapAllStrings.new
+      arrays = PG::TypeMapByOid.new
+      client.exec("SELECT oid, typdelim FROM pg_type WHERE typcategory = 'A'", [], 0, strings).each do |row|
+        arrays.add_coder(PG::TextDecoder::Array.new(oid: row['oid'].to_i, delimiter: row['typdelim'],
+                                                    elements_type: PG::TextDecoder::String.new))
+      end
+      arrays.default_type_map = strings
+      arrays
+    end
+
+    # bytea parameters are sent escaped: binary Strings (NUL bytes, invalid UTF-8) are not valid text.
+    def encode_bytea(value)
+      value && PG::TextEncoder::Bytea.new.encode(value)
+    end
+
+    # json / jsonb parameters: an Array is a JSON array, not a PG array (Hashes and JSON text pass through).
+    def encode_json(value)
+      value.is_a?(Array) ? PG::TextEncoder::JSON.new.encode(value) : value
     end
   end
 end

@@ -4,9 +4,10 @@ module PgCodegen
 
   OTHER_ONE_SQL: String
 
-  class OtherOneRow < ::Struct
+  class OtherOneRow < ::Struct[untyped]
     attr_accessor c0: bool
-    def self.new: (  bool c0) -> OtherOneRow
+    def initialize: (  c0: bool) -> void
+    def self.new: (  c0: bool) -> OtherOneRow
   end
 
   COUNT_ROWS_SQL: String
@@ -36,5 +37,9 @@ module PgCodegen
     def with_client: [T] (String name) { (untyped) -> T } -> T
 
     def configure: (untyped client) -> void
+
+    def string_arrays: (untyped client) -> untyped
+
+    def encode_bytea: (String? value) -> String?
   end
 end

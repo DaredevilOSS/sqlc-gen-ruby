@@ -14,14 +14,15 @@ module Mysql2Codegen
     ALL: Array[String]
   end
 
-  class Author < ::Struct
+  class Author < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> Author
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> Author
   end
 
-  class NodeMysqlType < ::Struct
+  class NodeMysqlType < ::Struct[untyped]
     attr_accessor c_bit: String?
     attr_accessor c_tinyint: Integer?
     attr_accessor c_bool: Integer?
@@ -59,60 +60,109 @@ module Mysql2Codegen
     attr_accessor c_longblob: String?
     attr_accessor c_longtext: String?
     attr_accessor c_json: String?
+    def initialize: (
+        c_bit: String?,
+        c_tinyint: Integer?,
+        c_bool: Integer?,
+        c_boolean: Integer?,
+        c_smallint: Integer?,
+        c_mediumint: Integer?,
+        c_int: Integer?,
+        c_integer: Integer?,
+        c_bigint: Integer?,
+        c_serial: Integer,
+        c_decimal: BigDecimal?,
+        c_dec: BigDecimal?,
+        c_numeric: BigDecimal?,
+        c_fixed: BigDecimal?,
+        c_float: Float?,
+        c_double: Float?,
+        c_double_precision: Float?,
+        c_date: Date?,
+        c_time: Time?,
+        c_datetime: Time?,
+        c_timestamp: Time?,
+        c_year: Integer?,
+        c_char: String?,
+        c_nchar: String?,
+        c_national_char: String?,
+        c_varchar: String?,
+        c_binary: String?,
+        c_varbinary: String?,
+        c_tinyblob: String?,
+        c_tinytext: String?,
+        c_blob: String?,
+        c_text: String?,
+        c_mediumblob: String?,
+        c_mediumtext: String?,
+        c_longblob: String?,
+        c_longtext: String?,
+        c_json: String?
+    ) -> void
     def self.new: (
-        String? c_bit,
-        Integer? c_tinyint,
-        Integer? c_bool,
-        Integer? c_boolean,
-        Integer? c_smallint,
-        Integer? c_mediumint,
-        Integer? c_int,
-        Integer? c_integer,
-        Integer? c_bigint,
-        Integer c_serial,
-        BigDecimal? c_decimal,
-        BigDecimal? c_dec,
-        BigDecimal? c_numeric,
-        BigDecimal? c_fixed,
-        Float? c_float,
-        Float? c_double,
-        Float? c_double_precision,
-        Date? c_date,
-        Time? c_time,
-        Time? c_datetime,
-        Time? c_timestamp,
-        Integer? c_year,
-        String? c_char,
-        String? c_nchar,
-        String? c_national_char,
-        String? c_varchar,
-        String? c_binary,
-        String? c_varbinary,
-        String? c_tinyblob,
-        String? c_tinytext,
-        String? c_blob,
-        String? c_text,
-        String? c_mediumblob,
-        String? c_mediumtext,
-        String? c_longblob,
-        String? c_longtext,
-        String? c_json
+        c_bit: String?,
+        c_tinyint: Integer?,
+        c_bool: Integer?,
+        c_boolean: Integer?,
+        c_smallint: Integer?,
+        c_mediumint: Integer?,
+        c_int: Integer?,
+        c_integer: Integer?,
+        c_bigint: Integer?,
+        c_serial: Integer,
+        c_decimal: BigDecimal?,
+        c_dec: BigDecimal?,
+        c_numeric: BigDecimal?,
+        c_fixed: BigDecimal?,
+        c_float: Float?,
+        c_double: Float?,
+        c_double_precision: Float?,
+        c_date: Date?,
+        c_time: Time?,
+        c_datetime: Time?,
+        c_timestamp: Time?,
+        c_year: Integer?,
+        c_char: String?,
+        c_nchar: String?,
+        c_national_char: String?,
+        c_varchar: String?,
+        c_binary: String?,
+        c_varbinary: String?,
+        c_tinyblob: String?,
+        c_tinytext: String?,
+        c_blob: String?,
+        c_text: String?,
+        c_mediumblob: String?,
+        c_mediumtext: String?,
+        c_longblob: String?,
+        c_longtext: String?,
+        c_json: String?
     ) -> NodeMysqlType
   end
 
-  class Book < ::Struct
+  class Book < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor author_id: Integer
     attr_accessor description: String?
-    def self.new: (  Integer id, String name, Integer author_id, String? description) -> Book
+    def initialize: (  id: Integer, name: String, author_id: Integer, description: String?) -> void
+    def self.new: (  id: Integer, name: String, author_id: Integer, description: String?) -> Book
   end
 
-  class ExtendedBio < ::Struct
+  class ExtendedBio < ::Struct[untyped]
     attr_accessor author_name: String?
     attr_accessor name: String?
     attr_accessor bio_type: String?
     attr_accessor author_type: String?
-    def self.new: (  String? author_name, String? name, String? bio_type, String? author_type) -> ExtendedBio
+    def initialize: (  author_name: String?, name: String?, bio_type: String?, author_type: String?) -> void
+    def self.new: (  author_name: String?, name: String?, bio_type: String?, author_type: String?) -> ExtendedBio
+  end
+
+  class Regression < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor order: String
+    attr_accessor note: String?
+    def initialize: (  id: Integer, order: String, note: String?) -> void
+    def self.new: (  id: Integer, order: String, note: String?) -> Regression
   end
 end

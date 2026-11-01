@@ -88,3 +88,15 @@ SELECT * FROM extended_bios WHERE bio_type = ? LIMIT 1;
 
 -- name: TruncateExtendedBios :exec
 DELETE FROM extended_bios;
+
+-- name: CountRegressionsByText :one
+SELECT count(*) FROM regressions WHERE `order` = sqlc.arg(term) OR note = sqlc.arg(term);
+
+-- name: ListRegressionsByIds :many
+SELECT id, `order`, note FROM regressions WHERE id IN (?, ?, ?) ORDER BY id;
+
+-- name: CopyRegressions :copyfrom
+INSERT INTO regressions (`order`, note) VALUES (?, ?);
+
+-- name: TruncateRegressions :exec
+TRUNCATE TABLE regressions;

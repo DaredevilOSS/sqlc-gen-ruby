@@ -108,6 +108,44 @@ module Sqlite3Codegen
     def initialize: (  Integer id, String name, String? bio, Book book) -> void
   end
 
+  CREATE_REGRESSION_SQL: String
+
+  class CreateRegressionRow
+    attr_reader id: Integer
+    def initialize: (  Integer id) -> void
+  end
+
+  UPDATE_REGRESSION_PRICES_SQL: String
+
+  class UpdateRegressionPricesRow
+    attr_reader id: Integer
+    def initialize: (  Integer id) -> void
+  end
+
+  class CopyRegressionsArgs
+    attr_reader order: String
+    attr_reader price: Float?
+    def initialize: (  String order, Float? price) -> void
+  end
+
+  LIST_REGRESSIONS_SQL: String
+
+  class ListRegressionsRow
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader price: Float?
+    def initialize: (  Integer id, String order, Float? price) -> void
+  end
+
+  GET_MAX_REGRESSION_PRICE_SQL: String
+
+  class GetMaxRegressionPriceRow
+    attr_reader max_price: untyped
+    def initialize: (  untyped max_price) -> void
+  end
+
+  TRUNCATE_REGRESSIONS_SQL: String
+
   class QuerySql
     class NotFound < StandardError
     end
@@ -149,6 +187,20 @@ module Sqlite3Codegen
     def get_duplicate_authors: -> Array[GetDuplicateAuthorsRow]
 
     def get_authors_by_book_name: (name: String) -> Array[GetAuthorsByBookNameRow]
+
+    def create_regression: (order: String, price: Float?) -> void
+
+    def update_regression_prices: (price: Float?) -> Integer
+
+    def copy_regressions: (Array[CopyRegressionsArgs] rows) -> void
+
+    def list_regressions: -> Array[ListRegressionsRow]
+
+    def get_max_regression_price: -> GetMaxRegressionPriceRow?
+
+    def get_max_regression_price!: -> GetMaxRegressionPriceRow
+
+    def truncate_regressions: -> void
 
     private
 

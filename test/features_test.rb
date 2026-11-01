@@ -71,7 +71,7 @@ class FeaturesTest < Minitest::Test
 
   def test_slices_expand_at_runtime_and_are_array_typed
     files = generate(load_request('mysql2'))
-    assert_includes files.fetch('query_sql.rb'), "sql = GET_AUTHORS_BY_IDS_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))"
+    assert_includes files.fetch('query_sql.rb'), "sql = GET_AUTHORS_BY_IDS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))"
     assert_includes files.fetch('query_sql.rb'), 'query_params = [*ids]'
     assert_includes files.fetch('query_sql.rbs'), 'def get_authors_by_ids: (ids: Array[Integer]) -> Array[GetAuthorsByIdsRow]'
     assert_includes files.fetch('query_sql.rbs'), 'def slice_placeholders: (Array[untyped] values) -> String'
@@ -121,12 +121,13 @@ class FeaturesTest < Minitest::Test
     end
   end
 
-  def test_mysql_copyfrom_adds_csv_helpers_and_gemfile_entry
+  def test_mysql_copyfrom_writes_its_own_csv
     files = generate(load_request('mysql2', generateGemfile: true))
-    assert_includes files.fetch('query_sql.rb'), "require 'csv'"
+    refute_includes files.fetch('query_sql.rb'), "require 'csv'"
+    assert_includes files.fetch('query_sql.rb'), "require 'tempfile'"
     assert_includes files.fetch('query_sql.rb'), 'def csv_line(values)'
-    assert_includes files.fetch('Gemfile'), "gem 'csv'"
-    refute_includes generate(load_request('pg', generateGemfile: true)).fetch('Gemfile'), 'csv'
+    assert_equal "# frozen_string_literal: true\n\nsource 'https://rubygems.org'\n\ngem 'connection_pool'\ngem 'mysql2'\n",
+                 files.fetch('Gemfile')
   end
 
   def test_sqlite_and_mysql_close_prepared_statements
@@ -186,7 +187,7 @@ class FeaturesTest < Minitest::Test
 
   def test_module_name_option
     files = generate(load_request('pg', moduleName: 'MyApp::Db'))
-    files.each { |name, contents| assert_includes contents, 'module MyApp::Db' if name.end_with?('.rb', '.rbs') }
+    files.each { |name, contents| assert_includes contents, "module MyApp\n  module Db\n" if name.end_with?('.rb', '.rbs') }
     assert_raises(RuntimeError) { generate(load_request('pg', moduleName: 'not a constant')) }
   end
 
@@ -195,14 +196,16 @@ class FeaturesTest < Minitest::Test
     refute_includes generate(load_request('pg')).fetch('query_sql.rb'), "require 'set'"
   end
 
-  # Ruby < 3.2 has no Data: rows are Structs, whose members must be symbols (Struct.new(:id, :name)).
+  # Ruby < 3.2 has no Data: rows are keyword_init Structs, built with keywords like Data rows.
   def test_struct_classes_are_valid_and_usable
     files = generate(load_request('pg', rubyVersion: '3.1'))
-    assert_includes files.fetch('models.rb'), 'class Author < Struct.new(:id, :name, :bio)'
-    assert_includes files.fetch('query_sql.rb'), 'class GetAuthorRow < Struct.new(:id, :name, :bio)'
+    assert_includes files.fetch('models.rb'), 'Author = Struct.new(:id, :name, :bio, keyword_init: true)'
+    assert_includes files.fetch('query_sql.rb'), 'GetAuthorRow = Struct.new(:id, :name, :bio, keyword_init: true)'
+    assert_includes files.fetch('query_sql.rb'), "GetAuthorRow.new(id: row['id'], name: row['name'], bio: row['bio'])"
+    assert_includes files.fetch('models.rbs'), "class Author < ::Struct[untyped]\n"
     scope = Module.new
     scope.module_eval(files.fetch('models.rb'))
-    author = scope::PgCodegen::Author.new(1, 'a', nil)
+    author = scope::PgCodegen::Author.new(id: 1, name: 'a', bio: nil)
     assert_equal({ id: 1, name: 'a', bio: nil }, author.to_h)
     assert_equal 'a', author.name
   end
@@ -238,5 +241,93 @@ class FeaturesTest < Minitest::Test
       assert_includes generate(load_request(driver)).fetch('query_sql.rbs'), 'def instrument: [T] (String name) { () -> T } -> T'
     end
     assert_includes generate(load_request('pg')).fetch('query_sql.rb'), 'def self.connect(pg_params, logger: nil, **pool_options)'
+  end
+
+  # ---- regressions (examples/authors/*: the `regressions` table) -----------------------------------------------
+
+  def test_reused_and_repeated_parameters_get_one_keyword_each
+    rb = generate(load_request('mysql2')).fetch('query_sql.rb')
+    assert_includes rb, "def count_regressions_by_text(term:)\n"
+    assert_includes rb, 'query_params = [term, term]'
+    assert_includes rb, 'def list_regressions_by_ids(id:, id_2:, id_3:)'
+  end
+
+  def test_mysql_rows_are_read_by_position
+    rb = generate(load_request('mysql2')).fetch('query_sql.rb')
+    assert_includes rb, 'CountRegressionsByTextRow.new(row[0])'
+    refute_includes rb, "row['"
+  end
+
+  def test_sqlite_types_with_modifiers_and_untyped_expressions
+    files = generate(load_request('sqlite3'))
+    assert_match(/class Regression\n\s+attr_reader id: Integer\n\s+attr_reader order: String\n\s+attr_reader price: Float\?/,
+                 files.fetch('models.rbs'))
+    assert_includes files.fetch('query_sql.rbs'), 'attr_reader max_price: untyped'
+  end
+
+  def test_casted_narg_is_optional
+    assert_includes generate(load_request('pg')).fetch('query_sql.rbs'),
+                    'def list_regressions: (?order_name: String?) -> Array[ListRegressionsRow]'
+  end
+
+  def test_copyfrom_quotes_identifiers
+    assert_includes generate(load_request('pg')).fetch('query_sql.rb'), 'COPY "regressions" ("id", "order", "payload", "doc")'
+    assert_includes generate(load_request('mysql2')).fetch('query_sql.rb'), 'INTO TABLE `regressions`'
+    assert_includes generate(load_request('sqlite3')).fetch('query_sql.rb'), 'INSERT INTO "regressions" ("order", "price")'
+  end
+
+  def test_pg_encodes_bytea_json_and_string_arrays
+    rb = generate(load_request('pg')).fetch('query_sql.rb')
+    assert_includes rb, 'encode_bytea(payload),'
+    assert_includes rb, 'encode_json(doc),'
+    refute_includes rb, 'encode_text_array'
+    noprep = generate(load_request('pg', preparedStatements: false)).fetch('query_sql.rb')
+    assert_includes noprep, 'encode_text_array(bio_types)'
+    assert_includes noprep, 'def encode_text_array(value)'
+  end
+
+  def test_transactions_finish_on_non_local_exits
+    %w[pg mysql2 sqlite3].each do |driver|
+      assert_includes generate(load_request(driver)).fetch('query_sql.rb'), "Thread.current.status == 'aborting'", driver
+    end
+  end
+
+  def test_parameters_named_like_generated_locals_are_renamed
+    request = load_request('pg')
+    query(request, 'GetAuthor').params.first.column.name = 'client'
+    assert_includes generate(request).fetch('query_sql.rb'), "def get_author(client_:)\n"
+  end
+
+  def test_columns_become_valid_non_overriding_attributes
+    request = load_request('pg')
+    columns = query(request, 'GetAuthor').columns
+    columns[1].name = 'Weird Name'
+    columns[2].name = 'hash'
+    assert_includes generate(request).fetch('query_sql.rb'), 'class GetAuthorRow < Data.define(:id, :weird_name, :hash_)'
+  end
+
+  def test_query_method_colliding_with_a_generated_method_is_an_error
+    request = load_request('pg')
+    query(request, 'GetAuthor').name = 'Transaction'
+    assert_raises(RuntimeError) { generate(request) }
+  end
+
+  def test_constant_defined_twice_is_an_error
+    request = load_request('pg')
+    request.catalog.schemas.flat_map(&:tables).find { |t| t.rel.name == 'authors' }.rel.name = 'get_author_rows'
+    assert_raises(RuntimeError) { generate(request) }
+  end
+
+  def test_nested_module_name_is_self_contained
+    files = generate(load_request('pg', moduleName: 'MyApp::Db'))
+    scope = Module.new
+    scope.module_eval(files.fetch('models.rb'))
+    assert scope::MyApp::Db::Author
+  end
+
+  def test_unknown_and_misplaced_options_are_errors
+    assert_raises(RuntimeError) { generate(load_request('pg', moduleNmae: 'Db')) }
+    assert_raises(RuntimeError) { generate(load_request('mysql2', preparedStatements: false)) }
+    generate(load_request('pg', rubyVersion: '3.4'))
   end
 end

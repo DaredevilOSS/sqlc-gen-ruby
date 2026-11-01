@@ -195,6 +195,30 @@ module Mysql2Codegen
 
   TRUNCATE_EXTENDED_BIOS_SQL: String
 
+  COUNT_REGRESSIONS_BY_TEXT_SQL: String
+
+  class CountRegressionsByTextRow
+    attr_reader count: Integer
+    def initialize: (  Integer count) -> void
+  end
+
+  LIST_REGRESSIONS_BY_IDS_SQL: String
+
+  class ListRegressionsByIdsRow
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader note: String?
+    def initialize: (  Integer id, String order, String? note) -> void
+  end
+
+  class CopyRegressionsArgs
+    attr_reader order: String
+    attr_reader note: String?
+    def initialize: (  String order, String? note) -> void
+  end
+
+  TRUNCATE_REGRESSIONS_SQL: String
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow
@@ -288,11 +312,21 @@ module Mysql2Codegen
 
     def truncate_extended_bios: -> void
 
+    def count_regressions_by_text: (term: String) -> CountRegressionsByTextRow?
+
+    def count_regressions_by_text!: (term: String) -> CountRegressionsByTextRow
+
+    def list_regressions_by_ids: (id: Integer, id_2: Integer, id_3: Integer) -> Array[ListRegressionsByIdsRow]
+
+    def copy_regressions: (Array[CopyRegressionsArgs] rows) -> void
+
+    def truncate_regressions: -> void
+
     def many_params: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow?
 
     def many_params!: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow
 
-    def many_rows: (c0: Integer) -> Array[manyRowsRow]
+    def many_rows: (c0: Integer) -> Array[ManyRowsRow]
 
     def four_cols: -> Array[FourColsRow]
 

@@ -7,14 +7,15 @@ module PgCodegen
     ALL: Array[String]
   end
 
-  class Author < ::Struct
+  class Author < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> Author
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> Author
   end
 
-  class NodePostgresType < ::Struct
+  class NodePostgresType < ::Struct[untyped]
     attr_accessor c_bit: String?
     attr_accessor c_smallint: Integer?
     attr_accessor c_boolean: bool?
@@ -33,37 +34,58 @@ module PgCodegen
     attr_accessor c_bytea: String?
     attr_accessor c_text: String?
     attr_accessor c_json: untyped
+    def initialize: (
+        c_bit: String?,
+        c_smallint: Integer?,
+        c_boolean: bool?,
+        c_integer: Integer?,
+        c_bigint: Integer?,
+        c_serial: Integer?,
+        c_decimal: BigDecimal?,
+        c_numeric: BigDecimal?,
+        c_real: Float?,
+        c_double_precision: Float?,
+        c_date: Date?,
+        c_time: String?,
+        c_timestamp: Time?,
+        c_char: String?,
+        c_varchar: String?,
+        c_bytea: String?,
+        c_text: String?,
+        c_json: untyped
+    ) -> void
     def self.new: (
-        String? c_bit,
-        Integer? c_smallint,
-        bool? c_boolean,
-        Integer? c_integer,
-        Integer? c_bigint,
-        Integer? c_serial,
-        BigDecimal? c_decimal,
-        BigDecimal? c_numeric,
-        Float? c_real,
-        Float? c_double_precision,
-        Date? c_date,
-        String? c_time,
-        Time? c_timestamp,
-        String? c_char,
-        String? c_varchar,
-        String? c_bytea,
-        String? c_text,
-        untyped c_json
+        c_bit: String?,
+        c_smallint: Integer?,
+        c_boolean: bool?,
+        c_integer: Integer?,
+        c_bigint: Integer?,
+        c_serial: Integer?,
+        c_decimal: BigDecimal?,
+        c_numeric: BigDecimal?,
+        c_real: Float?,
+        c_double_precision: Float?,
+        c_date: Date?,
+        c_time: String?,
+        c_timestamp: Time?,
+        c_char: String?,
+        c_varchar: String?,
+        c_bytea: String?,
+        c_text: String?,
+        c_json: untyped
     ) -> NodePostgresType
   end
 
-  class Book < ::Struct
+  class Book < ::Struct[untyped]
     attr_accessor id: String
     attr_accessor name: String
     attr_accessor author_id: Integer
     attr_accessor description: String?
-    def self.new: (  String id, String name, Integer author_id, String? description) -> Book
+    def initialize: (  id: String, name: String, author_id: Integer, description: String?) -> void
+    def self.new: (  id: String, name: String, author_id: Integer, description: String?) -> Book
   end
 
-  class PostgresExtraType < ::Struct
+  class PostgresExtraType < ::Struct[untyped]
     attr_accessor c_uuid: String?
     attr_accessor c_jsonb: untyped
     attr_accessor c_text_array: Array[String]?
@@ -72,22 +94,58 @@ module PgCodegen
     attr_accessor c_inet: IPAddr?
     attr_accessor c_money: String?
     attr_accessor c_not_null: String
+    def initialize: (
+        c_uuid: String?,
+        c_jsonb: untyped,
+        c_text_array: Array[String]?,
+        c_integer_array: Array[Integer]?,
+        c_timestamptz: Time?,
+        c_inet: IPAddr?,
+        c_money: String?,
+        c_not_null: String
+    ) -> void
     def self.new: (
-        String? c_uuid,
-        untyped c_jsonb,
-        Array[String]? c_text_array,
-        Array[Integer]? c_integer_array,
-        Time? c_timestamptz,
-        IPAddr? c_inet,
-        String? c_money,
-        String c_not_null
+        c_uuid: String?,
+        c_jsonb: untyped,
+        c_text_array: Array[String]?,
+        c_integer_array: Array[Integer]?,
+        c_timestamptz: Time?,
+        c_inet: IPAddr?,
+        c_money: String?,
+        c_not_null: String
     ) -> PostgresExtraType
   end
 
-  class ExtendedBio < ::Struct
+  class Regression < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor order: String
+    attr_accessor payload: String?
+    attr_accessor doc: untyped
+    attr_accessor bio_types: Array[String]?
+    attr_accessor uids: Array[String]?
+    def initialize: (
+        id: Integer,
+        order: String,
+        payload: String?,
+        doc: untyped,
+        bio_types: Array[String]?,
+        uids: Array[String]?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        order: String,
+        payload: String?,
+        doc: untyped,
+        bio_types: Array[String]?,
+        uids: Array[String]?
+    ) -> Regression
+  end
+
+  class ExtendedBio < ::Struct[untyped]
     attr_accessor author_name: String
     attr_accessor name: String
     attr_accessor bio_type: String?
-    def self.new: (  String author_name, String name, String? bio_type) -> ExtendedBio
+    def initialize: (  author_name: String, name: String, bio_type: String?) -> void
+    def self.new: (  author_name: String, name: String, bio_type: String?) -> ExtendedBio
   end
 end

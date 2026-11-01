@@ -50,6 +50,16 @@ module PgCodegen
   )
   end
 
+  class Regression < Data.define(
+    :id,
+    :order,
+    :payload,
+    :doc,
+    :bio_types,
+    :uids
+  )
+  end
+
   class ExtendedBio < Data.define(:author_name, :name, :bio_type)
   end
 end

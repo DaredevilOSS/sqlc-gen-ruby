@@ -73,3 +73,21 @@ SELECT
     sqlc.embed(books)
 FROM authors INNER JOIN books ON authors.id = books.author_id
 WHERE books.name = ?;
+
+-- name: CreateRegression :exec
+INSERT INTO regressions ("order", price) VALUES (?, ?) RETURNING id;
+
+-- name: UpdateRegressionPrices :execrows
+UPDATE regressions SET price = ? RETURNING id;
+
+-- name: CopyRegressions :copyfrom
+INSERT INTO regressions ("order", price) VALUES (?, ?);
+
+-- name: ListRegressions :many
+SELECT id, "order", price FROM regressions ORDER BY id;
+
+-- name: GetMaxRegressionPrice :one
+SELECT coalesce(max(price), 0) AS max_price FROM regressions;
+
+-- name: TruncateRegressions :exec
+DELETE FROM regressions;
