@@ -88,6 +88,13 @@ module SqlcGenRuby
       name.match?(/\A[0-9_]/) ? "Q#{name}" : name
     end
 
+    # "Line 1\nLine 2" => "# Line 1\n# Line 2" ('' for no comment)
+    def comment(text)
+      return '' if text.to_s.strip.empty?
+
+      text.to_s.strip.lines.map { |l| "# #{l.rstrip}".rstrip }.join("\n")
+    end
+
     # GetAuthor => GET_AUTHOR_SQL
     def sql_constant(query_name) = "#{snake_case(query_name).upcase}_SQL"
 

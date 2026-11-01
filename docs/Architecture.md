@@ -20,7 +20,7 @@ stdout ◄─ Proto (encode) ◄─ GenerateResponse (query_sql.rb, query_sql.rb
 |---|---|
 | `exe/plugin.rb` | entry point. Errors go to stderr with exit code 1 (sqlc shows them); `SQLC_GEN_RUBY_DEBUG=1` adds a backtrace |
 | `proto.rb`, `plugin_pb.rb` | a ~150 line protobuf wire codec and the subset of sqlc's `codegen.proto` we read. Field numbers must match upstream. `google-protobuf` is a C extension and cannot run inside ruby.wasm |
-| `options.rb`, `ruby_version.rb` | parse + validate the `options:` JSON (`driver`, `rubyVersion`, `overrides`, ...) |
+| `options.rb`, `ruby_version.rb` | parse + validate the `options:` JSON (`driver`, `rubyVersion`, `overrides`, `rename`, ...; unknown keys are errors) |
 | `generator.rb` | the orchestrator: one file per query file (`query_sql.rb`), plus `models.rb`, `connection.rb`, `Gemfile`; builds the module / class / `Data` skeleton |
 | `method_gen.rb` | the code of one query: signature (keyword arguments), SQL constant, command (`:one`, `:many`, `:exec`, `:execrows`, `:execlastid`, `:copyfrom`), `sqlc.slice`, bang finder, and the RBS signature |
 | `row_layout.rb` | turns result columns into row attributes; `sqlc.embed` collapses a table's columns into one model attribute |
