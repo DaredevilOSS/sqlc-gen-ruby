@@ -63,6 +63,31 @@ module SqlcGenRuby
       RUBY_KEYWORDS.include?(snake) ? "#{snake}_" : snake
     end
 
+    # Methods every row (Data / Struct) or Object already has; a column with one of these names would replace it.
+    RESERVED_ATTRS = %w[class clone display dup eql? equal? extend freeze frozen? hash inspect instance_of? is_a? itself
+                        kind_of? method methods nil? object_id public_send respond_to? send singleton_class tap then to_s
+                        members to_h with deconstruct deconstruct_keys to_a values each size length select filter dig
+                        each_pair].freeze
+
+    # sqlc column name -> a valid attribute (method) name: invalid characters become `_`, a leading digit or an upper
+    # case letter gets a `_` / is lowered, keywords and reserved methods get a trailing `_` (class -> class_).
+    def attr_name(name)
+      attr = name.to_s.gsub(/[^A-Za-z0-9_]+/, '_')
+      attr = "_#{attr}" if attr.empty? || attr.match?(/\A[0-9]/)
+      attr = attr[0].downcase + attr[1..] if attr.match?(/\A[A-Z]/)
+      RUBY_KEYWORDS.include?(attr) || RESERVED_ATTRS.include?(attr) ? "#{attr}_" : attr
+    end
+
+    # 'user-queries' => User_queries is invalid; runs of characters that are not valid in a constant start a new word:
+    # 'user-queries' => UserQueries, 'my_queries' => My_queries (unchanged), '2024' => Q2024
+    def constant_part(str)
+      words = str.split(/[^A-Za-z0-9_]+/).reject(&:empty?)
+      raise ArgumentError, "#{str.inspect} has no characters usable in a Ruby constant" if words.empty?
+
+      name = words.map { |w| upcase_first(w) }.join
+      name.match?(/\A[0-9_]/) ? "Q#{name}" : name
+    end
+
     # GetAuthor => GET_AUTHOR_SQL
     def sql_constant(query_name) = "#{snake_case(query_name).upcase}_SQL"
 

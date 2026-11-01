@@ -84,6 +84,13 @@ module PgCodegen
     ) -> PostgresExtraType
   end
 
+  class PostgresArrayType < ::Struct
+    attr_accessor c_uuid_array: Array[String]?
+    attr_accessor c_bio_type_array: Array[String]?
+    attr_accessor c_integer_matrix: Array[Array[Integer]]?
+    def self.new: (  Array[String]? c_uuid_array, Array[String]? c_bio_type_array, Array[Array[Integer]]? c_integer_matrix) -> PostgresArrayType
+  end
+
   class ExtendedBio < ::Struct
     attr_accessor author_name: String
     attr_accessor name: String

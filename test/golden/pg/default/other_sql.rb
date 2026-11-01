@@ -137,7 +137,13 @@ module PgCodegen
     # Connections of an injected pool are set up on first use: typed results and Ruby arrays as parameters.
     def configure(client)
       type_map = PG::BasicTypeMapForResults.new(client)
-      type_map.default_type_map = PG::TypeMapAllStrings.new # uuid, enums, money, ... come back as Strings
+      # uuid, enums, money, ... come back as Strings, arrays of them (uuid[], enum[], ...) as Arrays of Strings
+      fallback = PG::TypeMapByOid.new
+      client.exec("SELECT oid FROM pg_type WHERE typcategory = 'A'").each do |row|
+        fallback.add_coder(PG::TextDecoder::Array.new(oid: row['oid'].to_i, elements_type: PG::TextDecoder::String.new))
+      end
+      fallback.default_type_map = PG::TypeMapAllStrings.new
+      type_map.default_type_map = fallback
       client.type_map_for_results = type_map
       client.type_map_for_queries = PG::BasicTypeMapForQueries.new(client)
       client.extend(ConnectionState)

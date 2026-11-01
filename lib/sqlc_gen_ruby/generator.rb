@@ -30,7 +30,10 @@ module SqlcGenRuby
       name_anonymous_params(request.queries)
       models = models_files
       connection = connection_files
-      files = request.queries.group_by { |q| class_name_for(q.filename) }.flat_map do |class_name, queries|
+      reject_reserved_query_names(request.queries)
+      by_class = request.queries.group_by { |q| class_name_for(q.filename) }
+      reject_colliding_files(by_class.keys)
+      files = by_class.flat_map do |class_name, queries|
         generate_files(queries, class_name, with_models: !models.empty?, with_connection: !connection.empty?)
       end
       files.concat(models).concat(connection)
@@ -65,7 +68,29 @@ module SqlcGenRuby
       ext = File.extname(filename)
       raise ArgumentError, "query file #{filename} has no extension" if ext.empty?
 
-      Code.upcase_first(File.basename(filename, ext)) + Code.upcase_first(ext[1..])
+      Code.constant_part(File.basename(filename, ext)) + Code.constant_part(ext[1..])
+    end
+
+    # user-queries.sql and user_queries.sql would both write user_queries_sql.rb
+    def reject_colliding_files(class_names)
+      class_names.group_by { |c| Code.snake_case(c) }.each do |base, names|
+        raise ArgumentError, "query files #{names.join(' and ')} would both generate #{base}.rb" if names.size > 1
+      end
+    end
+
+    # A query named Transaction or Initialize would silently replace the generated method of the same name.
+    def reject_reserved_query_names(queries)
+      generated = (@driver.class_methods + @driver.private_methods).flat_map do |code, _|
+        code.scan(/^\s*def (?:self\.)?([a-z_][A-Za-z0-9_]*[?!]?)/).flatten
+      end
+      reserved = generated + %w[initialize slice_placeholders] + Code::RESERVED_ATTRS
+      queries.each do |query|
+        func = Code.snake_case(query.name)
+        next unless reserved.include?(func)
+
+        raise ArgumentError, "query #{query.name} would generate ##{func}, which the generated class already defines; " \
+                             'rename the query'
+      end
     end
 
     def generate_files(queries, class_name, with_models:, with_connection:)
@@ -102,7 +127,7 @@ module SqlcGenRuby
       end
       members << dataclass("#{Code.upcase_first(query.name)}Row", row_pairs(query)) unless query.columns.empty?
       if query.cmd == ':copyfrom'
-        pairs = method_gen.params(query).map { |p| [p.name, p.type] }
+        pairs = method_gen.params(query).map { |p| [Code.attr_name(p.name), p.type] }
         members << dataclass("#{Code.upcase_first(query.name)}Args", pairs)
       end
       members
@@ -155,7 +180,7 @@ module SqlcGenRuby
       @catalog.tables.each do |table|
         next if table.columns.empty?
 
-        pairs = table.columns.map { |c| [c.name, @types.type(c, fallback: 'untyped')] }
+        pairs = table.columns.map { |c| [Code.attr_name(c.name), @types.type(c, fallback: 'untyped')] }
         members << dataclass(table.model_name, pairs)
       end
       return [] if members.empty?

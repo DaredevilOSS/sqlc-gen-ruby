@@ -60,11 +60,23 @@ module SqlcGenRuby
       "#{type.schema}.#{name}"
     end
 
+    # authors => Author; when two tables would share a model (author and authors) the plural one keeps its plural name.
     def assign_model_names
-      @tables.each do |t|
-        base = Code.camelize(Code.singularize(t.name))
-        t.model_name = default_schema?(t.schema) ? base : Code.camelize(t.schema) + base
+      @tables.each { |t| t.model_name = model_name(t, Code.singularize(t.name)) }
+      @tables.group_by(&:model_name).each_value do |same|
+        same.each { |t| t.model_name = model_name(t, t.name) } if same.size > 1
       end
+      @tables.group_by(&:model_name).each do |name, same|
+        next if same.size == 1
+
+        tables = same.map { |t| "#{t.schema}.#{t.name}" }.join(', ')
+        raise ArgumentError, "tables #{tables} would all generate the model class #{name}"
+      end
+    end
+
+    def model_name(table, base)
+      name = Code.camelize(base)
+      default_schema?(table.schema) ? name : Code.camelize(table.schema) + name
     end
   end
 end

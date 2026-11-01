@@ -23,12 +23,14 @@ module SqlcGenRuby
       @statement_prefix = Code.snake_case(class_name)
     end
 
+    # `created_at > $1 AND created_at < $2` -> created_at:, created_at_2:
     def params(query)
-      query.params.map do |p|
+      names = unique_param_names(query.params.map { |p| Code.param_name(p.column.name) })
+      query.params.zip(names).map do |p, name|
         column = p.column
         slice = column.is_sqlc_slice
         type = slice ? @types.slice_type(column, query.name) : @types.type(column, query_name: query.name)
-        Param.new(Code.param_name(column.name), column, slice, column.is_named_param && @types.nullable?(column, query.name), type)
+        Param.new(name, column, slice, column.is_named_param && @types.nullable?(column, query.name), type)
       end
     end
 
@@ -77,6 +79,17 @@ module SqlcGenRuby
 
     private
 
+    def unique_param_names(bases)
+      used = []
+      bases.map do |base|
+        name = base
+        suffix = 1
+        name = "#{base}_#{suffix += 1}" while used.include?(name) || (name != base && bases.include?(name))
+        used << name
+        name
+      end
+    end
+
     def slice?(query) = query.params.any? { |p| p.column.is_sqlc_slice }
 
     def return_type(query)
@@ -101,7 +114,7 @@ module SqlcGenRuby
 
       table = query.insert_into_table
       name = table.schema.to_s.empty? ? table.name : "#{table.schema}.#{table.name}"
-      @driver.copy_from_lines('rows', name, params.map { |p| p.column.name }, params.map(&:name),
+      @driver.copy_from_lines('rows', name, params.map { |p| p.column.name }, params.map { |p| Code.attr_name(p.name) },
                               Code.snake_case(query.name))
     end
 
@@ -167,7 +180,8 @@ module SqlcGenRuby
         if entry.table
           values = entry.table.columns.each_index.map { |i| "row[#{index + i}]" }
           index += values.size
-          "#{entry.table.model_name}.new(#{Code.comma_join(values)})"
+          model = "#{entry.table.model_name}.new(#{Code.comma_join(values)})"
+          entry.optional ? "#{missing_row_check(entry.table, values)} ? nil : #{model}" : model
         else
           access = array ? "row[#{index}]" : "row['#{entry.column.name}']"
           index += 1
@@ -175,6 +189,13 @@ module SqlcGenRuby
         end
       end
       "#{query.name}Row.new(#{Code.comma_join(args)})"
+    end
+
+    # The outer side of a join is missing when its NOT NULL columns (all columns if it has none) are NULL.
+    def missing_row_check(table, values)
+      required = table.columns.each_index.select { |i| table.columns[i].not_null }
+      required = table.columns.each_index.to_a if required.empty?
+      required.map { |i| "#{values[i]}.nil?" }.join(' && ')
     end
   end
 end

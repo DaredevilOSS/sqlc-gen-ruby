@@ -13,7 +13,7 @@ module SqlcGenRuby
     def type(column, query_name: nil, fallback: :raise)
       override = query_name && @options.override_for(query_name, column.name)
       base = override ? override.type : @driver.column_type(column, fallback: fallback)
-      base = "Array[#{base}]" if column.is_array && !override
+      base = array_of(base, column) if column.is_array && !override
       not_null?(column, override) || base == 'untyped' ? base : "#{base}?"
     end
 
@@ -28,6 +28,11 @@ module SqlcGenRuby
     end
 
     private
+
+    # int[][] -> Array[Array[Integer]] (sqlc sends array_dims; 0 from older versions means 1)
+    def array_of(base, column)
+      [column.array_dims.to_i, 1].max.times.reduce(base) { |type, _| "Array[#{type}]" }
+    end
 
     def not_null?(column, override)
       override&.not_null.nil? ? column.not_null : override.not_null

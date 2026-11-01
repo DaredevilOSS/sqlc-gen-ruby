@@ -198,6 +198,36 @@ module PgCodegen
 
   TRUNCATE_EXTRA_TYPES_SQL: String
 
+  INSERT_ARRAY_TYPES_SQL: String
+
+  GET_ARRAY_TYPES_SQL: String
+
+  class GetArrayTypesRow
+    attr_reader c_uuid_array: Array[String]?
+    attr_reader c_bio_type_array: Array[String]?
+    attr_reader c_integer_matrix: Array[Array[Integer]]?
+    def initialize: (  Array[String]? c_uuid_array, Array[String]? c_bio_type_array, Array[Array[Integer]]? c_integer_matrix) -> void
+  end
+
+  TRUNCATE_ARRAY_TYPES_SQL: String
+
+  LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL: String
+
+  class ListAuthorsWithOptionalBookRow
+    attr_reader author: Author?
+    attr_reader book: Book?
+    def initialize: (  Author? author, Book? book) -> void
+  end
+
+  LIST_AUTHORS_BETWEEN_IDS_SQL: String
+
+  class ListAuthorsBetweenIdsRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow
@@ -298,6 +328,18 @@ module PgCodegen
     def get_extra_types!: -> GetExtraTypesRow
 
     def truncate_extra_types: -> void
+
+    def insert_array_types: (c_uuid_array: Array[String]?, c_bio_type_array: Array[String]?, c_integer_matrix: Array[Array[Integer]]?) -> void
+
+    def get_array_types: -> GetArrayTypesRow?
+
+    def get_array_types!: -> GetArrayTypesRow
+
+    def truncate_array_types: -> void
+
+    def list_authors_with_optional_book: -> Array[ListAuthorsWithOptionalBookRow]
+
+    def list_authors_between_ids: (id: Integer, id_2: Integer) -> Array[ListAuthorsBetweenIdsRow]
 
     def many_params: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow?
 

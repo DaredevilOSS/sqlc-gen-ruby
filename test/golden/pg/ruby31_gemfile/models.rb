@@ -50,6 +50,9 @@ module PgCodegen
   )
   end
 
+  class PostgresArrayType < Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix)
+  end
+
   class ExtendedBio < Struct.new(:author_name, :name, :bio_type)
   end
 end
