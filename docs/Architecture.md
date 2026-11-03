@@ -21,14 +21,14 @@ stdout ◄─ Proto (encode) ◄─ GenerateResponse (query_sql.rb, query_sql.rb
 | `exe/plugin.rb` | entry point. Errors go to stderr with exit code 1 (sqlc shows them); `SQLC_GEN_RUBY_DEBUG=1` adds a backtrace |
 | `proto.rb`, `plugin_pb.rb` | a ~150 line protobuf wire codec and the subset of sqlc's `codegen.proto` we read. Field numbers must match upstream. `google-protobuf` is a C extension and cannot run inside ruby.wasm |
 | `options.rb`, `ruby_version.rb` | parse + validate the `options:` JSON (`driver`, `rubyVersion`, `overrides`, `rename`, ...; unknown keys are errors) |
-| `generator.rb` | the orchestrator: one file per query file (`query_sql.rb`), plus `models.rb`, `connection.rb`, `Gemfile`; builds the module / class / `Data` skeleton |
-| `method_gen.rb` | the code of one query: signature (keyword arguments), SQL constant, command (`:one`, `:many`, `:exec`, `:execrows`, `:execlastid`, `:copyfrom`), `sqlc.slice`, bang finder, and the RBS signature |
+| `generator.rb` | the orchestrator: one file per query file (`query_sql.rb`), plus `models.rb`, `connection.rb` (per-connection state and helpers the query classes share), `Gemfile`; builds the module / class / `Data` skeleton |
+| `method_gen.rb` | the code of one query: signature (keyword arguments), SQL constant, command (`:one`, `:many`, `:exec`, `:execrows`, `:execlastid`, `:execresult`, `:batchexec` / `:batchone` / `:batchmany`, `:copyfrom`), `sqlc.slice`, bang finder, and the RBS signature |
 | `row_layout.rb` | turns result columns into row attributes; `sqlc.embed` collapses a table's columns into one model attribute |
-| `type_resolver.rb` | RBS type of a column / parameter: driver type table, arrays, nullability (`T?`), `overrides:` |
+| `type_resolver.rb` | RBS type of a column / parameter: driver type table, arrays, nullability (`T?`), `overrides:` (a `db_type` override types array elements too) |
 | `catalog.rb` | the schema's tables and enums, and their Ruby names |
 | `drivers/base.rb` | the driver interface and what all drivers share: `instrument` logging, `NotFound`, transaction RBS |
 | `drivers/{pg,mysql2,sqlite3}.rb` | the per-library parts: type mapping, connecting / pooling, preparing and executing statements, transactions, `:copyfrom` |
-| `code.rb` | text helpers: indentation, `snake_case`, `camelize`, Ruby-keyword-safe parameter names |
+| `code.rb` | text helpers: indentation, `snake_case`, `camelize`, Ruby-keyword-safe parameter names, `rubocop:disable` pairs for schema names that break a naming cop |
 
 **Rule of thumb:** `MethodGen` / `Generator` decide *what* is generated and are the same for every database; a driver only
 supplies *snippets* (how to prepare a statement, how to read the affected rows, ...). If you find a `case driver` in
@@ -67,6 +67,10 @@ Design decisions worth knowing (the *why* is in the comments of `drivers/base.rb
 * **Pool injection.** `QuerySql.new(pool)` accepts anything that responds to `#with`, so an app can share its pool
   and tests can pass a fake. `connect(...)` is only a convenience that builds a `connection_pool`.
 * **Statements are closed.** SQLite/MySQL statements are closed in `ensure` (an open SQLite statement blocks `COMMIT`).
+* **Parameters are encoded by the driver.** `Driver#encode_param` (e.g. `bytea`, `json` and arrays on `pg`) is used by
+  every command, batches included; add a type's encoding there, not in `MethodGen`.
+* **`:copyfrom` is all or nothing** on every driver (a savepoint / transaction around the load), and MySQL's
+  `LOAD DATA` warnings (skipped duplicates, coerced values) are raised as errors.
 * **Nothing from the plugin leaks into the app.** The generated code only requires the driver gem and `connection_pool`.
 
 ## Adding things

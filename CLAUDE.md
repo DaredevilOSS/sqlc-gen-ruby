@@ -36,7 +36,7 @@ UPDATE_GOLDEN=1 bundle exec ruby -Itest test/extended_golden_test.rb   # rewrite
   relative to the config file.
 
 ## Git, CI and releases
-* Develop on a feature branch, small commits; PRs target `main`. Label PRs (`feature`, `bug`, `breaking`, `documentation`).
+* Develop on a feature branch, small commits; PRs target `main`. Label PRs (`bug`, `enhancement`, `documentation`; `breaking` for incompatible changes, see `.github/release.yml`).
 * CI: `build.yml` (WASM, lint, `sqlc diff`, Steep, option matrix) and `tests.yml` (unit, Ruby 3.1/3.2/3.4, E2E on real
   PostgreSQL/MySQL/SQLite). Both must be green.
 * **Never create tags or releases by hand and never add release markers to commit messages.** Releases are started by a

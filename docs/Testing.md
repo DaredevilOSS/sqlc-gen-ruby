@@ -28,10 +28,13 @@ They `require` the generated code from `examples/` and run it against a real dat
 `rbs_types.rb` additionally checks that returned values match the generated `.rbs` types.
 * SQLite needs nothing: `rake end2end_sqlite3`.
 * PostgreSQL / MySQL: provide a server, load `examples/authors/<db>/schema.sql`, and set `DB_NAME DB_USER DB_PASS
-  POSTGRES_HOST MYSQL_HOST` (optionally `*_PORT`). MySQL needs `local_infile=1` for `:copyfrom`.
+  POSTGRES_HOST MYSQL_HOST` (optionally `*_PORT`). MySQL needs `local_infile=1` for `:copyfrom`, and the MySQL tests
+  connect without a password (`DB_PASS` is only used for PostgreSQL), so use a user without one.
   Or run everything in Docker: `rake run_end2end_tests` (docker-compose).
-* They cover every query command, transactions (nested, isolation), pool injection, logging, bang finders, `copyfrom`
-  with awkward values, Fiber-scheduler concurrency (`async` gem) and statement-leak checks.
+* They cover every query command (batches with encoded `bytea` / `json` values too), transactions (nested,
+  isolation, `break` / `throw`, a rescued failed statement on PostgreSQL, SQLite threads sharing a database), pool
+  injection, logging, bang finders, `:copyfrom` with awkward and binary values and its all-or-nothing behaviour,
+  Fiber-scheduler concurrency (`async` gem) and statement-leak checks.
 
 ## CI workflows (`.github/workflows/`)
 | Workflow | When | What |
