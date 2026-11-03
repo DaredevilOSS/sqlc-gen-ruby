@@ -45,10 +45,6 @@ jobs:
       - name: Load tool versions
         run: grep -E '^[A-Z_]+=' scripts/tool-versions.env >> "$GITHUB_ENV"
 
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ matrix.ruby-version }}
-
       - uses: sqlc-dev/setup-sqlc@bac53b7fb28c039a6c7f5736fd1e89744021bdd6 # v5.0.0
         with:
           sqlc-version: '${{ env.SQLC_VERSION }}'
@@ -79,6 +75,12 @@ jobs:
           & "$bin\mysqld" --install
           net start MySQL
           & "$bin\mysqladmin" -u $env:DB_USER create $env:DB_NAME
+
+      # after the databases: their bin dirs (PostgreSQL ships its own zlib/iconv DLLs) must come after Ruby's MSYS2
+      # toolchain on PATH, or gcc fails silently on Windows and no native gem builds
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
 
       - uses: actions/download-artifact@v8
         with:

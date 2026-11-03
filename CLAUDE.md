@@ -45,7 +45,9 @@ UPDATE_GOLDEN=1 bundle exec ruby -Itest test/extended_golden_test.rb   # rewrite
 * Develop on a feature branch, small commits; PRs target `main`. Label PRs (`bug`, `enhancement`, `documentation`; `breaking` for incompatible changes, see `.github/release.yml`).
 * CI: `build.yml` (WASM, lint, `sqlc diff`, Steep, option matrix) and `tests.yml` (unit, compatibility Ruby
   3.1/3.2/3.4/4.0, full E2E Ruby 3.1–4.0, Ruby 4.0 module-name variants and PostgreSQL without prepared statements,
-  plus generator-options E2E on Ruby 3.1/4.0 against PostgreSQL 16, MySQL 8.3 and SQLite). Both must be green.
+  plus generator-options E2E on Ruby 3.1/4.0 against PostgreSQL 16, MySQL 8.3 and SQLite). `build.yml` also runs
+  `cross-platform.yml`: the Linux-built WASM, the process plugin and all E2E suites on macOS and Windows (Ruby 3.1/4.0,
+  native databases). All must be green; every job has `timeout-minutes: 10`.
 * **Never create tags or releases by hand and never add release markers to commit messages.** Releases are started by a
   maintainer with the *Release* workflow (`docs/Releasing.md`); do not trigger it unless explicitly asked.
 * Tool versions (sqlc, ruby.wasm) are pinned in `scripts/tool-versions.env`; bump them there only.

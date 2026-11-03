@@ -46,6 +46,7 @@ They `require` the generated code from `examples/` and run it against a real dat
 |---|---|---|
 | `build.yml` | push to `main`, pull requests (not for Markdown-only changes), release | build `plugin.wasm`; lint; `sqlc diff` with the WASM and the process plugin; Steep; generate with option combinations (Ruby 3.1/3.2/3.3/4.0 × types/Gemfile) and check the output with the matching Ruby |
 | `tests.yml` | same | unit tests; plugin compatibility on Ruby 3.1 / 3.2 / 3.4 / 4.0; full E2E matrix on Ruby 3.1 / 3.2 / 3.3 / 3.4 / 4.0; Ruby 4.0 module-name variants for MySQL and SQLite and module-name + no-prepared-statements variant for PostgreSQL; PostgreSQL 16.2, MySQL 8.3.0, and SQLite; generator-options E2E on Ruby 3.1 / 4.0 |
+| `cross-platform.yml` | called by `build.yml` after `build-wasm` | macOS and Windows × Ruby 3.1 / 4.0 (oldest and newest supported): unit + golden tests; `sqlc diff` with the Linux-built `plugin.wasm` and with the process plugin (`exe\plugin.cmd` on Windows); WASM codegen check; full E2E for SQLite, PostgreSQL (16 on macOS, 17 on Windows) and MySQL 8.4, installed natively (`ankane/setup-postgres`, `ankane/setup-mysql`, the image's MySQL on Windows), using the generated Gemfiles; generator-options E2E |
 | `docs.yml` | `examples/` change on `main`, manual | regenerates `docs/Examples.md` and opens a PR |
 | `release.yml` | manual only | see [Releasing](Releasing.md) |
 
