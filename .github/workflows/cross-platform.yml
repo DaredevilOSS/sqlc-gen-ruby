@@ -21,8 +21,66 @@ env:
   MYSQL_HOST: 127.0.0.1
 
 jobs:
-  cross-platform:
-    name: ${{ matrix.os-name }}, Ruby ${{ matrix.ruby-version }}
+  codegen:
+    name: Codegen (${{ matrix.os-name }}, Ruby ${{ matrix.ruby-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+        ruby-version: ['3.1', '4.0']
+        include:
+          - { os: macos-latest, os-name: macOS }
+          - { os: windows-latest, os-name: Windows }
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Load tool versions
+        run: grep -E '^[A-Z_]+=' scripts/tool-versions.env >> "$GITHUB_ENV"
+
+      - uses: sqlc-dev/setup-sqlc@bac53b7fb28c039a6c7f5736fd1e89744021bdd6 # v5.0.0
+        with:
+          sqlc-version: '${{ env.SQLC_VERSION }}'
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: wasm-file
+          path: dist
+
+      - name: Updating plugin sha
+        run: ./scripts/wasm/update_sha.sh sqlc.ci.yaml
+
+      # the process plugin on this OS's Ruby: no bundler, only the standard library + minitest
+      - name: Unit & golden tests
+        run: ruby -Ilib -Itest -e 'Dir["test/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
+
+      # the committed examples/ (LF, byte for byte) must come out of sqlc + the Linux-built WASM on this OS too
+      - name: Verify generated code is synced (WASM plugin)
+        run: sqlc -f sqlc.ci.yaml diff
+
+      - name: Verify generated code is synced (process plugin)
+        run: |
+          if [ "${RUNNER_OS}" = Windows ]; then
+            # Windows cannot execute plugin.rb directly: sqlc runs the exe\plugin.cmd wrapper (through cmd.exe, so backslashes)
+            sed 's#cmd: ./exe/plugin.rb#cmd: exe\\plugin.cmd#' sqlc.local.yaml > .sqlc-windows.yaml
+            trap 'rm -f .sqlc-windows.yaml' EXIT
+            sqlc -f .sqlc-windows.yaml diff
+          else
+            sqlc -f sqlc.local.yaml diff
+          fi
+
+      - name: Generate with the WASM for Ruby ${{ matrix.ruby-version }} and check the output
+        run: ruby scripts/tests/run_codegen.rb sqlc.ci.yaml "${{ matrix.ruby-version }}" true true
+
+  end2end:
+    name: End-to-End (${{ matrix.os-name }}, Ruby ${{ matrix.ruby-version }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
 
@@ -38,6 +96,7 @@ jobs:
     env:
       EXAMPLES_DIR: ${{ github.workspace }}/.examples-ruby-${{ matrix.ruby-version }}
       BUNDLE_GEMFILE: ${{ github.workspace }}/Gemfile.e2e
+      BUNDLE_PATH: ${{ github.workspace }}/.e2e-gems
 
     steps:
       - uses: actions/checkout@v7
@@ -90,28 +149,6 @@ jobs:
       - name: Updating plugin sha
         run: ./scripts/wasm/update_sha.sh sqlc.ci.yaml
 
-      # the process plugin on this OS's Ruby: no bundler, only the standard library + minitest
-      - name: Unit & golden tests
-        run: ruby -Ilib -Itest -e 'Dir["test/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
-
-      # the committed examples/ (LF, byte for byte) must come out of sqlc + the Linux-built WASM on this OS too
-      - name: Verify generated code is synced (WASM plugin)
-        run: sqlc -f sqlc.ci.yaml diff
-
-      - name: Verify generated code is synced (process plugin)
-        run: |
-          if [ "${RUNNER_OS}" = Windows ]; then
-            # Windows cannot execute plugin.rb directly: sqlc runs the exe\plugin.cmd wrapper (through cmd.exe, so backslashes)
-            sed 's#cmd: ./exe/plugin.rb#cmd: exe\\plugin.cmd#' sqlc.local.yaml > .sqlc-windows.yaml
-            trap 'rm -f .sqlc-windows.yaml' EXIT
-            sqlc -f .sqlc-windows.yaml diff
-          else
-            sqlc -f sqlc.local.yaml diff
-          fi
-
-      - name: Generate with the WASM for Ruby ${{ matrix.ruby-version }} and check the output
-        run: ruby scripts/tests/run_codegen.rb sqlc.ci.yaml "${{ matrix.ruby-version }}" true true
-
       # the E2E suites below run this WASM output, with the Gemfile it generates
       - name: Generate the E2E examples with the WASM
         run: ruby scripts/tests/generate_examples.rb "${{ matrix.ruby-version }}" sqlc.ci.yaml --generate-gemfile
@@ -133,6 +170,17 @@ jobs:
           else
             echo "BUNDLE_BUILD__MYSQL2=--with-opt-dir=$(brew --prefix openssl@3):$(brew --prefix zstd)" >> "$GITHUB_ENV"
           fi
+
+      # prism (minitest 6), mysql2 and date compile from source on Windows (~2 min): keep the installed gems, per runner
+      # image (the native extensions link against its libraries)
+      - name: Runner image
+        id: image
+        run: echo "version=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ${{ env.BUNDLE_PATH }}
+          key: e2e-gems-${{ steps.image.outputs.version }}-ruby${{ matrix.ruby-version }}-${{ hashFiles('Gemfile.e2e', 'Gemfile.options.e2e') }}
 
       - name: End-to-End tests (SQLite)
         if: ${{ !cancelled() }}
