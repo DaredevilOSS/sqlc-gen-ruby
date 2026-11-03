@@ -25,4 +25,6 @@ module Sqlite3Codegen
   )
 
   Regression = Struct.new(:id, :order, :price, keyword_init: true)
+
+  Tag = Struct.new(:name, :uses, keyword_init: true)
 end

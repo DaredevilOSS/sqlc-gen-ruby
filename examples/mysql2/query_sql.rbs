@@ -273,6 +273,75 @@ module Mysql2Codegen
 
   TRUNCATE_REGRESSIONS_SQL: String
 
+  class CopyCopyTypesArgs
+    attr_reader id: Integer
+    attr_reader code: String
+    attr_reader doc: String?
+    attr_reader flags: String?
+    attr_reader amount: Integer?
+    def initialize: (
+        Integer id,
+        String code,
+        String? doc,
+        String? flags,
+        Integer? amount
+    ) -> void
+  end
+
+  class CopyCopyTypesIgnoreArgs
+    attr_reader id: Integer
+    attr_reader code: String
+    def initialize: (  Integer id, String code) -> void
+  end
+
+  class CopyCopyTypesReplaceArgs
+    attr_reader id: Integer
+    attr_reader code: String
+    def initialize: (  Integer id, String code) -> void
+  end
+
+  CREATE_COPY_TYPES_BATCH_SQL: String
+
+  class CreateCopyTypesBatchArgs
+    attr_reader id: Integer
+    attr_reader code: String
+    attr_reader flags: String?
+    attr_reader amount: Integer?
+    def initialize: (  Integer id, String code, String? flags, Integer? amount) -> void
+  end
+
+  COUNT_COPY_TYPES_BY_CODES_SQL: String
+
+  class CountCopyTypesByCodesRow
+    attr_reader matches: Integer
+    def initialize: (  Integer matches) -> void
+  end
+
+  class CountCopyTypesByCodesArgs
+    attr_reader code: String
+    attr_reader code_2: String
+    def initialize: (  String code, String code_2) -> void
+  end
+
+  LIST_COPY_TYPES_SQL: String
+
+  class ListCopyTypesRow
+    attr_reader id: Integer
+    attr_reader code: String
+    attr_reader doc: String?
+    attr_reader flags: String?
+    attr_reader amount: Integer?
+    def initialize: (
+        Integer id,
+        String code,
+        String? doc,
+        String? flags,
+        Integer? amount
+    ) -> void
+  end
+
+  TRUNCATE_COPY_TYPES_SQL: String
+
   class QuerySql
     class NotFound < StandardError
     end
@@ -359,6 +428,20 @@ module Mysql2Codegen
 
     def truncate_regressions: -> void
 
+    def copy_copy_types: (Array[CopyCopyTypesArgs] rows) -> void
+
+    def copy_copy_types_ignore: (Array[CopyCopyTypesIgnoreArgs] rows) -> void
+
+    def copy_copy_types_replace: (Array[CopyCopyTypesReplaceArgs] rows) -> void
+
+    def create_copy_types_batch: (Array[CreateCopyTypesBatchArgs] rows) -> void
+
+    def count_copy_types_by_codes: (Array[CountCopyTypesByCodesArgs] rows) -> Array[CountCopyTypesByCodesRow?]
+
+    def list_copy_types: -> Array[ListCopyTypesRow]
+
+    def truncate_copy_types: -> void
+
     private
 
     def instrument: [T] (String name) { () -> T } -> T
@@ -367,7 +450,7 @@ module Mysql2Codegen
 
     def csv_line: (Array[untyped] values) -> String
 
-    def load_data: (untyped client, String sql) -> void
+    def load_data: (untyped client, String sql, ?strict: bool) -> void
 
     def slice_placeholders: (Array[untyped] values) -> String
   end

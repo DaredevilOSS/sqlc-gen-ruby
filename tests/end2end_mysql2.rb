@@ -3,6 +3,7 @@ gem 'minitest'     # ensures using the gem, and not the built-in MT
 require 'minitest/autorun'
 require 'logger'
 require 'stringio'
+require 'json'
 require 'async'
 require 'async/barrier'
 require_relative 'consts'
@@ -28,6 +29,7 @@ class TestMysql2 < Minitest::Test
     @query_sql.truncate_authors # cascades to books
     @query_sql.truncate_extended_bios
     @query_sql.truncate_regressions
+    @query_sql.truncate_copy_types
   end
 
   def create_author(name, bio = nil)
@@ -427,5 +429,46 @@ class TestMysql2 < Minitest::Test
     end
     pooled.instance_variable_get(:@db).with { |client| refute client.in_transaction }
     assert_equal ['break 0', 'break 1', 'throw'], @query_sql.list_authors.map(&:name).sort
+  end
+
+  # ---- final sweep fixes: :copyfrom into JSON, IGNORE / REPLACE, reused statements, dead connections ------------
+
+  def copy_type_rows = @query_sql.list_copy_types.map { |r| [r.id, r.code, r.doc && JSON.parse(r.doc), r.flags, r.amount] }
+
+  def test_copyfrom_loads_json_next_to_binary_values
+    @query_sql.copy_copy_types([CopyCopyTypesArgs.new(id: 1, code: 'é', doc: '{"a": [1, "é"]}', flags: "\x83".b, amount: 4_000_000_000),
+                                CopyCopyTypesArgs.new(id: 2, code: 'b', doc: nil, flags: nil, amount: nil)])
+    assert_equal [[1, 'é', { 'a' => [1, 'é'] }, "\x83".b, 4_000_000_000], [2, 'b', nil, nil, nil]], copy_type_rows
+  end
+
+  def test_copyfrom_keeps_insert_ignore_and_replace
+    @query_sql.copy_copy_types_ignore([CopyCopyTypesIgnoreArgs.new(id: 1, code: 'a'), CopyCopyTypesIgnoreArgs.new(id: 1, code: 'b')])
+    assert_equal [[1, 'a']], copy_type_rows.map { |r| r.first(2) }
+    @query_sql.copy_copy_types_replace([CopyCopyTypesReplaceArgs.new(id: 1, code: 'c'), CopyCopyTypesReplaceArgs.new(id: 2, code: 'd')])
+    assert_equal [[1, 'c'], [2, 'd']], copy_type_rows.map { |r| r.first(2) }
+  end
+
+  def test_batch_with_binary_parameters_after_an_unsigned_int
+    rows = (1..5).map { |i| CreateCopyTypesBatchArgs.new(id: i, code: "c#{i}", flags: [0x83 + i].pack('C'), amount: 586_988_122 + i) }
+    @query_sql.create_copy_types_batch(rows)
+    assert_equal(rows.map { |r| [r.id, r.flags, r.amount] }, copy_type_rows.map { |r| [r[0], r[3], r[4]] })
+    counts = @query_sql.count_copy_types_by_codes([CountCopyTypesByCodesArgs.new(code: 'c1', code_2: 'c2')])
+    assert_equal [2], counts.map(&:matches)
+  end
+
+  def test_nested_transaction_rejects_an_isolation_level
+    @query_sql.transaction do |tx|
+      assert_raises(ArgumentError) { tx.transaction(isolation: :serializable) { nil } }
+    end
+  end
+
+  def test_a_connection_closed_by_the_server_is_replaced
+    pooled = QuerySql.connect(mysql2_params, size: 1)
+    id = pooled.instance_variable_get(:@db).with(&:thread_id)
+    admin = Mysql2::Client.new(**mysql2_params.transform_keys(&:to_sym))
+    admin.query("KILL #{id}")
+    admin.close
+    assert_raises(Mysql2::Error) { pooled.list_authors }
+    assert_equal [], pooled.list_authors
   end
 end

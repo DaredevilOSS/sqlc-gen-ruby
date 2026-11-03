@@ -218,6 +218,26 @@ module Sqlite3Codegen
     DELETE FROM regressions
   SQL
 
+  class CopyTagsOrReplaceArgs < Data.define(:name, :uses)
+  end
+
+  class CopyTagsOrIgnoreArgs < Data.define(:name, :uses)
+  end
+
+  class CopyTagsAddingUsesArgs < Data.define(:name, :uses)
+  end
+
+  LIST_TAGS_SQL = <<~'SQL'
+    SELECT name, uses FROM tags ORDER BY name
+  SQL
+
+  class ListTagsRow < Data.define(:name, :uses)
+  end
+
+  TRUNCATE_TAGS_SQL = <<~'SQL'
+    DELETE FROM tags
+  SQL
+
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
@@ -270,6 +290,8 @@ module Sqlite3Codegen
       instrument('transaction') do
         @lock.synchronize do
           outermost = !@db.transaction_active?
+          raise ArgumentError, 'mode: cannot be set on a nested transaction' if mode && !outermost
+
           savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
           @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
           rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
@@ -722,6 +744,68 @@ module Sqlite3Codegen
     def truncate_regressions
       with_client('truncate_regressions') do |client|
         stmt = client.prepare(TRUNCATE_REGRESSIONS_SQL)
+        begin
+          stmt.execute
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def copy_tags_or_replace(rows)
+      with_client('copy_tags_or_replace') do |client|
+        atomically(client) do
+          rows.each_slice(499) do |batch|
+            sql = %(INSERT OR REPLACE INTO "tags" ("name", "uses") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
+            client.execute(sql, batch.flat_map { |row| [row.name, row.uses] })
+          end
+        end
+        nil
+      end
+    end
+
+    def copy_tags_or_ignore(rows)
+      with_client('copy_tags_or_ignore') do |client|
+        atomically(client) do
+          rows.each_slice(499) do |batch|
+            sql = %(INSERT OR IGNORE INTO "tags" ("name", "uses") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
+            client.execute(sql, batch.flat_map { |row| [row.name, row.uses] })
+          end
+        end
+        nil
+      end
+    end
+
+    def copy_tags_adding_uses(rows)
+      with_client('copy_tags_adding_uses') do |client|
+        atomically(client) do
+          rows.each_slice(499) do |batch|
+            sql = %(INSERT INTO "tags" ("name", "uses") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')} ON CONFLICT (name) DO UPDATE SET uses = tags.uses + excluded.uses)
+            client.execute(sql, batch.flat_map { |row| [row.name, row.uses] })
+          end
+        end
+        nil
+      end
+    end
+
+    def list_tags
+      with_client('list_tags') do |client|
+        stmt = client.prepare(LIST_TAGS_SQL)
+        begin
+          result = stmt.execute
+          result.map do |row|
+            ListTagsRow.new(row[0], row[1])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def truncate_tags
+      with_client('truncate_tags') do |client|
+        stmt = client.prepare(TRUNCATE_TAGS_SQL)
         begin
           stmt.execute
           nil

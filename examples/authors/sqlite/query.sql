@@ -112,3 +112,18 @@ SELECT coalesce(max(price), 0) AS max_price FROM regressions;
 
 -- name: TruncateRegressions :exec
 DELETE FROM regressions;
+
+-- name: CopyTagsOrReplace :copyfrom
+INSERT OR REPLACE INTO tags (name, uses) VALUES (?, ?);
+
+-- name: CopyTagsOrIgnore :copyfrom
+INSERT OR IGNORE INTO tags (name, uses) VALUES (?, ?);
+
+-- name: CopyTagsAddingUses :copyfrom
+INSERT INTO tags (name, uses) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET uses = tags.uses + excluded.uses;
+
+-- name: ListTags :many
+SELECT name, uses FROM tags ORDER BY name;
+
+-- name: TruncateTags :exec
+DELETE FROM tags;

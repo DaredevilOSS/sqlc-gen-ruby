@@ -117,9 +117,13 @@ end
 * Everything in the block runs on one connection. It commits when the block ends (also on `break`, `return`, `throw`)
   and rolls back when it raises or the thread is killed. A nested `transaction` rolls back only its own part.
 * `isolation:` (`pg`, `mysql2`) takes `:read_uncommitted`, `:read_committed`, `:repeatable_read`, `:serializable`;
-  `mode:` (`sqlite3`) takes `:deferred`, `:immediate`, `:exclusive`. Other values raise before anything runs.
+  `mode:` (`sqlite3`) takes `:deferred`, `:immediate`, `:exclusive`. Other values raise before anything runs, and so
+  do `isolation:` / `mode:` on a nested `transaction` (a savepoint cannot change them).
 * PostgreSQL: if a statement fails and the block rescues the error, PostgreSQL still rolls the whole transaction
-  back, so `transaction` raises `PG::InFailedSqlTransaction` instead of pretending it committed.
+  back, so `transaction` raises `PG::InFailedSqlTransaction` instead of pretending it committed. In a nested
+  `transaction` only the savepoint is rolled back: the outer block can rescue that error and go on.
+* A connection the server closed (restart, failover, killed backend) is reconnected (`pg`) or replaced in the pool
+  (`mysql2`) the next time it is checked out; the call that hit the dead connection still raises.
 * SQLite: threads and fibers sharing one `SQLite3::Database` take turns; a transaction holds the database until it ends.
 
 ## Supported features
@@ -137,7 +141,12 @@ end
 
 `:copyfrom` uses `COPY ... FROM STDIN` on PostgreSQL and batched multi-row `INSERT`s on SQLite. On MySQL it uses
 `LOAD DATA LOCAL INFILE`, which needs `local_infile: true` in the `Mysql2::Client` params and `local_infile=1` on the
-server; duplicate keys and invalid values raise `Mysql2::Error` instead of being skipped.
+server; duplicate keys and invalid values raise `Mysql2::Error` instead of being skipped. Conflict clauses are kept:
+`INSERT OR REPLACE` / `OR IGNORE` / `ON CONFLICT ... DO ...` on SQLite, `INSERT IGNORE` (duplicates skipped) and
+`REPLACE` on MySQL. Clauses `COPY` / `LOAD DATA` cannot express (`ON CONFLICT` / `RETURNING` on PostgreSQL,
+`ON DUPLICATE KEY UPDATE` on MySQL) are generation errors; use `:batchexec` for those.
+* MySQL: `LOAD DATA` commits an open transaction that was started with raw SQL (`BEGIN`); call `:copyfrom` inside
+  `transaction` instead.
 
 ### Macros
 | Macro | PostgreSQL | MySQL | SQLite | Notes |
@@ -161,7 +170,7 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   The generated SQLite code uses `Monitor`: if you run Steep, add `library "monitor"` to your `Steepfile`.
 
 ### Names
-* Names are snake_cased. Ruby keywords and names a row or method already uses get a trailing `_` (`class_`, `hash_`).
+* Names are snake_cased, acronyms kept together (`MIN_ID` → `min_id`, `HTTPServer` → `http_server`). Ruby keywords and names a row or method already uses get a trailing `_` (`class_`, `hash_`).
 * A parameter used twice is one keyword when named with `sqlc.arg`; repeated `?` / `$n` of one column become `id:`, `id_2:`.
 * A table `authors` next to a table `author` keeps its plural model name (`Authors`). Query names that would replace
   a generated method (`Transaction`, `Initialize`, ...) are errors.
@@ -170,6 +179,9 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 * Two result columns with the same name (e.g. `a.id, b.id`) are an error: alias one (`b.id AS book_id`) or use `sqlc.embed`.
 * `rubyVersion` takes `3.4` but not a patch version of it (`3.4.1`).
 * SQLite's `NUMERIC` affinity can return an `Integer` where `Float` is declared.
+* `:batchexec` / `:batchone` / `:batchmany` are not atomic on their own: wrap them in `transaction` for all-or-nothing.
+* SQLite: a transaction belongs to the thread that opened it; a Fiber / `Enumerator#next` inside it that uses the same
+  database waits for it (with `async`, run the work in the transaction's own fiber).
 * Not applicable to Ruby (they exist in the C# plugin): `withAsyncSuffix` / `withCancellationToken` (use the Fiber
   scheduler), `useDapper`, target framework / csproj options (`moduleName` replaces the namespace).
 

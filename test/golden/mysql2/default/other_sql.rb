@@ -48,6 +48,8 @@ module Mysql2Codegen
     def transaction(isolation: nil)
       with_client('transaction') do |client|
         outermost = !client.in_transaction
+        raise ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
+
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         if outermost
           client.query("SET TRANSACTION ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}") if isolation
@@ -145,7 +147,13 @@ module Mysql2Codegen
       instrument(name) do
         @db.with do |client|
           client.extend(ConnectionState) unless client.is_a?(ConnectionState)
-          yield client
+          begin
+            yield client
+          rescue Mysql2::Error
+            # a connection closed by the server (restart, KILL, wait_timeout) is replaced by the pool
+            @db.discard_current_connection if client.closed? && @db.respond_to?(:discard_current_connection)
+            raise
+          end
         end
       end
     end

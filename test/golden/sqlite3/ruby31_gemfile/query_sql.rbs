@@ -240,6 +240,38 @@ module Sqlite3Codegen
 
   TRUNCATE_REGRESSIONS_SQL: String
 
+  class CopyTagsOrReplaceArgs < ::Struct[untyped]
+    attr_accessor name: String
+    attr_accessor uses: Integer
+    def initialize: (  name: String, uses: Integer) -> void
+    def self.new: (  name: String, uses: Integer) -> CopyTagsOrReplaceArgs
+  end
+
+  class CopyTagsOrIgnoreArgs < ::Struct[untyped]
+    attr_accessor name: String
+    attr_accessor uses: Integer
+    def initialize: (  name: String, uses: Integer) -> void
+    def self.new: (  name: String, uses: Integer) -> CopyTagsOrIgnoreArgs
+  end
+
+  class CopyTagsAddingUsesArgs < ::Struct[untyped]
+    attr_accessor name: String
+    attr_accessor uses: Integer
+    def initialize: (  name: String, uses: Integer) -> void
+    def self.new: (  name: String, uses: Integer) -> CopyTagsAddingUsesArgs
+  end
+
+  LIST_TAGS_SQL: String
+
+  class ListTagsRow < ::Struct[untyped]
+    attr_accessor name: String
+    attr_accessor uses: Integer
+    def initialize: (  name: String, uses: Integer) -> void
+    def self.new: (  name: String, uses: Integer) -> ListTagsRow
+  end
+
+  TRUNCATE_TAGS_SQL: String
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow < ::Struct[untyped]
@@ -362,6 +394,16 @@ module Sqlite3Codegen
     def get_max_regression_price!: -> GetMaxRegressionPriceRow
 
     def truncate_regressions: -> void
+
+    def copy_tags_or_replace: (Array[CopyTagsOrReplaceArgs] rows) -> void
+
+    def copy_tags_or_ignore: (Array[CopyTagsOrIgnoreArgs] rows) -> void
+
+    def copy_tags_adding_uses: (Array[CopyTagsAddingUsesArgs] rows) -> void
+
+    def list_tags: -> Array[ListTagsRow]
+
+    def truncate_tags: -> void
 
     def many_params: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow?
 

@@ -20,8 +20,9 @@ module SqlcGenRuby
       "\n#{indent(items.join(",\n"))}\n"
     end
 
+    # GetAuthor => get_author, userId => user_id, GetByID => get_by_id, HTTPCode => http_code, ABC => abc
     def snake_case(str)
-      str.gsub(/([A-Z])/, '_\1').sub(/\A_+/, '').downcase
+      str.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([[:lower:]\d])([A-Z])/, '\1_\2').sub(/\A_+/, '').downcase
     end
 
     def upcase_first(str)
@@ -101,6 +102,7 @@ module SqlcGenRuby
       cops << 'Naming/MethodName' unless attributes.all? { |n| n.match?(/\A[\d[[:lower:]]_]+\z/) }
       cops << 'Naming/MethodParameterName' if params.any? { |n| n.length < 3 && !n.match?(/\d\z/) && !SHORT_NAMES.include?(n) }
       cops << 'Naming/AsciiIdentifiers' unless params.all?(&:ascii_only?)
+      cops << 'Naming/VariableNumber' if attributes.any? { |n| n.match?(/_\d+\z/) } # code_2 (repeated parameters)
       cops
     end
 

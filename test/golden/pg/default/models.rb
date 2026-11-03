@@ -76,6 +76,18 @@ module PgCodegen
   )
   end
 
+  class BatchType < Data.define(
+    :id,
+    :ok,
+    :ratio,
+    :blobs,
+    :docs,
+    :counts,
+    :amounts,
+    :stamps
+  )
+  end
+
   class ExtendedBio < Data.define(:author_name, :name, :bio_type)
   end
 end

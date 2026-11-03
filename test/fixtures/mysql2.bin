@@ -1,7 +1,7 @@
 
 
 
-2mysqlÍpublic"Âpublic€
+2mysql£public"˜public€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
@@ -75,7 +75,19 @@ c_longtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigint&
 order0ÿRregressionsb	varchar(
 note0ÿÿÿÿÿÿÿÿÿRregressionsbtext'
-payload0Rregressionsb	varbinary":
+payload0Rregressionsb	varbinaryÓ
+
+copy_types)
+id0ÿÿÿÿÿÿÿÿÿR
+copy_typesbbigint#
+code0 R
+copy_typesb	varchar&
+doc0ÿÿÿÿÿÿÿÿÿR
+copy_typesbjson
+flags0R
+copy_typesbbit+
+amount0ÿÿÿÿÿÿÿÿÿR
+copy_typesbint€":
 extended_bios_bio_typeAutobiography	BiographyMemoir"7
 extended_bios_author_typeAuthorEditor
 TranslatorË
@@ -281,4 +293,57 @@ HINSERT INTO regressions (id, `order`, note, payload) VALUES (?, ?, ?, ?)CopyR
 /SELECT id, payload FROM regressions ORDER BY idListRegressionPayloads:many".
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid"0
 payload0Rregressionsb	varbinaryzpayload:	query.sqlC
-TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sql 
+LINSERT INTO copy_types (id, code, doc, flags, amount) VALUES (?, ?, ?, ?, ?)CopyCopyTypes	:copyfrom*95
+id0ÿÿÿÿÿÿÿÿÿRpublic
+copy_typesbbigintzid*51
+code0 Rpublic
+copy_typesb	varcharzcode*73
+doc0ÿÿÿÿÿÿÿÿÿRpublic
+copy_typesbjsonzdoc*1-
+flags0Rpublic
+copy_typesbbitzflags*?;
+amount0ÿÿÿÿÿÿÿÿÿRpublic
+copy_typesbintzamount€:	query.sqlB
+copy_typesã
+6INSERT IGNORE INTO copy_types (id, code) VALUES (?, ?)CopyCopyTypesIgnore	:copyfrom*95
+id0ÿÿÿÿÿÿÿÿÿRpublic
+copy_typesbbigintzid*51
+code0 Rpublic
+copy_typesb	varcharzcode:	query.sqlB
+copy_typesÞ
+0REPLACE INTO copy_types (id, code) VALUES (?, ?)CopyCopyTypesReplace	:copyfrom*95
+id0ÿÿÿÿÿÿÿÿÿRpublic
+copy_typesbbigintzid*51
+code0 Rpublic
+copy_typesb	varcharzcode:	query.sqlB
+copy_typesç
+DINSERT INTO copy_types (id, code, flags, amount) VALUES (?, ?, ?, ?)CreateCopyTypesBatch
+:batchexec*95
+id0ÿÿÿÿÿÿÿÿÿRpublic
+copy_typesbbigintzid*51
+code0 Rpublic
+copy_typesb	varcharzcode*1-
+flags0Rpublic
+copy_typesbbitzflags*?;
+amount0ÿÿÿÿÿÿÿÿÿRpublic
+copy_typesbintzamount€:	query.sqlB
+copy_typesö
+ESELECT count(*) AS matches FROM copy_types WHERE code = ? OR code = ?CountCopyTypesByCodes	:batchone""
+matches0ÿÿÿÿÿÿÿÿÿ@bbigint*-)
+code0 R
+copy_typesb	varcharzcode*-)
+code0 R
+copy_typesb	varcharzcode:	query.sqlÅ
+?SELECT id, code, doc, flags, amount FROM copy_types ORDER BY idListCopyTypes:many"-
+id0ÿÿÿÿÿÿÿÿÿR
+copy_typesbbigintzid")
+code0 R
+copy_typesb	varcharzcode"+
+doc0ÿÿÿÿÿÿÿÿÿR
+copy_typesbjsonzdoc"%
+flags0R
+copy_typesbbitzflags"3
+amount0ÿÿÿÿÿÿÿÿÿR
+copy_typesbintzamount€:	query.sql@
+TRUNCATE TABLE copy_typesTruncateCopyTypes:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

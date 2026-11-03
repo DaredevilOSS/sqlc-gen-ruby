@@ -40,4 +40,10 @@ module Sqlite3Codegen
     attr_reader price: Float?
     def initialize: (  Integer id, String order, Float? price) -> void
   end
+
+  class Tag
+    attr_reader name: String
+    attr_reader uses: Integer
+    def initialize: (  String name, Integer uses) -> void
+  end
 end

@@ -36,6 +36,8 @@ module PgCodegen
     def transaction(isolation: nil)
       with_client('transaction') do |client|
         outermost = client.transaction_status == PG::PQTRANS_IDLE
+        raise ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
+
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         if outermost
           client.exec(isolation ? "BEGIN ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}" : 'BEGIN')
@@ -52,11 +54,12 @@ module PgCodegen
           raise
         ensure
           unless failed
+            # a statement failed and the block rescued the error: PostgreSQL can only roll back
+            rescued = client.transaction_status == PG::PQTRANS_INERROR
             commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-            result = client.exec(Thread.current.status == 'aborting' ? rollback : commit)
-            # COMMIT of a transaction aborted by an error the block rescued is a ROLLBACK
-            rolled_back = outermost && result.cmd_status == 'ROLLBACK' && Thread.current.status != 'aborting'
-            raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rolled_back
+            client.exec(rescued || Thread.current.status == 'aborting' ? rollback : commit)
+            client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
+            raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && Thread.current.status != 'aborting'
           end
         end
       end
@@ -91,6 +94,7 @@ module PgCodegen
     def with_client(name)
       instrument(name) do
         @db.with do |client|
+          client.reset if client.status == PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
           configure(client) unless client.is_a?(ConnectionState)
           yield client
         end
@@ -102,7 +106,10 @@ module PgCodegen
       type_map = PG::BasicTypeMapForResults.new(client)
       type_map.default_type_map = string_arrays(client) # uuid, enums, money, ... come back as Strings
       client.type_map_for_results = type_map
-      client.type_map_for_queries = PG::BasicTypeMapForQueries.new(client)
+      queries = PG::BasicTypeMapForQueries.new(client)
+      # true / false as text ('t' / 'f'), also valid in COPY (the default binary encoder is not)
+      queries[TrueClass] = queries[FalseClass] = PG::TextEncoder::Boolean.new(oid: 16)
+      client.type_map_for_queries = queries
       client.extend(ConnectionState)
     end
 

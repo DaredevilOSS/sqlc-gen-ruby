@@ -70,3 +70,11 @@ CREATE TABLE regressions (
   note    text,
   payload varbinary(16)
 );
+
+CREATE TABLE copy_types (
+  id     bigint NOT NULL PRIMARY KEY,
+  code   varchar(32) NOT NULL UNIQUE,
+  doc    json,
+  flags  bit(8),
+  amount int unsigned
+);

@@ -67,11 +67,15 @@ module SqlcGenRuby
       end
 
       # One multi-row `INSERT ... VALUES (?, ?), (?, ?), ...` per batch.
-      def copy_from_lines(rows_var, table, columns, values, _label)
+      # The conflict clause is kept: INSERT OR REPLACE / OR IGNORE, REPLACE, ON CONFLICT ... DO ... (without parameters).
+      def copy_from_lines(rows_var, table, columns, values, _label, query_name:, sources:, verb:, tail:)
+        raise ArgumentError, "#{query_name}: :copyfrom takes no parameters after VALUES (...)" if tail.include?('?')
+
         rows_per_batch = [MAX_BOUND_PARAMETERS / columns.size, 1].max
         placeholders = "(#{(['?'] * columns.size).join(', ')})"
+        tail = tail.empty? ? '' : " #{tail.gsub('\\') { '\\\\' }.gsub('#', '\\#')}"
         body = [
-          "sql = %(INSERT INTO #{table} (#{columns.join(', ')}) VALUES \#{Array.new(batch.size, '#{placeholders}').join(', ')})",
+          "sql = %(#{verb} INTO #{table} (#{columns.join(', ')}) VALUES \#{Array.new(batch.size, '#{placeholders}').join(', ')}#{tail})",
           "client.execute(sql, batch.flat_map { |row| [#{values.join(', ')}] })"
         ].join("\n")
         [Code.block('atomically(client) do', Code.block("#{rows_var}.each_slice(#{rows_per_batch}) do |batch|", body)), 'nil']
@@ -98,6 +102,8 @@ module SqlcGenRuby
           instrument('transaction') do
             @lock.synchronize do
               outermost = !@db.transaction_active?
+              raise ArgumentError, 'mode: cannot be set on a nested transaction' if mode && !outermost
+
               savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
               @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
               rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"

@@ -123,4 +123,19 @@ module Mysql2Codegen
     attr_reader payload: String?
     def initialize: (  Integer id, String order, String? note, String? payload) -> void
   end
+
+  class CopyType
+    attr_reader id: Integer
+    attr_reader code: String
+    attr_reader doc: String?
+    attr_reader flags: String?
+    attr_reader amount: Integer?
+    def initialize: (
+        Integer id,
+        String code,
+        String? doc,
+        String? flags,
+        Integer? amount
+    ) -> void
+  end
 end

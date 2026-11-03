@@ -180,6 +180,37 @@ module PgCodegen
     ) -> Regression
   end
 
+  class BatchType < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor ok: bool?
+    attr_accessor ratio: Float?
+    attr_accessor blobs: Array[String]?
+    attr_accessor docs: Array[untyped]?
+    attr_accessor counts: Array[Integer]?
+    attr_accessor amounts: Array[BigDecimal]?
+    attr_accessor stamps: Array[Time]?
+    def initialize: (
+        id: Integer,
+        ok: bool?,
+        ratio: Float?,
+        blobs: Array[String]?,
+        docs: Array[untyped]?,
+        counts: Array[Integer]?,
+        amounts: Array[BigDecimal]?,
+        stamps: Array[Time]?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        ok: bool?,
+        ratio: Float?,
+        blobs: Array[String]?,
+        docs: Array[untyped]?,
+        counts: Array[Integer]?,
+        amounts: Array[BigDecimal]?,
+        stamps: Array[Time]?
+    ) -> BatchType
+  end
+
   class ExtendedBio < ::Struct[untyped]
     attr_accessor author_name: String
     attr_accessor name: String

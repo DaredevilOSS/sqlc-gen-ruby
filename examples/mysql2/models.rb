@@ -69,4 +69,13 @@ module Mysql2Codegen
 
   class Regression < Data.define(:id, :order, :note, :payload)
   end
+
+  class CopyType < Data.define(
+    :id,
+    :code,
+    :doc,
+    :flags,
+    :amount
+  )
+  end
 end

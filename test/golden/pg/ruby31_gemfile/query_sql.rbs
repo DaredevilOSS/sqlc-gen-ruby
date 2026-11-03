@@ -436,6 +436,113 @@ module PgCodegen
 
   TRUNCATE_REGRESSIONS_SQL: String
 
+  CREATE_BATCH_TYPES_BATCH_SQL: String
+
+  class CreateBatchTypesBatchArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor ok: bool?
+    attr_accessor ratio: Float?
+    attr_accessor blobs: Array[String]?
+    attr_accessor docs: Array[untyped]?
+    attr_accessor counts: Array[Integer]?
+    attr_accessor amounts: Array[BigDecimal]?
+    attr_accessor stamps: Array[Time]?
+    def initialize: (
+        id: Integer,
+        ok: bool?,
+        ratio: Float?,
+        blobs: Array[String]?,
+        docs: Array[untyped]?,
+        counts: Array[Integer]?,
+        amounts: Array[BigDecimal]?,
+        stamps: Array[Time]?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        ok: bool?,
+        ratio: Float?,
+        blobs: Array[String]?,
+        docs: Array[untyped]?,
+        counts: Array[Integer]?,
+        amounts: Array[BigDecimal]?,
+        stamps: Array[Time]?
+    ) -> CreateBatchTypesBatchArgs
+  end
+
+  class CopyBatchTypesArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor ok: bool?
+    attr_accessor ratio: Float?
+    attr_accessor blobs: Array[String]?
+    attr_accessor docs: Array[untyped]?
+    attr_accessor counts: Array[Integer]?
+    attr_accessor amounts: Array[BigDecimal]?
+    attr_accessor stamps: Array[Time]?
+    def initialize: (
+        id: Integer,
+        ok: bool?,
+        ratio: Float?,
+        blobs: Array[String]?,
+        docs: Array[untyped]?,
+        counts: Array[Integer]?,
+        amounts: Array[BigDecimal]?,
+        stamps: Array[Time]?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        ok: bool?,
+        ratio: Float?,
+        blobs: Array[String]?,
+        docs: Array[untyped]?,
+        counts: Array[Integer]?,
+        amounts: Array[BigDecimal]?,
+        stamps: Array[Time]?
+    ) -> CopyBatchTypesArgs
+  end
+
+  LIST_BATCH_TYPES_SQL: String
+
+  class ListBatchTypesRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor ok: bool?
+    attr_accessor ratio: Float?
+    attr_accessor blobs: Array[String]?
+    attr_accessor docs: Array[untyped]?
+    attr_accessor counts: Array[Integer]?
+    attr_accessor amounts: Array[BigDecimal]?
+    attr_accessor stamps: Array[Time]?
+    def initialize: (
+        id: Integer,
+        ok: bool?,
+        ratio: Float?,
+        blobs: Array[String]?,
+        docs: Array[untyped]?,
+        counts: Array[Integer]?,
+        amounts: Array[BigDecimal]?,
+        stamps: Array[Time]?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        ok: bool?,
+        ratio: Float?,
+        blobs: Array[String]?,
+        docs: Array[untyped]?,
+        counts: Array[Integer]?,
+        amounts: Array[BigDecimal]?,
+        stamps: Array[Time]?
+    ) -> ListBatchTypesRow
+  end
+
+  COUNT_BATCH_TYPES_ABOVE_SQL: String
+
+  class CountBatchTypesAboveRow < ::Struct[untyped]
+    attr_accessor count_: Integer
+    def initialize: (  count_: Integer) -> void
+    def self.new: (  count_: Integer) -> CountBatchTypesAboveRow
+  end
+
+  TRUNCATE_BATCH_TYPES_SQL: String
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow < ::Struct[untyped]
@@ -595,6 +702,18 @@ module PgCodegen
 
     def truncate_regressions: -> void
 
+    def create_batch_types_batch: (Array[CreateBatchTypesBatchArgs] rows) -> void
+
+    def copy_batch_types: (Array[CopyBatchTypesArgs] rows) -> void
+
+    def list_batch_types: -> Array[ListBatchTypesRow]
+
+    def count_batch_types_above: (min_id: Integer) -> CountBatchTypesAboveRow?
+
+    def count_batch_types_above!: (min_id: Integer) -> CountBatchTypesAboveRow
+
+    def truncate_batch_types: -> void
+
     def many_params: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow?
 
     def many_params!: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow
@@ -616,5 +735,11 @@ module PgCodegen
     def encode_bytea: (String? value) -> String?
 
     def encode_json: (untyped value) -> untyped
+
+    def encode_float: (untyped value) -> untyped
+
+    def encode_array: (Array[untyped]? value, ?Symbol kind) -> untyped
+
+    def array_elements: (Array[untyped] values, Symbol kind) -> Array[untyped]
   end
 end

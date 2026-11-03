@@ -163,3 +163,18 @@ SELECT * FROM regressions WHERE (sqlc.narg(order_name)::text IS NULL OR "order" 
 
 -- name: TruncateRegressions :exec
 TRUNCATE TABLE regressions;
+
+-- name: CreateBatchTypesBatch :batchexec
+INSERT INTO batch_types (id, ok, ratio, blobs, docs, counts, amounts, stamps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+
+-- name: CopyBatchTypes :copyfrom
+INSERT INTO batch_types (id, ok, ratio, blobs, docs, counts, amounts, stamps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+
+-- name: ListBatchTypes :many
+SELECT * FROM batch_types ORDER BY id;
+
+-- name: CountBatchTypesAbove :one
+SELECT count(*) FROM batch_types WHERE id > sqlc.arg(MIN_ID);
+
+-- name: TruncateBatchTypes :exec
+TRUNCATE TABLE batch_types;

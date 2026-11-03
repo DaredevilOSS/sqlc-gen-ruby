@@ -34,6 +34,7 @@ class TestPg < Minitest::Test
     @query_sql.truncate_array_types
     @query_sql.truncate_special_types
     @query_sql.truncate_regressions
+    @query_sql.truncate_batch_types
   end
 
   def create_author(name, bio = nil)
@@ -553,5 +554,83 @@ class TestPg < Minitest::Test
     end
     pooled.instance_variable_get(:@db).with { |client| assert_equal PG::PQTRANS_IDLE, client.transaction_status }
     assert_equal ['break 0', 'break 1', 'throw'], @query_sql.list_authors.map(&:name).sort
+  end
+
+  # ---- final sweep fixes: :batch* / :copyfrom parameter encoding, nested rescued errors, dead connections ---------
+
+  def batch_type_rows
+    stamp = Time.at(1_700_000_000, 123_456, :usec)
+    [{ id: 1, ok: true, ratio: 115_610.38729014261, blobs: ["\x00\xFF".b, nil], docs: [{ 'a' => 1 }, [1, 2], nil],
+       counts: [], amounts: [nil, BigDecimal('1.25')], stamps: [nil, stamp] },
+     { id: 2, ok: false, ratio: 1.0e-305, blobs: [], docs: [], counts: [nil], amounts: [], stamps: [] },
+     { id: 3, ok: nil, ratio: nil, blobs: nil, docs: nil, counts: nil, amounts: nil, stamps: nil }]
+  end
+
+  def assert_batch_types_round_trip(rows)
+    got = @query_sql.list_batch_types.map(&:to_h)
+    assert_equal rows.size, got.size
+    rows.zip(got).each do |want, row|
+      want.each do |key, value|
+        if key == :stamps && value
+          assert_equal value.map { |t| t&.to_r }, row[key].map { |t| t&.to_r }, "#{want[:id]} #{key}"
+        elsif value.nil?
+          assert_nil row[key], "#{want[:id]} #{key}"
+        else
+          assert_equal value, row[key], "#{want[:id]} #{key}"
+        end
+      end
+    end
+  end
+
+  def test_copyfrom_encodes_booleans_floats_and_arrays
+    @query_sql.copy_batch_types(batch_type_rows.map { |r| CopyBatchTypesArgs.new(**r) })
+    assert_batch_types_round_trip(batch_type_rows)
+  end
+
+  def test_batchexec_encodes_booleans_floats_and_arrays
+    @query_sql.create_batch_types_batch(batch_type_rows.map { |r| CreateBatchTypesBatchArgs.new(**r) })
+    assert_batch_types_round_trip(batch_type_rows)
+  end
+
+  def test_array_parameters_need_no_server_side_parameter_types
+    # what preparedStatements: false sends: exec_params without prepared parameter types
+    params = [9, nil, nil, @query_sql.send(:encode_array, ["\x00".b], :bytea), @query_sql.send(:encode_array, [{ 'a' => 1 }], :json),
+              @query_sql.send(:encode_array, []), @query_sql.send(:encode_array, [nil]), @query_sql.send(:encode_array, [nil, Time.now])]
+    @query_sql.instance_variable_get(:@db).with { |client| client.exec_params(CREATE_BATCH_TYPES_BATCH_SQL, params) }
+    row = @query_sql.list_batch_types.first
+    assert_equal [["\x00".b], [{ 'a' => 1 }], [], [nil]], [row.blobs, row.docs, row.counts, row.amounts]
+  end
+
+  def test_all_caps_parameter_names_are_snake_cased
+    assert_equal 0, @query_sql.count_batch_types_above!(min_id: 0).count
+  end
+
+  def test_nested_transaction_rescuing_a_failed_statement_rolls_back_only_itself
+    @query_sql.transaction do |tx|
+      tx.create_author(name: 'outer', bio: nil)
+      assert_raises(PG::InFailedSqlTransaction) do
+        tx.transaction do |inner|
+          inner.create_author(name: 'inner', bio: nil)
+          assert_raises(PG::Error) { inner.create_book(name: 'b', author_id: -1) } # foreign key violation
+        end
+      end
+      tx.create_author(name: 'outer 2', bio: nil)
+    end
+    assert_equal ['outer', 'outer 2'], @query_sql.list_authors.map(&:name).sort
+  end
+
+  def test_nested_transaction_rejects_an_isolation_level
+    @query_sql.transaction do |tx|
+      assert_raises(ArgumentError) { tx.transaction(isolation: :serializable) { nil } }
+    end
+  end
+
+  def test_a_connection_closed_by_the_server_is_reconnected
+    pooled = QuerySql.connect(pg_params, size: 1)
+    assert_equal [], pooled.list_authors
+    pid = pooled.instance_variable_get(:@db).with(&:backend_pid)
+    PG.connect(**pg_params.transform_keys(&:to_sym)) { |admin| admin.exec_params('SELECT pg_terminate_backend($1)', [pid]) }
+    assert_raises(PG::Error) { pooled.list_authors }
+    assert_equal [], pooled.list_authors
   end
 end
