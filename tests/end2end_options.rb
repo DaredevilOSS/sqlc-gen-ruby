@@ -23,8 +23,8 @@ class TestOptions < Minitest::Test
     begin
       config = YAML.safe_load_file(File.join(OPTIONS_DIR, 'sqlc.yaml'))
       config.fetch('options').fetch('ruby')['rubyVersion'] = RUBY_VERSION.split('.')[0, 2].join('.')
-      # Windows cannot execute exe/plugin.rb directly
-      config.fetch('plugins').first.fetch('process')['cmd'] = 'exe/plugin.cmd' if Gem.win_platform?
+      # Windows cannot execute exe/plugin.rb directly; cmd.exe needs backslashes (it reads `/plugin.cmd` as a switch)
+      config.fetch('plugins').first.fetch('process')['cmd'] = 'exe\\plugin.cmd' if Gem.win_platform?
       File.write(config_path, config.to_yaml)
       assert system('sqlc', 'generate', '-f', config_path, chdir: ROOT)
       sqlite_dir = File.join(OUTPUT_DIR, 'sqlite3')

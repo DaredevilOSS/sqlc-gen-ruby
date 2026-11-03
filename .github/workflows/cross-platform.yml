@@ -99,8 +99,8 @@ jobs:
       - name: Verify generated code is synced (process plugin)
         run: |
           if [ "${RUNNER_OS}" = Windows ]; then
-            # Windows cannot execute plugin.rb directly: sqlc runs the exe/plugin.cmd wrapper instead
-            sed 's#cmd: ./exe/plugin.rb#cmd: exe/plugin.cmd#' sqlc.local.yaml > .sqlc-windows.yaml
+            # Windows cannot execute plugin.rb directly: sqlc runs the exe\plugin.cmd wrapper (through cmd.exe, so backslashes)
+            sed 's#cmd: ./exe/plugin.rb#cmd: exe\\plugin.cmd#' sqlc.local.yaml > .sqlc-windows.yaml
             trap 'rm -f .sqlc-windows.yaml' EXIT
             sqlc -f .sqlc-windows.yaml diff
           else
@@ -154,4 +154,4 @@ jobs:
 
       - name: Native extension build logs
         if: failure()
-        run: find "$(ruby -e 'print Gem.dir')" -name mkmf.log -exec sh -c 'echo "== $1"; tail -n 60 "$1"' _ {} \;
+        run: find "$(ruby -e 'print Gem.dir')" -name mkmf.log -exec sh -c 'echo "== $1"; cat "$1"' _ {} \;
