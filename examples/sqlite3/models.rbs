@@ -47,4 +47,25 @@ module Sqlite3Codegen
     attr_reader uses: Integer
     def initialize: (  String name, Integer uses) -> void
   end
+
+  class NameCase
+    attr_reader id: Integer
+    attr_reader class_: String
+    attr_reader end: String
+    attr_reader hash_: String
+    attr_reader method_: String
+    attr_reader count: Integer
+    attr_reader camelCase: String
+    attr_reader HTTPServer: String
+    def initialize: (
+        Integer id,
+        String class_,
+        String end,
+        String hash_,
+        String method_,
+        Integer count,
+        String camelCase,
+        String HTTPServer
+    ) -> void
+  end
 end

@@ -44,6 +44,9 @@ CREATE TABLE deferred_books (
 
 CREATE SCHEMA extended;
 
+CREATE EXTENSION IF NOT EXISTS hstore;
+CREATE EXTENSION IF NOT EXISTS ltree;
+
 CREATE TYPE extended.bio_type AS ENUM ('Autobiography', 'Biography', 'Memoir');
 
 CREATE TABLE extended.bios (
@@ -62,6 +65,22 @@ CREATE TABLE postgres_extra_types (
     c_inet INET,
     c_money MONEY,
     c_not_null TEXT NOT NULL DEFAULT 'x'
+);
+
+CREATE TABLE postgres_remaining_types (
+    c_hstore HSTORE,
+    c_ltree LTREE,
+    c_regclass REGCLASS,
+    c_cidr CIDR,
+    c_macaddr MACADDR,
+    c_interval INTERVAL,
+    c_varbit VARBIT,
+    c_xml XML,
+    c_numeric NUMERIC(100, 50),
+    c_bigint BIGINT,
+    c_timestamp TIMESTAMP,
+    c_timestamptz TIMESTAMPTZ,
+    c_text_matrix TEXT[][]
 );
 
 CREATE TABLE json_round_trips (
@@ -112,4 +131,15 @@ CREATE TABLE batch_types (
   counts  int[],
   amounts numeric[],
   stamps  timestamptz[]
+);
+
+CREATE TABLE name_cases (
+    id BIGINT PRIMARY KEY,
+    "class" TEXT NOT NULL,
+    "end" TEXT NOT NULL,
+    "hash" TEXT NOT NULL,
+    "method" TEXT NOT NULL,
+    "count" INTEGER NOT NULL,
+    "camelCase" TEXT NOT NULL,
+    "HTTPServer" TEXT NOT NULL
 );

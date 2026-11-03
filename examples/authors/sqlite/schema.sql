@@ -34,3 +34,14 @@ CREATE TABLE tags (
     name TEXT NOT NULL PRIMARY KEY,
     uses INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE name_cases (
+  id INTEGER PRIMARY KEY,
+  "class" TEXT NOT NULL,
+  "end" TEXT NOT NULL,
+  "hash" TEXT NOT NULL,
+  "method" TEXT NOT NULL,
+  "count" INTEGER NOT NULL,
+  "camelCase" TEXT NOT NULL,
+  "HTTPServer" TEXT NOT NULL
+);

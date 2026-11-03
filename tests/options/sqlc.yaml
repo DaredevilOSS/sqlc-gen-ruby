@@ -1,0 +1,72 @@
+version: "2"
+plugins:
+- name: ruby
+  process:
+    cmd: ./exe/plugin.rb
+  env:
+  - PATH
+options:
+  ruby:
+    moduleName: Shared::Defaults
+    rubyVersion: "3.3"
+    generateTypes: true
+    generateGemfile: true
+    exactTableNames: false
+    rename:
+      "options_audit.authors": GlobalAuthors
+      note: memo
+    overrides:
+    - column: "GetOptionAuthor:note"
+      ruby_type: { type: "Date" }
+    - column: "option_items.note"
+      ruby_type: { type: "Float" }
+    - column: "*:note"
+      ruby_type: { type: "Time" }
+    - column: "option_items.tag"
+      ruby_type: { type: "Symbol" }
+    - column: "*:tag"
+      ruby_type: { type: "Integer" }
+    - column: "*:extra"
+      ruby_type: { type: "Date" }
+    - db_type: "text"
+      ruby_type: { type: "String" }
+    - db_type: "integer"
+      ruby_type: { type: "String" }
+sql:
+- schema: "sqlite_schema.sql"
+  queries:
+  - "sqlite_queries/first.sql"
+  - "sqlite_queries/second.sql"
+  engine: "sqlite"
+  codegen:
+  - plugin: ruby
+    out: ".generated/sqlite3"
+    options:
+      driver: sqlite3
+      moduleName: Options::SqliteDb
+      exactTableNames: true
+      rename:
+        authors: Authors
+        option_items: SQLiteItems
+      overrides:
+      - column: "GetOptionAuthor:note"
+        ruby_type: { type: "Pathname" }
+      - column: "option_items.note"
+        ruby_type: { type: "Float" }
+      - column: "*:note"
+        ruby_type: { type: "Time" }
+- schema: "pg_schema.sql"
+  queries:
+  - "pg_queries/first.sql"
+  engine: "postgresql"
+  codegen:
+  - plugin: ruby
+    out: ".generated/pg"
+    options:
+      driver: pg
+      moduleName: Options::PgDb
+      exactTableNames: true
+      preparedStatements: false
+      generateTypes: false
+      rename:
+        "options_audit.option_items": PgItems

@@ -5,6 +5,9 @@ require 'logger'
 require 'stringio'
 require 'sqlite3'
 require 'timeout'
+require 'async'
+require 'async/barrier'
+require 'tempfile'
 EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../examples', __dir__))).freeze
 require_relative 'consts'
 require_relative 'rbs_types'
@@ -166,6 +169,20 @@ class TestSqlite3 < Minitest::Test
     assert_equal ['beta'], @query_sql.get_authors_by_optional_name(lim: 10, name_filter: 'beta').map(&:name)
   end
 
+  def test_keyword_and_method_names_keep_distinct_row_and_argument_names
+    args = { id: 1, class_: 'class', end_: 'end', hash: 'hash', method: 'method', count: 7,
+             camel_case: 'camel', http_server: 'server' }
+    @query_sql.insert_name_case(**args)
+    row = @query_sql.get_name_case(**args)
+    count_member = row.is_a?(Struct) ? :count_ : :count
+    assert_equal %i[id class_ end hash_ method_].concat([count_member, :camelCase, :HTTPServer]), row.class.members
+    assert_equal %w[class end hash method], %i[class_ end hash_ method_].map { |member| row.public_send(member) }
+    assert_equal 7, row.public_send(count_member)
+    assert_equal 'camel', row.public_send(:camelCase)
+    assert_equal 'server', row.public_send(:HTTPServer)
+    assert_equal 1, @query_sql.get_http_server(id: 1).id
+  end
+
   # ---- sqlc.slice ------------------------------------------------------------------------------------------------
 
   def test_slice
@@ -297,6 +314,16 @@ class TestSqlite3 < Minitest::Test
     assert_equal [low, high], [rows.first.author.id, rows.first.author2.id]
   end
 
+  def test_outer_join_embed_is_nil_without_a_match
+    with_book = create_author('a')
+    create_author('b')
+    @query_sql.create_book(name: 'book', author_id: with_book)
+    rows = @query_sql.list_authors_with_optional_book
+    assert_equal 'book', rows.first.book.name
+    assert_equal 'b', rows.last.author.name
+    assert_nil rows.last.book
+  end
+
   # ---- transactions ----------------------------------------------------------------------------------------------
 
   def test_transaction_commits_and_returns_the_block_value
@@ -368,6 +395,43 @@ class TestSqlite3 < Minitest::Test
     assert_equal 1, @query_sql.transaction(mode: :immediate) { 1 }
   end
 
+  def test_immediate_and_exclusive_transactions_block_a_second_connection
+    Tempfile.create('sqlite-lock-test') do |file|
+      first = SQLite3::Database.new(file.path)
+      first.execute_batch(SCHEMA)
+      second = SQLite3::Database.new(file.path)
+      second.busy_timeout = 0
+      query = QuerySql.new(first)
+      %i[immediate exclusive].each do |mode|
+        assert_raises(SQLite3::BusyException) do
+          query.transaction(mode: mode) { second.execute('BEGIN IMMEDIATE') }
+        end
+        second.execute('ROLLBACK') if second.transaction_active?
+      end
+    ensure
+      second&.close
+      first&.close
+    end
+  end
+
+  def test_fibers_sharing_a_database_take_turns
+    results = Sync do
+      barrier = Async::Barrier.new
+      tasks = Array.new(8) do |i|
+        barrier.async do
+          @query_sql.transaction do |tx|
+            id = tx.create_author_return_id(name: "fiber #{i}", bio: nil)
+            tx.get_author(id: id).name
+          end
+        end
+      end
+      barrier.wait
+      tasks.map(&:wait)
+    end
+    assert_equal (0...8).map { |i| "fiber #{i}" }.sort, results.sort
+    assert_equal 8, @query_sql.list_authors.size
+  end
+
   # ---- Ruby conventions: bang finders, logger ----------------------------------------------------------------
 
   def test_bang_finder_raises_not_found
@@ -378,13 +442,20 @@ class TestSqlite3 < Minitest::Test
     assert_nil @query_sql.get_author(id: -1) # the plain finder still returns nil
   end
 
+  def test_every_one_query_has_a_bang_method
+    methods = File.read(File.join(EXAMPLES_DIR, 'sqlite3/query_sql.rbs')).scan(/^\s+def (\w+):.* -> \w+Row\?$/).flatten
+    refute_empty methods
+    methods.each { |name| assert_respond_to @query_sql, "#{name}!" }
+  end
+
   def test_logger_receives_query_names_and_durations
     io = StringIO.new
     logged = QuerySql.new(@db, logger: Logger.new(io, level: Logger::DEBUG))
-    logged.list_authors
+    logged.get_author(id: -987654321)
     logged.transaction { |tx| tx.list_authors }
-    assert_match(/QuerySql#list_authors \(\d+\.\dms\)/, io.string)
-    assert_match(/QuerySql#transaction \(\d+\.\dms\)/, io.string)
+    assert_match(/DEBUG -- .*QuerySql#get_author \(\d+\.\dms\)/, io.string)
+    assert_match(/DEBUG -- .*QuerySql#transaction \(\d+\.\dms\)/, io.string)
+    refute_includes io.string, '-987654321'
     @query_sql.list_authors # no logger: nothing is logged, nothing breaks
   end
 

@@ -152,6 +152,10 @@ module Mysql2Codegen
     attr_reader datetime_2: Time?
     attr_reader bool_value: Integer?
     attr_reader nullable_value: String?
+    attr_reader bit_value: String?
+    attr_reader year_value: Integer?
+    attr_reader time_value: Time?
+    attr_reader json_unicode: String?
     def initialize: (
         Integer id,
         String? text_value,
@@ -164,7 +168,32 @@ module Mysql2Codegen
         Time? datetime_value,
         Time? datetime_2,
         Integer? bool_value,
-        String? nullable_value
+        String? nullable_value,
+        String? bit_value,
+        Integer? year_value,
+        Time? time_value,
+        String? json_unicode
+    ) -> void
+  end
+
+  class NameCase
+    attr_reader id: Integer
+    attr_reader class_: String
+    attr_reader end: String
+    attr_reader hash_: String
+    attr_reader method_: String
+    attr_reader count: Integer
+    attr_reader camelcase: String
+    attr_reader httpserver: String
+    def initialize: (
+        Integer id,
+        String class_,
+        String end,
+        String hash_,
+        String method_,
+        Integer count,
+        String camelcase,
+        String httpserver
     ) -> void
   end
 end

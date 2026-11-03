@@ -91,5 +91,20 @@ CREATE TABLE mysql_binding_values (
   datetime_value DATETIME(6),
   datetime_2 DATETIME(6),
   bool_value BOOLEAN,
-  nullable_value TEXT
+  nullable_value TEXT,
+  bit_value BIT(16),
+  year_value YEAR,
+  time_value TIME,
+  json_unicode JSON
+);
+
+CREATE TABLE name_cases (
+  id BIGINT NOT NULL PRIMARY KEY,
+  `class` TEXT NOT NULL,
+  `end` TEXT NOT NULL,
+  `hash` TEXT NOT NULL,
+  `method` TEXT NOT NULL,
+  `count` INT NOT NULL,
+  `camelCase` TEXT NOT NULL,
+  `HTTPServer` TEXT NOT NULL
 );

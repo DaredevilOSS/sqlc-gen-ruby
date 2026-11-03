@@ -85,10 +85,12 @@ class TestPg < Minitest::Test
     @query_sql.truncate_authors # cascades to books
     @query_sql.truncate_extended_bios
     @query_sql.truncate_extra_types
+    @query_sql.truncate_remaining_types
     @query_sql.truncate_array_types
     @query_sql.truncate_special_types
     @query_sql.truncate_regressions
     @query_sql.truncate_batch_types
+    @query_sql.truncate_name_cases
     @query_sql.truncate_json_round_trips
     @query_sql.truncate_deferred_books
   end
@@ -273,6 +275,20 @@ class TestPg < Minitest::Test
     assert_equal [ids[1]], @query_sql.list_authors_between_ids(id: ids[0], id_2: ids[2]).map(&:id)
   end
 
+  def test_keyword_and_method_names_keep_distinct_row_and_argument_names
+    args = { id: 1, class_: 'class', end_: 'end', hash: 'hash', method: 'method', count: 7,
+             camel_case: 'camel', http_server: 'server' }
+    @query_sql.insert_name_case(**args)
+    row = @query_sql.get_name_case(**args)
+    count_member = row.is_a?(Struct) ? :count_ : :count
+    assert_equal %i[id class_ end hash_ method_].concat([count_member, :camelCase, :HTTPServer]), row.class.members
+    assert_equal %w[class end hash method], %i[class_ end hash_ method_].map { |member| row.public_send(member) }
+    assert_equal 7, row.public_send(count_member)
+    assert_equal 'camel', row.public_send(:camelCase)
+    assert_equal 'server', row.public_send(:HTTPServer)
+    assert_equal 1, @query_sql.get_http_server(id: 1).id
+  end
+
   # ---- enums -----------------------------------------------------------------------------------------------------
 
   def test_enum_column
@@ -281,6 +297,11 @@ class TestPg < Minitest::Test
     row = @query_sql.get_first_extended_bio_by_type(bio_type: 'Biography')
     assert_equal row_for(GetFirstExtendedBioByTypeRow, %w[a n2 Biography]), row
     assert_equal %w[Autobiography Biography Memoir], ExtendedBioType::ALL
+    labels = @query_sql.instance_variable_get(:@db).with do |c|
+      c.exec("SELECT unnest(enum_range(NULL::extended.bio_type))::text").column_values(0)
+    end
+    assert_equal labels, ExtendedBioType::ALL
+    assert_equal 'Memoir', ExtendedBioType::MEMOIR
   end
 
   def test_enum_rejects_unknown_values
@@ -423,6 +444,43 @@ class TestPg < Minitest::Test
                                               :c_inet, :c_money)
   end
 
+  def test_remaining_postgresql_types_round_trip
+    timestamp = Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
+    timestamptz = Time.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
+    matrix = [['', "a,'b", nil], ["back\\slash", "line\nbreak", '🙂']]
+    @query_sql.insert_remaining_types(
+      c_hstore: '"key"=>"value", "quoted"=>"two"',
+      c_ltree: 'Top.Science.Astronomy',
+      c_regclass: 'authors',
+      c_cidr: '192.168.1.0/24',
+      c_macaddr: '08:00:2b:01:02:03',
+      c_interval: '1 year 2 mons 3 days 04:05:06.789',
+      c_varbit: '1010010110',
+      c_xml: '<greeting>Grüße🙂</greeting>',
+      c_numeric: BigDecimal('12345678901234567890.1234567890123456789012345678901234567890'),
+      c_bigint: -9_223_372_036_854_775_808,
+      c_timestamp: timestamp,
+      c_timestamptz: timestamptz,
+      c_text_matrix: matrix
+    )
+    row = @query_sql.get_remaining_types
+    assert_equal '"key"=>"value", "quoted"=>"two"', row.c_hstore
+    assert_equal 'Top.Science.Astronomy', row.c_ltree
+    assert_equal 'authors', row.c_regclass
+    assert_equal '192.168.1.0', row.c_cidr.to_s
+    assert_equal 24, row.c_cidr.prefix
+    assert_equal '08:00:2b:01:02:03', row.c_macaddr
+    assert_equal '1 year 2 mons 3 days 04:05:06.789', row.c_interval
+    assert_equal '1010010110', row.c_varbit
+    assert_equal '<greeting>Grüße🙂</greeting>', row.c_xml
+    assert_equal BigDecimal('12345678901234567890.1234567890123456789012345678901234567890'), row.c_numeric
+    assert_equal(-9_223_372_036_854_775_808, row.c_bigint)
+    assert_equal timestamp.strftime('%Y-%m-%d %H:%M:%S.%6N'), row.c_timestamp.strftime('%Y-%m-%d %H:%M:%S.%6N')
+    assert_equal timestamptz, row.c_timestamptz
+    assert_equal matrix, row.c_text_matrix
+    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), 'GetRemainingTypesRow')
+  end
+
   def raw_client
     PG.connect(**pg_params.transform_keys(&:to_sym))
   end
@@ -508,6 +566,7 @@ class TestPg < Minitest::Test
       assert_equal 'serializable', level
     end
     assert_raises(KeyError) { @query_sql.transaction(isolation: :bogus) { nil } }
+    @query_sql.instance_variable_get(:@db).with { |c| assert_equal PG::PQTRANS_IDLE, c.transaction_status }
   end
 
   def test_queries_can_share_an_injected_pool
@@ -553,13 +612,20 @@ class TestPg < Minitest::Test
     assert_nil @query_sql.get_author(id: -1) # the plain finder still returns nil
   end
 
+  def test_every_one_query_has_a_bang_method
+    methods = File.read(File.join(EXAMPLES_DIR, 'pg/query_sql.rbs')).scan(/^\s+def (\w+):.* -> \w+Row\?$/).flatten
+    refute_empty methods
+    methods.each { |name| assert_respond_to @query_sql, "#{name}!" }
+  end
+
   def test_logger_receives_query_names_and_durations
     io = StringIO.new
     logged = QuerySql.connect(pg_params, logger: Logger.new(io, level: Logger::DEBUG))
-    logged.list_authors
+    logged.get_author(id: -987654321)
     logged.transaction { |tx| tx.list_authors }
-    assert_match(/QuerySql#list_authors \(\d+\.\dms\)/, io.string)
-    assert_match(/QuerySql#transaction \(\d+\.\dms\)/, io.string)
+    assert_match(/DEBUG -- .*QuerySql#get_author \(\d+\.\dms\)/, io.string)
+    assert_match(/DEBUG -- .*QuerySql#transaction \(\d+\.\dms\)/, io.string)
+    refute_includes io.string, '-987654321'
     @query_sql.list_authors # no logger: nothing is logged, nothing breaks
   end
 

@@ -87,6 +87,7 @@ class TestMysql2 < Minitest::Test
     @query_sql.truncate_regressions
     @query_sql.truncate_copy_types
     @query_sql.truncate_mysql_binding_values
+    @query_sql.truncate_name_cases
   end
 
   def create_author(name, bio = nil)
@@ -280,6 +281,16 @@ class TestMysql2 < Minitest::Test
     assert_equal [low, high], [rows.first.author.id, rows.first.author2.id]
   end
 
+  def test_outer_join_embed_is_nil_without_a_match
+    with_book = create_author('a')
+    create_author('b')
+    @query_sql.create_book(name: 'book', author_id: with_book)
+    rows = @query_sql.list_authors_with_optional_book
+    assert_equal 'book', rows.first.book.name
+    assert_equal 'b', rows.last.author.name
+    assert_nil rows.last.book
+  end
+
   # ---- enums / sets ----------------------------------------------------------------------------------------------
 
   def test_enum_and_set_columns
@@ -290,6 +301,15 @@ class TestMysql2 < Minitest::Test
     assert_equal row_for(GetFirstExtendedBioByTypeRow, ['a', 'n1', 'Memoir', 'Author,Editor']), row
     assert_equal %w[Autobiography Biography Memoir], ExtendedBiosBioType::ALL
     assert_equal %w[Author Editor Translator], ExtendedBiosAuthorType::ALL
+    @query_sql.instance_variable_get(:@db).with do |client|
+      %w[bio_type author_type].zip([ExtendedBiosBioType::ALL, ExtendedBiosAuthorType::ALL]).each do |column, constants|
+        column_type = client.query(<<~SQL).first.values.first
+          SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'extended_bios' AND COLUMN_NAME = '#{column}'
+        SQL
+        assert_equal constants, column_type.scan(/'((?:''|[^'])*)'/).flatten
+      end
+    end
   end
 
   # ---- transactions ----------------------------------------------------------------------------------------------
@@ -388,9 +408,26 @@ class TestMysql2 < Minitest::Test
     assert_equal ['abc'], @query_sql.get_author_by_name_pattern.map(&:name)
   end
 
-  def test_transaction_isolation_level_is_accepted
-    assert_equal 1, @query_sql.transaction(isolation: :serializable) { 1 }
+  def test_transaction_isolation_level_is_applied
+    @query_sql.transaction(isolation: :serializable) do |tx|
+      row = tx.instance_variable_get(:@db).with do |client|
+        client.query(<<~SQL).first
+          SELECT ISOLATION_LEVEL, STATE
+          FROM performance_schema.events_transactions_current
+          WHERE THREAD_ID = PS_CURRENT_THREAD_ID()
+        SQL
+      end
+      assert_equal ['SERIALIZABLE', 'ACTIVE'], row.values
+    end
     assert_raises(KeyError) { @query_sql.transaction(isolation: :bogus) { nil } }
+    @query_sql.instance_variable_get(:@db).with do |client|
+      rows = client.query(<<~SQL)
+        SELECT STATE
+        FROM performance_schema.events_transactions_current
+        WHERE THREAD_ID = PS_CURRENT_THREAD_ID()
+      SQL
+      assert_equal 'COMMITTED', rows.first.fetch('STATE')
+    end
   end
 
   def test_queries_can_share_an_injected_pool
@@ -474,6 +511,14 @@ class TestMysql2 < Minitest::Test
       date_value: Date.new(2024, 2, 3), datetime_value: time, datetime_2: date_time,
       bool_value: true, nullable_value: nil
     )
+    @query_sql.instance_variable_get(:@db).with do |client|
+      client.query(<<~SQL)
+        UPDATE mysql_binding_values
+        SET bit_value = b'1010101010101010', year_value = 2024, time_value = '12:34:56',
+            json_unicode = '{"greeting":"Grüße 🙂"}'
+        WHERE id = 42
+      SQL
+    end
     row = @query_sql.get_mysql_binding_values(id: 42)
     assert_equal text, row.text_value
     assert_equal binary, row.blob_value
@@ -486,6 +531,10 @@ class TestMysql2 < Minitest::Test
     assert_equal date_time.strftime('%Y-%m-%d %H:%M:%S.%6N'), row.datetime_2.strftime('%Y-%m-%d %H:%M:%S.%6N')
     assert_equal 1, row.bool_value
     assert_nil row.nullable_value
+    assert_equal [0xAA, 0xAA].pack('C*'), row.bit_value
+    assert_equal 2024, row.year_value
+    assert_equal Time.utc(2000, 1, 1, 12, 34, 56), row.time_value
+    assert_equal 'Grüße 🙂', JSON.parse(row.json_unicode).fetch('greeting')
 
     @query_sql.insert_mysql_binding_values(**binding_values(43).merge(bool_value: false))
     assert_equal 0, @query_sql.get_mysql_binding_values(id: 43).bool_value
@@ -529,13 +578,20 @@ class TestMysql2 < Minitest::Test
     assert_nil @query_sql.get_author(id: -1) # the plain finder still returns nil
   end
 
+  def test_every_one_query_has_a_bang_method
+    methods = File.read(File.join(EXAMPLES_DIR, 'mysql2/query_sql.rbs')).scan(/^\s+def (\w+):.* -> \w+Row\?$/).flatten
+    refute_empty methods
+    methods.each { |name| assert_respond_to @query_sql, "#{name}!" }
+  end
+
   def test_logger_receives_query_names_and_durations
     io = StringIO.new
     logged = QuerySql.connect(mysql2_params, logger: Logger.new(io, level: Logger::DEBUG))
-    logged.list_authors
+    logged.get_author(id: -987654321)
     logged.transaction { |tx| tx.list_authors }
-    assert_match(/QuerySql#list_authors \(\d+\.\dms\)/, io.string)
-    assert_match(/QuerySql#transaction \(\d+\.\dms\)/, io.string)
+    assert_match(/DEBUG -- .*QuerySql#get_author \(\d+\.\dms\)/, io.string)
+    assert_match(/DEBUG -- .*QuerySql#transaction \(\d+\.\dms\)/, io.string)
+    refute_includes io.string, '-987654321'
     @query_sql.list_authors # no logger: nothing is logged, nothing breaks
   end
 
@@ -559,6 +615,20 @@ class TestMysql2 < Minitest::Test
   def test_repeated_positional_parameters_get_distinct_names
     @query_sql.copy_regressions(%w[a b c].map { |o| CopyRegressionsArgs.new(order: o, note: nil) })
     assert_equal [[1, 'a'], [3, 'c']], @query_sql.list_regressions_by_ids(id: 1, id_2: 3, id_3: 99).map { |r| [r.id, r.order] }
+  end
+
+  def test_keyword_and_method_names_keep_distinct_row_and_argument_names
+    args = { id: 1, class_: 'class', end_: 'end', hash: 'hash', method: 'method', count: 7,
+             camel_case: 'camel', http_server: 'server' }
+    @query_sql.insert_name_case(**args)
+    row = @query_sql.get_name_case(**args)
+    count_member = row.is_a?(Struct) ? :count_ : :count
+    assert_equal %i[id class_ end hash_ method_].concat([count_member, :camelcase, :httpserver]), row.class.members
+    assert_equal %w[class end hash method], %i[class_ end hash_ method_].map { |member| row.public_send(member) }
+    assert_equal 7, row.public_send(count_member)
+    assert_equal 'camel', row.public_send(:camelcase)
+    assert_equal 'server', row.public_send(:httpserver)
+    assert_equal 1, @query_sql.get_http_server(id: 1).id
   end
 
   def test_copyfrom_keeps_strings_that_look_like_null_and_special_characters

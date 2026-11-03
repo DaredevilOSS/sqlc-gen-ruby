@@ -265,3 +265,48 @@ jobs:
 
       - name: End-to-End tests
         run: bundle exec rake end2end_sqlite3
+
+  end2end-options:
+    name: Generator options E2E (Ruby ${{ matrix.ruby-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version: ['3.1', '4.0']
+
+    services:
+      postgres:
+        image: postgres:16.2
+        env:
+          POSTGRES_DB: tests
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U root -d tests"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      POSTGRES_HOST: 127.0.0.1
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true
+
+      - name: Load tool versions
+        run: grep -E '^[A-Z_]+=' scripts/tool-versions.env >> "$GITHUB_ENV"
+
+      - uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: '${{ env.SQLC_VERSION }}'
+
+      - name: End-to-end option tests
+        run: bundle exec ruby tests/end2end_options.rb

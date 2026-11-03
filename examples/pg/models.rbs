@@ -93,6 +93,37 @@ module PgCodegen
     ) -> void
   end
 
+  class PostgresRemainingType
+    attr_reader c_hstore: String?
+    attr_reader c_ltree: String?
+    attr_reader c_regclass: String?
+    attr_reader c_cidr: IPAddr?
+    attr_reader c_macaddr: String?
+    attr_reader c_interval: String?
+    attr_reader c_varbit: String?
+    attr_reader c_xml: String?
+    attr_reader c_numeric: BigDecimal?
+    attr_reader c_bigint: Integer?
+    attr_reader c_timestamp: Time?
+    attr_reader c_timestamptz: Time?
+    attr_reader c_text_matrix: Array[Array[String]]?
+    def initialize: (
+        String? c_hstore,
+        String? c_ltree,
+        String? c_regclass,
+        IPAddr? c_cidr,
+        String? c_macaddr,
+        String? c_interval,
+        String? c_varbit,
+        String? c_xml,
+        BigDecimal? c_numeric,
+        Integer? c_bigint,
+        Time? c_timestamp,
+        Time? c_timestamptz,
+        Array[Array[String]]? c_text_matrix
+    ) -> void
+  end
+
   class JsonRoundTrip
     attr_reader id: Integer
     attr_reader json_value: untyped
@@ -161,6 +192,27 @@ module PgCodegen
         Array[Integer]? counts,
         Array[BigDecimal]? amounts,
         Array[Time]? stamps
+    ) -> void
+  end
+
+  class NameCase
+    attr_reader id: Integer
+    attr_reader class_: String
+    attr_reader end: String
+    attr_reader hash_: String
+    attr_reader method_: String
+    attr_reader count: Integer
+    attr_reader camelCase: String
+    attr_reader HTTPServer: String
+    def initialize: (
+        Integer id,
+        String class_,
+        String end,
+        String hash_,
+        String method_,
+        Integer count,
+        String camelCase,
+        String HTTPServer
     ) -> void
   end
 

@@ -1,0 +1,21 @@
+CREATE TABLE author (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL
+);
+
+CREATE TABLE authors (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL
+);
+
+CREATE TABLE option_items (
+  id INTEGER PRIMARY KEY,
+  note TEXT NOT NULL,
+  tag TEXT NOT NULL,
+  extra TEXT NOT NULL
+);
+
+CREATE TABLE articles (
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL
+);
