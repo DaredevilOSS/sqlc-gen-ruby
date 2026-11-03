@@ -15,7 +15,7 @@ module SqlcGenRuby
 
       def module_members
         [
-          [CONNECTION_STATE, "module ConnectionState\n  def prepared_statements: () -> Set[String]\nend"],
+          [CONNECTION_STATE, CONNECTION_STATE_RBS],
           [ISOLATION_LEVELS, ISOLATION_RBS]
         ]
       end
@@ -33,7 +33,7 @@ module SqlcGenRuby
         [
           [INSTRUMENT, INSTRUMENT_RBS],
           [WITH_CLIENT, 'def with_client: [T] (String name) { (untyped) -> T } -> T'],
-          [CONFIGURE, 'def configure: (untyped client) -> void']
+          [CONFIGURE, "def configure: (untyped client) -> void\n\ndef string_arrays: (untyped client) -> untyped"]
         ]
       end
 
@@ -58,21 +58,20 @@ module SqlcGenRuby
         array_rows ? "#{call}.values" : call
       end
 
-      def exec_rows_lines(exec) = ["result = #{exec}", 'result.cmd_tuples']
+      def exec_rows_lines(exec, _query) = ["result = #{exec}", 'result.cmd_tuples']
 
-      # Relies on a user-written `RETURNING <id>`.
+      # Relies on a user-written `RETURNING <id>`; nil when no row is returned (e.g. ON CONFLICT DO NOTHING).
       def exec_last_id_lines(exec, query)
         if query.columns.empty?
           raise ArgumentError, "#{query.name}: :execlastid on PostgreSQL needs a RETURNING clause"
         end
 
-        ["result = #{exec}", "result.first['#{query.columns.first.name}']"]
+        ["result = #{exec}", 'row = result.first', "row && row['#{query.columns.first.name}']"]
       end
 
       # COPY ... FROM STDIN, one row at a time through the pg gem's CopyRow encoder.
-      def copy_from_lines(rows_var, table, columns, attrs, _label)
-        put = Code.block("#{rows_var}.each do |row|",
-                         "client.put_copy_data([#{attrs.map { |a| "row.#{a}" }.join(', ')}])")
+      def copy_from_lines(rows_var, table, columns, values, _label)
+        put = Code.block("#{rows_var}.each do |row|", "client.put_copy_data([#{values.join(', ')}])")
         [
           'encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)',
           Code.block("client.copy_data('COPY #{table} (#{columns.join(', ')}) FROM STDIN', encoder) do", put),
@@ -80,14 +79,67 @@ module SqlcGenRuby
         ]
       end
 
+      # bytea, json / jsonb (BasicTypeMapForQueries sends a Ruby Array as a PG array) and, without prepared
+      # statements (no server-side parameter types), arrays of String-typed values such as uuid[] / enum[]
+      def encode_param(expr, column)
+        helper = encoder_for(column)
+        helper ? "#{helper}(#{expr})" : expr
+      end
+
+      def helper_methods(queries)
+        used = queries.flat_map { |q| q.params.map { |p| encoder_for(p.column) } }.compact.uniq
+        ENCODERS.select { |name, _| used.include?(name) }.values
+      end
+
+      ENCODERS = {
+        'encode_bytea' => [<<~'RUBY'.chomp, 'def encode_bytea: (String? value) -> String?'],
+          # bytea parameters are sent escaped: binary Strings (NUL bytes, invalid UTF-8) are not valid text.
+          def encode_bytea(value)
+            value && PG::TextEncoder::Bytea.new.encode(value)
+          end
+        RUBY
+        'encode_json' => [<<~'RUBY'.chomp, 'def encode_json: (untyped value) -> untyped'],
+          # json / jsonb parameters: an Array is a JSON array, not a PG array (Hashes and JSON text pass through).
+          def encode_json(value)
+            value.is_a?(Array) ? PG::TextEncoder::JSON.new.encode(value) : value
+          end
+        RUBY
+        'encode_text_array' => [<<~'RUBY'.chomp, 'def encode_text_array: (Array[untyped]? value) -> String?']
+          # Without prepared statements an Array of Strings would be typed text[]; as an array literal the server
+          # converts it to the column type (uuid[], enum[], ...).
+          def encode_text_array(value)
+            value && PG::TextEncoder::Array.new(elements_type: PG::TextEncoder::String.new).encode(value)
+          end
+        RUBY
+      }.freeze
+
       CONNECTION_STATE = <<~'RUBY'.chomp
         # State kept on every PG::Connection the first time it is used.
         module ConnectionState
+          # Names of the statements prepared on this connection; forgotten when the server session changes
+          # (PG::Connection#reset after a failover / terminated backend).
           def prepared_statements
-            @prepared_statements ||= Set[]
+            if @prepared_statements_pid != backend_pid
+              @prepared_statements = Set[]
+              @prepared_statements_pid = backend_pid
+            end
+            @prepared_statements
           end
         end
       RUBY
+
+      CONNECTION_STATE_RBS = <<~'RBS'.chomp
+        interface _PgConnection
+          def backend_pid: () -> Integer
+        end
+
+        module ConnectionState : _PgConnection
+          @prepared_statements: Set[String]
+          @prepared_statements_pid: Integer
+
+          def prepared_statements: () -> Set[String]
+        end
+      RBS
 
       INITIALIZE = <<~'RUBY'.chomp
         # db: a ConnectionPool (or anything that responds to #with and yields a PG::Connection).
@@ -107,8 +159,9 @@ module SqlcGenRuby
       RUBY
 
       TRANSACTION = <<~'RUBY'.chomp
-        # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns,
-        # ROLLBACK when it raises. A nested call becomes a SAVEPOINT. Yields self, bound to that connection.
+        # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
+        # (also through break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call
+        # becomes a SAVEPOINT. Yields self, bound to that connection.
         def transaction(isolation: nil)
           with_client('transaction') do |client|
             outermost = client.transaction_status == PG::PQTRANS_IDLE
@@ -118,13 +171,19 @@ module SqlcGenRuby
             else
               client.exec("SAVEPOINT #{savepoint}")
             end
+            rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+            failed = false
             begin
-              result = yield self
-              client.exec(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-              result
+              yield self
             rescue Exception # rubocop:disable Lint/RescueException
-              client.exec(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+              failed = true
+              client.exec(rollback)
               raise
+            ensure
+              unless failed
+                commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+                client.exec(Thread.current.status == 'aborting' ? rollback : commit)
+              end
             end
           end
         end
@@ -145,22 +204,39 @@ module SqlcGenRuby
         # Connections of an injected pool are set up on first use: typed results and Ruby arrays as parameters.
         def configure(client)
           type_map = PG::BasicTypeMapForResults.new(client)
-          # uuid, enums, money, ... come back as Strings, arrays of them (uuid[], enum[], ...) as Arrays of Strings
-          fallback = PG::TypeMapByOid.new
-          client.exec("SELECT oid FROM pg_type WHERE typcategory = 'A'").each do |row|
-            fallback.add_coder(PG::TextDecoder::Array.new(oid: row['oid'].to_i, elements_type: PG::TextDecoder::String.new))
-          end
-          fallback.default_type_map = PG::TypeMapAllStrings.new
-          type_map.default_type_map = fallback
+          type_map.default_type_map = string_arrays(client) # uuid, enums, money, ... come back as Strings
           client.type_map_for_results = type_map
           client.type_map_for_queries = PG::BasicTypeMapForQueries.new(client)
           client.extend(ConnectionState)
+        end
+
+        # Arrays of types without a decoder (uuid[], enum[], ...) become Arrays of Strings, other types Strings.
+        def string_arrays(client)
+          strings = PG::TypeMapAllStrings.new
+          arrays = PG::TypeMapByOid.new
+          client.exec("SELECT oid, typdelim FROM pg_type WHERE typcategory = 'A'", [], 0, strings).each do |row|
+            arrays.add_coder(PG::TextDecoder::Array.new(oid: row['oid'].to_i, delimiter: row['typdelim'],
+                                                        elements_type: PG::TextDecoder::String.new))
+          end
+          arrays.default_type_map = strings
+          arrays
         end
       RUBY
 
       private
 
       def driver_gems = %w[pg]
+
+      def encoder_for(column)
+        return nil if column.is_sqlc_slice
+
+        type = normalize_type(column.type.name)
+        if column.is_array
+          'encode_text_array' if !@prepared && !%w[bytea json jsonb].include?(type) && column_type(column) == 'String'
+        elsif type == 'bytea' then 'encode_bytea'
+        elsif %w[json jsonb].include?(type) then 'encode_json'
+        end
+      end
 
       def column_mappings
         # Ruby classes as returned by the pg gem with PG::BasicTypeMapForResults (verified by tests/end2end_pg.rb);

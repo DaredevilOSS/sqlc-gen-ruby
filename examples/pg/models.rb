@@ -53,6 +53,16 @@ module PgCodegen
   class PostgresArrayType < Data.define(:c_uuid_array, :c_bio_type_array, :c_integer_matrix)
   end
 
+  class Regression < Data.define(
+    :id,
+    :order,
+    :payload,
+    :doc,
+    :bio_types,
+    :uids
+  )
+  end
+
   class ExtendedBio < Data.define(:author_name, :name, :bio_type)
   end
 end

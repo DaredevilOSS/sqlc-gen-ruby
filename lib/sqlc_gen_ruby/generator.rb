@@ -28,9 +28,9 @@ module SqlcGenRuby
       @layout = RowLayout.new(@driver, @catalog, @types)
 
       name_anonymous_params(request.queries)
+      check_constants(request.queries)
       models = models_files
       connection = connection_files
-      reject_reserved_query_names(request.queries)
       by_class = request.queries.group_by { |q| class_name_for(q.filename) }
       reject_colliding_files(by_class.keys)
       files = by_class.flat_map do |class_name, queries|
@@ -49,6 +49,27 @@ module SqlcGenRuby
         query.params.each do |param|
           param.column.name = "param#{param.number}" if param.column.name.empty?
         end
+      end
+    end
+
+    # Everything is defined in one module: models, enums, query classes, rows, ... must not share a name.
+    def check_constants(queries)
+      names = @catalog.enum_modules.map { |name, _| [name, 'enum'] }
+      names.concat(@catalog.tables.map { |t| [t.model_name, "model of table #{t.name}"] })
+      queries.group_by { |q| class_name_for(q.filename) }.each do |class_name, list|
+        names << [class_name, "query class of #{list.first.filename}"]
+        list.each do |q|
+          names << ["#{Code.upcase_first(q.name)}Row", "row class of query #{q.name}"] unless q.columns.empty?
+          names << ["#{Code.upcase_first(q.name)}Args", "rows of query #{q.name}"] if q.cmd == ':copyfrom'
+        end
+      end
+      names.concat(@driver.module_members.flat_map { |code, _| code.scan(/^(?:module|class) (\w+)|^(\w+) = /).flatten.compact }
+                          .map { |n| [n, 'generated code'] })
+      names.group_by(&:first).each do |name, uses|
+        next if uses.size < 2
+
+        raise ArgumentError, "#{module_name}::#{name} would be defined twice (#{uses.map(&:last).join(', ')}); " \
+                             'rename one of them'
       end
     end
 
@@ -78,21 +99,6 @@ module SqlcGenRuby
       end
     end
 
-    # A query named Transaction or Initialize would silently replace the generated method of the same name.
-    def reject_reserved_query_names(queries)
-      generated = (@driver.class_methods + @driver.private_methods).flat_map do |code, _|
-        code.scan(/^\s*def (?:self\.)?([a-z_][A-Za-z0-9_]*[?!]?)/).flatten
-      end
-      reserved = generated + %w[initialize slice_placeholders] + Code::RESERVED_ATTRS
-      queries.each do |query|
-        func = Code.snake_case(query.name)
-        next unless reserved.include?(func)
-
-        raise ArgumentError, "query #{query.name} would generate ##{func}, which the generated class already defines; " \
-                             'rename the query'
-      end
-    end
-
     def generate_files(queries, class_name, with_models:, with_connection:)
       method_gen = MethodGen.new(@driver, @layout, @types, class_name)
       members = queries.flat_map { |q| query_members(q, method_gen) }
@@ -101,15 +107,20 @@ module SqlcGenRuby
 
       code_body = members.map(&:first) + [Code.block("class #{class_name}", klass.map(&:first).join("\n\n"))]
       requires = requires_for(queries, with_models, with_connection)
-      code = "#{HEADER}\n#{requires}\n\n#{Code.block("module #{module_name}", code_body.join("\n\n"))}\n"
+      code = "#{HEADER}\n#{requires}\n\n#{in_module(code_body.join("\n\n"))}\n"
       files = [Plugin::File.new(name: "#{base}.rb", contents: code)]
 
       if @options.generate_types
         type_body = members.map(&:last).compact + [Code.block("class #{class_name}", klass.map(&:last).join("\n\n"))]
-        types = "#{RBS_HEADER}\n#{Code.block("module #{module_name}", type_body.join("\n\n"))}\n"
+        types = "#{RBS_HEADER}\n#{in_module(type_body.join("\n\n"))}\n"
         files << Plugin::File.new(name: "#{base}.rbs", contents: types)
       end
       files
+    end
+
+    # module MyApp; module Db; ...; end; end (the parent modules do not need to exist)
+    def in_module(body)
+      module_name.split('::').reverse.reduce(body) { |inner, name| Code.block("module #{name}", inner) }
     end
 
     def requires_for(queries, with_models, with_connection)
@@ -127,7 +138,7 @@ module SqlcGenRuby
       end
       members << dataclass("#{Code.upcase_first(query.name)}Row", row_pairs(query)) unless query.columns.empty?
       if query.cmd == ':copyfrom'
-        pairs = method_gen.params(query).map { |p| [Code.attr_name(p.name), p.type] }
+        pairs = method_gen.params(query).reject(&:reused).map { |p| [p.name, p.type] }
         members << dataclass("#{Code.upcase_first(query.name)}Args", pairs)
       end
       members
@@ -138,12 +149,28 @@ module SqlcGenRuby
     # constructor / connect / transaction, one method per query, then the private helpers
     def class_members(queries, method_gen)
       members = @driver.class_methods.dup
-      members.concat(queries.map { |q| [method_gen.code(q), method_gen.type(q)] })
       helpers = @driver.private_methods + method_gen.helper_methods(queries)
+      check_method_names(queries, (members + helpers).flat_map { |code, _| code.scan(/^def (?:self\.)?([\w?!]+)/) }.flatten +
+                                  Code::OBJECT_METHODS)
+      members.concat(queries.map { |q| [method_gen.code(q), method_gen.type(q)] })
       unless helpers.empty?
         members << ["private\n\n#{helpers.map(&:first).join("\n\n")}", "private\n\n#{helpers.map(&:last).join("\n\n")}"]
       end
       members
+    end
+
+    def check_method_names(queries, generated)
+      taken = generated.to_h { |name| [name, 'a method of the generated class'] }
+      queries.each do |q|
+        func = Code.snake_case(q.name)
+        [func, *("#{func}!" if q.cmd == ':one')].each do |name|
+          if taken.key?(name)
+            raise ArgumentError, "query #{q.name}: method #{name} is already #{taken[name]}; rename the query"
+          end
+
+          taken[name] = "the method of query #{q.name}"
+        end
+      end
     end
 
     # --- data classes (Data.define / Struct.new) ---
@@ -164,13 +191,15 @@ module SqlcGenRuby
       [code, "class #{name}\n#{readers}\n#{init}\nend"]
     end
 
+    # Ruby < 3.2: keyword_init so that rows are built like Data rows (`Row.new(id: 1, name: 'x')`).
     def new_struct(name, pairs)
-      attrs = Code.comma_join(pairs.map { |n, _| ":#{n}" })
-      code = "class #{name} < Struct.new(#{attrs})\nend"
+      attrs = Code.comma_join(pairs.map { |n, _| ":#{n}" } + ['keyword_init: true'])
+      code = "#{name} = Struct.new(#{attrs})"
       accessors = Code.indent(pairs.map { |n, t| "attr_accessor #{n}: #{t}" }.join("\n"))
-      init_args = Code.indent(Code.comma_join(pairs.map { |n, t| "#{t} #{n}" }))
-      init = Code.indent("def self.new: (#{init_args}) -> #{name}")
-      [code, "class #{name} < ::Struct\n#{accessors}\n#{init}\nend"]
+      init_args = Code.indent(Code.comma_join(pairs.map { |n, t| "#{n}: #{t}" }))
+      init = Code.indent("def initialize: (#{init_args}) -> void")
+      new = Code.indent("def self.new: (#{init_args}) -> #{name}")
+      [code, "class #{name} < ::Struct[untyped]\n#{accessors}\n#{init}\n#{new}\nend"]
     end
 
     # --- models.rb: one class per table + one module per enum ---
@@ -180,15 +209,15 @@ module SqlcGenRuby
       @catalog.tables.each do |table|
         next if table.columns.empty?
 
-        pairs = table.columns.map { |c| [Code.attr_name(c.name), @types.type(c, fallback: 'untyped')] }
+        pairs = table.columns.map { |c| [@types.member_name(c.name), @types.type(c, fallback: 'untyped')] }
         members << dataclass(table.model_name, pairs)
       end
       return [] if members.empty?
 
-      code = "#{HEADER}\n\n#{Code.block("module #{module_name}", members.map(&:first).join("\n\n"))}\n"
+      code = "#{HEADER}\n\n#{in_module(members.map(&:first).join("\n\n"))}\n"
       files = [Plugin::File.new(name: "#{MODELS_FILE}.rb", contents: code)]
       if @options.generate_types
-        types = "#{RBS_HEADER}\n#{Code.block("module #{module_name}", members.map(&:last).join("\n\n"))}\n"
+        types = "#{RBS_HEADER}\n#{in_module(members.map(&:last).join("\n\n"))}\n"
         files << Plugin::File.new(name: "#{MODELS_FILE}.rbs", contents: types)
       end
       files
@@ -200,9 +229,9 @@ module SqlcGenRuby
       return [] if members.empty?
 
       files = [Plugin::File.new(name: "#{CONNECTION_FILE}.rb",
-                                contents: "#{HEADER}\n\n#{Code.block("module #{module_name}", members.map(&:first).join("\n\n"))}\n")]
+                                contents: "#{HEADER}\n\n#{in_module(members.map(&:first).join("\n\n"))}\n")]
       if @options.generate_types
-        types = "#{RBS_HEADER}\n#{Code.block("module #{module_name}", members.map(&:last).join("\n\n"))}\n"
+        types = "#{RBS_HEADER}\n#{in_module(members.map(&:last).join("\n\n"))}\n"
         files << Plugin::File.new(name: "#{CONNECTION_FILE}.rbs", contents: types)
       end
       files
@@ -231,8 +260,8 @@ module SqlcGenRuby
     end
 
     def gemfile(queries)
-      gems = (@driver.required_gems + @driver.extra_gems(queries)).uniq.map { |g| "gem '#{g}'" }.join("\n")
-      Plugin::File.new(name: 'Gemfile', contents: "source 'https://rubygems.org'\n\n#{gems}")
+      gems = (@driver.required_gems + @driver.extra_gems(queries)).uniq.sort.map { |g| "gem '#{g}'" }.join("\n")
+      Plugin::File.new(name: 'Gemfile', contents: "# frozen_string_literal: true\n\nsource 'https://rubygems.org'\n\n#{gems}\n")
     end
   end
 end

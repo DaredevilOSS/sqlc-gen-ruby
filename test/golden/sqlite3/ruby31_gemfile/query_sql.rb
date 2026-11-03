@@ -11,16 +11,14 @@ module Sqlite3Codegen
     WHERE id = ? LIMIT 1
   SQL
 
-  class GetAuthorRow < Struct.new(:id, :name, :bio)
-  end
+  GetAuthorRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
   LIST_AUTHORS_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     ORDER BY name
   SQL
 
-  class ListAuthorsRow < Struct.new(:id, :name, :bio)
-  end
+  ListAuthorsRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
   CREATE_AUTHOR_SQL = <<~'SQL'
     INSERT INTO authors (
@@ -41,23 +39,20 @@ module Sqlite3Codegen
     LIMIT ?2 OFFSET ?1
   SQL
 
-  class ListAuthorsPagedRow < Struct.new(:id, :name, :bio)
-  end
+  ListAuthorsPagedRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
   GET_AUTHOR_BY_NAME_PATTERN_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     WHERE name LIKE COALESCE(?1, '%')
   SQL
 
-  class GetAuthorByNamePatternRow < Struct.new(:id, :name, :bio)
-  end
+  GetAuthorByNamePatternRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
   CREATE_AUTHOR_RETURN_ID_SQL = <<~'SQL'
     INSERT INTO authors (name, bio) VALUES (?, ?) RETURNING id
   SQL
 
-  class CreateAuthorReturnIdRow < Struct.new(:id)
-  end
+  CreateAuthorReturnIdRow = Struct.new(:id, keyword_init: true)
 
   UPDATE_AUTHOR_BIOS_SQL = <<~'SQL'
     UPDATE authors
@@ -69,18 +64,15 @@ module Sqlite3Codegen
     SELECT id, name, bio FROM authors WHERE id IN (/*SLICE:ids*/?)
   SQL
 
-  class GetAuthorsByIdsRow < Struct.new(:id, :name, :bio)
-  end
+  GetAuthorsByIdsRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
   GET_AUTHORS_BY_IDS_AND_NAMES_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors WHERE id IN (/*SLICE:ids*/?) AND name IN (/*SLICE:names*/?)
   SQL
 
-  class GetAuthorsByIdsAndNamesRow < Struct.new(:id, :name, :bio)
-  end
+  GetAuthorsByIdsAndNamesRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
-  class CopyAuthorsArgs < Struct.new(:name, :bio)
-  end
+  CopyAuthorsArgs = Struct.new(:name, :bio, keyword_init: true)
 
   TRUNCATE_AUTHORS_SQL = <<~'SQL'
     DELETE FROM authors
@@ -90,8 +82,7 @@ module Sqlite3Codegen
     INSERT INTO books (name, author_id) VALUES (?, ?) RETURNING id
   SQL
 
-  class CreateBookRow < Struct.new(:id)
-  end
+  CreateBookRow = Struct.new(:id, keyword_init: true)
 
   LIST_ALL_AUTHORS_BOOKS_SQL = <<~'SQL'
     SELECT
@@ -101,8 +92,7 @@ module Sqlite3Codegen
     ORDER BY authors.name
   SQL
 
-  class ListAllAuthorsBooksRow < Struct.new(:author, :book)
-  end
+  ListAllAuthorsBooksRow = Struct.new(:author, :book, keyword_init: true)
 
   GET_DUPLICATE_AUTHORS_SQL = <<~'SQL'
     SELECT
@@ -113,8 +103,7 @@ module Sqlite3Codegen
     WHERE authors1.id < authors2.id
   SQL
 
-  class GetDuplicateAuthorsRow < Struct.new(:author, :author2)
-  end
+  GetDuplicateAuthorsRow = Struct.new(:author, :author2, keyword_init: true)
 
   GET_AUTHORS_BY_BOOK_NAME_SQL = <<~'SQL'
     SELECT
@@ -124,38 +113,77 @@ module Sqlite3Codegen
     WHERE books.name = ?
   SQL
 
-  class GetAuthorsByBookNameRow < Struct.new(:id, :name, :bio, :book)
-  end
+  GetAuthorsByBookNameRow = Struct.new(
+    :id,
+    :name,
+    :bio,
+    :book,
+    keyword_init: true
+  )
+
+  CREATE_REGRESSION_SQL = <<~'SQL'
+    INSERT INTO regressions ("order", price) VALUES (?, ?) RETURNING id
+  SQL
+
+  CreateRegressionRow = Struct.new(:id, keyword_init: true)
+
+  UPDATE_REGRESSION_PRICES_SQL = <<~'SQL'
+    UPDATE regressions SET price = ? RETURNING id
+  SQL
+
+  UpdateRegressionPricesRow = Struct.new(:id, keyword_init: true)
+
+  CopyRegressionsArgs = Struct.new(:order, :price, keyword_init: true)
+
+  LIST_REGRESSIONS_SQL = <<~'SQL'
+    SELECT id, "order", price FROM regressions ORDER BY id
+  SQL
+
+  ListRegressionsRow = Struct.new(:id, :order, :price, keyword_init: true)
+
+  GET_MAX_REGRESSION_PRICE_SQL = <<~'SQL'
+    SELECT coalesce(max(price), 0) AS max_price FROM regressions
+  SQL
+
+  GetMaxRegressionPriceRow = Struct.new(:max_price, keyword_init: true)
+
+  TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
+    DELETE FROM regressions
+  SQL
 
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
   SQL
 
-  class ManyParamsRow < Struct.new(:c0, :c1)
-  end
+  ManyParamsRow = Struct.new(:c0, :c1, keyword_init: true)
 
   MANY_ROWS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
   SQL
 
-  class ManyRowsRow < Struct.new(
+  ManyRowsRow = Struct.new(
     :c0,
     :c1,
     :c2,
     :c3,
-    :c4
+    :c4,
+    keyword_init: true
   )
-  end
 
   FOUR_COLS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
   SQL
 
-  class FourColsRow < Struct.new(:c0, :c1, :c2, :c3)
-  end
+  FourColsRow = Struct.new(
+    :c0,
+    :c1,
+    :c2,
+    :c3,
+    keyword_init: true
+  )
 
   class QuerySql
     # Raised by the bang variants (get_author!) when the query returns no row.
@@ -168,20 +196,27 @@ module Sqlite3Codegen
       @logger = logger
     end
 
-    # Runs the block in a transaction and returns its value: COMMIT when the block returns, ROLLBACK when it
-    # raises. A nested call becomes a SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
+    # Runs the block in a transaction and returns its value: COMMIT when the block returns (also through
+    # break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call becomes a
+    # SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
     def transaction(mode: nil)
       instrument('transaction') do
         outermost = !@db.transaction_active?
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
+        rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        failed = false
         begin
-          result = yield self
-          @db.execute(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-          result
+          yield self
         rescue Exception # rubocop:disable Lint/RescueException
-          @db.execute(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+          failed = true
+          @db.execute(rollback)
           raise
+        ensure
+          unless failed
+            commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+            @db.execute(Thread.current.status == 'aborting' ? rollback : commit)
+          end
         end
       end
     end
@@ -194,7 +229,7 @@ module Sqlite3Codegen
         begin
           result = stmt.execute(*query_params)
           row = result.first
-          row && GetAuthorRow.new(row[0], row[1], row[2])
+          row && GetAuthorRow.new(id: row[0], name: row[1], bio: row[2])
         ensure
           stmt.close
         end
@@ -212,7 +247,7 @@ module Sqlite3Codegen
         begin
           result = stmt.execute
           result.map do |row|
-            ListAuthorsRow.new(row[0], row[1], row[2])
+            ListAuthorsRow.new(id: row[0], name: row[1], bio: row[2])
           end
         ensure
           stmt.close
@@ -253,7 +288,7 @@ module Sqlite3Codegen
         begin
           result = stmt.execute(*query_params)
           result.map do |row|
-            ListAuthorsPagedRow.new(row[0], row[1], row[2])
+            ListAuthorsPagedRow.new(id: row[0], name: row[1], bio: row[2])
           end
         ensure
           stmt.close
@@ -268,7 +303,7 @@ module Sqlite3Codegen
         begin
           result = stmt.execute(*query_params)
           result.map do |row|
-            GetAuthorByNamePatternRow.new(row[0], row[1], row[2])
+            GetAuthorByNamePatternRow.new(id: row[0], name: row[1], bio: row[2])
           end
         ensure
           stmt.close
@@ -307,12 +342,12 @@ module Sqlite3Codegen
     def get_authors_by_ids(ids:)
       with_client('get_authors_by_ids') do |client|
         query_params = [*ids]
-        sql = GET_AUTHORS_BY_IDS_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))
+        sql = GET_AUTHORS_BY_IDS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
         stmt = client.prepare(sql)
         begin
           result = stmt.execute(*query_params)
           result.map do |row|
-            GetAuthorsByIdsRow.new(row[0], row[1], row[2])
+            GetAuthorsByIdsRow.new(id: row[0], name: row[1], bio: row[2])
           end
         ensure
           stmt.close
@@ -323,13 +358,13 @@ module Sqlite3Codegen
     def get_authors_by_ids_and_names(ids:, names:)
       with_client('get_authors_by_ids_and_names') do |client|
         query_params = [*ids, *names]
-        sql = GET_AUTHORS_BY_IDS_AND_NAMES_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))
-        sql = sql.sub('/*SLICE:names*/?', slice_placeholders(names))
+        sql = GET_AUTHORS_BY_IDS_AND_NAMES_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
+        sql = sql.gsub('/*SLICE:names*/?', slice_placeholders(names))
         stmt = client.prepare(sql)
         begin
           result = stmt.execute(*query_params)
           result.map do |row|
-            GetAuthorsByIdsAndNamesRow.new(row[0], row[1], row[2])
+            GetAuthorsByIdsAndNamesRow.new(id: row[0], name: row[1], bio: row[2])
           end
         ensure
           stmt.close
@@ -341,7 +376,7 @@ module Sqlite3Codegen
     def copy_authors(rows)
       with_client('copy_authors') do |client|
         rows.each_slice(499) do |batch|
-          sql = "INSERT INTO authors (name, bio) VALUES #{Array.new(batch.size, '(?, ?)').join(', ')}"
+          sql = %(INSERT INTO "authors" ("name", "bio") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
           client.execute(sql, batch.flat_map { |row| [row.name, row.bio] })
         end
         nil
@@ -380,7 +415,10 @@ module Sqlite3Codegen
         begin
           result = stmt.execute
           result.map do |row|
-            ListAllAuthorsBooksRow.new(Author.new(row[0], row[1], row[2]), Book.new(row[3], row[4], row[5], row[6]))
+            ListAllAuthorsBooksRow.new(
+              author: Author.new(id: row[0], name: row[1], bio: row[2]),
+              book: Book.new(id: row[3], name: row[4], author_id: row[5], description: row[6])
+            )
           end
         ensure
           stmt.close
@@ -394,7 +432,10 @@ module Sqlite3Codegen
         begin
           result = stmt.execute
           result.map do |row|
-            GetDuplicateAuthorsRow.new(Author.new(row[0], row[1], row[2]), Author.new(row[3], row[4], row[5]))
+            GetDuplicateAuthorsRow.new(
+              author: Author.new(id: row[0], name: row[1], bio: row[2]),
+              author2: Author.new(id: row[3], name: row[4], bio: row[5])
+            )
           end
         ensure
           stmt.close
@@ -409,8 +450,93 @@ module Sqlite3Codegen
         begin
           result = stmt.execute(*query_params)
           result.map do |row|
-            GetAuthorsByBookNameRow.new(row[0], row[1], row[2], Book.new(row[3], row[4], row[5], row[6]))
+            GetAuthorsByBookNameRow.new(
+              id: row[0],
+              name: row[1],
+              bio: row[2],
+              book: Book.new(id: row[3], name: row[4], author_id: row[5], description: row[6])
+            )
           end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def create_regression(order:, price:)
+      with_client('create_regression') do |client|
+        query_params = [order, price]
+        stmt = client.prepare(CREATE_REGRESSION_SQL)
+        begin
+          stmt.execute(*query_params).to_a
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def update_regression_prices(price:)
+      with_client('update_regression_prices') do |client|
+        query_params = [price]
+        stmt = client.prepare(UPDATE_REGRESSION_PRICES_SQL)
+        begin
+          stmt.execute(*query_params).to_a
+          client.changes
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def copy_regressions(rows)
+      with_client('copy_regressions') do |client|
+        rows.each_slice(499) do |batch|
+          sql = %(INSERT INTO "regressions" ("order", "price") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
+          client.execute(sql, batch.flat_map { |row| [row.order, row.price] })
+        end
+        nil
+      end
+    end
+
+    def list_regressions
+      with_client('list_regressions') do |client|
+        stmt = client.prepare(LIST_REGRESSIONS_SQL)
+        begin
+          result = stmt.execute
+          result.map do |row|
+            ListRegressionsRow.new(id: row[0], order: row[1], price: row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def get_max_regression_price
+      with_client('get_max_regression_price') do |client|
+        stmt = client.prepare(GET_MAX_REGRESSION_PRICE_SQL)
+        begin
+          result = stmt.execute
+          row = result.first
+          row && GetMaxRegressionPriceRow.new(max_price: row[0])
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    # Like #get_max_regression_price, but raises NotFound when there is no row.
+    def get_max_regression_price!(...)
+      get_max_regression_price(...) || raise(NotFound, 'GetMaxRegressionPrice returned no row')
+    end
+
+    def truncate_regressions
+      with_client('truncate_regressions') do |client|
+        stmt = client.prepare(TRUNCATE_REGRESSIONS_SQL)
+        begin
+          stmt.execute
+          nil
         ensure
           stmt.close
         end
@@ -430,7 +556,7 @@ module Sqlite3Codegen
         begin
           result = stmt.execute(*query_params)
           row = result.first
-          row && ManyParamsRow.new(row[0], row[1])
+          row && ManyParamsRow.new(c0: row[0], c1: row[1])
         ensure
           stmt.close
         end
@@ -449,12 +575,12 @@ module Sqlite3Codegen
         begin
           result = stmt.execute(*query_params)
           result.map do |row|
-            manyRowsRow.new(
-              row[0],
-              row[1],
-              row[2],
-              row[3],
-              row[4]
+            ManyRowsRow.new(
+              c0: row[0],
+              c1: row[1],
+              c2: row[2],
+              c3: row[3],
+              c4: row[4]
             )
           end
         ensure
@@ -469,7 +595,7 @@ module Sqlite3Codegen
         begin
           result = stmt.execute
           result.map do |row|
-            FourColsRow.new(row[0], row[1], row[2], row[3])
+            FourColsRow.new(c0: row[0], c1: row[1], c2: row[2], c3: row[3])
           end
         ensure
           stmt.close

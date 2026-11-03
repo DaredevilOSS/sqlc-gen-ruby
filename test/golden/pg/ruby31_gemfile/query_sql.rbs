@@ -2,36 +2,39 @@
 module PgCodegen
   GET_AUTHOR_SQL: String
 
-  class GetAuthorRow < ::Struct
+  class GetAuthorRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> GetAuthorRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorRow
   end
 
   LIST_AUTHORS_SQL: String
 
-  class ListAuthorsRow < ::Struct
+  class ListAuthorsRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> ListAuthorsRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> ListAuthorsRow
   end
 
   CREATE_AUTHOR_SQL: String
 
-  class CreateAuthorRow < ::Struct
+  class CreateAuthorRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> CreateAuthorRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> CreateAuthorRow
   end
 
   DELETE_AUTHOR_SQL: String
 
   TEST_SQL: String
 
-  class TestRow < ::Struct
+  class TestRow < ::Struct[untyped]
     attr_accessor c_bit: String?
     attr_accessor c_smallint: Integer?
     attr_accessor c_boolean: bool?
@@ -50,123 +53,154 @@ module PgCodegen
     attr_accessor c_bytea: String?
     attr_accessor c_text: String?
     attr_accessor c_json: untyped
+    def initialize: (
+        c_bit: String?,
+        c_smallint: Integer?,
+        c_boolean: bool?,
+        c_integer: Integer?,
+        c_bigint: Integer?,
+        c_serial: Integer?,
+        c_decimal: BigDecimal?,
+        c_numeric: BigDecimal?,
+        c_real: Float?,
+        c_double_precision: Float?,
+        c_date: Date?,
+        c_time: String?,
+        c_timestamp: Time?,
+        c_char: String?,
+        c_varchar: String?,
+        c_bytea: String?,
+        c_text: String?,
+        c_json: untyped
+    ) -> void
     def self.new: (
-        String? c_bit,
-        Integer? c_smallint,
-        bool? c_boolean,
-        Integer? c_integer,
-        Integer? c_bigint,
-        Integer? c_serial,
-        BigDecimal? c_decimal,
-        BigDecimal? c_numeric,
-        Float? c_real,
-        Float? c_double_precision,
-        Date? c_date,
-        String? c_time,
-        Time? c_timestamp,
-        String? c_char,
-        String? c_varchar,
-        String? c_bytea,
-        String? c_text,
-        untyped c_json
+        c_bit: String?,
+        c_smallint: Integer?,
+        c_boolean: bool?,
+        c_integer: Integer?,
+        c_bigint: Integer?,
+        c_serial: Integer?,
+        c_decimal: BigDecimal?,
+        c_numeric: BigDecimal?,
+        c_real: Float?,
+        c_double_precision: Float?,
+        c_date: Date?,
+        c_time: String?,
+        c_timestamp: Time?,
+        c_char: String?,
+        c_varchar: String?,
+        c_bytea: String?,
+        c_text: String?,
+        c_json: untyped
     ) -> TestRow
   end
 
   LIST_AUTHORS_PAGED_SQL: String
 
-  class ListAuthorsPagedRow < ::Struct
+  class ListAuthorsPagedRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> ListAuthorsPagedRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> ListAuthorsPagedRow
   end
 
   GET_AUTHOR_BY_NAME_PATTERN_SQL: String
 
-  class GetAuthorByNamePatternRow < ::Struct
+  class GetAuthorByNamePatternRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> GetAuthorByNamePatternRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorByNamePatternRow
   end
 
   CREATE_AUTHOR_RETURN_ID_SQL: String
 
-  class CreateAuthorReturnIdRow < ::Struct
+  class CreateAuthorReturnIdRow < ::Struct[untyped]
     attr_accessor id: Integer
-    def self.new: (  Integer id) -> CreateAuthorReturnIdRow
+    def initialize: (  id: Integer) -> void
+    def self.new: (  id: Integer) -> CreateAuthorReturnIdRow
   end
 
   UPDATE_AUTHOR_BIOS_SQL: String
 
   GET_AUTHORS_BY_IDS_SQL: String
 
-  class GetAuthorsByIdsRow < ::Struct
+  class GetAuthorsByIdsRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> GetAuthorsByIdsRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByIdsRow
   end
 
   GET_AUTHORS_BY_IDS_AND_NAMES_SQL: String
 
-  class GetAuthorsByIdsAndNamesRow < ::Struct
+  class GetAuthorsByIdsAndNamesRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> GetAuthorsByIdsAndNamesRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByIdsAndNamesRow
   end
 
-  class CopyAuthorsArgs < ::Struct
+  class CopyAuthorsArgs < ::Struct[untyped]
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  String name, String? bio) -> CopyAuthorsArgs
+    def initialize: (  name: String, bio: String?) -> void
+    def self.new: (  name: String, bio: String?) -> CopyAuthorsArgs
   end
 
   TRUNCATE_AUTHORS_SQL: String
 
   CREATE_BOOK_SQL: String
 
-  class CreateBookRow < ::Struct
+  class CreateBookRow < ::Struct[untyped]
     attr_accessor id: String
-    def self.new: (  String id) -> CreateBookRow
+    def initialize: (  id: String) -> void
+    def self.new: (  id: String) -> CreateBookRow
   end
 
   LIST_ALL_AUTHORS_BOOKS_SQL: String
 
-  class ListAllAuthorsBooksRow < ::Struct
+  class ListAllAuthorsBooksRow < ::Struct[untyped]
     attr_accessor author: Author
     attr_accessor book: Book
-    def self.new: (  Author author, Book book) -> ListAllAuthorsBooksRow
+    def initialize: (  author: Author, book: Book) -> void
+    def self.new: (  author: Author, book: Book) -> ListAllAuthorsBooksRow
   end
 
   GET_DUPLICATE_AUTHORS_SQL: String
 
-  class GetDuplicateAuthorsRow < ::Struct
+  class GetDuplicateAuthorsRow < ::Struct[untyped]
     attr_accessor author: Author
     attr_accessor author2: Author
-    def self.new: (  Author author, Author author2) -> GetDuplicateAuthorsRow
+    def initialize: (  author: Author, author2: Author) -> void
+    def self.new: (  author: Author, author2: Author) -> GetDuplicateAuthorsRow
   end
 
   GET_AUTHORS_BY_BOOK_NAME_SQL: String
 
-  class GetAuthorsByBookNameRow < ::Struct
+  class GetAuthorsByBookNameRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
     attr_accessor book: Book
-    def self.new: (  Integer id, String name, String? bio, Book book) -> GetAuthorsByBookNameRow
+    def initialize: (  id: Integer, name: String, bio: String?, book: Book) -> void
+    def self.new: (  id: Integer, name: String, bio: String?, book: Book) -> GetAuthorsByBookNameRow
   end
 
   CREATE_EXTENDED_BIO_SQL: String
 
   GET_FIRST_EXTENDED_BIO_BY_TYPE_SQL: String
 
-  class GetFirstExtendedBioByTypeRow < ::Struct
+  class GetFirstExtendedBioByTypeRow < ::Struct[untyped]
     attr_accessor author_name: String
     attr_accessor name: String
     attr_accessor bio_type: String?
-    def self.new: (  String author_name, String name, String? bio_type) -> GetFirstExtendedBioByTypeRow
+    def initialize: (  author_name: String, name: String, bio_type: String?) -> void
+    def self.new: (  author_name: String, name: String, bio_type: String?) -> GetFirstExtendedBioByTypeRow
   end
 
   TRUNCATE_EXTENDED_BIOS_SQL: String
@@ -175,7 +209,7 @@ module PgCodegen
 
   GET_EXTRA_TYPES_SQL: String
 
-  class GetExtraTypesRow < ::Struct
+  class GetExtraTypesRow < ::Struct[untyped]
     attr_accessor c_uuid: String?
     attr_accessor c_jsonb: untyped
     attr_accessor c_text_array: Array[String]?
@@ -184,15 +218,25 @@ module PgCodegen
     attr_accessor c_inet: IPAddr?
     attr_accessor c_money: String?
     attr_accessor c_not_null: String
+    def initialize: (
+        c_uuid: String?,
+        c_jsonb: untyped,
+        c_text_array: Array[String]?,
+        c_integer_array: Array[Integer]?,
+        c_timestamptz: Time?,
+        c_inet: IPAddr?,
+        c_money: String?,
+        c_not_null: String
+    ) -> void
     def self.new: (
-        String? c_uuid,
-        untyped c_jsonb,
-        Array[String]? c_text_array,
-        Array[Integer]? c_integer_array,
-        Time? c_timestamptz,
-        IPAddr? c_inet,
-        String? c_money,
-        String c_not_null
+        c_uuid: String?,
+        c_jsonb: untyped,
+        c_text_array: Array[String]?,
+        c_integer_array: Array[Integer]?,
+        c_timestamptz: Time?,
+        c_inet: IPAddr?,
+        c_money: String?,
+        c_not_null: String
     ) -> GetExtraTypesRow
   end
 
@@ -202,65 +246,150 @@ module PgCodegen
 
   GET_ARRAY_TYPES_SQL: String
 
-  class GetArrayTypesRow < ::Struct
+  class GetArrayTypesRow < ::Struct[untyped]
     attr_accessor c_uuid_array: Array[String]?
     attr_accessor c_bio_type_array: Array[String]?
     attr_accessor c_integer_matrix: Array[Array[Integer]]?
-    def self.new: (  Array[String]? c_uuid_array, Array[String]? c_bio_type_array, Array[Array[Integer]]? c_integer_matrix) -> GetArrayTypesRow
+    def initialize: (  c_uuid_array: Array[String]?, c_bio_type_array: Array[String]?, c_integer_matrix: Array[Array[Integer]]?) -> void
+    def self.new: (  c_uuid_array: Array[String]?, c_bio_type_array: Array[String]?, c_integer_matrix: Array[Array[Integer]]?) -> GetArrayTypesRow
   end
 
   TRUNCATE_ARRAY_TYPES_SQL: String
 
   LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL: String
 
-  class ListAuthorsWithOptionalBookRow < ::Struct
+  class ListAuthorsWithOptionalBookRow < ::Struct[untyped]
     attr_accessor author: Author?
     attr_accessor book: Book?
-    def self.new: (  Author? author, Book? book) -> ListAuthorsWithOptionalBookRow
+    def initialize: (  author: Author?, book: Book?) -> void
+    def self.new: (  author: Author?, book: Book?) -> ListAuthorsWithOptionalBookRow
   end
 
   LIST_AUTHORS_BETWEEN_IDS_SQL: String
 
-  class ListAuthorsBetweenIdsRow < ::Struct
+  class ListAuthorsBetweenIdsRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> ListAuthorsBetweenIdsRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> ListAuthorsBetweenIdsRow
   end
+
+  CREATE_REGRESSION_SQL: String
+
+  class CreateRegressionRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor order: String
+    attr_accessor payload: String?
+    attr_accessor doc: untyped
+    attr_accessor bio_types: Array[String]?
+    attr_accessor uids: Array[String]?
+    def initialize: (
+        id: Integer,
+        order: String,
+        payload: String?,
+        doc: untyped,
+        bio_types: Array[String]?,
+        uids: Array[String]?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        order: String,
+        payload: String?,
+        doc: untyped,
+        bio_types: Array[String]?,
+        uids: Array[String]?
+    ) -> CreateRegressionRow
+  end
+
+  CREATE_REGRESSION_IF_NEW_SQL: String
+
+  class CreateRegressionIfNewRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    def initialize: (  id: Integer) -> void
+    def self.new: (  id: Integer) -> CreateRegressionIfNewRow
+  end
+
+  class CopyRegressionsArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor order: String
+    attr_accessor payload: String?
+    attr_accessor doc: untyped
+    def initialize: (  id: Integer, order: String, payload: String?, doc: untyped) -> void
+    def self.new: (  id: Integer, order: String, payload: String?, doc: untyped) -> CopyRegressionsArgs
+  end
+
+  LIST_REGRESSIONS_SQL: String
+
+  class ListRegressionsRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor order: String
+    attr_accessor payload: String?
+    attr_accessor doc: untyped
+    attr_accessor bio_types: Array[String]?
+    attr_accessor uids: Array[String]?
+    def initialize: (
+        id: Integer,
+        order: String,
+        payload: String?,
+        doc: untyped,
+        bio_types: Array[String]?,
+        uids: Array[String]?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        order: String,
+        payload: String?,
+        doc: untyped,
+        bio_types: Array[String]?,
+        uids: Array[String]?
+    ) -> ListRegressionsRow
+  end
+
+  TRUNCATE_REGRESSIONS_SQL: String
 
   MANY_PARAMS_SQL: String
 
-  class ManyParamsRow < ::Struct
+  class ManyParamsRow < ::Struct[untyped]
     attr_accessor c0: bool
     attr_accessor c1: Integer
-    def self.new: (  bool c0, Integer c1) -> ManyParamsRow
+    def initialize: (  c0: bool, c1: Integer) -> void
+    def self.new: (  c0: bool, c1: Integer) -> ManyParamsRow
   end
 
   MANY_ROWS_SQL: String
 
-  class ManyRowsRow < ::Struct
+  class ManyRowsRow < ::Struct[untyped]
     attr_accessor c0: bool
     attr_accessor c1: Integer
     attr_accessor c2: String
     attr_accessor c3: Float
     attr_accessor c4: String
+    def initialize: (
+        c0: bool,
+        c1: Integer,
+        c2: String,
+        c3: Float,
+        c4: String
+    ) -> void
     def self.new: (
-        bool c0,
-        Integer c1,
-        String c2,
-        Float c3,
-        String c4
+        c0: bool,
+        c1: Integer,
+        c2: String,
+        c3: Float,
+        c4: String
     ) -> ManyRowsRow
   end
 
   FOUR_COLS_SQL: String
 
-  class FourColsRow < ::Struct
+  class FourColsRow < ::Struct[untyped]
     attr_accessor c0: bool
     attr_accessor c1: Integer
     attr_accessor c2: String
     attr_accessor c3: Float
-    def self.new: (  bool c0, Integer c1, String c2, Float c3) -> FourColsRow
+    def initialize: (  c0: bool, c1: Integer, c2: String, c3: Float) -> void
+    def self.new: (  c0: bool, c1: Integer, c2: String, c3: Float) -> FourColsRow
   end
 
   class QuerySql
@@ -341,11 +470,23 @@ module PgCodegen
 
     def list_authors_between_ids: (id: Integer, id_2: Integer) -> Array[ListAuthorsBetweenIdsRow]
 
+    def create_regression: (id: Integer, order: String, payload: String?, doc: untyped, bio_types: Array[String]?, uids: Array[String]?) -> CreateRegressionRow?
+
+    def create_regression!: (id: Integer, order: String, payload: String?, doc: untyped, bio_types: Array[String]?, uids: Array[String]?) -> CreateRegressionRow
+
+    def create_regression_if_new: (id: Integer, order: String) -> Integer
+
+    def copy_regressions: (Array[CopyRegressionsArgs] rows) -> void
+
+    def list_regressions: (?order_name: String?) -> Array[ListRegressionsRow]
+
+    def truncate_regressions: -> void
+
     def many_params: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow?
 
     def many_params!: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow
 
-    def many_rows: (c0: bool) -> Array[manyRowsRow]
+    def many_rows: (c0: bool) -> Array[ManyRowsRow]
 
     def four_cols: -> Array[FourColsRow]
 
@@ -356,5 +497,11 @@ module PgCodegen
     def with_client: [T] (String name) { (untyped) -> T } -> T
 
     def configure: (untyped client) -> void
+
+    def string_arrays: (untyped client) -> untyped
+
+    def encode_bytea: (String? value) -> String?
+
+    def encode_json: (untyped value) -> untyped
   end
 end

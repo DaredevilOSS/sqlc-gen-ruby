@@ -228,6 +228,61 @@ module PgCodegen
     def initialize: (  Integer id, String name, String? bio) -> void
   end
 
+  CREATE_REGRESSION_SQL: String
+
+  class CreateRegressionRow
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader payload: String?
+    attr_reader doc: untyped
+    attr_reader bio_types: Array[String]?
+    attr_reader uids: Array[String]?
+    def initialize: (
+        Integer id,
+        String order,
+        String? payload,
+        untyped doc,
+        Array[String]? bio_types,
+        Array[String]? uids
+    ) -> void
+  end
+
+  CREATE_REGRESSION_IF_NEW_SQL: String
+
+  class CreateRegressionIfNewRow
+    attr_reader id: Integer
+    def initialize: (  Integer id) -> void
+  end
+
+  class CopyRegressionsArgs
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader payload: String?
+    attr_reader doc: untyped
+    def initialize: (  Integer id, String order, String? payload, untyped doc) -> void
+  end
+
+  LIST_REGRESSIONS_SQL: String
+
+  class ListRegressionsRow
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader payload: String?
+    attr_reader doc: untyped
+    attr_reader bio_types: Array[String]?
+    attr_reader uids: Array[String]?
+    def initialize: (
+        Integer id,
+        String order,
+        String? payload,
+        untyped doc,
+        Array[String]? bio_types,
+        Array[String]? uids
+    ) -> void
+  end
+
+  TRUNCATE_REGRESSIONS_SQL: String
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow
@@ -341,11 +396,23 @@ module PgCodegen
 
     def list_authors_between_ids: (id: Integer, id_2: Integer) -> Array[ListAuthorsBetweenIdsRow]
 
+    def create_regression: (id: Integer, order: String, payload: String?, doc: untyped, bio_types: Array[String]?, uids: Array[String]?) -> CreateRegressionRow?
+
+    def create_regression!: (id: Integer, order: String, payload: String?, doc: untyped, bio_types: Array[String]?, uids: Array[String]?) -> CreateRegressionRow
+
+    def create_regression_if_new: (id: Integer, order: String) -> Integer
+
+    def copy_regressions: (Array[CopyRegressionsArgs] rows) -> void
+
+    def list_regressions: (?order_name: String?) -> Array[ListRegressionsRow]
+
+    def truncate_regressions: -> void
+
     def many_params: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow?
 
     def many_params!: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow
 
-    def many_rows: (c0: bool) -> Array[manyRowsRow]
+    def many_rows: (c0: bool) -> Array[ManyRowsRow]
 
     def four_cols: -> Array[FourColsRow]
 
@@ -356,5 +423,11 @@ module PgCodegen
     def with_client: [T] (String name) { (untyped) -> T } -> T
 
     def configure: (untyped client) -> void
+
+    def string_arrays: (untyped client) -> untyped
+
+    def encode_bytea: (String? value) -> String?
+
+    def encode_json: (untyped value) -> untyped
   end
 end

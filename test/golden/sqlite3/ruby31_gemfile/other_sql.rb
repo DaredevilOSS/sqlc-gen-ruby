@@ -16,8 +16,7 @@ module Sqlite3Codegen
     	  WHERE a = ?
   SQL
 
-  class OtherOneRow < Struct.new(:c0)
-  end
+  OtherOneRow = Struct.new(:c0, keyword_init: true)
 
   COUNT_ROWS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
@@ -35,20 +34,27 @@ module Sqlite3Codegen
       @logger = logger
     end
 
-    # Runs the block in a transaction and returns its value: COMMIT when the block returns, ROLLBACK when it
-    # raises. A nested call becomes a SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
+    # Runs the block in a transaction and returns its value: COMMIT when the block returns (also through
+    # break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call becomes a
+    # SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
     def transaction(mode: nil)
       instrument('transaction') do
         outermost = !@db.transaction_active?
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
+        rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        failed = false
         begin
-          result = yield self
-          @db.execute(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-          result
+          yield self
         rescue Exception # rubocop:disable Lint/RescueException
-          @db.execute(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+          failed = true
+          @db.execute(rollback)
           raise
+        ensure
+          unless failed
+            commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+            @db.execute(Thread.current.status == 'aborting' ? rollback : commit)
+          end
         end
       end
     end
@@ -78,7 +84,7 @@ module Sqlite3Codegen
         begin
           result = stmt.execute
           row = result.first
-          row && OtherOneRow.new(row[0])
+          row && OtherOneRow.new(c0: row[0])
         ensure
           stmt.close
         end

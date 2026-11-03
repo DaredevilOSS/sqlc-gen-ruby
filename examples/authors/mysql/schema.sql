@@ -63,3 +63,9 @@ CREATE TABLE extended_bios (
   author_type SET('Author', 'Editor', 'Translator'),
   PRIMARY KEY (author_name, name)
 );
+
+CREATE TABLE regressions (
+  id      bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `order` varchar(255) NOT NULL,
+  note    text
+);

@@ -7,6 +7,7 @@ module SqlcGenRuby
   # Port of PluginOptions/Options.cs + RawOptions.cs: parses the JSON `options:` block of the sqlc config.
   class Options
     DRIVERS = %w[mysql2 pg sqlite3].freeze
+    KEYS = %w[driver rubyVersion generateGemfile generateTypes overrides moduleName preparedStatements].freeze
 
     # `overrides:` entry - column is "<QueryName>:<column>" or "*:<column>"; type/not_null come from `ruby_type:`
     Override = Struct.new(:query, :column, :type, :not_null)
@@ -19,6 +20,9 @@ module SqlcGenRuby
       raw = JSON.parse(text)
       raise ArgumentError, 'plugin options must be a JSON object' unless raw.is_a?(Hash)
 
+      unknown = raw.keys - KEYS
+      raise ArgumentError, "unknown option(s): #{unknown.join(', ')} (supported: #{KEYS.join(', ')})" unless unknown.empty?
+
       @driver_name = fetch_string(raw, 'driver', required: true).downcase
       raise ArgumentError, "unknown driver: #{raw['driver']}" unless DRIVERS.include?(@driver_name)
 
@@ -28,6 +32,9 @@ module SqlcGenRuby
       @overrides = parse_overrides(raw.fetch('overrides', []))
       @module_name = raw.key?('moduleName') ? fetch_module_name(raw) : nil # default: <Driver>Codegen
       @prepared_statements = fetch_bool(raw, 'preparedStatements', true)
+      if raw.key?('preparedStatements') && @driver_name != 'pg'
+        raise ArgumentError, 'option preparedStatements is only supported by the pg driver'
+      end
     end
 
     # The override matching a result column / parameter of a query: "Query:col" wins over "*:col".

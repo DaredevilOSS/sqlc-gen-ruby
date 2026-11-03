@@ -21,5 +21,7 @@ module PgCodegen
     def with_client: [T] (String name) { (untyped) -> T } -> T
 
     def configure: (untyped client) -> void
+
+    def string_arrays: (untyped client) -> untyped
   end
 end

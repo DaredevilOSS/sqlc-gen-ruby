@@ -17,8 +17,7 @@ module Mysql2Codegen
     	  WHERE a = ?
   SQL
 
-  class OtherOneRow < Struct.new(:c0)
-  end
+  OtherOneRow = Struct.new(:c0, keyword_init: true)
 
   COUNT_ROWS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
@@ -42,8 +41,9 @@ module Mysql2Codegen
       @logger = logger
     end
 
-    # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns,
-    # ROLLBACK when it raises. A nested call becomes a SAVEPOINT. Yields self, bound to that connection.
+    # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
+    # (also through break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call
+    # becomes a SAVEPOINT. Yields self, bound to that connection.
     def transaction(isolation: nil)
       with_client('transaction') do |client|
         outermost = !client.in_transaction
@@ -55,15 +55,23 @@ module Mysql2Codegen
         else
           client.query("SAVEPOINT #{savepoint}")
         end
+        rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        failed = false
         begin
-          result = yield self
-          client.query(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-          result
+          yield self
         rescue Exception # rubocop:disable Lint/RescueException
-          client.query(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+          failed = true
+          client.query(rollback)
           raise
         ensure
-          client.in_transaction = false if outermost
+          begin
+            unless failed
+              commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+              client.query(Thread.current.status == 'aborting' ? rollback : commit)
+            end
+          ensure
+            client.in_transaction = false if outermost
+          end
         end
       end
     end
@@ -91,9 +99,9 @@ module Mysql2Codegen
       with_client('other_one') do |client|
         stmt = client.prepare(OTHER_ONE_SQL)
         begin
-          result = stmt.execute
+          result = stmt.execute(as: :array)
           row = result.first
-          row && OtherOneRow.new(row['c0'])
+          row && OtherOneRow.new(c0: row[0])
         ensure
           stmt.close
         end

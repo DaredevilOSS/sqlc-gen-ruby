@@ -13,16 +13,14 @@ module PgCodegen
     WHERE id = $1 LIMIT 1
   SQL
 
-  class GetAuthorRow < Struct.new(:id, :name, :bio)
-  end
+  GetAuthorRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
   LIST_AUTHORS_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     ORDER BY name
   SQL
 
-  class ListAuthorsRow < Struct.new(:id, :name, :bio)
-  end
+  ListAuthorsRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
   CREATE_AUTHOR_SQL = <<~'SQL'
     INSERT INTO authors (
@@ -33,8 +31,7 @@ module PgCodegen
     RETURNING id, name, bio
   SQL
 
-  class CreateAuthorRow < Struct.new(:id, :name, :bio)
-  end
+  CreateAuthorRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
   DELETE_AUTHOR_SQL = <<~'SQL'
     DELETE FROM authors
@@ -46,7 +43,7 @@ module PgCodegen
     LIMIT 1
   SQL
 
-  class TestRow < Struct.new(
+  TestRow = Struct.new(
     :c_bit,
     :c_smallint,
     :c_boolean,
@@ -64,9 +61,9 @@ module PgCodegen
     :c_varchar,
     :c_bytea,
     :c_text,
-    :c_json
+    :c_json,
+    keyword_init: true
   )
-  end
 
   LIST_AUTHORS_PAGED_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
@@ -75,23 +72,20 @@ module PgCodegen
     OFFSET $1
   SQL
 
-  class ListAuthorsPagedRow < Struct.new(:id, :name, :bio)
-  end
+  ListAuthorsPagedRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
   GET_AUTHOR_BY_NAME_PATTERN_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     WHERE name LIKE COALESCE($1, '%')
   SQL
 
-  class GetAuthorByNamePatternRow < Struct.new(:id, :name, :bio)
-  end
+  GetAuthorByNamePatternRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
   CREATE_AUTHOR_RETURN_ID_SQL = <<~'SQL'
     INSERT INTO authors (name, bio) VALUES ($1, $2) RETURNING id
   SQL
 
-  class CreateAuthorReturnIdRow < Struct.new(:id)
-  end
+  CreateAuthorReturnIdRow = Struct.new(:id, keyword_init: true)
 
   UPDATE_AUTHOR_BIOS_SQL = <<~'SQL'
     UPDATE authors
@@ -104,19 +98,16 @@ module PgCodegen
     WHERE id = ANY($1::BIGINT [])
   SQL
 
-  class GetAuthorsByIdsRow < Struct.new(:id, :name, :bio)
-  end
+  GetAuthorsByIdsRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
   GET_AUTHORS_BY_IDS_AND_NAMES_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     WHERE id = ANY($1::BIGINT []) AND name = ANY($2::TEXT [])
   SQL
 
-  class GetAuthorsByIdsAndNamesRow < Struct.new(:id, :name, :bio)
-  end
+  GetAuthorsByIdsAndNamesRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
-  class CopyAuthorsArgs < Struct.new(:name, :bio)
-  end
+  CopyAuthorsArgs = Struct.new(:name, :bio, keyword_init: true)
 
   TRUNCATE_AUTHORS_SQL = <<~'SQL'
     TRUNCATE TABLE authors CASCADE
@@ -126,8 +117,7 @@ module PgCodegen
     INSERT INTO books (name, author_id) VALUES ($1, $2) RETURNING id
   SQL
 
-  class CreateBookRow < Struct.new(:id)
-  end
+  CreateBookRow = Struct.new(:id, keyword_init: true)
 
   LIST_ALL_AUTHORS_BOOKS_SQL = <<~'SQL'
     SELECT
@@ -138,8 +128,7 @@ module PgCodegen
     ORDER BY authors.name
   SQL
 
-  class ListAllAuthorsBooksRow < Struct.new(:author, :book)
-  end
+  ListAllAuthorsBooksRow = Struct.new(:author, :book, keyword_init: true)
 
   GET_DUPLICATE_AUTHORS_SQL = <<~'SQL'
     SELECT
@@ -150,8 +139,7 @@ module PgCodegen
     WHERE authors1.id < authors2.id
   SQL
 
-  class GetDuplicateAuthorsRow < Struct.new(:author, :author2)
-  end
+  GetDuplicateAuthorsRow = Struct.new(:author, :author2, keyword_init: true)
 
   GET_AUTHORS_BY_BOOK_NAME_SQL = <<~'SQL'
     SELECT
@@ -161,8 +149,13 @@ module PgCodegen
     WHERE books.name = $1
   SQL
 
-  class GetAuthorsByBookNameRow < Struct.new(:id, :name, :bio, :book)
-  end
+  GetAuthorsByBookNameRow = Struct.new(
+    :id,
+    :name,
+    :bio,
+    :book,
+    keyword_init: true
+  )
 
   CREATE_EXTENDED_BIO_SQL = <<~'SQL'
     INSERT INTO extended.bios (author_name, name, bio_type) VALUES ($1, $2, $3)
@@ -172,8 +165,7 @@ module PgCodegen
     SELECT author_name, name, bio_type FROM extended.bios WHERE bio_type = $1 LIMIT 1
   SQL
 
-  class GetFirstExtendedBioByTypeRow < Struct.new(:author_name, :name, :bio_type)
-  end
+  GetFirstExtendedBioByTypeRow = Struct.new(:author_name, :name, :bio_type, keyword_init: true)
 
   TRUNCATE_EXTENDED_BIOS_SQL = <<~'SQL'
     TRUNCATE TABLE extended.bios
@@ -188,7 +180,7 @@ module PgCodegen
     SELECT c_uuid, c_jsonb, c_text_array, c_integer_array, c_timestamptz, c_inet, c_money, c_not_null FROM postgres_extra_types LIMIT 1
   SQL
 
-  class GetExtraTypesRow < Struct.new(
+  GetExtraTypesRow = Struct.new(
     :c_uuid,
     :c_jsonb,
     :c_text_array,
@@ -196,9 +188,9 @@ module PgCodegen
     :c_timestamptz,
     :c_inet,
     :c_money,
-    :c_not_null
+    :c_not_null,
+    keyword_init: true
   )
-  end
 
   TRUNCATE_EXTRA_TYPES_SQL = <<~'SQL'
     TRUNCATE TABLE postgres_extra_types
@@ -212,8 +204,7 @@ module PgCodegen
     SELECT c_uuid_array, c_bio_type_array, c_integer_matrix FROM postgres_array_types LIMIT 1
   SQL
 
-  class GetArrayTypesRow < Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix)
-  end
+  GetArrayTypesRow = Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix, keyword_init: true)
 
   TRUNCATE_ARRAY_TYPES_SQL = <<~'SQL'
     TRUNCATE TABLE postgres_array_types
@@ -228,8 +219,7 @@ module PgCodegen
     ORDER BY authors.name
   SQL
 
-  class ListAuthorsWithOptionalBookRow < Struct.new(:author, :book)
-  end
+  ListAuthorsWithOptionalBookRow = Struct.new(:author, :book, keyword_init: true)
 
   LIST_AUTHORS_BETWEEN_IDS_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
@@ -237,38 +227,87 @@ module PgCodegen
     ORDER BY id
   SQL
 
-  class ListAuthorsBetweenIdsRow < Struct.new(:id, :name, :bio)
-  end
+  ListAuthorsBetweenIdsRow = Struct.new(:id, :name, :bio, keyword_init: true)
+
+  CREATE_REGRESSION_SQL = <<~'SQL'
+    INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, "order", payload, doc, bio_types, uids
+  SQL
+
+  CreateRegressionRow = Struct.new(
+    :id,
+    :order,
+    :payload,
+    :doc,
+    :bio_types,
+    :uids,
+    keyword_init: true
+  )
+
+  CREATE_REGRESSION_IF_NEW_SQL = <<~'SQL'
+    INSERT INTO regressions (id, "order") VALUES ($1, $2) ON CONFLICT (id) DO NOTHING RETURNING id
+  SQL
+
+  CreateRegressionIfNewRow = Struct.new(:id, keyword_init: true)
+
+  CopyRegressionsArgs = Struct.new(
+    :id,
+    :order,
+    :payload,
+    :doc,
+    keyword_init: true
+  )
+
+  LIST_REGRESSIONS_SQL = <<~'SQL'
+    SELECT id, "order", payload, doc, bio_types, uids FROM regressions WHERE ($1::text IS NULL OR "order" = $1) ORDER BY id
+  SQL
+
+  ListRegressionsRow = Struct.new(
+    :id,
+    :order,
+    :payload,
+    :doc,
+    :bio_types,
+    :uids,
+    keyword_init: true
+  )
+
+  TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
+    TRUNCATE TABLE regressions
+  SQL
 
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
   SQL
 
-  class ManyParamsRow < Struct.new(:c0, :c1)
-  end
+  ManyParamsRow = Struct.new(:c0, :c1, keyword_init: true)
 
   MANY_ROWS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
   SQL
 
-  class ManyRowsRow < Struct.new(
+  ManyRowsRow = Struct.new(
     :c0,
     :c1,
     :c2,
     :c3,
-    :c4
+    :c4,
+    keyword_init: true
   )
-  end
 
   FOUR_COLS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
   SQL
 
-  class FourColsRow < Struct.new(:c0, :c1, :c2, :c3)
-  end
+  FourColsRow = Struct.new(
+    :c0,
+    :c1,
+    :c2,
+    :c3,
+    keyword_init: true
+  )
 
   class QuerySql
     # Raised by the bang variants (get_author!) when the query returns no row.
@@ -287,8 +326,9 @@ module PgCodegen
       @logger = logger
     end
 
-    # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns,
-    # ROLLBACK when it raises. A nested call becomes a SAVEPOINT. Yields self, bound to that connection.
+    # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
+    # (also through break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call
+    # becomes a SAVEPOINT. Yields self, bound to that connection.
     def transaction(isolation: nil)
       with_client('transaction') do |client|
         outermost = client.transaction_status == PG::PQTRANS_IDLE
@@ -298,13 +338,19 @@ module PgCodegen
         else
           client.exec("SAVEPOINT #{savepoint}")
         end
+        rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        failed = false
         begin
-          result = yield self
-          client.exec(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-          result
+          yield self
         rescue Exception # rubocop:disable Lint/RescueException
-          client.exec(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+          failed = true
+          client.exec(rollback)
           raise
+        ensure
+          unless failed
+            commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+            client.exec(Thread.current.status == 'aborting' ? rollback : commit)
+          end
         end
       end
     end
@@ -319,7 +365,7 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_get_author', query_params)
         row = result.first
-        row && GetAuthorRow.new(row['id'], row['name'], row['bio'])
+        row && GetAuthorRow.new(id: row['id'], name: row['name'], bio: row['bio'])
       end
     end
 
@@ -336,7 +382,7 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_list_authors')
         result.map do |row|
-          ListAuthorsRow.new(row['id'], row['name'], row['bio'])
+          ListAuthorsRow.new(id: row['id'], name: row['name'], bio: row['bio'])
         end
       end
     end
@@ -350,7 +396,7 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_create_author', query_params)
         row = result.first
-        row && CreateAuthorRow.new(row['id'], row['name'], row['bio'])
+        row && CreateAuthorRow.new(id: row['id'], name: row['name'], bio: row['bio'])
       end
     end
 
@@ -380,24 +426,24 @@ module PgCodegen
         result = client.exec_prepared('query_sql_test')
         row = result.first
         row && TestRow.new(
-          row['c_bit'],
-          row['c_smallint'],
-          row['c_boolean'],
-          row['c_integer'],
-          row['c_bigint'],
-          row['c_serial'],
-          row['c_decimal'],
-          row['c_numeric'],
-          row['c_real'],
-          row['c_double_precision'],
-          row['c_date'],
-          row['c_time'],
-          row['c_timestamp'],
-          row['c_char'],
-          row['c_varchar'],
-          row['c_bytea'],
-          row['c_text'],
-          row['c_json']
+          c_bit: row['c_bit'],
+          c_smallint: row['c_smallint'],
+          c_boolean: row['c_boolean'],
+          c_integer: row['c_integer'],
+          c_bigint: row['c_bigint'],
+          c_serial: row['c_serial'],
+          c_decimal: row['c_decimal'],
+          c_numeric: row['c_numeric'],
+          c_real: row['c_real'],
+          c_double_precision: row['c_double_precision'],
+          c_date: row['c_date'],
+          c_time: row['c_time'],
+          c_timestamp: row['c_timestamp'],
+          c_char: row['c_char'],
+          c_varchar: row['c_varchar'],
+          c_bytea: row['c_bytea'],
+          c_text: row['c_text'],
+          c_json: row['c_json']
         )
       end
     end
@@ -416,7 +462,7 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_list_authors_paged', query_params)
         result.map do |row|
-          ListAuthorsPagedRow.new(row['id'], row['name'], row['bio'])
+          ListAuthorsPagedRow.new(id: row['id'], name: row['name'], bio: row['bio'])
         end
       end
     end
@@ -430,7 +476,7 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_get_author_by_name_pattern', query_params)
         result.map do |row|
-          GetAuthorByNamePatternRow.new(row['id'], row['name'], row['bio'])
+          GetAuthorByNamePatternRow.new(id: row['id'], name: row['name'], bio: row['bio'])
         end
       end
     end
@@ -443,7 +489,8 @@ module PgCodegen
           client.prepared_statements.add('query_sql_create_author_return_id')
         end
         result = client.exec_prepared('query_sql_create_author_return_id', query_params)
-        result.first['id']
+        row = result.first
+        row && row['id']
       end
     end
 
@@ -469,7 +516,7 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_get_authors_by_ids', query_params)
         result.map do |row|
-          GetAuthorsByIdsRow.new(row['id'], row['name'], row['bio'])
+          GetAuthorsByIdsRow.new(id: row['id'], name: row['name'], bio: row['bio'])
         end
       end
     end
@@ -483,7 +530,7 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_get_authors_by_ids_and_names', query_params)
         result.map do |row|
-          GetAuthorsByIdsAndNamesRow.new(row['id'], row['name'], row['bio'])
+          GetAuthorsByIdsAndNamesRow.new(id: row['id'], name: row['name'], bio: row['bio'])
         end
       end
     end
@@ -492,7 +539,7 @@ module PgCodegen
     def copy_authors(rows)
       with_client('copy_authors') do |client|
         encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
-        client.copy_data('COPY authors (name, bio) FROM STDIN', encoder) do
+        client.copy_data('COPY "authors" ("name", "bio") FROM STDIN', encoder) do
           rows.each do |row|
             client.put_copy_data([row.name, row.bio])
           end
@@ -520,7 +567,8 @@ module PgCodegen
           client.prepared_statements.add('query_sql_create_book')
         end
         result = client.exec_prepared('query_sql_create_book', query_params)
-        result.first['id']
+        row = result.first
+        row && row['id']
       end
     end
 
@@ -532,7 +580,10 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_list_all_authors_books').values
         result.map do |row|
-          ListAllAuthorsBooksRow.new(Author.new(row[0], row[1], row[2]), Book.new(row[3], row[4], row[5], row[6]))
+          ListAllAuthorsBooksRow.new(
+            author: Author.new(id: row[0], name: row[1], bio: row[2]),
+            book: Book.new(id: row[3], name: row[4], author_id: row[5], description: row[6])
+          )
         end
       end
     end
@@ -545,7 +596,10 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_get_duplicate_authors').values
         result.map do |row|
-          GetDuplicateAuthorsRow.new(Author.new(row[0], row[1], row[2]), Author.new(row[3], row[4], row[5]))
+          GetDuplicateAuthorsRow.new(
+            author: Author.new(id: row[0], name: row[1], bio: row[2]),
+            author2: Author.new(id: row[3], name: row[4], bio: row[5])
+          )
         end
       end
     end
@@ -559,7 +613,12 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_get_authors_by_book_name', query_params).values
         result.map do |row|
-          GetAuthorsByBookNameRow.new(row[0], row[1], row[2], Book.new(row[3], row[4], row[5], row[6]))
+          GetAuthorsByBookNameRow.new(
+            id: row[0],
+            name: row[1],
+            bio: row[2],
+            book: Book.new(id: row[3], name: row[4], author_id: row[5], description: row[6])
+          )
         end
       end
     end
@@ -585,7 +644,11 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_get_first_extended_bio_by_type', query_params)
         row = result.first
-        row && GetFirstExtendedBioByTypeRow.new(row['author_name'], row['name'], row['bio_type'])
+        row && GetFirstExtendedBioByTypeRow.new(
+          author_name: row['author_name'],
+          name: row['name'],
+          bio_type: row['bio_type']
+        )
       end
     end
 
@@ -609,7 +672,7 @@ module PgCodegen
       with_client('insert_extra_types') do |client|
         query_params = [
           c_uuid,
-          c_jsonb,
+          encode_json(c_jsonb),
           c_text_array,
           c_integer_array,
           c_timestamptz,
@@ -635,14 +698,14 @@ module PgCodegen
         result = client.exec_prepared('query_sql_get_extra_types')
         row = result.first
         row && GetExtraTypesRow.new(
-          row['c_uuid'],
-          row['c_jsonb'],
-          row['c_text_array'],
-          row['c_integer_array'],
-          row['c_timestamptz'],
-          row['c_inet'],
-          row['c_money'],
-          row['c_not_null']
+          c_uuid: row['c_uuid'],
+          c_jsonb: row['c_jsonb'],
+          c_text_array: row['c_text_array'],
+          c_integer_array: row['c_integer_array'],
+          c_timestamptz: row['c_timestamptz'],
+          c_inet: row['c_inet'],
+          c_money: row['c_money'],
+          c_not_null: row['c_not_null']
         )
       end
     end
@@ -683,7 +746,11 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_get_array_types')
         row = result.first
-        row && GetArrayTypesRow.new(row['c_uuid_array'], row['c_bio_type_array'], row['c_integer_matrix'])
+        row && GetArrayTypesRow.new(
+          c_uuid_array: row['c_uuid_array'],
+          c_bio_type_array: row['c_bio_type_array'],
+          c_integer_matrix: row['c_integer_matrix']
+        )
       end
     end
 
@@ -711,7 +778,10 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_list_authors_with_optional_book').values
         result.map do |row|
-          ListAuthorsWithOptionalBookRow.new(row[0].nil? && row[1].nil? ? nil : Author.new(row[0], row[1], row[2]), row[3].nil? && row[4].nil? && row[5].nil? ? nil : Book.new(row[3], row[4], row[5], row[6]))
+          ListAuthorsWithOptionalBookRow.new(
+            author: row[0].nil? && row[1].nil? ? nil : Author.new(id: row[0], name: row[1], bio: row[2]),
+            book: row[3].nil? && row[4].nil? && row[5].nil? ? nil : Book.new(id: row[3], name: row[4], author_id: row[5], description: row[6])
+          )
         end
       end
     end
@@ -725,8 +795,97 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_list_authors_between_ids', query_params)
         result.map do |row|
-          ListAuthorsBetweenIdsRow.new(row['id'], row['name'], row['bio'])
+          ListAuthorsBetweenIdsRow.new(id: row['id'], name: row['name'], bio: row['bio'])
         end
+      end
+    end
+
+    def create_regression(id:, order:, payload:, doc:, bio_types:, uids:)
+      with_client('create_regression') do |client|
+        query_params = [
+          id,
+          order,
+          encode_bytea(payload),
+          encode_json(doc),
+          bio_types,
+          uids
+        ]
+        unless client.prepared_statements.include?('query_sql_create_regression')
+          client.prepare('query_sql_create_regression', CREATE_REGRESSION_SQL)
+          client.prepared_statements.add('query_sql_create_regression')
+        end
+        result = client.exec_prepared('query_sql_create_regression', query_params)
+        row = result.first
+        row && CreateRegressionRow.new(
+          id: row['id'],
+          order: row['order'],
+          payload: row['payload'],
+          doc: row['doc'],
+          bio_types: row['bio_types'],
+          uids: row['uids']
+        )
+      end
+    end
+
+    # Like #create_regression, but raises NotFound when there is no row.
+    def create_regression!(...)
+      create_regression(...) || raise(NotFound, 'CreateRegression returned no row')
+    end
+
+    def create_regression_if_new(id:, order:)
+      with_client('create_regression_if_new') do |client|
+        query_params = [id, order]
+        unless client.prepared_statements.include?('query_sql_create_regression_if_new')
+          client.prepare('query_sql_create_regression_if_new', CREATE_REGRESSION_IF_NEW_SQL)
+          client.prepared_statements.add('query_sql_create_regression_if_new')
+        end
+        result = client.exec_prepared('query_sql_create_regression_if_new', query_params)
+        row = result.first
+        row && row['id']
+      end
+    end
+
+    def copy_regressions(rows)
+      with_client('copy_regressions') do |client|
+        encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
+        client.copy_data('COPY "regressions" ("id", "order", "payload", "doc") FROM STDIN', encoder) do
+          rows.each do |row|
+            client.put_copy_data([row.id, row.order, encode_bytea(row.payload), encode_json(row.doc)])
+          end
+        end
+        nil
+      end
+    end
+
+    def list_regressions(order_name: nil)
+      with_client('list_regressions') do |client|
+        query_params = [order_name]
+        unless client.prepared_statements.include?('query_sql_list_regressions')
+          client.prepare('query_sql_list_regressions', LIST_REGRESSIONS_SQL)
+          client.prepared_statements.add('query_sql_list_regressions')
+        end
+        result = client.exec_prepared('query_sql_list_regressions', query_params)
+        result.map do |row|
+          ListRegressionsRow.new(
+            id: row['id'],
+            order: row['order'],
+            payload: row['payload'],
+            doc: row['doc'],
+            bio_types: row['bio_types'],
+            uids: row['uids']
+          )
+        end
+      end
+    end
+
+    def truncate_regressions
+      with_client('truncate_regressions') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_regressions')
+          client.prepare('query_sql_truncate_regressions', TRUNCATE_REGRESSIONS_SQL)
+          client.prepared_statements.add('query_sql_truncate_regressions')
+        end
+        client.exec_prepared('query_sql_truncate_regressions')
+        nil
       end
     end
 
@@ -737,7 +896,7 @@ module PgCodegen
           c1,
           c2,
           c3,
-          c4
+          encode_bytea(c4)
         ]
         unless client.prepared_statements.include?('query_sql_many_params')
           client.prepare('query_sql_many_params', MANY_PARAMS_SQL)
@@ -745,7 +904,7 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_many_params', query_params)
         row = result.first
-        row && ManyParamsRow.new(row['c0'], row['c1'])
+        row && ManyParamsRow.new(c0: row['c0'], c1: row['c1'])
       end
     end
 
@@ -763,12 +922,12 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_many_rows', query_params)
         result.map do |row|
-          manyRowsRow.new(
-            row['c0'],
-            row['c1'],
-            row['c2'],
-            row['c3'],
-            row['c4']
+          ManyRowsRow.new(
+            c0: row['c0'],
+            c1: row['c1'],
+            c2: row['c2'],
+            c3: row['c3'],
+            c4: row['c4']
           )
         end
       end
@@ -782,7 +941,7 @@ module PgCodegen
         end
         result = client.exec_prepared('query_sql_four_cols')
         result.map do |row|
-          FourColsRow.new(row['c0'], row['c1'], row['c2'], row['c3'])
+          FourColsRow.new(c0: row['c0'], c1: row['c1'], c2: row['c2'], c3: row['c3'])
         end
       end
     end
@@ -813,16 +972,32 @@ module PgCodegen
     # Connections of an injected pool are set up on first use: typed results and Ruby arrays as parameters.
     def configure(client)
       type_map = PG::BasicTypeMapForResults.new(client)
-      # uuid, enums, money, ... come back as Strings, arrays of them (uuid[], enum[], ...) as Arrays of Strings
-      fallback = PG::TypeMapByOid.new
-      client.exec("SELECT oid FROM pg_type WHERE typcategory = 'A'").each do |row|
-        fallback.add_coder(PG::TextDecoder::Array.new(oid: row['oid'].to_i, elements_type: PG::TextDecoder::String.new))
-      end
-      fallback.default_type_map = PG::TypeMapAllStrings.new
-      type_map.default_type_map = fallback
+      type_map.default_type_map = string_arrays(client) # uuid, enums, money, ... come back as Strings
       client.type_map_for_results = type_map
       client.type_map_for_queries = PG::BasicTypeMapForQueries.new(client)
       client.extend(ConnectionState)
+    end
+
+    # Arrays of types without a decoder (uuid[], enum[], ...) become Arrays of Strings, other types Strings.
+    def string_arrays(client)
+      strings = PG::TypeMapAllStrings.new
+      arrays = PG::TypeMapByOid.new
+      client.exec("SELECT oid, typdelim FROM pg_type WHERE typcategory = 'A'", [], 0, strings).each do |row|
+        arrays.add_coder(PG::TextDecoder::Array.new(oid: row['oid'].to_i, delimiter: row['typdelim'],
+                                                    elements_type: PG::TextDecoder::String.new))
+      end
+      arrays.default_type_map = strings
+      arrays
+    end
+
+    # bytea parameters are sent escaped: binary Strings (NUL bytes, invalid UTF-8) are not valid text.
+    def encode_bytea(value)
+      value && PG::TextEncoder::Bytea.new.encode(value)
+    end
+
+    # json / jsonb parameters: an Array is a JSON array, not a PG array (Hashes and JSON text pass through).
+    def encode_json(value)
+      value.is_a?(Array) ? PG::TextEncoder::JSON.new.encode(value) : value
     end
   end
 end

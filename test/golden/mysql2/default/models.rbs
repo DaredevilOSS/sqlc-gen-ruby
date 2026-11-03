@@ -115,4 +115,11 @@ module Mysql2Codegen
     attr_reader author_type: String?
     def initialize: (  String? author_name, String? name, String? bio_type, String? author_type) -> void
   end
+
+  class Regression
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader note: String?
+    def initialize: (  Integer id, String order, String? note) -> void
+  end
 end

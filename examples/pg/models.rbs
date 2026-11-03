@@ -91,6 +91,23 @@ module PgCodegen
     def initialize: (  Array[String]? c_uuid_array, Array[String]? c_bio_type_array, Array[Array[Integer]]? c_integer_matrix) -> void
   end
 
+  class Regression
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader payload: String?
+    attr_reader doc: untyped
+    attr_reader bio_types: Array[String]?
+    attr_reader uids: Array[String]?
+    def initialize: (
+        Integer id,
+        String order,
+        String? payload,
+        untyped doc,
+        Array[String]? bio_types,
+        Array[String]? uids
+    ) -> void
+  end
+
   class ExtendedBio
     attr_reader author_name: String
     attr_reader name: String

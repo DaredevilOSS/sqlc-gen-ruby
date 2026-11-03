@@ -64,3 +64,12 @@ CREATE TABLE postgres_array_types (
     c_bio_type_array extended.bio_type [],
     c_integer_matrix INTEGER [][]
 );
+
+CREATE TABLE regressions (
+  id        bigint PRIMARY KEY,
+  "order"   text NOT NULL,
+  payload   bytea,
+  doc       jsonb,
+  bio_types extended.bio_type[],
+  uids      uuid[]
+);
