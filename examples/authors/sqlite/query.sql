@@ -198,3 +198,15 @@ SELECT * FROM name_cases WHERE id = sqlc.arg(id);
 
 -- name: TruncateNameCases :exec
 DELETE FROM name_cases;
+
+-- name: GetUnnamedColumns :one
+SELECT 1, 'two';
+
+-- name: GetQuotedAlias :one
+SELECT 1 AS "it's";
+
+-- name: GetAuthorsNotInIds :many
+SELECT * FROM authors WHERE id NOT IN (sqlc.slice('ids')) ORDER BY id;
+
+-- name: CreateAuthorOrRollback :exec
+INSERT OR ROLLBACK INTO authors (id, name) VALUES (?, ?);

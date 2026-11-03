@@ -110,7 +110,7 @@ module SqlcGenRuby
     end
 
     def generate_files(queries, class_name, with_models:, with_connection:)
-      method_gen = MethodGen.new(@driver, @layout, @types, class_name)
+      method_gen = MethodGen.new(@driver, @layout, @types, "#{module_name}::#{class_name}")
       members = queries.flat_map { |q| query_members(q, method_gen) }
       klass = class_members(queries, method_gen)
       base = Code.snake_case(class_name)
