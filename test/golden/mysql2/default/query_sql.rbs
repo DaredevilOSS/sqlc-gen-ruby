@@ -255,6 +255,22 @@ module Mysql2Codegen
     def initialize: (  String order, String? note) -> void
   end
 
+  class CopyRegressionRowsArgs
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader note: String?
+    attr_reader payload: String?
+    def initialize: (  Integer id, String order, String? note, String? payload) -> void
+  end
+
+  LIST_REGRESSION_PAYLOADS_SQL: String
+
+  class ListRegressionPayloadsRow
+    attr_reader id: Integer
+    attr_reader payload: String?
+    def initialize: (  Integer id, String? payload) -> void
+  end
+
   TRUNCATE_REGRESSIONS_SQL: String
 
   MANY_PARAMS_SQL: String
@@ -372,6 +388,10 @@ module Mysql2Codegen
 
     def copy_regressions: (Array[CopyRegressionsArgs] rows) -> void
 
+    def copy_regression_rows: (Array[CopyRegressionRowsArgs] rows) -> void
+
+    def list_regression_payloads: -> Array[ListRegressionPayloadsRow]
+
     def truncate_regressions: -> void
 
     def many_params: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow?
@@ -389,6 +409,8 @@ module Mysql2Codegen
     def with_client: [T] (String name) { (untyped) -> T } -> T
 
     def csv_line: (Array[untyped] values) -> String
+
+    def load_data: (untyped client, String sql) -> void
 
     def slice_placeholders: (Array[untyped] values) -> String
   end

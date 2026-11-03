@@ -386,6 +386,31 @@ class TestMysql2 < Minitest::Test
     assert_equal notes, rows.map(&:note)
   end
 
+  def test_copyfrom_loads_binary_values
+    binary = "\x00\xFF\x01\"\\,\n".b
+    @query_sql.copy_regression_rows([CopyRegressionRowsArgs.new(id: 1, order: 'é', note: nil, payload: binary),
+                                     CopyRegressionRowsArgs.new(id: 2, order: 'b', note: 'n', payload: nil)])
+    assert_equal [[1, binary], [2, nil]], @query_sql.list_regression_payloads.map { |r| [r.id, r.payload] }
+    assert_equal 'é', @query_sql.list_regressions_by_ids(id: 1, id_2: 0, id_3: 0).first.order
+  end
+
+  def test_copyfrom_fails_on_duplicate_keys_and_invalid_values_and_loads_nothing
+    @query_sql.copy_regression_rows([CopyRegressionRowsArgs.new(id: 1, order: 'first', note: nil, payload: nil)])
+    duplicate = [CopyRegressionRowsArgs.new(id: 2, order: 'new', note: nil, payload: nil),
+                 CopyRegressionRowsArgs.new(id: 1, order: 'again', note: nil, payload: nil)]
+    assert_raises(Mysql2::Error) { @query_sql.copy_regression_rows(duplicate) }
+    assert_raises(Mysql2::Error) { @query_sql.copy_regression_rows([CopyRegressionRowsArgs.new(id: 'x', order: 'bad', note: nil, payload: nil)]) }
+    assert_equal [[1, 'first']], @query_sql.list_regressions_by_ids(id: 1, id_2: 2, id_3: 3).map { |r| [r.id, r.order] }
+  end
+
+  def test_failed_copyfrom_in_a_transaction_rolls_back_only_itself
+    @query_sql.transaction do |tx|
+      tx.copy_regression_rows([CopyRegressionRowsArgs.new(id: 1, order: 'kept', note: nil, payload: nil)])
+      assert_raises(Mysql2::Error) { tx.copy_regression_rows([CopyRegressionRowsArgs.new(id: 1, order: 'dup', note: nil, payload: nil)]) }
+    end
+    assert_equal ['kept'], @query_sql.list_regressions_by_ids(id: 1, id_2: 2, id_3: 3).map(&:order)
+  end
+
   def test_transaction_left_with_break_or_throw_commits_and_frees_the_connection
     pooled = QuerySql.connect(mysql2_params, size: 1)
     2.times do |i|

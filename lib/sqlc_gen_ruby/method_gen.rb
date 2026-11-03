@@ -69,6 +69,7 @@ module SqlcGenRuby
       end
       doc = query.comments.map { |c| "# #{c.strip}".rstrip }.join("\n")
       method = Code.block("def #{func}#{signature}", method_body(func, statements))
+      method = Code.without_cops(method, Code.naming_cops(params: params.map(&:name)))
       method = "#{doc}\n#{method}" unless doc.empty?
       query.cmd == ':one' ? "#{method}\n\n#{bang_method(query, func)}" : method
     end
@@ -189,7 +190,7 @@ module SqlcGenRuby
       statements = [@driver.prepare_stmt(stmt_name, const)].compact
       cmd = BATCH_COMMANDS.fetch(query.cmd)
       body = []
-      body << "query_params = [#{Code.comma_join(params.map { |p| "args.#{p.name}" })}]" unless params.empty?
+      body << "query_params = [#{Code.comma_join(params.map { |p| @driver.encode_param("args.#{p.name}", p.column) })}]" unless params.empty?
       body.concat(command_statements(query, stmt_name, const, !params.empty?, cmd: cmd))
       body.pop if cmd == ':exec' # the trailing nil
       block_arg = params.empty? ? '_args' : 'args'

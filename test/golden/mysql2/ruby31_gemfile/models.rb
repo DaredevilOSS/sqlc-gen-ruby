@@ -76,5 +76,11 @@ module Mysql2Codegen
     keyword_init: true
   )
 
-  Regression = Struct.new(:id, :order, :note, keyword_init: true)
+  Regression = Struct.new(
+    :id,
+    :order,
+    :note,
+    :payload,
+    keyword_init: true
+  )
 end

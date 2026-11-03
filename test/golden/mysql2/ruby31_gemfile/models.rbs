@@ -162,7 +162,8 @@ module Mysql2Codegen
     attr_accessor id: Integer
     attr_accessor order: String
     attr_accessor note: String?
-    def initialize: (  id: Integer, order: String, note: String?) -> void
-    def self.new: (  id: Integer, order: String, note: String?) -> Regression
+    attr_accessor payload: String?
+    def initialize: (  id: Integer, order: String, note: String?, payload: String?) -> void
+    def self.new: (  id: Integer, order: String, note: String?, payload: String?) -> Regression
   end
 end

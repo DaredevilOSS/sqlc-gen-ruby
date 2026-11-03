@@ -1,7 +1,7 @@
 
 
 
-2mysql¤public"™public€
+2mysqlÍpublic"Âpublic€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
@@ -70,11 +70,12 @@ c_longtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
 author_name0dRextended_biosb	varchar$
 name0dRextended_biosb	varchar7
 bio_type0Rextended_biosbextended_bios_bio_type=
-author_type0Rextended_biosbextended_bios_author_type
+author_type0Rextended_biosbextended_bios_author_type¶
 regressions*
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigint&
 order0ÿRregressionsb	varchar(
-note0ÿÿÿÿÿÿÿÿÿRregressionsbtext":
+note0ÿÿÿÿÿÿÿÿÿRregressionsbtext'
+payload0Rregressionsb	varbinary":
 extended_bios_bio_typeAutobiography	BiographyMemoir"7
 extended_bios_author_typeAuthorEditor
 TranslatorË
@@ -271,5 +272,13 @@ KSELECT id, `order`, note FROM regressions WHERE id IN (?, ?, ?) ORDER BY idLi
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid:	query.sqlä
 5INSERT INTO regressions (`order`, note) VALUES (?, ?)CopyRegressions	:copyfrom*95
 order0ÿRpublicregressionsb	varcharzorder*:6
-note0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextznote:	query.sqlBregressionsC
+note0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextznote:	query.sqlBregressionsô
+HINSERT INTO regressions (id, `order`, note, payload) VALUES (?, ?, ?, ?)CopyRegressionRows	:copyfrom*:6
+id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbigintzid*95
+order0ÿRpublicregressionsb	varcharzorder*:6
+note0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextznote*<8
+payload0Rpublicregressionsb	varbinaryzpayload:	query.sqlBregressions½
+/SELECT id, payload FROM regressions ORDER BY idListRegressionPayloads:many".
+id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid"0
+payload0Rregressionsb	varbinaryzpayload:	query.sqlC
 TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

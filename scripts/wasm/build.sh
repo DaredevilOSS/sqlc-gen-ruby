@@ -33,6 +33,9 @@ cp -r "$SRC/lib/ruby/3.3.0" "$STAGE/usr/local/lib/ruby/3.3.0"
   psych psych.rb yaml yaml.rb unicode_normalize optparse optparse.rb open3 open3.rb ripper ripper.rb \
   random rinda benchmark benchmark.rb pstore.rb tempfile.rb tmpdir.rb un.rb webrick expect.rb getoptlong.rb \
   observer.rb abbrev.rb base64.rb mutex_m.rb nkf.rb syslog.rb)
+# the interpreter requires syntax_suggest/core_ext to format errors and warns "`syntax_suggest' was not loaded"
+# before the plugin's own message when it is missing: keep an empty stub
+mkdir -p "$STAGE/usr/local/lib/ruby/3.3.0/syntax_suggest" && : > "$STAGE/usr/local/lib/ruby/3.3.0/syntax_suggest/core_ext.rb"
 mkdir -p "$STAGE/usr/local/lib/ruby/site_ruby" "$STAGE/usr/local/lib/ruby/vendor_ruby" "$STAGE/usr/local/lib/ruby/gems"
 cp -r lib exe "$STAGE/app/"
 # sqlc runs the module as `plugin.wasm /plugin.CodegenService/Generate`, so the interpreter treats that

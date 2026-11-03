@@ -70,7 +70,8 @@ module SqlcGenRuby
       def helper_methods(queries)
         return [] unless copy_from?(queries)
 
-        [[CSV_LINE, 'def csv_line: (Array[untyped] values) -> String']]
+        [[CSV_LINE, 'def csv_line: (Array[untyped] values) -> String'],
+         [LOAD_DATA_HELPER, 'def load_data: (untyped client, String sql) -> void']]
       end
 
       CONNECTION_STATE = <<~'RUBY'.chomp
@@ -147,7 +148,32 @@ module SqlcGenRuby
 
       # Template of the generated statement (single-quoted heredoc: backslashes are copied verbatim).
       LOAD_DATA = <<~'RUBY'.chomp
-        client.query("LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE %<table>s FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (%<columns>s)")
+        load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE %<table>s CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (%<columns>s)")
+      RUBY
+
+      # LOAD DATA LOCAL skips duplicate keys and converts invalid values with a warning instead of failing.
+      LOAD_DATA_HELPER = <<~'RUBY'.chomp
+        # Runs LOAD DATA in a transaction (a savepoint inside #transaction): all rows or none, and an error instead
+        # of the warnings LOAD DATA LOCAL gives for duplicate keys and invalid values.
+        def load_data(client, sql)
+          outermost = !client.in_transaction
+          client.query(outermost ? 'BEGIN' : 'SAVEPOINT sqlc_copy')
+          done = false
+          begin
+            client.query(sql)
+            unless client.warning_count.zero?
+              warnings = client.query('SHOW WARNINGS', as: :array).reject { |level, *| level == 'Note' }
+              raise Mysql2::Error, "LOAD DATA: #{warnings.map { |w| w[2] }.join('; ')}" unless warnings.empty?
+            end
+            done = true
+          ensure
+            if outermost
+              client.query(done ? 'COMMIT' : 'ROLLBACK')
+            else
+              client.query(done ? 'RELEASE SAVEPOINT sqlc_copy' : 'ROLLBACK TO SAVEPOINT sqlc_copy')
+            end
+          end
+        end
       RUBY
 
       # \N is LOAD DATA's NULL; every other value is enclosed in quotes (an unquoted NULL would also be read as

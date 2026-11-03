@@ -21,10 +21,10 @@ module SqlcGenRuby
     def self.parse(pattern)
       version = parse_semantic(pattern)
       if version < MIN_SUPPORTED
-        raise ArgumentError, "Provided version #{version} exceeds min version #{MIN_SUPPORTED}"
+        raise ArgumentError, "Provided version #{version} is below the minimum supported version #{MIN_SUPPORTED}"
       end
       if version > MAX_SUPPORTED
-        raise ArgumentError, "Provided version #{version} exceeds max version #{MAX_SUPPORTED}"
+        raise ArgumentError, "Provided version #{version} is above the maximum supported version #{MAX_SUPPORTED}"
       end
 
       version

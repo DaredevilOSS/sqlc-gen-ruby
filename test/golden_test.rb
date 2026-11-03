@@ -12,7 +12,7 @@ class GoldenTest < Minitest::Test
   FILES = {
     'pg' => COMMON + %w[connection.rb connection.rbs],
     'mysql2' => COMMON + %w[connection.rb connection.rbs],
-    'sqlite3' => COMMON
+    'sqlite3' => COMMON + %w[connection.rb connection.rbs]
   }.freeze
 
   FILES.each do |driver, expected_files|

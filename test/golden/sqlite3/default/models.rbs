@@ -21,12 +21,16 @@ module Sqlite3Codegen
     attr_reader c_unsigned_big_int: Integer?
     attr_reader c_native: String?
     attr_reader c_double: Float?
+    attr_reader c_json: String?
+    attr_reader c_uuid: String?
     def initialize: (
         String? c_varchar,
         Float? c_decimal,
         Integer? c_unsigned_big_int,
         String? c_native,
-        Float? c_double
+        Float? c_double,
+        String? c_json,
+        String? c_uuid
     ) -> void
   end
 

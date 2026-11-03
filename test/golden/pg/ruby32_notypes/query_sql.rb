@@ -318,6 +318,13 @@ module PgCodegen
   class CopyRegressionsArgs < Data.define(:id, :order, :payload, :doc)
   end
 
+  CREATE_REGRESSIONS_BATCH_SQL = <<~'SQL'
+    INSERT INTO regressions (id, "order", payload, doc) VALUES ($1, $2, $3, $4)
+  SQL
+
+  class CreateRegressionsBatchArgs < Data.define(:id, :order, :payload, :doc)
+  end
+
   LIST_REGRESSIONS_SQL = <<~'SQL'
     SELECT id, "order", payload, doc, bio_types, uids FROM regressions WHERE ($1::text IS NULL OR "order" = $1) ORDER BY id
   SQL
@@ -406,7 +413,10 @@ module PgCodegen
         ensure
           unless failed
             commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-            client.exec(Thread.current.status == 'aborting' ? rollback : commit)
+            result = client.exec(Thread.current.status == 'aborting' ? rollback : commit)
+            # COMMIT of a transaction aborted by an error the block rescued is a ROLLBACK
+            rolled_back = outermost && result.cmd_status == 'ROLLBACK' && Thread.current.status != 'aborting'
+            raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rolled_back
           end
         end
       end
@@ -1009,6 +1019,20 @@ module PgCodegen
           rows.each do |row|
             client.put_copy_data([row.id, row.order, encode_bytea(row.payload), encode_json(row.doc)])
           end
+        end
+        nil
+      end
+    end
+
+    def create_regressions_batch(rows)
+      with_client('create_regressions_batch') do |client|
+        unless client.prepared_statements.include?('query_sql_create_regressions_batch')
+          client.prepare('query_sql_create_regressions_batch', CREATE_REGRESSIONS_BATCH_SQL)
+          client.prepared_statements.add('query_sql_create_regressions_batch')
+        end
+        rows.each do |args|
+          query_params = [args.id, args.order, encode_bytea(args.payload), encode_json(args.doc)]
+          client.exec_prepared('query_sql_create_regressions_batch', query_params)
         end
         nil
       end

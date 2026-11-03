@@ -4,30 +4,22 @@ sqlc plugins receive a protobuf `GenerateRequest` on stdin and answer with a `Ge
 process or as a WASI module. This plugin is pure Ruby and is distributed as a WASI module (`plugin.wasm`).
 
 ## Source layout
-
-| File | Role |
-|---|---|
-| `exe/plugin.rb` | entry point (stdin → `Generator` → stdout) |
-| `lib/sqlc_gen_ruby/proto.rb` | ~150 line protobuf wire codec. `google-protobuf` is a C extension and cannot be loaded inside ruby.wasm, so the plugin brings its own |
-| `lib/sqlc_gen_ruby/plugin_pb.rb` | the subset of sqlc's `codegen.proto` the generator needs (field numbers must match upstream) |
-| `lib/sqlc_gen_ruby/options.rb`, `ruby_version.rb` | the `options:` JSON, `rubyVersion` parsing / validation (3.1 – 3.4; `Struct` below 3.2, `Data` from 3.2) |
-| `lib/sqlc_gen_ruby/generator.rb` | module / class / dataclass (`Data.define`, `Struct.new`) layout, `.rb` / `.rbs` / `Gemfile` files, `models.rb` (tables + enums) |
-| `lib/sqlc_gen_ruby/method_gen.rb` | one generated method per query: `:one`, `:many`, `:exec`, `:execrows`, `:execlastid`, `:copyfrom`, `sqlc.slice` |
-| `lib/sqlc_gen_ruby/row_layout.rb` | how result columns become `<Query>Row` attributes (`sqlc.embed` expands a table into one model attribute) |
-| `lib/sqlc_gen_ruby/type_resolver.rb`, `catalog.rb` | RBS type of a column (DB type mapping + array + nullability + `overrides:`), tables / enums of the catalog |
-| `lib/sqlc_gen_ruby/drivers/*.rb` | `Base` + `Pg`, `Mysql2`, `Sqlite3`: column type mapping, statement preparation / execution, pooling, row access |
-| `lib/sqlc_gen_ruby/code.rb` | indent / snake_case helpers |
-
-Driver differences are data, not copy/paste: `Base` has `pooling_enabled?` (ConnectionPool vs a single injected
-connection), `row_data_type` (`row['col']` vs `row[0]`), `supports_exec_last_id?` (mysql2 only) and a column mapping
-table (exact or prefix based matching).
+What each file in `lib/sqlc_gen_ruby/` does is in [Architecture.md](Architecture.md). Two constraints shape it:
+* `google-protobuf` is a C extension and cannot be loaded inside ruby.wasm, so the plugin brings its own ~150 line
+  protobuf codec (`proto.rb`) and the subset of sqlc's `codegen.proto` it reads (`plugin_pb.rb`, field numbers must
+  match upstream).
+* Driver differences are data, not copy/paste: `Drivers::Base` defines hooks (how to prepare and run a statement, how
+  rows are read - `row_data_type` `:hash` for `row['col']` vs `:array` for `row[0]` -, how `:execlastid` /
+  `:execresult` / `:copyfrom` / transactions work) and a column mapping table; `Pg`, `Mysql2` and `Sqlite3` fill them in.
 
 ## The WASM build (`scripts/wasm/build.sh`)
 
 1. downloads the *prebuilt* `ruby-3.3-wasm32-unknown-wasip1-full` release from ruby/ruby.wasm (this avoids compiling
    CRuby with a wasi-sdk);
 2. strips the ~18 MB of DWARF debug info / name section from the interpreter (`strip_wasm.rb`);
-3. stages a slim stdlib (the plugin only uses core + `json`) + `lib/` + `exe/`;
+3. stages a slim stdlib (the plugin only uses core + `json`) + `lib/` + `exe/`, plus an empty
+   `syntax_suggest/core_ext.rb` (the interpreter loads it to format errors and would otherwise print a warning before
+   the plugin's error message);
 4. embeds that filesystem into the interpreter with `rbwasm pack` (wasi-vfs), because sqlc gives plugins no filesystem.
 
 **The argv trick:** sqlc runs the module as `plugin.wasm /plugin.CodegenService/Generate`, so the interpreter treats that
@@ -52,7 +44,7 @@ transactions, nullability, `overrides`) and Ruby conventions (bang finders, logg
 now idiomatic Ruby rather than a copy of the C# one.
 
 ## Known limitations
-* The SQLite `NUMERIC` affinity can return Integers where `Float` is declared.
-* `:copyfrom` for MySQL writes binary (`BLOB`) values through a text CSV; only text-safe values round-trip.
-* The generated query classes are not thread-safe for SQLite (a single connection is injected).
-* `3.3.x` (a patch version) is rejected as `rubyVersion`; use `3.3`.
+See [Limitations in the README](../README.md#limitations). Design choices that look like limitations:
+* Overrides only change the RBS types; values are never converted, so the generated code stays a thin layer over the driver.
+* SQLite queries do not overlap: a `SQLite3::Database` is one connection, so the generated code takes one lock per
+  database (held for a whole transaction) to keep threads and fibers from mixing their transactions.

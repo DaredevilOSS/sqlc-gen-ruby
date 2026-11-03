@@ -39,7 +39,8 @@ code and the options**, because that is what users depend on:
 | minor | new options, new query features, new drivers; output that only adds API (e.g. a new method) |
 | major | existing generated method signatures, constants or options change incompatibly |
 
-Label pull requests (`breaking`, `feature`, `bug`, `documentation`; `skip-changelog` to hide one) so the generated notes
+Label pull requests `bug`, `enhancement` or `documentation` (`breaking` for incompatible changes, `skip-changelog` to
+hide one; create those two labels the first time they are needed) so the generated notes
 are grouped sensibly, and pick the bump from the labels of what is merged since the last release.
 
 ## Using a release

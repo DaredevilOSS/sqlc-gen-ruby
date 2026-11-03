@@ -514,6 +514,29 @@ class TestPg < Minitest::Test
     client&.close
   end
 
+  def test_batch_parameters_encode_bytea_and_json
+    binary = "\x00\xFFb".b
+    @query_sql.create_regressions_batch([CreateRegressionsBatchArgs.new(id: 1, order: 'a', payload: binary, doc: [1, { 'k' => 'é' }]),
+                                         CreateRegressionsBatchArgs.new(id: 2, order: 'b', payload: nil, doc: nil)])
+    assert_equal [[1, binary, [1, { 'k' => 'é' }]], [2, nil, nil]], @query_sql.list_regressions.map { |r| [r.id, r.payload, r.doc] }
+  end
+
+  def test_transaction_whose_failed_statement_was_rescued_raises_instead_of_committing
+    @query_sql.create_regression(id: 1, order: 'taken', payload: nil, doc: nil, bio_types: nil, uids: nil)
+    assert_raises(PG::InFailedSqlTransaction) do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'lost', bio: nil)
+        begin
+          tx.create_regression(id: 1, order: 'duplicate', payload: nil, doc: nil, bio_types: nil, uids: nil)
+        rescue PG::UniqueViolation
+          nil
+        end
+      end
+    end
+    assert_empty @query_sql.list_authors
+    assert_equal ['taken'], @query_sql.list_regressions.map(&:order)
+  end
+
   def test_transaction_left_with_break_or_throw_commits_and_frees_the_connection
     pooled = QuerySql.connect(pg_params, size: 1)
     2.times do |i|

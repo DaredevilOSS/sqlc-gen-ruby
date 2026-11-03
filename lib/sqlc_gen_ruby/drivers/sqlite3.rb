@@ -12,6 +12,16 @@ module SqlcGenRuby
 
       def name = 'Sqlite3'
 
+      def module_members = [[CONNECTION_LOCK, CONNECTION_LOCK_RBS]]
+
+      def extra_requires(_queries, _ruby_version) = %w[monitor]
+
+      def helper_methods(queries)
+        return [] unless queries.any? { |q| q.cmd == ':copyfrom' }
+
+        [[ATOMICALLY, 'def atomically: (untyped client) { () -> void } -> void']]
+      end
+
       def class_methods
         [
           [NOT_FOUND, "class NotFound < StandardError\nend"],
@@ -23,7 +33,7 @@ module SqlcGenRuby
       def private_methods
         [
           [INSTRUMENT, INSTRUMENT_RBS],
-          ["def with_client(name, &block)\n  instrument(name) { block.call(@db) }\nend",
+          ["def with_client(name, &block)\n  instrument(name) { @lock.synchronize { block.call(@db) } }\nend",
            'def with_client: [T] (String name) { (untyped) -> T } -> T']
         ]
       end
@@ -64,41 +74,93 @@ module SqlcGenRuby
           "sql = %(INSERT INTO #{table} (#{columns.join(', ')}) VALUES \#{Array.new(batch.size, '#{placeholders}').join(', ')})",
           "client.execute(sql, batch.flat_map { |row| [#{values.join(', ')}] })"
         ].join("\n")
-        [Code.block("#{rows_var}.each_slice(#{rows_per_batch}) do |batch|", body), 'nil']
+        [Code.block('atomically(client) do', Code.block("#{rows_var}.each_slice(#{rows_per_batch}) do |batch|", body)), 'nil']
       end
 
       INITIALIZE = <<~'RUBY'.chomp
-        # db: a SQLite3::Database (a single connection, not shared across threads).
+        # db: a SQLite3::Database (a single connection; threads and fibers using it take turns).
         # logger: optional, anything with #debug (Logger, Rails.logger); logs the name and duration of every query.
         def initialize(db, logger: nil)
           @db = db
           @logger = logger
+          @lock = ConnectionLock.for(db)
         end
       RUBY
 
       TRANSACTION = <<~'RUBY'.chomp
         # Runs the block in a transaction and returns its value: COMMIT when the block returns (also through
         # break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call becomes a
-        # SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
+        # SAVEPOINT. mode: :deferred (default), :immediate or :exclusive. Other threads / fibers using the same
+        # database wait until it ends.
         def transaction(mode: nil)
+          raise ArgumentError, "unknown transaction mode: #{mode.inspect}" unless [nil, *TRANSACTION_MODES].include?(mode)
+
           instrument('transaction') do
-            outermost = !@db.transaction_active?
-            savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
-            @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
-            rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
-            failed = false
-            begin
-              yield self
-            rescue Exception # rubocop:disable Lint/RescueException
-              failed = true
-              @db.execute(rollback)
-              raise
-            ensure
-              unless failed
-                commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-                @db.execute(Thread.current.status == 'aborting' ? rollback : commit)
+            @lock.synchronize do
+              outermost = !@db.transaction_active?
+              savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
+              @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
+              rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+              failed = false
+              begin
+                yield self
+              rescue Exception # rubocop:disable Lint/RescueException
+                failed = true
+                @db.execute(rollback)
+                raise
+              ensure
+                unless failed
+                  commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+                  @db.execute(Thread.current.status == 'aborting' ? rollback : commit)
+                end
               end
             end
+          end
+        end
+      RUBY
+
+      # A SQLite3::Database runs one transaction at a time: every query class using it shares one lock, kept on the
+      # database (a Monitor, owned per Fiber, so a transaction's own queries re-enter it).
+      CONNECTION_LOCK = <<~'RUBY'.chomp
+        module ConnectionLock
+          MUTEX = Mutex.new
+
+          def self.for(db)
+            MUTEX.synchronize do
+              db.extend(self) unless db.is_a?(self)
+              db.sqlc_lock
+            end
+          end
+
+          def sqlc_lock = @sqlc_lock ||= Monitor.new
+        end
+
+        TRANSACTION_MODES = %i[deferred immediate exclusive].freeze
+      RUBY
+
+      CONNECTION_LOCK_RBS = <<~'RBS'.chomp
+        module ConnectionLock
+          MUTEX: Thread::Mutex
+          @sqlc_lock: Monitor
+
+          def self.for: (untyped db) -> Monitor
+          def sqlc_lock: () -> Monitor
+        end
+
+        TRANSACTION_MODES: Array[Symbol]
+      RBS
+
+      # All rows or none: a SAVEPOINT is a transaction of its own outside #transaction.
+      ATOMICALLY = <<~'RUBY'.chomp
+        def atomically(client)
+          client.execute('SAVEPOINT sqlc_copy')
+          done = false
+          begin
+            yield
+            done = true
+          ensure
+            client.execute('ROLLBACK TO SAVEPOINT sqlc_copy') unless done
+            client.execute('RELEASE SAVEPOINT sqlc_copy')
           end
         end
       RUBY
@@ -125,7 +187,7 @@ module SqlcGenRuby
         # Integers, blobs are Strings, dates are text.
         @column_mappings ||= [
           mapping('Integer', %w[int integer tinyint smallint mediumint bigint unsignedbigint int2 int8 boolean bool]),
-          mapping('String', %w[blob datetime date timestamp time]),
+          mapping('String', %w[blob datetime date timestamp time json jsonb uuid]),
           mapping('String', %w[character varchar varyingcharacter nchar nativecharacter nvarchar text clob],
                   prefix_based: true),
           mapping('Float', %w[real double doubleprecision float decimal numeric], prefix_based: true)

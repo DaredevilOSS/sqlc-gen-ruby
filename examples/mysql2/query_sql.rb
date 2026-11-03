@@ -235,6 +235,16 @@ module Mysql2Codegen
   class CopyRegressionsArgs < Data.define(:order, :note)
   end
 
+  class CopyRegressionRowsArgs < Data.define(:id, :order, :note, :payload)
+  end
+
+  LIST_REGRESSION_PAYLOADS_SQL = <<~'SQL'
+    SELECT id, payload FROM regressions ORDER BY id
+  SQL
+
+  class ListRegressionPayloadsRow < Data.define(:id, :payload)
+  end
+
   TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
     TRUNCATE TABLE regressions
   SQL
@@ -523,7 +533,7 @@ module Mysql2Codegen
             file.write(csv_line([row.name, row.bio]))
           end
           file.flush
-          client.query("LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `authors` FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`name`, `bio`)")
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `authors` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`name`, `bio`)")
         end
         nil
       end
@@ -748,9 +758,38 @@ module Mysql2Codegen
             file.write(csv_line([row.order, row.note]))
           end
           file.flush
-          client.query("LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `regressions` FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`order`, `note`)")
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `regressions` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`order`, `note`)")
         end
         nil
+      end
+    end
+
+    def copy_regression_rows(rows)
+      with_client('copy_regression_rows') do |client|
+        return if rows.empty?
+
+        Tempfile.create(['copy_regression_rows', '.csv']) do |file|
+          rows.each do |row|
+            file.write(csv_line([row.id, row.order, row.note, row.payload]))
+          end
+          file.flush
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `regressions` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `order`, `note`, `payload`)")
+        end
+        nil
+      end
+    end
+
+    def list_regression_payloads
+      with_client('list_regression_payloads') do |client|
+        stmt = client.prepare(LIST_REGRESSION_PAYLOADS_SQL)
+        begin
+          result = stmt.execute(as: :array)
+          result.map do |row|
+            ListRegressionPayloadsRow.new(row[0], row[1])
+          end
+        ensure
+          stmt.close
+        end
       end
     end
 
@@ -801,6 +840,28 @@ module Mysql2Codegen
         end
       end
       "#{fields.join(',')}\n"
+    end
+
+    # Runs LOAD DATA in a transaction (a savepoint inside #transaction): all rows or none, and an error instead
+    # of the warnings LOAD DATA LOCAL gives for duplicate keys and invalid values.
+    def load_data(client, sql)
+      outermost = !client.in_transaction
+      client.query(outermost ? 'BEGIN' : 'SAVEPOINT sqlc_copy')
+      done = false
+      begin
+        client.query(sql)
+        unless client.warning_count.zero?
+          warnings = client.query('SHOW WARNINGS', as: :array).reject { |level, *| level == 'Note' }
+          raise Mysql2::Error, "LOAD DATA: #{warnings.map { |w| w[2] }.join('; ')}" unless warnings.empty?
+        end
+        done = true
+      ensure
+        if outermost
+          client.query(done ? 'COMMIT' : 'ROLLBACK')
+        else
+          client.query(done ? 'RELEASE SAVEPOINT sqlc_copy' : 'ROLLBACK TO SAVEPOINT sqlc_copy')
+        end
+      end
     end
 
     def slice_placeholders(values)

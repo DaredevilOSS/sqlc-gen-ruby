@@ -9,6 +9,7 @@ module SqlcGenRuby
     DRIVERS = %w[mysql2 pg sqlite3].freeze
     KNOWN = %w[driver generateGemfile generateTypes rubyVersion overrides moduleName preparedStatements rename
                exactTableNames].freeze
+    OVERRIDE_KEYS = %w[column db_type ruby_type].freeze
 
     # `overrides:` entry, matched by `column:` ("<QueryName>:<column>", "*:<column>", "<table>.<column>",
     # "<schema>.<table>.<column>") or `db_type:`; type/not_null come from `ruby_type:`
@@ -95,6 +96,12 @@ module SqlcGenRuby
 
       list.map do |entry|
         raise ArgumentError, 'each override must be an object' unless entry.is_a?(Hash)
+
+        unknown = entry.keys - OVERRIDE_KEYS
+        unless unknown.empty?
+          hints = unknown.map { |key| (near = OVERRIDE_KEYS.find { |k| k.start_with?(key[0, 3]) }) ? "#{key} (did you mean #{near}?)" : key }
+          raise ArgumentError, "unknown override keys: #{hints.join(', ')}; supported: #{OVERRIDE_KEYS.join(', ')}"
+        end
 
         label = entry['column'] || entry['db_type']
         type = entry['ruby_type']

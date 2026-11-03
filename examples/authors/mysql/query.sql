@@ -110,5 +110,11 @@ SELECT id, `order`, note FROM regressions WHERE id IN (?, ?, ?) ORDER BY id;
 -- name: CopyRegressions :copyfrom
 INSERT INTO regressions (`order`, note) VALUES (?, ?);
 
+-- name: CopyRegressionRows :copyfrom
+INSERT INTO regressions (id, `order`, note, payload) VALUES (?, ?, ?, ?);
+
+-- name: ListRegressionPayloads :many
+SELECT id, payload FROM regressions ORDER BY id;
+
 -- name: TruncateRegressions :exec
 TRUNCATE TABLE regressions;
