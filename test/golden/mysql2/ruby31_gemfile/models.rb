@@ -17,10 +17,9 @@ module Mysql2Codegen
     ALL = [AUTHOR, EDITOR, TRANSLATOR].freeze
   end
 
-  class Author < Struct.new(:id, :name, :bio)
-  end
+  Author = Struct.new(:id, :name, :bio, keyword_init: true)
 
-  class NodeMysqlType < Struct.new(
+  NodeMysqlType = Struct.new(
     :c_bit,
     :c_tinyint,
     :c_bool,
@@ -57,13 +56,25 @@ module Mysql2Codegen
     :c_mediumtext,
     :c_longblob,
     :c_longtext,
-    :c_json
+    :c_json,
+    keyword_init: true
   )
-  end
 
-  class Book < Struct.new(:id, :name, :author_id, :description)
-  end
+  Book = Struct.new(
+    :id,
+    :name,
+    :author_id,
+    :description,
+    keyword_init: true
+  )
 
-  class ExtendedBio < Struct.new(:author_name, :name, :bio_type, :author_type)
-  end
+  ExtendedBio = Struct.new(
+    :author_name,
+    :name,
+    :bio_type,
+    :author_type,
+    keyword_init: true
+  )
+
+  Regression = Struct.new(:id, :order, :note, keyword_init: true)
 end

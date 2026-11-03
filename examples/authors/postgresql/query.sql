@@ -101,3 +101,18 @@ SELECT * FROM postgres_extra_types LIMIT 1;
 
 -- name: TruncateExtraTypes :exec
 TRUNCATE TABLE postgres_extra_types;
+
+-- name: CreateRegression :one
+INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;
+
+-- name: CreateRegressionIfNew :execlastid
+INSERT INTO regressions (id, "order") VALUES ($1, $2) ON CONFLICT (id) DO NOTHING RETURNING id;
+
+-- name: CopyRegressions :copyfrom
+INSERT INTO regressions (id, "order", payload, doc) VALUES ($1, $2, $3, $4);
+
+-- name: ListRegressions :many
+SELECT * FROM regressions WHERE (sqlc.narg(order_name)::text IS NULL OR "order" = sqlc.narg(order_name)) ORDER BY id;
+
+-- name: TruncateRegressions :exec
+TRUNCATE TABLE regressions;

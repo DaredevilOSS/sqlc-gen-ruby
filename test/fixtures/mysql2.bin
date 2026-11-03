@@ -1,4 +1,4 @@
-”public"‰public€
+¤public"™public€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
@@ -67,7 +67,11 @@ c_longtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
 author_name0dRextended_biosb	varchar$
 name0dRextended_biosb	varchar7
 bio_type0Rextended_biosbextended_bios_bio_type=
-author_type0Rextended_biosbextended_bios_author_type":
+author_type0Rextended_biosbextended_bios_author_type
+regressions*
+id0ÿÿÿÿÿÿÿÿÿRregressionsbbigint&
+order0ÿRregressionsb	varchar(
+note0ÿÿÿÿÿÿÿÿÿRregressionsbtext":
 extended_bios_bio_typeAutobiography	BiographyMemoir"7
 extended_bios_author_typeAuthorEditor
 TranslatorË
@@ -232,4 +236,19 @@ XINSERT INTO extended_bios (author_name, name, bio_type, author_type) VALUES (?,
 bio_type0Rextended_biosbextended_bios_bio_typezbio_type"J
 author_type0Rextended_biosbextended_bios_author_typezauthor_type*EA
 bio_type0Rextended_biosbextended_bios_bio_typezbio_type:	query.sqlC
-DELETE FROM extended_biosTruncateExtendedBios:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+DELETE FROM extended_biosTruncateExtendedBios:exec:	query.sqlõ
+>SELECT count(*) FROM regressions WHERE `order` = ? OR note = ?CountRegressionsByText:one" 
+count0ÿÿÿÿÿÿÿÿÿ@bbigint*2.
+term0ÿ8Rregressionsb	varcharzorder*40
+term0ÿÿÿÿÿÿÿÿÿ8Rregressionsbtextznote:	query.sql 
+KSELECT id, `order`, note FROM regressions WHERE id IN (?, ?, ?) ORDER BY idListRegressionsByIds:many".
+id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid"-
+order0ÿRregressionsb	varcharzorder".
+note0ÿÿÿÿÿÿÿÿÿRregressionsbtextznote*2.
+id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid*2.
+id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid*2.
+id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid:	query.sqlä
+5INSERT INTO regressions (`order`, note) VALUES (?, ?)CopyRegressions	:copyfrom*95
+order0ÿRpublicregressionsb	varcharzorder*:6
+note0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextznote:	query.sqlBregressionsC
+TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

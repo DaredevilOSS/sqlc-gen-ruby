@@ -4,9 +4,10 @@ module Sqlite3Codegen
 
   OTHER_ONE_SQL: String
 
-  class OtherOneRow < ::Struct
+  class OtherOneRow < ::Struct[untyped]
     attr_accessor c0: Integer
-    def self.new: (  Integer c0) -> OtherOneRow
+    def initialize: (  c0: Integer) -> void
+    def self.new: (  c0: Integer) -> OtherOneRow
   end
 
   COUNT_ROWS_SQL: String

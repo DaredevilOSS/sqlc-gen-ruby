@@ -8,4 +8,7 @@ module Sqlite3Codegen
 
   class Book < Data.define(:id, :name, :author_id, :description)
   end
+
+  class Regression < Data.define(:id, :order, :price)
+  end
 end

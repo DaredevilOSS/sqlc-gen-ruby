@@ -58,3 +58,12 @@ CREATE TABLE postgres_extra_types (
     c_money MONEY,
     c_not_null TEXT NOT NULL DEFAULT 'x'
 );
+
+CREATE TABLE regressions (
+  id        bigint PRIMARY KEY,
+  "order"   text NOT NULL,
+  payload   bytea,
+  doc       jsonb,
+  bio_types extended.bio_type[],
+  uids      uuid[]
+);

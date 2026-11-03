@@ -30,14 +30,14 @@ module SqlcGenRuby
     def embed?(column) = !column.embed_table.nil? && !column.embed_table.name.empty?
 
     def build(query)
-      taken = query.columns.reject { |c| embed?(c) }.map(&:name)
+      taken = query.columns.reject { |c| embed?(c) }.map { |c| @types.member_name(c.name) }
       query.columns.map do |column|
         if embed?(column)
           table = @catalog.table_for(column.embed_table) or
             raise ArgumentError, "#{query.name}: sqlc.embed of unknown table #{column.embed_table.name}"
-          Entry.new(unique_name(taken, Code.singularize(column.name)), table.model_name, column, table)
+          Entry.new(unique_name(taken, @types.member_name(Code.singularize(column.name))), table.model_name, column, table)
         else
-          Entry.new(column.name, @types.type(column, query_name: query.name), column, nil)
+          Entry.new(@types.member_name(column.name), @types.type(column, query_name: query.name), column, nil)
         end
       end.tap { |list| reject_duplicate_columns(query, list) }
     end

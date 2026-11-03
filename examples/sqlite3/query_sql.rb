@@ -127,6 +127,41 @@ module Sqlite3Codegen
   class GetAuthorsByBookNameRow < Data.define(:id, :name, :bio, :book)
   end
 
+  CREATE_REGRESSION_SQL = <<~'SQL'
+    INSERT INTO regressions ("order", price) VALUES (?, ?) RETURNING id
+  SQL
+
+  class CreateRegressionRow < Data.define(:id)
+  end
+
+  UPDATE_REGRESSION_PRICES_SQL = <<~'SQL'
+    UPDATE regressions SET price = ? RETURNING id
+  SQL
+
+  class UpdateRegressionPricesRow < Data.define(:id)
+  end
+
+  class CopyRegressionsArgs < Data.define(:order, :price)
+  end
+
+  LIST_REGRESSIONS_SQL = <<~'SQL'
+    SELECT id, "order", price FROM regressions ORDER BY id
+  SQL
+
+  class ListRegressionsRow < Data.define(:id, :order, :price)
+  end
+
+  GET_MAX_REGRESSION_PRICE_SQL = <<~'SQL'
+    SELECT coalesce(max(price), 0) AS max_price FROM regressions
+  SQL
+
+  class GetMaxRegressionPriceRow < Data.define(:max_price)
+  end
+
+  TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
+    DELETE FROM regressions
+  SQL
+
   class QuerySql
     # Raised by the bang variants (get_author!) when the query returns no row.
     class NotFound < StandardError; end
@@ -138,20 +173,27 @@ module Sqlite3Codegen
       @logger = logger
     end
 
-    # Runs the block in a transaction and returns its value: COMMIT when the block returns, ROLLBACK when it
-    # raises. A nested call becomes a SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
+    # Runs the block in a transaction and returns its value: COMMIT when the block returns (also through
+    # break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call becomes a
+    # SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
     def transaction(mode: nil)
       instrument('transaction') do
         outermost = !@db.transaction_active?
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
+        rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        failed = false
         begin
-          result = yield self
-          @db.execute(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-          result
+          yield self
         rescue Exception # rubocop:disable Lint/RescueException
-          @db.execute(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+          failed = true
+          @db.execute(rollback)
           raise
+        ensure
+          unless failed
+            commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+            @db.execute(Thread.current.status == 'aborting' ? rollback : commit)
+          end
         end
       end
     end
@@ -277,7 +319,7 @@ module Sqlite3Codegen
     def get_authors_by_ids(ids:)
       with_client('get_authors_by_ids') do |client|
         query_params = [*ids]
-        sql = GET_AUTHORS_BY_IDS_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))
+        sql = GET_AUTHORS_BY_IDS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
         stmt = client.prepare(sql)
         begin
           result = stmt.execute(*query_params)
@@ -293,8 +335,8 @@ module Sqlite3Codegen
     def get_authors_by_ids_and_names(ids:, names:)
       with_client('get_authors_by_ids_and_names') do |client|
         query_params = [*ids, *names]
-        sql = GET_AUTHORS_BY_IDS_AND_NAMES_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids))
-        sql = sql.sub('/*SLICE:names*/?', slice_placeholders(names))
+        sql = GET_AUTHORS_BY_IDS_AND_NAMES_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
+        sql = sql.gsub('/*SLICE:names*/?', slice_placeholders(names))
         stmt = client.prepare(sql)
         begin
           result = stmt.execute(*query_params)
@@ -311,7 +353,7 @@ module Sqlite3Codegen
     def copy_authors(rows)
       with_client('copy_authors') do |client|
         rows.each_slice(499) do |batch|
-          sql = "INSERT INTO authors (name, bio) VALUES #{Array.new(batch.size, '(?, ?)').join(', ')}"
+          sql = %(INSERT INTO "authors" ("name", "bio") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
           client.execute(sql, batch.flat_map { |row| [row.name, row.bio] })
         end
         nil
@@ -350,7 +392,10 @@ module Sqlite3Codegen
         begin
           result = stmt.execute
           result.map do |row|
-            ListAllAuthorsBooksRow.new(Author.new(row[0], row[1], row[2]), Book.new(row[3], row[4], row[5], row[6]))
+            ListAllAuthorsBooksRow.new(
+              Author.new(row[0], row[1], row[2]),
+              Book.new(row[3], row[4], row[5], row[6])
+            )
           end
         ensure
           stmt.close
@@ -381,6 +426,86 @@ module Sqlite3Codegen
           result.map do |row|
             GetAuthorsByBookNameRow.new(row[0], row[1], row[2], Book.new(row[3], row[4], row[5], row[6]))
           end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def create_regression(order:, price:)
+      with_client('create_regression') do |client|
+        query_params = [order, price]
+        stmt = client.prepare(CREATE_REGRESSION_SQL)
+        begin
+          stmt.execute(*query_params).to_a
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def update_regression_prices(price:)
+      with_client('update_regression_prices') do |client|
+        query_params = [price]
+        stmt = client.prepare(UPDATE_REGRESSION_PRICES_SQL)
+        begin
+          stmt.execute(*query_params).to_a
+          client.changes
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def copy_regressions(rows)
+      with_client('copy_regressions') do |client|
+        rows.each_slice(499) do |batch|
+          sql = %(INSERT INTO "regressions" ("order", "price") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
+          client.execute(sql, batch.flat_map { |row| [row.order, row.price] })
+        end
+        nil
+      end
+    end
+
+    def list_regressions
+      with_client('list_regressions') do |client|
+        stmt = client.prepare(LIST_REGRESSIONS_SQL)
+        begin
+          result = stmt.execute
+          result.map do |row|
+            ListRegressionsRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def get_max_regression_price
+      with_client('get_max_regression_price') do |client|
+        stmt = client.prepare(GET_MAX_REGRESSION_PRICE_SQL)
+        begin
+          result = stmt.execute
+          row = result.first
+          row && GetMaxRegressionPriceRow.new(row[0])
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    # Like #get_max_regression_price, but raises NotFound when there is no row.
+    def get_max_regression_price!(...)
+      get_max_regression_price(...) || raise(NotFound, 'GetMaxRegressionPrice returned no row')
+    end
+
+    def truncate_regressions
+      with_client('truncate_regressions') do |client|
+        stmt = client.prepare(TRUNCATE_REGRESSIONS_SQL)
+        begin
+          stmt.execute
+          nil
         ensure
           stmt.close
         end

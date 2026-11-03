@@ -15,12 +15,14 @@ codec), and it is shipped as a single self-contained WebAssembly module — the 
 | Option          | Possible values                                | Optional | Info                                                                                                      |
 |-----------------|------------------------------------------------|----------|-----------------------------------------------------------------------------------------------------------|
 | driver          | values: `mysql2`,`pg`, `sqlite3`               | No       | Choosing the driver to use - see [here](docs/Examples.md) for more details info.                          |
-| rubyVersion     | default: `3.3`<br/>values: `3.1`, `3.2`, `3.3` | Yes      | Determines the Ruby version the generated code should support..                                           |
+| rubyVersion     | default: `3.3`<br/>values: `3.1` - `3.4`       | Yes      | Determines the Ruby version the generated code should support..                                           |
 | generateGemfile | default: `false`<br/>values: `false`,`true`    | Yes      | Assists you with the integration of SQLC and Ruby by generating a `Gemfile` with the needed dependencies. |
 | generateTypes   | default: `true`<br/>values: `false`,`true`     | Yes      | Determines whether to generate type signatures in addition to the code.                                   |
 | overrides       | a list, see [below](#override-option)          | Yes      | Overrides the generated (RBS) type of specific columns / parameters.                                      |
 | moduleName      | default: `<Driver>Codegen` (e.g. `PgCodegen`)  | Yes      | The Ruby module the generated code lives in, e.g. `MyApp::Db`.                                            |
 | preparedStatements | default: `true`<br/>values: `false`,`true`  | Yes      | `pg` only: `false` sends the SQL with every call (`exec_params`) - needed behind pgbouncer in transaction mode. |
+
+Unknown option names (e.g. a typo such as `moduleNmae`) and `preparedStatements` with a driver other than `pg` are errors.
 
 ### Override option
 ```yaml
@@ -96,15 +98,15 @@ queries.list_authors_paged(limit: 10, offset: 0)           # :many -> Array of r
 queries.get_authors_by_ids(ids: [1, 2, 3])                 # sqlc.slice / array parameter
 queries.copy_authors([PgCodegen::CopyAuthorsArgs.new(name: 'a', bio: nil)])   # :copyfrom
 
-queries.transaction(isolation: :serializable) do |tx|      # COMMIT on return, ROLLBACK on error
+queries.transaction(isolation: :serializable) do |tx|      # COMMIT on return (also break / return / throw), ROLLBACK on error
   id = tx.create_author_return_id(name: 'a', bio: nil)
   tx.transaction { |inner| inner.create_book(name: 'b', author_id: id) }   # nested -> SAVEPOINT
 end
 ```
-* **Keyword arguments:** every query parameter is a keyword argument (missing / unknown ones raise `ArgumentError`). Parameters named with `sqlc.arg` / `sqlc.narg` that are nullable default to `nil`; a plain nullable column (`INSERT ... VALUES ($1, $2)`) has to be passed explicitly. Names are snake_cased, Ruby keywords get a trailing underscore (`class_:`).
+* **Keyword arguments:** every query parameter is a keyword argument (missing / unknown ones raise `ArgumentError`). Parameters named with `sqlc.arg` / `sqlc.narg` that are nullable default to `nil`; a plain nullable column (`INSERT ... VALUES ($1, $2)`) has to be passed explicitly. Names are snake_cased, Ruby keywords and the method's own locals (`client`, `sql`, ...) get a trailing underscore (`class_:`); a `sqlc.arg` used twice is one keyword, repeated `?` of the same column become `id:, id_2:, id_3:`.
 * **Bang finders:** every `:one` query also gets a `get_author!` that raises `QuerySql::NotFound` instead of returning `nil` (like `find_by` vs `find`).
 * **Logging:** `QuerySql.connect(params, logger: Rails.logger)` / `QuerySql.new(pool, logger: logger)` logs `QuerySql#get_author (0.4ms)` at debug level for every query and transaction (SQL parameters are never logged). Without a logger there is no overhead.
-* **Rows** are immutable `Data` objects (`Struct` for `rubyVersion` below 3.2), so they work with pattern matching: `case row in { id:, name: }`.
+* **Rows** are immutable `Data` objects (a `keyword_init` `Struct` for `rubyVersion` below 3.2; both are built with keywords: `Row.new(id: 1, name: 'a')`), so they work with pattern matching: `case row in { id:, name: }`. Column names that are not valid identifiers are snake_cased (`"Weird Name"` -> `weird_name`), names of the row's own methods get a trailing underscore (`hash` -> `hash_`).
 * **Connections:** `QuerySql.connect(params, **pool_options)` builds a [`connection_pool`](https://github.com/mperham/connection_pool); to share a pool you already have (or to inject a fake in tests) use `QuerySql.new(pool)` - anything that responds to `#with` and yields a connection. For SQLite pass a `SQLite3::Database` to `QuerySql.new(db)`.
 * **Async / fibers:** the generated code is plain synchronous Ruby and works with the Fiber scheduler (the [`async`](https://github.com/socketry/async) gem): inside `Sync { ... }` pooled queries on `pg` and `mysql2` overlap instead of blocking (see `tests/end2end_pg.rb`). SQLite calls are synchronous C calls and do not overlap.
 * **SQL** is kept in frozen heredoc constants (`GET_AUTHOR_SQL`); query comments in the `.sql` file become doc comments on the method; `.rbs` signatures are generated for everything.
@@ -133,7 +135,7 @@ end
 
 ### Other
 * **Models:** a `models.rb` / `models.rbs` with one `Data` (`Struct` below Ruby 3.2) class per table, and one module with constants per enum (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`). Enum columns are `String`s.
-* **Transactions:** `queries.transaction { |tx| tx.create_author(...) }` runs everything in the block on one connection in a transaction (commit when the block returns, rollback when it raises) and returns the block's value. Nested calls become savepoints; `isolation:` (`pg`, `mysql2`) / `mode:` (`sqlite3`) choose the isolation level / locking mode.
+* **Transactions:** `queries.transaction { |tx| tx.create_author(...) }` runs everything in the block on one connection in a transaction (commit when the block returns, also through `break` / `return` / `throw`; rollback when it raises or the thread is killed) and returns the block's value. Nested calls become savepoints; `isolation:` (`pg`, `mysql2`) / `mode:` (`sqlite3`) choose the isolation level / locking mode.
 * **Nullability:** nullable columns / parameters are typed `T?` in the `.rbs`.
 * **Arrays (PostgreSQL):** `Array[T]` for columns and parameters.
 * Types follow the Ruby classes the drivers actually return (e.g. `BigDecimal` for `numeric`/`decimal`, `Date`, `Time`, `IPAddr`; `json`/`jsonb` are parsed, so `untyped`).

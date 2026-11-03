@@ -5,8 +5,14 @@
 module PgCodegen
   # State kept on every PG::Connection the first time it is used.
   module ConnectionState
+    # Names of the statements prepared on this connection; forgotten when the server session changes
+    # (PG::Connection#reset after a failover / terminated backend).
     def prepared_statements
-      @prepared_statements ||= Set[]
+      if @prepared_statements_pid != backend_pid
+        @prepared_statements = Set[]
+        @prepared_statements_pid = backend_pid
+      end
+      @prepared_statements
     end
   end
 

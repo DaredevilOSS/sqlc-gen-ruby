@@ -30,8 +30,9 @@ module PgCodegen
       @logger = logger
     end
 
-    # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns,
-    # ROLLBACK when it raises. A nested call becomes a SAVEPOINT. Yields self, bound to that connection.
+    # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
+    # (also through break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call
+    # becomes a SAVEPOINT. Yields self, bound to that connection.
     def transaction(isolation: nil)
       with_client('transaction') do |client|
         outermost = client.transaction_status == PG::PQTRANS_IDLE
@@ -41,13 +42,19 @@ module PgCodegen
         else
           client.exec("SAVEPOINT #{savepoint}")
         end
+        rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        failed = false
         begin
-          result = yield self
-          client.exec(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-          result
+          yield self
         rescue Exception # rubocop:disable Lint/RescueException
-          client.exec(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+          failed = true
+          client.exec(rollback)
           raise
+        ensure
+          unless failed
+            commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+            client.exec(Thread.current.status == 'aborting' ? rollback : commit)
+          end
         end
       end
     end
@@ -90,10 +97,22 @@ module PgCodegen
     # Connections of an injected pool are set up on first use: typed results and Ruby arrays as parameters.
     def configure(client)
       type_map = PG::BasicTypeMapForResults.new(client)
-      type_map.default_type_map = PG::TypeMapAllStrings.new # uuid, enums, money, ... come back as Strings
+      type_map.default_type_map = string_arrays(client) # uuid, enums, money, ... come back as Strings
       client.type_map_for_results = type_map
       client.type_map_for_queries = PG::BasicTypeMapForQueries.new(client)
       client.extend(ConnectionState)
+    end
+
+    # Arrays of types without a decoder (uuid[], enum[], ...) become Arrays of Strings, other types Strings.
+    def string_arrays(client)
+      strings = PG::TypeMapAllStrings.new
+      arrays = PG::TypeMapByOid.new
+      client.exec("SELECT oid, typdelim FROM pg_type WHERE typcategory = 'A'", [], 0, strings).each do |row|
+        arrays.add_coder(PG::TextDecoder::Array.new(oid: row['oid'].to_i, delimiter: row['typdelim'],
+                                                    elements_type: PG::TextDecoder::String.new))
+      end
+      arrays.default_type_map = strings
+      arrays
     end
   end
 end

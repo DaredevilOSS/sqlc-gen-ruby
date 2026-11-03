@@ -60,12 +60,20 @@ module SqlcGenRuby
       # sqlc.slice is only offered by sqlc for MySQL / SQLite (`IN (/*SLICE:ids*/?)`).
       def supports_slice? = false
 
-      def exec_rows_lines(_exec) = raise(NotImplementedError)
+      def exec_lines(exec, _query) = [exec, 'nil']
+
+      def exec_rows_lines(_exec, _query) = raise(NotImplementedError)
 
       def exec_last_id_lines(_exec, _query) = raise(NotImplementedError)
 
-      # table: SQL name; columns: SQL column names; attrs: matching reader names of the rows
-      def copy_from_lines(_rows_var, _table, _columns, _attrs, _label) = raise(NotImplementedError)
+      # table: quoted SQL name; columns: quoted SQL column names; values: Ruby expressions of the row values
+      def copy_from_lines(_rows_var, _table, _columns, _values, _label) = raise(NotImplementedError)
+
+      # SQL identifier quoting for the statements the plugin writes itself (:copyfrom).
+      def quote_identifier(name) = %("#{name.gsub('"', '""')}")
+
+      # Ruby expression that turns a parameter value into what the driver can bind (e.g. bytea escaping).
+      def encode_param(expr, _column) = expr
 
       # Private helper methods the class needs for these queries: [[code, rbs], ...]
       def helper_methods(_queries) = []
@@ -76,9 +84,11 @@ module SqlcGenRuby
         return 'String' if catalog&.enum?(column.type)
 
         db_type = normalize_type(column.type.name)
+        return 'untyped' if db_type == 'any' # sqlc could not infer the type of the expression
+
         column_mappings.each do |mapping|
           matched = if mapping.prefix_based
-                      mapping.db_types.any? { |d| d.start_with?(db_type) }
+                      mapping.db_types.any? { |d| db_type.start_with?(d) }
                     else
                       mapping.db_types.include?(db_type)
                     end
@@ -136,8 +146,8 @@ module SqlcGenRuby
 
       private
 
-      # from sqlc - char(5), int4, pg_catalog.int8, BLOB, ...
-      def normalize_type(type_name) = type_name.downcase.delete_prefix('pg_catalog.')
+      # from sqlc - char(5), int4, pg_catalog.int8, BLOB, VARCHAR(255), ... => char, int4, int8, blob, varchar
+      def normalize_type(type_name) = type_name.downcase.delete_prefix('pg_catalog.').sub(/\s*\(.*\)\z/, '')
 
       def driver_gems = raise(NotImplementedError)
 
