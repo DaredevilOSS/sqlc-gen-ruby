@@ -3,7 +3,7 @@
 module SqlcGenRuby
   # Port of PluginOptions/RubyVersion.cs. The comparison deliberately mirrors the C# record's
   # CompareTo, including its handling of omitted minor / patch parts (e.g. "3" compares equal to any
-  # "3.x", while "3.3.5" compares greater than "3.3", so it is rejected by the max-version check).
+  # "3.x", while "3.3.5" compares greater than "3.3"). The max-version check ignores the patch part.
   class RubyVersion
     include Comparable
 
@@ -23,7 +23,7 @@ module SqlcGenRuby
       if version < MIN_SUPPORTED
         raise ArgumentError, "Provided version #{version} is below the minimum supported version #{MIN_SUPPORTED}"
       end
-      if version > MAX_SUPPORTED
+      if new(version.major, version.minor) > MAX_SUPPORTED # any patch release of the newest minor is fine
         raise ArgumentError, "Provided version #{version} is above the maximum supported version #{MAX_SUPPORTED}"
       end
 
@@ -82,7 +82,7 @@ module SqlcGenRuby
     private :compare_nullable
 
     MIN_SUPPORTED = new(3, 1).freeze
-    MAX_SUPPORTED = new(3, 4).freeze
+    MAX_SUPPORTED = new(4, 0).freeze
     IMMUTABLE_DATA_MIN = new(3, 2).freeze
   end
 end

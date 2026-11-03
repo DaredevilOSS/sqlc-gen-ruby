@@ -39,8 +39,8 @@ They `require` the generated code from `examples/` and run it against a real dat
 ## CI workflows (`.github/workflows/`)
 | Workflow | When | What |
 |---|---|---|
-| `build.yml` | push to `main`, pull requests (not for Markdown-only changes), release | build `plugin.wasm`; lint; `sqlc diff` with the WASM and the process plugin; Steep; generate with option combinations (Ruby 3.1/3.2/3.3 × types/Gemfile) and check the output with the matching Ruby |
-| `tests.yml` | same | unit tests; the plugin on Ruby 3.1 / 3.2 / 3.4; end-to-end against PostgreSQL 16 and MySQL 8.3 service containers and SQLite |
+| `build.yml` | push to `main`, pull requests (not for Markdown-only changes), release | build `plugin.wasm`; lint; `sqlc diff` with the WASM and the process plugin; Steep; generate with option combinations (Ruby 3.1/3.2/3.3/4.0 × types/Gemfile) and check the output with the matching Ruby |
+| `tests.yml` | same | unit tests; the plugin on Ruby 3.1 / 3.2 / 3.4 / 4.0; end-to-end against PostgreSQL 16 and MySQL 8.3 service containers and SQLite (Ruby 3.3 and 4.0) |
 | `docs.yml` | `examples/` change on `main`, manual | regenerates `docs/Examples.md` and opens a PR |
 | `release.yml` | manual only | see [Releasing](Releasing.md) |
 
