@@ -3,6 +3,7 @@
 
 gem 'minitest'
 require 'minitest/autorun'
+require 'bundler'
 require 'fileutils'
 require 'connection_pool'
 require 'open3'
@@ -62,15 +63,15 @@ class TestOptions < Minitest::Test
 
   def assert_sqlite_runtime(generated_dir)
     gemfile = File.join(generated_dir, 'Gemfile')
-    stdout, stderr, status = Open3.capture3(
-      { 'BUNDLE_GEMFILE' => gemfile, 'OPTIONS_SQLITE_DIR' => generated_dir,
-        'OPTIONS_SCHEMA' => File.join(OPTIONS_DIR, 'sqlite_schema.sql') },
-      'bundle', 'install'
+    bundle_env = Bundler.unbundled_env.merge(
+      'BUNDLE_BIN_PATH' => nil, 'BUNDLE_PATH' => ENV['BUNDLE_PATH'],
+      'BUNDLE_GEMFILE' => gemfile, 'OPTIONS_SQLITE_DIR' => generated_dir,
+      'OPTIONS_SCHEMA' => File.join(OPTIONS_DIR, 'sqlite_schema.sql')
     )
+    stdout, stderr, status = Open3.capture3(bundle_env, 'bundle', 'install')
     assert status.success?, "generated-Gemfile bundle install failed:\n#{stdout}\n#{stderr}"
     stdout, stderr, status = Open3.capture3(
-      { 'BUNDLE_GEMFILE' => gemfile, 'OPTIONS_SQLITE_DIR' => generated_dir,
-        'OPTIONS_SCHEMA' => File.join(OPTIONS_DIR, 'sqlite_schema.sql') },
+      bundle_env,
       'bundle', 'exec', RbConfig.ruby, '-e', <<~'RUBY'
         require File.join(ENV.fetch('OPTIONS_SQLITE_DIR'), 'first_sql')
         require File.join(ENV.fetch('OPTIONS_SQLITE_DIR'), 'second_sql')

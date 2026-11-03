@@ -57,7 +57,7 @@ bundle exec rake test rubocop steep
 sqlc -f sqlc.local.yaml diff                                 # committed examples must be current
 scripts/tests/run_codegen.rb sqlc.local.yaml 3.1 true true
 rake end2end_sqlite3 end2end_pg end2end_mysql2               # full Ruby 3.1–4.0 matrix, plus Ruby 4.0 variants
-bundle exec ruby tests/end2end_options.rb                    # Ruby 3.1 and 4.0
+BUNDLE_GEMFILE=Gemfile.options.e2e bundle exec ruby tests/end2end_options.rb # Ruby 3.1 and 4.0
 ```
 CI also runs the unit suite without Bundler on Ruby 3.1 and 4.0. For Ruby 3.1/3.2 E2E, generate scratch examples
 with their matching `rubyVersion` and install the generated Gemfile before running the suite.

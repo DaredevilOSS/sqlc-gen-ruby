@@ -292,6 +292,7 @@ jobs:
 
     env:
       POSTGRES_HOST: 127.0.0.1
+      BUNDLE_GEMFILE: Gemfile.options.e2e
 
     steps:
       - uses: actions/checkout@v7
@@ -299,7 +300,10 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true
+          bundler-cache: false
+
+      - name: Install options test dependencies
+        run: bundle install
 
       - name: Load tool versions
         run: grep -E '^[A-Z_]+=' scripts/tool-versions.env >> "$GITHUB_ENV"
