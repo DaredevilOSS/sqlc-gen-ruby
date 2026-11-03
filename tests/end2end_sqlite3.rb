@@ -9,15 +9,35 @@ EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../e
 require_relative 'consts'
 require_relative 'rbs_types'
 require File.join(EXAMPLES_DIR, 'sqlite3/query_sql')
+RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'Sqlite3Codegen')}::QuerySql"),
+                 File.join(EXAMPLES_DIR, 'sqlite3/query_sql.rbs'))
 
 # End-to-end tests of the code generated for examples/authors/sqlite, against a real (in-memory) SQLite database.
 class TestSqlite3 < Minitest::Test
-  include Sqlite3Codegen
+  include Object.const_get(ENV.fetch('EXAMPLES_MODULE', 'Sqlite3Codegen'))
 
   TEXT_PARTS = ["é", '🙂', "\t", "\n", "\r", '\\', "'", '"', ',', '\N', 'NULL'].freeze
 
   def row_for(klass, values)
     klass.new(**klass.members.zip(values).to_h)
+  end
+
+  def assert_row_layout(row)
+    if defined?(Data) && row.is_a?(Data)
+      assert_predicate row, :frozen?
+      assert_equal row.to_h, row.with.to_h
+    else
+      assert_kind_of Struct, row
+      assert row.class.keyword_init?
+      refute_predicate row, :frozen?
+    end
+    case row
+    in { id:, name: }
+      assert_kind_of Integer, id
+      assert_equal row.name, name
+    else
+      flunk 'row did not support keyword pattern matching'
+    end
   end
 
   def seeded_random
@@ -67,6 +87,14 @@ class TestSqlite3 < Minitest::Test
 
     @query_sql.delete_author(id: first)
     assert_equal [Consts::DR_SEUSS_AUTHOR], @query_sql.list_authors.map(&:name)
+  end
+
+  def test_rows_and_embedded_models_have_supported_layout_and_pattern_matching
+    first = create_author('pattern')
+    create_author('pattern')
+    assert_row_layout(@query_sql.get_author(id: first))
+    embedded = @query_sql.get_duplicate_authors.first.author
+    assert_row_layout(embedded)
   end
 
   def test_nullable_columns_round_trip_nil
@@ -520,7 +548,7 @@ class TestSqlite3 < Minitest::Test
     random = seeded_random
     rows = Array.new(300) do |i|
       CopyRegressionRowsArgs.new(id: 5_000_000_000 + i, order: "#{i}#{random_text(random)}",
-                                 price: random.rand(3).zero? ? nil : random.rand(1..100),
+                                 price: random.rand(3).zero? ? nil : random.rand(1..100) / 101.0,
                                  payload: random.bytes(random.rand(0..64)).b)
     end
     @query_sql.copy_regression_rows(rows)

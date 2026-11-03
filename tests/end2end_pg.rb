@@ -13,15 +13,35 @@ EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../e
 require_relative 'consts'
 require_relative 'rbs_types'
 require File.join(EXAMPLES_DIR, 'pg/query_sql')
+RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'PgCodegen')}::QuerySql"),
+                 File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'))
 
 # End-to-end tests of the code generated for examples/authors/postgresql, against a real PostgreSQL server.
 class TestPg < Minitest::Test
-  include PgCodegen
+  include Object.const_get(ENV.fetch('EXAMPLES_MODULE', 'PgCodegen'))
 
   TEXT_PARTS = ["é", '🙂', "\t", "\n", "\r", '\\', "'", '"', ',', '\N', 'NULL'].freeze
 
   def row_for(klass, values)
     klass.new(**klass.members.zip(values).to_h)
+  end
+
+  def assert_row_layout(row)
+    if defined?(Data) && row.is_a?(Data)
+      assert_predicate row, :frozen?
+      assert_equal row.to_h, row.with.to_h
+    else
+      assert_kind_of Struct, row
+      assert row.class.keyword_init?
+      refute_predicate row, :frozen?
+    end
+    case row
+    in { id:, name: }
+      assert_kind_of Integer, id
+      assert_equal row.name, name
+    else
+      flunk 'row did not support keyword pattern matching'
+    end
   end
 
   def row_value(row, member)
@@ -92,6 +112,14 @@ class TestPg < Minitest::Test
     @query_sql.delete_author(id: first.id)
     assert_equal [row_for(ListAuthorsRow, [second.id, Consts::DR_SEUSS_AUTHOR, Consts::DR_SEUSS_QUOTE])],
                  @query_sql.list_authors
+  end
+
+  def test_rows_and_embedded_models_have_supported_layout_and_pattern_matching
+    first = create_author('pattern')
+    create_author('pattern')
+    assert_row_layout(@query_sql.get_author(id: first))
+    embedded = @query_sql.get_duplicate_authors.first.author
+    assert_row_layout(embedded)
   end
 
   def test_nullable_columns_round_trip_nil
@@ -295,6 +323,11 @@ class TestPg < Minitest::Test
   # ---- connection pool -------------------------------------------------------------------------------------------
 
   def test_every_pooled_connection_prepares_its_own_statements
+    if ENV['PREPARED_STATEMENTS'] == 'false'
+      assert_empty @query_sql.list_authors
+      return
+    end
+
     pooled = QuerySql.connect(pg_params, size: 3)
     pool = pooled.instance_variable_get(:@db)
     held = Queue.new

@@ -63,13 +63,17 @@ jobs:
         run: ruby -Ilib -Itest -e 'Dir["test/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
 
   end2end-pg:
-    name: End-to-End (PostgreSQL, Ruby ${{ matrix.ruby-version }})
+    name: End-to-End (PostgreSQL, Ruby ${{ matrix.ruby-version }}, ${{ matrix.variant }})
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
         ruby-version: ['3.1', '3.2', '3.3', '3.4', '4.0']
+        variant: ['default']
+        include:
+          - ruby-version: '4.0'
+            variant: 'module-no-prepared'
 
     services:
       postgres:
@@ -88,6 +92,9 @@ jobs:
 
     env:
       POSTGRES_HOST: 127.0.0.1
+      EXAMPLES_DRIVER: pg
+      EXAMPLES_MODULE: ${{ matrix.variant == 'module-no-prepared' && 'MyApp::Db' || 'PgCodegen' }}
+      PREPARED_STATEMENTS: ${{ matrix.variant == 'module-no-prepared' && 'false' || 'true' }}
       BUNDLE_GEMFILE: ${{ (matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2') && 'Gemfile.e2e' || 'Gemfile' }}
 
     steps:
@@ -96,22 +103,32 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true
+          bundler-cache: ${{ matrix.ruby-version != '3.1' && matrix.ruby-version != '3.2' }}
 
       - name: Load tool versions
-        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
+        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2' || matrix.variant != 'default'
         run: grep -E '^[A-Z_]+=' scripts/tool-versions.env >> "$GITHUB_ENV"
 
       - uses: sqlc-dev/setup-sqlc@v5
-        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
+        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2' || matrix.variant != 'default'
         with:
           sqlc-version: '${{ env.SQLC_VERSION }}'
 
       - name: Generate version-specific examples
         if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
         run: |
-          ruby scripts/tests/generate_examples.rb "${{ matrix.ruby-version }}" sqlc.local.yaml
+          ruby scripts/tests/generate_examples.rb "${{ matrix.ruby-version }}" sqlc.local.yaml --generate-gemfile
           echo "EXAMPLES_DIR=$PWD/.examples-ruby-${{ matrix.ruby-version }}" >> "$GITHUB_ENV"
+
+      - name: Generate option variant
+        if: matrix.variant == 'module-no-prepared'
+        run: |
+          ruby scripts/tests/generate_examples.rb 4.0 sqlc.local.yaml --driver pg --options '{"moduleName":"MyApp::Db","preparedStatements":false}'
+          echo "EXAMPLES_DIR=$PWD/.examples-ruby-4.0" >> "$GITHUB_ENV"
+
+      - name: Install E2E dependencies
+        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
+        run: bundle install
 
       - name: Create the schema
         run: psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U "${DB_USER}" -d "${DB_NAME}" -f examples/authors/postgresql/schema.sql
@@ -122,13 +139,17 @@ jobs:
         run: bundle exec rake end2end_pg
 
   end2end-mysql:
-    name: End-to-End (MySQL, Ruby ${{ matrix.ruby-version }})
+    name: End-to-End (MySQL, Ruby ${{ matrix.ruby-version }}, ${{ matrix.variant }})
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
         ruby-version: ['3.1', '3.2', '3.3', '3.4', '4.0']
+        variant: ['default']
+        include:
+          - ruby-version: '4.0'
+            variant: 'module-name'
 
     services:
       mysql:
@@ -146,6 +167,8 @@ jobs:
 
     env:
       MYSQL_HOST: 127.0.0.1
+      EXAMPLES_DRIVER: mysql2
+      EXAMPLES_MODULE: ${{ matrix.variant == 'module-name' && 'MyApp::Db' || 'Mysql2Codegen' }}
       BUNDLE_GEMFILE: ${{ (matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2') && 'Gemfile.e2e' || 'Gemfile' }}
 
     steps:
@@ -154,22 +177,32 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true
+          bundler-cache: ${{ matrix.ruby-version != '3.1' && matrix.ruby-version != '3.2' }}
 
       - name: Load tool versions
-        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
+        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2' || matrix.variant != 'default'
         run: grep -E '^[A-Z_]+=' scripts/tool-versions.env >> "$GITHUB_ENV"
 
       - uses: sqlc-dev/setup-sqlc@v5
-        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
+        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2' || matrix.variant != 'default'
         with:
           sqlc-version: '${{ env.SQLC_VERSION }}'
 
       - name: Generate version-specific examples
         if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
         run: |
-          ruby scripts/tests/generate_examples.rb "${{ matrix.ruby-version }}" sqlc.local.yaml
+          ruby scripts/tests/generate_examples.rb "${{ matrix.ruby-version }}" sqlc.local.yaml --generate-gemfile
           echo "EXAMPLES_DIR=$PWD/.examples-ruby-${{ matrix.ruby-version }}" >> "$GITHUB_ENV"
+
+      - name: Generate option variant
+        if: matrix.variant == 'module-name'
+        run: |
+          ruby scripts/tests/generate_examples.rb 4.0 sqlc.local.yaml --driver mysql2 --options '{"moduleName":"MyApp::Db"}'
+          echo "EXAMPLES_DIR=$PWD/.examples-ruby-4.0" >> "$GITHUB_ENV"
+
+      - name: Install E2E dependencies
+        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
+        run: bundle install
 
       - name: Create the schema (and allow LOAD DATA LOCAL INFILE for :copyfrom)
         run: |
@@ -180,15 +213,21 @@ jobs:
         run: bundle exec rake end2end_mysql2
 
   end2end-sqlite:
-    name: End-to-End (SQLite, Ruby ${{ matrix.ruby-version }})
+    name: End-to-End (SQLite, Ruby ${{ matrix.ruby-version }}, ${{ matrix.variant }})
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
         ruby-version: ['3.1', '3.2', '3.3', '3.4', '4.0']
+        variant: ['default']
+        include:
+          - ruby-version: '4.0'
+            variant: 'module-name'
 
     env:
+      EXAMPLES_DRIVER: sqlite3
+      EXAMPLES_MODULE: ${{ matrix.variant == 'module-name' && 'MyApp::Db' || 'Sqlite3Codegen' }}
       BUNDLE_GEMFILE: ${{ (matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2') && 'Gemfile.e2e' || 'Gemfile' }}
 
     steps:
@@ -197,22 +236,32 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true
+          bundler-cache: ${{ matrix.ruby-version != '3.1' && matrix.ruby-version != '3.2' }}
 
       - name: Load tool versions
-        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
+        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2' || matrix.variant != 'default'
         run: grep -E '^[A-Z_]+=' scripts/tool-versions.env >> "$GITHUB_ENV"
 
       - uses: sqlc-dev/setup-sqlc@v5
-        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
+        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2' || matrix.variant != 'default'
         with:
           sqlc-version: '${{ env.SQLC_VERSION }}'
 
       - name: Generate version-specific examples
         if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
         run: |
-          ruby scripts/tests/generate_examples.rb "${{ matrix.ruby-version }}" sqlc.local.yaml
+          ruby scripts/tests/generate_examples.rb "${{ matrix.ruby-version }}" sqlc.local.yaml --generate-gemfile
           echo "EXAMPLES_DIR=$PWD/.examples-ruby-${{ matrix.ruby-version }}" >> "$GITHUB_ENV"
+
+      - name: Generate option variant
+        if: matrix.variant == 'module-name'
+        run: |
+          ruby scripts/tests/generate_examples.rb 4.0 sqlc.local.yaml --driver sqlite3 --options '{"moduleName":"MyApp::Db"}'
+          echo "EXAMPLES_DIR=$PWD/.examples-ruby-4.0" >> "$GITHUB_ENV"
+
+      - name: Install E2E dependencies
+        if: matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2'
+        run: bundle install
 
       - name: End-to-End tests
         run: bundle exec rake end2end_sqlite3
