@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: ['3.1', '3.2', '3.4', '4.0']
+        ruby-version: ['3.1', '3.2', '3.3', '3.4', '4.0']
 
     services:
       postgres:
@@ -128,7 +128,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: ['3.1', '3.2', '3.4', '4.0']
+        ruby-version: ['3.1', '3.2', '3.3', '3.4', '4.0']
 
     services:
       mysql:
@@ -186,7 +186,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: ['3.1', '3.2', '3.4', '4.0']
+        ruby-version: ['3.1', '3.2', '3.3', '3.4', '4.0']
 
     env:
       BUNDLE_GEMFILE: ${{ (matrix.ruby-version == '3.1' || matrix.ruby-version == '3.2') && 'Gemfile.e2e' || 'Gemfile' }}

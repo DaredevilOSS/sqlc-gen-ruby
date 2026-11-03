@@ -118,8 +118,9 @@ end
 * Everything in the block runs on one connection. It commits when the block ends (also on `break`, `return`, `throw`)
   and rolls back when it raises or the thread is killed. On Ruby <3.3 with timeout <0.4, `break`, `return`, and
   `throw` also roll back because Timeout cannot be told apart; add `gem 'timeout', '>= 0.4'` to the generated Gemfile
-  to keep those exits committing. A nested `transaction` rolls back only its own part. Query methods called on the
-  parent query object from the same thread also use the transaction's connection.
+  to keep those exits committing. A nested `transaction` rolls back only its own part. With `connection_pool` or
+  SQLite, parent-object calls from the same thread reuse the transaction connection; injected `#with` objects must do
+  the same.
 * `isolation:` (`pg`, `mysql2`) takes `:read_uncommitted`, `:read_committed`, `:repeatable_read`, `:serializable`;
   `mode:` (`sqlite3`) takes `:deferred`, `:immediate`, `:exclusive`. Other values raise before anything runs, and so
   do `isolation:` / `mode:` on a nested `transaction` (a savepoint cannot change them).

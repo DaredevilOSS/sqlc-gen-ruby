@@ -174,6 +174,39 @@ class TestSqlite3 < Minitest::Test
     end
   end
 
+  def test_non_slice_numbered_placeholders_keep_sql_order
+    create_author('bob')
+    create_author('filler')
+    create_author('alice')
+
+    sql = 'SELECT id, name, bio FROM authors WHERE name = ? AND name != ? AND id > ? AND name = ? ORDER BY id'
+    expected = @db.execute(sql, ['alice', 'bob', 1, 'alice'])
+                   .map { |row| row_for(GetAuthorsByRepeatedNamedAndPositionalRow, row) }
+
+    assert_equal [3], expected.map(&:id)
+    assert_equal expected, @query_sql.get_authors_by_repeated_named_and_positional(n: 'alice', other: 'bob', id: 1)
+  end
+
+  def test_batch_numbered_placeholders_keep_sql_order
+    create_author('bob')
+    create_author('filler')
+    create_author('alice')
+    create_author('carol')
+
+    args = [
+      GetAuthorsByRepeatedNamedAndPositionalBatchArgs.new(n: 'alice', other: 'bob', id: 1),
+      GetAuthorsByRepeatedNamedAndPositionalBatchArgs.new(n: 'carol', other: 'alice', id: 1),
+      GetAuthorsByRepeatedNamedAndPositionalBatchArgs.new(n: 'alice', other: 'alice', id: 0)
+    ]
+    sql = 'SELECT id, name, bio FROM authors WHERE name = ? AND name != ? AND id > ? AND name = ? ORDER BY id LIMIT 1'
+    expected = args.map do |row|
+      result = @db.execute(sql, [row.n, row.other, row.id, row.n]).first
+      result && row_for(GetAuthorsByRepeatedNamedAndPositionalBatchRow, result)
+    end
+
+    assert_equal expected, @query_sql.get_authors_by_repeated_named_and_positional_batch(args)
+  end
+
   # ---- :copyfrom -------------------------------------------------------------------------------------------------
 
   def test_copyfrom
@@ -183,6 +216,17 @@ class TestSqlite3 < Minitest::Test
       CopyAuthorsArgs.new(name: "comma, 'quotes', \"double\", back\\slash\nnewline", bio: 'special')
     ]
     @query_sql.copy_authors(rows)
+    assert_equal rows.to_h { |r| [r.name, r.bio] }, @query_sql.list_authors.to_h { |a| [a.name, a.bio] }
+  end
+
+  def test_copyfrom_accepts_sqlc_named_values
+    rows = [
+      CopyAuthorsNamedArgs.new(name: 'named one', bio: 'first bio'),
+      CopyAuthorsNamedArgs.new(name: 'named two', bio: nil)
+    ]
+
+    @query_sql.copy_authors_named(rows)
+
     assert_equal rows.to_h { |r| [r.name, r.bio] }, @query_sql.list_authors.to_h { |a| [a.name, a.bio] }
   end
 

@@ -46,8 +46,11 @@ module SqlcGenRuby
       def query_text(query) = query.text
 
       # Ruby expressions for the parameters passed to one generated query method.
-      def query_params(_query, params)
-        list = params.map { |p| p.slice ? "*#{p.name}" : encode_param(p.name, p.column) }
+      def query_params(_query, params, value_prefix: '')
+        list = params.map do |p|
+          value = "#{value_prefix}#{p.name}"
+          p.slice ? "*#{value}" : encode_param(value, p.column)
+        end
         "query_params = [#{Code.comma_join(list)}]"
       end
 

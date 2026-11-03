@@ -225,7 +225,7 @@ module SqlcGenRuby
       prepare = @driver.prepare_stmt(stmt_name, const)
       cmd = BATCH_COMMANDS.fetch(query.cmd)
       body = []
-      body << "query_params = [#{Code.comma_join(params.map { |p| @driver.encode_param("args.#{p.name}", p.column) })}]" unless params.empty?
+      body << @driver.query_params(query, params, value_prefix: 'args.') unless params.empty?
       commands = command_statements(query, stmt_name, const, !params.empty?, cmd: cmd)
       commands.pop if cmd == ':exec' # the trailing nil
       if @driver.prepares_batch_rows?

@@ -57,19 +57,21 @@ module SqlcGenRuby
       def supports_slice? = true
 
       def query_text(query)
-        return query.text unless query.params.any? { |param| param.column.is_sqlc_slice }
-
         replacements = placeholder_occurrences(query.text).filter_map do |kind, number, first, last|
           [first, last] if kind == :numbered
         end
+        return query.text if replacements.empty?
+
         replacements.reverse_each.reduce(query.text.dup) { |sql, (first, last)| sql[0...first] + '?' + sql[last..] }
       end
 
-      def query_params(query, params)
-        return super unless query.params.any? { |param| param.column.is_sqlc_slice }
+      def query_params(query, params, value_prefix: '')
+        occurrences = placeholder_occurrences(query.text)
+        unless occurrences.any? { |kind,| kind == :numbered || kind == :slice }
+          return super(query, params, value_prefix: value_prefix)
+        end
 
         by_number = query.params.zip(params).to_h { |source, param| [source.number, param] }
-        occurrences = placeholder_occurrences(query.text)
         referenced = occurrences.filter_map { |kind, number,| number if kind == :numbered }
         slices = occurrences.filter_map { |kind, name,| name if kind == :slice }
         positional = query.params.each_with_index.filter_map do |source, index|
@@ -89,7 +91,10 @@ module SqlcGenRuby
             param
           end
         end
-        expressions = ordered.map { |param| param.slice ? "*#{param.name}" : encode_param(param.name, param.column) }
+        expressions = ordered.map do |param|
+          value = "#{value_prefix}#{param.name}"
+          param.slice ? "*#{value}" : encode_param(value, param.column)
+        end
         "query_params = [#{Code.comma_join(expressions)}]"
       end
 

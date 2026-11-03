@@ -94,11 +94,46 @@ module Sqlite3Codegen
     def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByMixedPlaceholdersRow
   end
 
+  GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_SQL: String
+
+  class GetAuthorsByRepeatedNamedAndPositionalRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByRepeatedNamedAndPositionalRow
+  end
+
+  GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_BATCH_SQL: String
+
+  class GetAuthorsByRepeatedNamedAndPositionalBatchRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByRepeatedNamedAndPositionalBatchRow
+  end
+
+  class GetAuthorsByRepeatedNamedAndPositionalBatchArgs < ::Struct[untyped]
+    attr_accessor n: String
+    attr_accessor other: String
+    attr_accessor id: Integer
+    def initialize: (  n: String, other: String, id: Integer) -> void
+    def self.new: (  n: String, other: String, id: Integer) -> GetAuthorsByRepeatedNamedAndPositionalBatchArgs
+  end
+
   class CopyAuthorsArgs < ::Struct[untyped]
     attr_accessor name: String
     attr_accessor bio: String?
     def initialize: (  name: String, bio: String?) -> void
     def self.new: (  name: String, bio: String?) -> CopyAuthorsArgs
+  end
+
+  class CopyAuthorsNamedArgs < ::Struct[untyped]
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  name: String, bio: String?) -> void
+    def self.new: (  name: String, bio: String?) -> CopyAuthorsNamedArgs
   end
 
   TRUNCATE_AUTHORS_SQL: String
@@ -407,7 +442,13 @@ module Sqlite3Codegen
 
     def get_authors_by_mixed_placeholders: (n: String, ids: Array[Integer], id: Integer, more: Array[Integer]) -> Array[GetAuthorsByMixedPlaceholdersRow]
 
+    def get_authors_by_repeated_named_and_positional: (n: String, other: String, id: Integer) -> Array[GetAuthorsByRepeatedNamedAndPositionalRow]
+
+    def get_authors_by_repeated_named_and_positional_batch: (Array[GetAuthorsByRepeatedNamedAndPositionalBatchArgs] rows) -> Array[GetAuthorsByRepeatedNamedAndPositionalBatchRow?]
+
     def copy_authors: (Array[CopyAuthorsArgs] rows) -> void
+
+    def copy_authors_named: (Array[CopyAuthorsNamedArgs] rows) -> void
 
     def truncate_authors: -> void
 

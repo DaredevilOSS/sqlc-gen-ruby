@@ -85,7 +85,38 @@ module Sqlite3Codegen
     def initialize: (  Integer id, String name, String? bio) -> void
   end
 
+  GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_SQL: String
+
+  class GetAuthorsByRepeatedNamedAndPositionalRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
+  GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_BATCH_SQL: String
+
+  class GetAuthorsByRepeatedNamedAndPositionalBatchRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
+  class GetAuthorsByRepeatedNamedAndPositionalBatchArgs
+    attr_reader n: String
+    attr_reader other: String
+    attr_reader id: Integer
+    def initialize: (  String n, String other, Integer id) -> void
+  end
+
   class CopyAuthorsArgs
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  String name, String? bio) -> void
+  end
+
+  class CopyAuthorsNamedArgs
     attr_reader name: String
     attr_reader bio: String?
     def initialize: (  String name, String? bio) -> void
@@ -357,7 +388,13 @@ module Sqlite3Codegen
 
     def get_authors_by_mixed_placeholders: (n: String, ids: Array[Integer], id: Integer, more: Array[Integer]) -> Array[GetAuthorsByMixedPlaceholdersRow]
 
+    def get_authors_by_repeated_named_and_positional: (n: String, other: String, id: Integer) -> Array[GetAuthorsByRepeatedNamedAndPositionalRow]
+
+    def get_authors_by_repeated_named_and_positional_batch: (Array[GetAuthorsByRepeatedNamedAndPositionalBatchArgs] rows) -> Array[GetAuthorsByRepeatedNamedAndPositionalBatchRow?]
+
     def copy_authors: (Array[CopyAuthorsArgs] rows) -> void
+
+    def copy_authors_named: (Array[CopyAuthorsNamedArgs] rows) -> void
 
     def truncate_authors: -> void
 

@@ -58,9 +58,29 @@ WHERE name = sqlc.arg(n)
   AND 'x?' != '?3'
 ORDER BY id;
 
+-- name: GetAuthorsByRepeatedNamedAndPositional :many
+SELECT * FROM authors
+WHERE name = sqlc.arg(n)
+  AND name != sqlc.arg(other)
+  AND id > ?
+  AND name = sqlc.arg(n)
+ORDER BY id;
+
+-- name: GetAuthorsByRepeatedNamedAndPositionalBatch :batchone
+SELECT * FROM authors
+WHERE name = sqlc.arg(n)
+  AND name != sqlc.arg(other)
+  AND id > ?
+  AND name = sqlc.arg(n)
+ORDER BY id
+LIMIT 1;
+
 -- name: CopyAuthors :copyfrom
 -- Bulk insert: pass an Array of CopyAuthorsArgs.
 INSERT INTO authors (name, bio) VALUES (?, ?);
+
+-- name: CopyAuthorsNamed :copyfrom
+INSERT INTO authors (name, bio) VALUES (sqlc.arg(name), sqlc.arg(bio));
 
 -- name: TruncateAuthors :exec
 DELETE FROM authors;

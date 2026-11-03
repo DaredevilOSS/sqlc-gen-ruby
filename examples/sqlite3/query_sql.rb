@@ -40,7 +40,7 @@ module Sqlite3Codegen
   LIST_AUTHORS_PAGED_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     ORDER BY name
-    LIMIT ?2 OFFSET ?1
+    LIMIT ? OFFSET ?
   SQL
 
   class ListAuthorsPagedRow < Data.define(:id, :name, :bio)
@@ -48,7 +48,7 @@ module Sqlite3Codegen
 
   GET_AUTHOR_BY_NAME_PATTERN_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
-    WHERE name LIKE COALESCE(?1, '%')
+    WHERE name LIKE COALESCE(?, '%')
   SQL
 
   class GetAuthorByNamePatternRow < Data.define(:id, :name, :bio)
@@ -56,9 +56,9 @@ module Sqlite3Codegen
 
   GET_AUTHORS_BY_OPTIONAL_NAME_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
-    WHERE (?1 IS NULL OR name = ?1)
+    WHERE (? IS NULL OR name = ?)
     ORDER BY id
-    LIMIT ?2
+    LIMIT ?
   SQL
 
   class GetAuthorsByOptionalNameRow < Data.define(:id, :name, :bio)
@@ -105,7 +105,38 @@ module Sqlite3Codegen
   class GetAuthorsByMixedPlaceholdersRow < Data.define(:id, :name, :bio)
   end
 
+  GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE name = ?
+      AND name != ?
+      AND id > ?
+      AND name = ?
+    ORDER BY id
+  SQL
+
+  class GetAuthorsByRepeatedNamedAndPositionalRow < Data.define(:id, :name, :bio)
+  end
+
+  GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_BATCH_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE name = ?
+      AND name != ?
+      AND id > ?
+      AND name = ?
+    ORDER BY id
+    LIMIT 1
+  SQL
+
+  class GetAuthorsByRepeatedNamedAndPositionalBatchRow < Data.define(:id, :name, :bio)
+  end
+
+  class GetAuthorsByRepeatedNamedAndPositionalBatchArgs < Data.define(:n, :other, :id)
+  end
+
   class CopyAuthorsArgs < Data.define(:name, :bio)
+  end
+
+  class CopyAuthorsNamedArgs < Data.define(:name, :bio)
   end
 
   TRUNCATE_AUTHORS_SQL = <<~'SQL'
@@ -392,7 +423,7 @@ module Sqlite3Codegen
 
     def list_authors_paged(offset:, limit:)
       with_client('list_authors_paged') do |client|
-        query_params = [offset, limit]
+        query_params = [limit, offset]
         stmt = client.prepare(LIST_AUTHORS_PAGED_SQL)
         begin
           result = stmt.execute(*query_params)
@@ -422,7 +453,7 @@ module Sqlite3Codegen
 
     def get_authors_by_optional_name(lim:, name_filter: nil)
       with_client('get_authors_by_optional_name') do |client|
-        query_params = [name_filter, lim]
+        query_params = [name_filter, name_filter, lim]
         stmt = client.prepare(GET_AUTHORS_BY_OPTIONAL_NAME_SQL)
         begin
           result = stmt.execute(*query_params)
@@ -521,9 +552,54 @@ module Sqlite3Codegen
     end
     # rubocop:enable Naming/MethodParameterName
 
+    # rubocop:disable Naming/MethodParameterName
+    def get_authors_by_repeated_named_and_positional(n:, other:, id:)
+      with_client('get_authors_by_repeated_named_and_positional') do |client|
+        query_params = [n, other, id, n]
+        stmt = client.prepare(GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            GetAuthorsByRepeatedNamedAndPositionalRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+    # rubocop:enable Naming/MethodParameterName
+
+    def get_authors_by_repeated_named_and_positional_batch(rows)
+      with_client('get_authors_by_repeated_named_and_positional_batch') do |client|
+        stmt = client.prepare(GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_BATCH_SQL)
+        begin
+          rows.map do |args|
+            query_params = [args.n, args.other, args.id, args.n]
+            result = stmt.execute(*query_params)
+            row = result.first
+            row && GetAuthorsByRepeatedNamedAndPositionalBatchRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
     # Bulk insert: pass an Array of CopyAuthorsArgs.
     def copy_authors(rows)
       with_client('copy_authors') do |client|
+        atomically(client) do
+          rows.each_slice(499) do |batch|
+            sql = %(INSERT INTO "authors" ("name", "bio") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
+            client.execute(sql, batch.flat_map { |row| [row.name, row.bio] })
+          end
+        end
+        nil
+      end
+    end
+
+    def copy_authors_named(rows)
+      with_client('copy_authors_named') do |client|
         atomically(client) do
           rows.each_slice(499) do |batch|
             sql = %(INSERT INTO "authors" ("name", "bio") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
