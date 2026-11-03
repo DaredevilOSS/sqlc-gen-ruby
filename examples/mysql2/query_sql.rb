@@ -503,8 +503,9 @@ module Mysql2Codegen
           begin
             client.query(rollback)
           rescue Mysql2::Error
-            # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone
-            raise unless e.is_a?(Mysql2::Error)
+            # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone;
+            # an interrupted query closed the connection: the server rolls back
+            raise unless e.is_a?(Mysql2::Error) || client.closed?
           end
           raise
         ensure
@@ -1227,8 +1228,9 @@ module Mysql2Codegen
           client.extend(ConnectionState) unless client.is_a?(ConnectionState)
           begin
             yield client
-          rescue Mysql2::Error
-            # a connection closed by the server (restart, KILL, wait_timeout) is replaced by the pool
+          rescue Exception # rubocop:disable Lint/RescueException
+            # a connection closed by the server (restart, KILL, wait_timeout) or by mysql2 when a running query
+            # was interrupted (Async task stopped, Thread#raise) is replaced by the pool
             @db.discard_current_connection if client.closed? && @db.respond_to?(:discard_current_connection)
             raise
           end

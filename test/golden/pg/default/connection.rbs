@@ -9,6 +9,8 @@ module PgCodegen
     @prepared_statements_pid: Integer
 
     def prepared_statements: () -> Set[String]
+
+    attr_accessor in_transaction: bool?
   end
 
   ISOLATION_LEVELS: Hash[Symbol, String]

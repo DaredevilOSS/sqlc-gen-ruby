@@ -402,7 +402,7 @@ module Sqlite3Codegen
 
   FOUR_COLS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
-    	  WHERE a = ?
+    	  WHERE a = 1
   SQL
 
   FourColsRow = Struct.new(
@@ -468,7 +468,7 @@ module Sqlite3Codegen
         query_params = [id]
         stmt = client.prepare(GET_AUTHOR_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           row = result.first
           row && GetAuthorRow.new(id: row[0], name: row[1], bio: row[2])
         ensure
@@ -486,7 +486,7 @@ module Sqlite3Codegen
       with_client('list_authors') do |client|
         stmt = client.prepare(LIST_AUTHORS_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           result.map do |row|
             ListAuthorsRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -501,7 +501,7 @@ module Sqlite3Codegen
         query_params = [name, bio]
         stmt = client.prepare(CREATE_AUTHOR_SQL)
         begin
-          stmt.execute(*query_params)
+          execute_statement(stmt, *query_params)
           nil
         ensure
           stmt.close
@@ -514,7 +514,7 @@ module Sqlite3Codegen
         query_params = [id]
         stmt = client.prepare(DELETE_AUTHOR_SQL)
         begin
-          stmt.execute(*query_params)
+          execute_statement(stmt, *query_params)
           nil
         ensure
           stmt.close
@@ -527,7 +527,7 @@ module Sqlite3Codegen
         query_params = [limit, offset]
         stmt = client.prepare(LIST_AUTHORS_PAGED_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           result.map do |row|
             ListAuthorsPagedRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -542,7 +542,7 @@ module Sqlite3Codegen
         query_params = [name_pattern]
         stmt = client.prepare(GET_AUTHOR_BY_NAME_PATTERN_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           result.map do |row|
             GetAuthorByNamePatternRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -557,7 +557,7 @@ module Sqlite3Codegen
         query_params = [name_filter, name_filter, lim]
         stmt = client.prepare(GET_AUTHORS_BY_OPTIONAL_NAME_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           result.map do |row|
             GetAuthorsByOptionalNameRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -572,7 +572,7 @@ module Sqlite3Codegen
         query_params = [name, bio]
         stmt = client.prepare(CREATE_AUTHOR_RETURN_ID_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           row = result.first
           row && row[0]
         ensure
@@ -587,7 +587,7 @@ module Sqlite3Codegen
         query_params = [bio]
         stmt = client.prepare(UPDATE_AUTHOR_BIOS_SQL)
         begin
-          stmt.execute(*query_params)
+          execute_statement(stmt, *query_params)
           client.changes
         ensure
           stmt.close
@@ -601,7 +601,7 @@ module Sqlite3Codegen
         sql = GET_AUTHORS_BY_IDS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
         stmt = client.prepare(sql)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           result.map do |row|
             GetAuthorsByIdsRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -618,7 +618,7 @@ module Sqlite3Codegen
         sql = sql.gsub('/*SLICE:names*/?', slice_placeholders(names))
         stmt = client.prepare(sql)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           result.map do |row|
             GetAuthorsByIdsAndNamesRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -642,7 +642,7 @@ module Sqlite3Codegen
         sql = sql.gsub('/*SLICE:more*/?', slice_placeholders(more))
         stmt = client.prepare(sql)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           result.map do |row|
             GetAuthorsByMixedPlaceholdersRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -659,7 +659,7 @@ module Sqlite3Codegen
         query_params = [n, other, id, n]
         stmt = client.prepare(GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           result.map do |row|
             GetAuthorsByRepeatedNamedAndPositionalRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -676,7 +676,7 @@ module Sqlite3Codegen
         begin
           rows.map do |args|
             query_params = [args.n, args.other, args.id, args.n]
-            result = stmt.execute(*query_params)
+            result = execute_statement(stmt, *query_params)
             row = result.first
             row && GetAuthorsByRepeatedNamedAndPositionalBatchRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -715,7 +715,7 @@ module Sqlite3Codegen
       with_client('truncate_authors') do |client|
         stmt = client.prepare(TRUNCATE_AUTHORS_SQL)
         begin
-          stmt.execute
+          execute_statement(stmt)
           nil
         ensure
           stmt.close
@@ -728,7 +728,7 @@ module Sqlite3Codegen
         query_params = [name, author_id]
         stmt = client.prepare(CREATE_BOOK_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           row = result.first
           row && row[0]
         ensure
@@ -741,7 +741,7 @@ module Sqlite3Codegen
       with_client('list_all_authors_books') do |client|
         stmt = client.prepare(LIST_ALL_AUTHORS_BOOKS_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           result.map do |row|
             ListAllAuthorsBooksRow.new(
               author: Author.new(id: row[0], name: row[1], bio: row[2]),
@@ -758,7 +758,7 @@ module Sqlite3Codegen
       with_client('get_duplicate_authors') do |client|
         stmt = client.prepare(GET_DUPLICATE_AUTHORS_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           result.map do |row|
             GetDuplicateAuthorsRow.new(
               author: Author.new(id: row[0], name: row[1], bio: row[2]),
@@ -776,7 +776,7 @@ module Sqlite3Codegen
         query_params = [name]
         stmt = client.prepare(GET_AUTHORS_BY_BOOK_NAME_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           result.map do |row|
             GetAuthorsByBookNameRow.new(
               id: row[0],
@@ -796,7 +796,7 @@ module Sqlite3Codegen
         query_params = [name, bio]
         stmt = client.prepare(CREATE_AUTHOR_RESULT_SQL)
         begin
-          stmt.execute(*query_params)
+          execute_statement(stmt, *query_params)
           ExecResult.new(rows_affected: client.changes, last_insert_id: client.last_insert_row_id)
         ensure
           stmt.close
@@ -810,7 +810,7 @@ module Sqlite3Codegen
         begin
           rows.each do |args|
             query_params = [args.name, args.bio]
-            stmt.execute(*query_params)
+            execute_statement(stmt, *query_params)
           end
           nil
         ensure
@@ -825,7 +825,7 @@ module Sqlite3Codegen
         begin
           rows.map do |args|
             query_params = [args.id]
-            result = stmt.execute(*query_params)
+            result = execute_statement(stmt, *query_params)
             row = result.first
             row && GetAuthorBatchRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -841,7 +841,7 @@ module Sqlite3Codegen
         begin
           rows.map do |args|
             query_params = [args.name]
-            result = stmt.execute(*query_params)
+            result = execute_statement(stmt, *query_params)
             result.map do |row|
               ListAuthorsByNameBatchRow.new(id: row[0], name: row[1], bio: row[2])
             end
@@ -865,7 +865,7 @@ module Sqlite3Codegen
         ]
         stmt = client.prepare(INSERT_DECLARED_TYPES_SQL)
         begin
-          stmt.execute(*query_params)
+          execute_statement(stmt, *query_params)
           nil
         ensure
           stmt.close
@@ -877,7 +877,7 @@ module Sqlite3Codegen
       with_client('get_declared_types') do |client|
         stmt = client.prepare(GET_DECLARED_TYPES_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           row = result.first
           row && GetDeclaredTypesRow.new(
             c_varchar: row[0],
@@ -903,7 +903,7 @@ module Sqlite3Codegen
       with_client('truncate_declared_types') do |client|
         stmt = client.prepare(TRUNCATE_DECLARED_TYPES_SQL)
         begin
-          stmt.execute
+          execute_statement(stmt)
           nil
         ensure
           stmt.close
@@ -916,7 +916,7 @@ module Sqlite3Codegen
         query_params = [order, price]
         stmt = client.prepare(CREATE_REGRESSION_SQL)
         begin
-          stmt.execute(*query_params).to_a
+          execute_statement(stmt, *query_params).to_a
           nil
         ensure
           stmt.close
@@ -929,7 +929,7 @@ module Sqlite3Codegen
         query_params = [price]
         stmt = client.prepare(UPDATE_REGRESSION_PRICES_SQL)
         begin
-          stmt.execute(*query_params).to_a
+          execute_statement(stmt, *query_params).to_a
           client.changes
         ensure
           stmt.close
@@ -953,7 +953,7 @@ module Sqlite3Codegen
       with_client('list_regressions') do |client|
         stmt = client.prepare(LIST_REGRESSIONS_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           result.map do |row|
             ListRegressionsRow.new(id: row[0], order: row[1], price: row[2])
           end
@@ -967,7 +967,7 @@ module Sqlite3Codegen
       with_client('get_max_regression_price') do |client|
         stmt = client.prepare(GET_MAX_REGRESSION_PRICE_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           row = result.first
           row && GetMaxRegressionPriceRow.new(max_price: row[0])
         ensure
@@ -985,7 +985,7 @@ module Sqlite3Codegen
       with_client('truncate_regressions') do |client|
         stmt = client.prepare(TRUNCATE_REGRESSIONS_SQL)
         begin
-          stmt.execute
+          execute_statement(stmt)
           nil
         ensure
           stmt.close
@@ -1009,7 +1009,7 @@ module Sqlite3Codegen
       with_client('list_regression_rows') do |client|
         stmt = client.prepare(LIST_REGRESSION_ROWS_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           result.map do |row|
             ListRegressionRowsRow.new(id: row[0], order: row[1], price: row[2], payload: row[3])
           end
@@ -1023,7 +1023,7 @@ module Sqlite3Codegen
       with_client('truncate_regression_rows') do |client|
         stmt = client.prepare(TRUNCATE_REGRESSION_ROWS_SQL)
         begin
-          stmt.execute
+          execute_statement(stmt)
           nil
         ensure
           stmt.close
@@ -1036,7 +1036,7 @@ module Sqlite3Codegen
         query_params = [sleep]
         stmt = client.prepare(PAUSE_QUERY_SQL)
         begin
-          stmt.execute(*query_params).to_a
+          execute_statement(stmt, *query_params).to_a
           nil
         ensure
           stmt.close
@@ -1084,7 +1084,7 @@ module Sqlite3Codegen
       with_client('list_tags') do |client|
         stmt = client.prepare(LIST_TAGS_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           result.map do |row|
             ListTagsRow.new(name: row[0], uses: row[1])
           end
@@ -1098,7 +1098,7 @@ module Sqlite3Codegen
       with_client('truncate_tags') do |client|
         stmt = client.prepare(TRUNCATE_TAGS_SQL)
         begin
-          stmt.execute
+          execute_statement(stmt)
           nil
         ensure
           stmt.close
@@ -1110,7 +1110,7 @@ module Sqlite3Codegen
       with_client('list_authors_with_optional_book') do |client|
         stmt = client.prepare(LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           result.map do |row|
             ListAuthorsWithOptionalBookRow.new(
               author: row[0].nil? && row[1].nil? ? nil : Author.new(id: row[0], name: row[1], bio: row[2]),
@@ -1137,7 +1137,7 @@ module Sqlite3Codegen
         ]
         stmt = client.prepare(INSERT_NAME_CASE_SQL)
         begin
-          stmt.execute(*query_params)
+          execute_statement(stmt, *query_params)
           nil
         ensure
           stmt.close
@@ -1159,7 +1159,7 @@ module Sqlite3Codegen
         ]
         stmt = client.prepare(GET_NAME_CASE_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           row = result.first
           row && GetNameCaseRow.new(
             id: row[0],
@@ -1187,7 +1187,7 @@ module Sqlite3Codegen
         query_params = [id]
         stmt = client.prepare(GET_HTTP_SERVER_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           row = result.first
           row && GetHTTPServerRow.new(
             id: row[0],
@@ -1214,7 +1214,7 @@ module Sqlite3Codegen
       with_client('truncate_name_cases') do |client|
         stmt = client.prepare(TRUNCATE_NAME_CASES_SQL)
         begin
-          stmt.execute
+          execute_statement(stmt)
           nil
         ensure
           stmt.close
@@ -1226,7 +1226,7 @@ module Sqlite3Codegen
       with_client('get_unnamed_columns') do |client|
         stmt = client.prepare(GET_UNNAMED_COLUMNS_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           row = result.first
           row && GetUnnamedColumnsRow.new(column_1: row[0], column_2: row[1])
         ensure
@@ -1244,7 +1244,7 @@ module Sqlite3Codegen
       with_client('get_quoted_alias') do |client|
         stmt = client.prepare(GET_QUOTED_ALIAS_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           row = result.first
           row && GetQuotedAliasRow.new(it_s: row[0])
         ensure
@@ -1264,7 +1264,7 @@ module Sqlite3Codegen
         sql = GET_AUTHORS_NOT_IN_IDS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
         stmt = client.prepare(sql)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           result.map do |row|
             GetAuthorsNotInIdsRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -1279,7 +1279,7 @@ module Sqlite3Codegen
         query_params = [id, name]
         stmt = client.prepare(CREATE_AUTHOR_OR_ROLLBACK_SQL)
         begin
-          stmt.execute(*query_params)
+          execute_statement(stmt, *query_params)
           nil
         ensure
           stmt.close
@@ -1298,7 +1298,7 @@ module Sqlite3Codegen
         ]
         stmt = client.prepare(MANY_PARAMS_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           row = result.first
           row && ManyParamsRow.new(c0: row[0], c1: row[1])
         ensure
@@ -1317,7 +1317,7 @@ module Sqlite3Codegen
         query_params = [c0]
         stmt = client.prepare(MANY_ROWS_SQL)
         begin
-          result = stmt.execute(*query_params)
+          result = execute_statement(stmt, *query_params)
           result.map do |row|
             ManyRowsRow.new(
               c0: row[0],
@@ -1337,7 +1337,7 @@ module Sqlite3Codegen
       with_client('four_cols') do |client|
         stmt = client.prepare(FOUR_COLS_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           result.map do |row|
             FourColsRow.new(c0: row[0], c1: row[1], c2: row[2], c3: row[3])
           end
@@ -1363,6 +1363,14 @@ module Sqlite3Codegen
 
     def with_client(name, &block)
       instrument(name) { @lock.synchronize { block.call(@db) } }
+    end
+
+    def execute_statement(stmt, *params)
+      stmt.reset! if stmt.active? || stmt.done?
+      stmt.bind_params(*params) unless params.empty?
+      result = SQLite3::ResultSet.new(@db, stmt)
+      stmt.step if stmt.column_count.zero?
+      result
     end
 
     def timeout_exits_with_throw?

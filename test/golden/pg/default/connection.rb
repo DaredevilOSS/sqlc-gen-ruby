@@ -14,6 +14,9 @@ module PgCodegen
       end
       @prepared_statements
     end
+
+    # Set inside #transaction: a lost connection is then not reconnected until the transaction block ends.
+    attr_accessor :in_transaction
   end
 
   ISOLATION_LEVELS = {
