@@ -574,6 +574,8 @@ module PgCodegen
         else
           client.exec("SAVEPOINT #{savepoint}")
         end
+        entered = !client.in_transaction
+        client.in_transaction = true
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
         failed = false
         begin
@@ -581,10 +583,16 @@ module PgCodegen
         rescue Exception # rubocop:disable Lint/RescueException
           failed = true
           client.cancel if client.transaction_status == PG::PQTRANS_ACTIVE
-          client.exec(rollback)
+          client.exec(rollback) unless client.status == PG::CONNECTION_BAD # the server already rolled back
           raise
         ensure
-          unless failed
+          client.in_transaction = false if entered
+          if failed
+            nil
+          elsif client.status == PG::CONNECTION_BAD
+            # the block rescued the error of a lost connection: the server rolled the transaction back
+            raise PG::ConnectionBad, 'transaction rolled back: the connection was lost' if Thread.current.status != 'aborting'
+          else
             # a statement failed and the block rescued the error: PostgreSQL can only roll back
             rescued = client.transaction_status == PG::PQTRANS_INERROR
             commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
@@ -1646,7 +1654,12 @@ module PgCodegen
     def with_client(name)
       instrument(name) do
         @db.with do |client|
-          client.reset if client.status == PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
+          if client.status == PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
+            # inside #transaction a new session would run the rest of the block outside the transaction
+            raise PG::ConnectionBad, 'the connection was lost inside a transaction' if client.is_a?(ConnectionState) && client.in_transaction
+
+            client.reset
+          end
           configure(client) unless client.is_a?(ConnectionState)
           begin
             yield client

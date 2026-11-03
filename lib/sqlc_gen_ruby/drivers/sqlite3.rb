@@ -40,6 +40,7 @@ module SqlcGenRuby
           [INSTRUMENT, INSTRUMENT_RBS],
           ["def with_client(name, &block)\n  instrument(name) { @lock.synchronize { block.call(@db) } }\nend",
            'def with_client: [T] (String name) { (untyped) -> T } -> T'],
+          [EXECUTE_STATEMENT, 'def execute_statement: (untyped stmt, *untyped params) -> untyped'],
           *timeout_exit_methods(ruby_version)
         ]
       end
@@ -47,14 +48,57 @@ module SqlcGenRuby
       def prepare_stmt(_stmt_name, const) = "stmt = client.prepare(#{const})"
 
       def execute_stmt(_stmt_name, _const, has_params, array_rows: false)
-        has_params ? 'stmt.execute(*query_params)' : 'stmt.execute'
+        has_params ? 'execute_statement(stmt, *query_params)' : 'execute_statement(stmt)'
       end
+
+      # Statement#execute, but rows are always Arrays (they are read by position), also when the database was
+      # opened with results_as_hash: true.
+      EXECUTE_STATEMENT = <<~'RUBY'.chomp
+        def execute_statement(stmt, *params)
+          stmt.reset! if stmt.active? || stmt.done?
+          stmt.bind_params(*params) unless params.empty?
+          result = SQLite3::ResultSet.new(@db, stmt)
+          stmt.step if stmt.column_count.zero?
+          result
+        end
+      RUBY
 
       def row_data_type = :array
 
       def closes_statements? = true
 
       def supports_slice? = true
+
+      # sqlc misses parameters in some SQLite clauses (ON CONFLICT ... DO UPDATE SET): it leaves sqlc.arg(...) in the
+      # SQL or reports fewer parameters than there are placeholders, and the method would bind too few values.
+      def check_placeholders(query)
+        hint = 'sqlc does not see parameters there (e.g. in SQLite ON CONFLICT ... DO UPDATE SET); ' \
+               'use excluded.<column> or move the value into VALUES'
+        if /\bsqlc\s*\.\s*(?:arg|narg|slice|embed)\s*\(/i.match?(without_literals(query.text))
+          raise ArgumentError, "#{query.name}: sqlc left a sqlc.* macro in the SQL: #{hint}"
+        end
+
+        occurrences = placeholder_occurrences(query.text)
+        referenced = occurrences.filter_map { |kind, number,| number if kind == :numbered }
+        slices = occurrences.filter_map { |kind, name,| name if kind == :slice }
+        expected = query.params.count do |source|
+          !referenced.include?(source.number) && !(source.column.is_sqlc_slice && slices.include?(source.column.name))
+        end
+        unreported = [occurrences.count { |kind,| kind == :positional } - expected, 0].max +
+                     (referenced.uniq - query.params.map(&:number)).size
+        return if unreported.zero?
+
+        raise ArgumentError, "#{query.name}: the SQL has #{unreported} placeholder(s) that sqlc reported no parameter for: #{hint}"
+      end
+
+      def without_literals(sql)
+        sql.gsub(/'(?:[^']|'')*'|"(?:[^"]|"")*"|`(?:[^`]|``)*`|\[[^\]]*\]|--[^\n]*|\/\*.*?\*\//m, ' ')
+      end
+
+      def query_text_constant(query)
+        check_placeholders(query)
+        super
+      end
 
       def query_text(query)
         replacements = placeholder_occurrences(query.text).filter_map do |kind, number, first, last|

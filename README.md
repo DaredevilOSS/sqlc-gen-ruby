@@ -98,7 +98,7 @@ per table, one module of constants per enum), `connection.rb` (shared helpers) a
 * **Bang finders:** every `:one` query also gets a `get_author!` that raises `QuerySql::NotFound` instead of returning `nil`.
 * **Connections:** `QuerySql.connect(params, **pool_options)` builds a [`connection_pool`](https://github.com/mperham/connection_pool).
   To use a pool you already have (or a fake in tests) pass it to `QuerySql.new(pool)`; anything with `#with` works.
-  For SQLite pass a `SQLite3::Database`: `QuerySql.new(db)`.
+  For SQLite pass a `SQLite3::Database` (opened with any options, `results_as_hash: true` included): `QuerySql.new(db)`.
 * **Logging:** `connect(params, logger: Rails.logger)` / `new(pool, logger:)` logs `QuerySql#get_author (0.4ms)` at
   debug level for each query and transaction. Parameter values are never logged.
 * **Async / fibers:** it is plain synchronous Ruby and works with the Fiber scheduler ([`async`](https://github.com/socketry/async)):
@@ -131,7 +131,11 @@ end
   back, so `transaction` raises `PG::InFailedSqlTransaction` instead of pretending it committed. In a nested
   `transaction` only the savepoint is rolled back: the outer block can rescue that error and go on.
 * A connection the server closed (restart, failover, killed backend) is reconnected (`pg`) or replaced in the pool
-  (`mysql2`) the next time it is checked out; the call that hit the dead connection still raises.
+  (`mysql2`) the next time it is checked out; the call that hit the dead connection still raises. Inside `transaction`
+  a lost `pg` connection is not reconnected: every later call in the block and `transaction` itself raise
+  `PG::ConnectionBad`, so nothing after the loss runs outside the transaction (the server rolled it back). A `mysql2`
+  client that mysql2 closed because a running query was interrupted (an `Async` task stopped, `Thread#raise`) is
+  replaced the same way, without failing the next call.
 * SQLite: threads and fibers sharing one `SQLite3::Database` take turns; a transaction holds the database until it ends.
 
 ## Supported features
@@ -191,6 +195,9 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 * Two result columns with the same name (e.g. `a.id, b.id`) are an error: alias one (`b.id AS book_id`) or use `sqlc.embed`.
 * SQLite's `NUMERIC` affinity can return an `Integer` where `Float` is declared.
 * `:batchexec` / `:batchone` / `:batchmany` are not atomic on their own: wrap them in `transaction` for all-or-nothing.
+* SQLite: sqlc does not see parameters in `ON CONFLICT ... DO UPDATE SET` (it leaves `sqlc.arg(...)` in the SQL or
+  reports fewer parameters than there are `?`), so such queries are generation errors. Use `excluded.<column>`
+  (`DO UPDATE SET n = counters.n + excluded.n`) or move the value into `VALUES`.
 * SQLite transactions belong to the thread that opened them; fibers sharing the same database take turns, and a
   transaction holds it until it ends.
 * Not applicable to Ruby (they exist in the C# plugin): `withAsyncSuffix` / `withCancellationToken` (use the Fiber

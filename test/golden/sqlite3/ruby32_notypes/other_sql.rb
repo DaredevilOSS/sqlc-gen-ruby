@@ -15,7 +15,7 @@ module Sqlite3Codegen
 
   OTHER_ONE_SQL = <<~'SQL'
     SELECT 1 -- ? ?
-    	  WHERE a = ?
+    	  WHERE a = 1
   SQL
 
   class OtherOneRow < Data.define(:c0)
@@ -84,7 +84,7 @@ module Sqlite3Codegen
         ]
         stmt = client.prepare(NO_COLS_SQL)
         begin
-          stmt.execute(*query_params)
+          execute_statement(stmt, *query_params)
           nil
         ensure
           stmt.close
@@ -96,7 +96,7 @@ module Sqlite3Codegen
       with_client('other_one') do |client|
         stmt = client.prepare(OTHER_ONE_SQL)
         begin
-          result = stmt.execute
+          result = execute_statement(stmt)
           row = result.first
           row && OtherOneRow.new(row[0])
         ensure
@@ -115,7 +115,7 @@ module Sqlite3Codegen
         query_params = [c0]
         stmt = client.prepare(COUNT_ROWS_SQL)
         begin
-          stmt.execute(*query_params)
+          execute_statement(stmt, *query_params)
           client.changes
         ensure
           stmt.close
@@ -139,6 +139,14 @@ module Sqlite3Codegen
 
     def with_client(name, &block)
       instrument(name) { @lock.synchronize { block.call(@db) } }
+    end
+
+    def execute_statement(stmt, *params)
+      stmt.reset! if stmt.active? || stmt.done?
+      stmt.bind_params(*params) unless params.empty?
+      result = SQLite3::ResultSet.new(@db, stmt)
+      stmt.step if stmt.column_count.zero?
+      result
     end
 
     def timeout_exits_with_throw?

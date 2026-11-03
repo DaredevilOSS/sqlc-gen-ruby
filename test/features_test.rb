@@ -164,6 +164,27 @@ class FeaturesTest < Minitest::Test
     end
   end
 
+  def test_sqlite_parameters_sqlc_does_not_report_are_generation_errors
+    {
+      'ON CONFLICT (id) DO UPDATE SET name = ? RETURNING' => /CreateBook: the SQL has 1 placeholder\(s\) that sqlc reported no parameter for/,
+      'ON CONFLICT (id) DO UPDATE SET name = sqlc.arg(name) RETURNING' => /CreateBook: sqlc left a sqlc\.\* macro in the SQL/
+    }.each do |clause, message|
+      request = load_request('sqlite3')
+      book = query(request, 'CreateBook')
+      book.text = book.text.sub('RETURNING', clause)
+      error = assert_raises(RuntimeError) { generate(request) }
+      assert_match message, error.message
+      assert_match(/excluded\.<column>/, error.message)
+    end
+  end
+
+  def test_sqlite_placeholders_in_literals_and_comments_are_not_parameters
+    request = load_request('sqlite3')
+    book = query(request, 'CreateBook')
+    book.text = book.text.sub('RETURNING', "ON CONFLICT (id) DO UPDATE SET name = '? sqlc.arg(x)' /* ? */ RETURNING")
+    assert_includes generate(request).fetch('query_sql.rb'), "name = '? sqlc.arg(x)' /* ? */"
+  end
+
   def test_returning_last_id_is_optional_when_no_row_is_returned
     %w[pg sqlite3].each do |driver|
       rbs = generate(load_request(driver)).fetch('query_sql.rbs')

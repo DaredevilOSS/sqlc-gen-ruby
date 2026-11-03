@@ -535,6 +535,8 @@ module Sqlite3Codegen
 
     def with_client: [T] (String name) { (untyped) -> T } -> T
 
+    def execute_statement: (untyped stmt, *untyped params) -> untyped
+
     def atomically: (untyped client) { () -> void } -> void
 
     def slice_placeholders: (Array[untyped] values) -> String
