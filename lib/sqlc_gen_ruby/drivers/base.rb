@@ -66,8 +66,15 @@ module SqlcGenRuby
 
       def exec_last_id_lines(_exec, _query) = raise(NotImplementedError)
 
-      # table: quoted SQL name; columns: quoted SQL column names; values: Ruby expressions of the row values
-      def copy_from_lines(_rows_var, _table, _columns, _values, _label) = raise(NotImplementedError)
+      # table: quoted SQL name; columns: quoted SQL column names; values: Ruby expressions of the row values;
+      # sources: the sqlc columns of the values; verb: the SQL before INTO (`INSERT OR IGNORE`); tail: the SQL after
+      # the VALUES tuple (`ON CONFLICT ...`)
+      def copy_from_lines(_rows_var, _table, _columns, _values, _label, query_name:, sources:, verb:, tail:)
+        raise(NotImplementedError)
+      end
+
+      # :batch* prepare the statement for every row instead of once (mysql2 corrupts reused statements' parameters).
+      def prepares_batch_rows? = false
 
       # SQL identifier quoting for the statements the plugin writes itself (:copyfrom).
       def quote_identifier(name) = %("#{name.gsub('"', '""')}")

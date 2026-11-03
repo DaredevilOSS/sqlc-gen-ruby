@@ -337,6 +337,60 @@ module PgCodegen
     TRUNCATE TABLE regressions
   SQL
 
+  CREATE_BATCH_TYPES_BATCH_SQL = <<~'SQL'
+    INSERT INTO batch_types (id, ok, ratio, blobs, docs, counts, amounts, stamps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+  SQL
+
+  CreateBatchTypesBatchArgs = Struct.new(
+    :id,
+    :ok,
+    :ratio,
+    :blobs,
+    :docs,
+    :counts,
+    :amounts,
+    :stamps,
+    keyword_init: true
+  )
+
+  CopyBatchTypesArgs = Struct.new(
+    :id,
+    :ok,
+    :ratio,
+    :blobs,
+    :docs,
+    :counts,
+    :amounts,
+    :stamps,
+    keyword_init: true
+  )
+
+  LIST_BATCH_TYPES_SQL = <<~'SQL'
+    SELECT id, ok, ratio, blobs, docs, counts, amounts, stamps FROM batch_types ORDER BY id
+  SQL
+
+  ListBatchTypesRow = Struct.new(
+    :id,
+    :ok,
+    :ratio,
+    :blobs,
+    :docs,
+    :counts,
+    :amounts,
+    :stamps,
+    keyword_init: true
+  )
+
+  COUNT_BATCH_TYPES_ABOVE_SQL = <<~'SQL'
+    SELECT count(*) FROM batch_types WHERE id > $1
+  SQL
+
+  CountBatchTypesAboveRow = Struct.new(:count_, keyword_init: true)
+
+  TRUNCATE_BATCH_TYPES_SQL = <<~'SQL'
+    TRUNCATE TABLE batch_types
+  SQL
+
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
@@ -394,6 +448,8 @@ module PgCodegen
     def transaction(isolation: nil)
       with_client('transaction') do |client|
         outermost = client.transaction_status == PG::PQTRANS_IDLE
+        raise ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
+
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         if outermost
           client.exec(isolation ? "BEGIN ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}" : 'BEGIN')
@@ -410,11 +466,12 @@ module PgCodegen
           raise
         ensure
           unless failed
+            # a statement failed and the block rescued the error: PostgreSQL can only roll back
+            rescued = client.transaction_status == PG::PQTRANS_INERROR
             commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-            result = client.exec(Thread.current.status == 'aborting' ? rollback : commit)
-            # COMMIT of a transaction aborted by an error the block rescued is a ROLLBACK
-            rolled_back = outermost && result.cmd_status == 'ROLLBACK' && Thread.current.status != 'aborting'
-            raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rolled_back
+            client.exec(rescued || Thread.current.status == 'aborting' ? rollback : commit)
+            client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
+            raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && Thread.current.status != 'aborting'
           end
         end
       end
@@ -576,7 +633,7 @@ module PgCodegen
 
     def get_authors_by_ids(param1:)
       with_client('get_authors_by_ids') do |client|
-        query_params = [param1]
+        query_params = [encode_array(param1)]
         unless client.prepared_statements.include?('query_sql_get_authors_by_ids')
           client.prepare('query_sql_get_authors_by_ids', GET_AUTHORS_BY_IDS_SQL)
           client.prepared_statements.add('query_sql_get_authors_by_ids')
@@ -590,7 +647,7 @@ module PgCodegen
 
     def get_authors_by_ids_and_names(param1:, param2:)
       with_client('get_authors_by_ids_and_names') do |client|
-        query_params = [param1, param2]
+        query_params = [encode_array(param1), encode_array(param2)]
         unless client.prepared_statements.include?('query_sql_get_authors_by_ids_and_names')
           client.prepare('query_sql_get_authors_by_ids_and_names', GET_AUTHORS_BY_IDS_AND_NAMES_SQL)
           client.prepared_statements.add('query_sql_get_authors_by_ids_and_names')
@@ -740,8 +797,8 @@ module PgCodegen
         query_params = [
           c_uuid,
           encode_json(c_jsonb),
-          c_text_array,
-          c_integer_array,
+          encode_array(c_text_array),
+          encode_array(c_integer_array),
           c_timestamptz,
           c_inet,
           c_money,
@@ -795,7 +852,7 @@ module PgCodegen
 
     def insert_array_types(c_uuid_array:, c_bio_type_array:, c_integer_matrix:)
       with_client('insert_array_types') do |client|
-        query_params = [c_uuid_array, c_bio_type_array, c_integer_matrix]
+        query_params = [encode_array(c_uuid_array), encode_array(c_bio_type_array), encode_array(c_integer_matrix)]
         unless client.prepared_statements.include?('query_sql_insert_array_types')
           client.prepare('query_sql_insert_array_types', INSERT_ARRAY_TYPES_SQL)
           client.prepared_statements.add('query_sql_insert_array_types')
@@ -987,8 +1044,8 @@ module PgCodegen
           order,
           encode_bytea(payload),
           encode_json(doc),
-          bio_types,
-          uids
+          encode_array(bio_types),
+          encode_array(uids)
         ]
         unless client.prepared_statements.include?('query_sql_create_regression')
           client.prepare('query_sql_create_regression', CREATE_REGRESSION_SQL)
@@ -1083,13 +1140,99 @@ module PgCodegen
       end
     end
 
+    def create_batch_types_batch(rows)
+      with_client('create_batch_types_batch') do |client|
+        unless client.prepared_statements.include?('query_sql_create_batch_types_batch')
+          client.prepare('query_sql_create_batch_types_batch', CREATE_BATCH_TYPES_BATCH_SQL)
+          client.prepared_statements.add('query_sql_create_batch_types_batch')
+        end
+        rows.each do |args|
+          query_params = [
+            args.id,
+            args.ok,
+            encode_float(args.ratio),
+            encode_array(args.blobs, :bytea),
+            encode_array(args.docs, :json),
+            encode_array(args.counts),
+            encode_array(args.amounts),
+            encode_array(args.stamps)
+          ]
+          client.exec_prepared('query_sql_create_batch_types_batch', query_params)
+        end
+        nil
+      end
+    end
+
+    def copy_batch_types(rows)
+      with_client('copy_batch_types') do |client|
+        encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
+        client.copy_data('COPY "batch_types" ("id", "ok", "ratio", "blobs", "docs", "counts", "amounts", "stamps") FROM STDIN', encoder) do
+          rows.each do |row|
+            client.put_copy_data([row.id, row.ok, encode_float(row.ratio), encode_array(row.blobs, :bytea), encode_array(row.docs, :json), encode_array(row.counts), encode_array(row.amounts), encode_array(row.stamps)])
+          end
+        end
+        nil
+      end
+    end
+
+    def list_batch_types
+      with_client('list_batch_types') do |client|
+        unless client.prepared_statements.include?('query_sql_list_batch_types')
+          client.prepare('query_sql_list_batch_types', LIST_BATCH_TYPES_SQL)
+          client.prepared_statements.add('query_sql_list_batch_types')
+        end
+        result = client.exec_prepared('query_sql_list_batch_types')
+        result.map do |row|
+          ListBatchTypesRow.new(
+            id: row['id'],
+            ok: row['ok'],
+            ratio: row['ratio'],
+            blobs: row['blobs'],
+            docs: row['docs'],
+            counts: row['counts'],
+            amounts: row['amounts'],
+            stamps: row['stamps']
+          )
+        end
+      end
+    end
+
+    def count_batch_types_above(min_id:)
+      with_client('count_batch_types_above') do |client|
+        query_params = [min_id]
+        unless client.prepared_statements.include?('query_sql_count_batch_types_above')
+          client.prepare('query_sql_count_batch_types_above', COUNT_BATCH_TYPES_ABOVE_SQL)
+          client.prepared_statements.add('query_sql_count_batch_types_above')
+        end
+        result = client.exec_prepared('query_sql_count_batch_types_above', query_params)
+        row = result.first
+        row && CountBatchTypesAboveRow.new(count_: row['count'])
+      end
+    end
+
+    # Like #count_batch_types_above, but raises NotFound when there is no row.
+    def count_batch_types_above!(...)
+      count_batch_types_above(...) || raise(NotFound, 'CountBatchTypesAbove returned no row')
+    end
+
+    def truncate_batch_types
+      with_client('truncate_batch_types') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_batch_types')
+          client.prepare('query_sql_truncate_batch_types', TRUNCATE_BATCH_TYPES_SQL)
+          client.prepared_statements.add('query_sql_truncate_batch_types')
+        end
+        client.exec_prepared('query_sql_truncate_batch_types')
+        nil
+      end
+    end
+
     def many_params(c0:, c1:, c2:, c3:, c4:)
       with_client('many_params') do |client|
         query_params = [
           c0,
           c1,
           c2,
-          c3,
+          encode_float(c3),
           encode_bytea(c4)
         ]
         unless client.prepared_statements.include?('query_sql_many_params')
@@ -1157,6 +1300,7 @@ module PgCodegen
     def with_client(name)
       instrument(name) do
         @db.with do |client|
+          client.reset if client.status == PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
           configure(client) unless client.is_a?(ConnectionState)
           yield client
         end
@@ -1168,7 +1312,10 @@ module PgCodegen
       type_map = PG::BasicTypeMapForResults.new(client)
       type_map.default_type_map = string_arrays(client) # uuid, enums, money, ... come back as Strings
       client.type_map_for_results = type_map
-      client.type_map_for_queries = PG::BasicTypeMapForQueries.new(client)
+      queries = PG::BasicTypeMapForQueries.new(client)
+      # true / false as text ('t' / 'f'), also valid in COPY (the default binary encoder is not)
+      queries[TrueClass] = queries[FalseClass] = PG::TextEncoder::Boolean.new(oid: 16)
+      client.type_map_for_queries = queries
       client.extend(ConnectionState)
     end
 
@@ -1192,6 +1339,32 @@ module PgCodegen
     # json / jsonb parameters: an Array is a JSON array, not a PG array (Hashes and JSON text pass through).
     def encode_json(value)
       value.is_a?(Array) ? PG::TextEncoder::JSON.new.encode(value) : value
+    end
+
+    # Float#to_s is the shortest text that reads back as the same Float (the pg gem's encoder drops digits).
+    def encode_float(value)
+      value.is_a?(Float) ? value.to_s : value
+    end
+
+    # Array parameters are sent as array literals, which the server converts to the parameter's type (the pg gem
+    # would type them from their first element: wrong for [], [nil, ...], bytea[], json[]).
+    def encode_array(value, kind = :value)
+      return value unless value.is_a?(Array)
+
+      PG::TextEncoder::Array.new(elements_type: PG::TextEncoder::String.new).encode(array_elements(value, kind))
+    end
+
+    def array_elements(values, kind)
+      values.map do |value|
+        case value
+        when nil then nil
+        when Array then kind == :json ? PG::TextEncoder::JSON.new.encode(value) : array_elements(value, kind)
+        when Hash then PG::TextEncoder::JSON.new.encode(value)
+        when String then kind == :bytea ? PG::TextEncoder::Bytea.new.encode(value) : value
+        when Time then PG::TextEncoder::TimestampWithTimeZone.new.encode(value)
+        else defined?(IPAddr) && value.is_a?(IPAddr) ? "#{value}/#{value.prefix}" : value.to_s
+        end
+      end
     end
   end
 end

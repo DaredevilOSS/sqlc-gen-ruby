@@ -69,7 +69,9 @@ module SqlcGenRuby
       end
       doc = query.comments.map { |c| "# #{c.strip}".rstrip }.join("\n")
       method = Code.block("def #{func}#{signature}", method_body(func, statements))
-      method = Code.without_cops(method, Code.naming_cops(params: params.map(&:name)))
+      # :copyfrom / :batch* take only `rows`; the Args class gets its own exemptions
+      method_params = ROWS_COMMANDS.include?(query.cmd) ? [] : params.map(&:name)
+      method = Code.without_cops(method, Code.naming_cops(params: method_params))
       method = "#{doc}\n#{method}" unless doc.empty?
       query.cmd == ':one' ? "#{method}\n\n#{bang_method(query, func)}" : method
     end
@@ -153,8 +155,38 @@ module SqlcGenRuby
       name = table.schema.to_s.empty? ? '' : "#{@driver.quote_identifier(table.schema)}."
       name += @driver.quote_identifier(table.name)
       values = params.map { |p| @driver.encode_param("row.#{p.name}", p.column) }
+      verb, tail = insert_clauses(query.text)
       @driver.copy_from_lines('rows', name, params.map { |p| @driver.quote_identifier(p.column.name) }, values,
-                              Code.snake_case(query.name))
+                              Code.snake_case(query.name),
+                              query_name: query.name, sources: params.map(&:column), verb: verb, tail: tail)
+    end
+
+    # `INSERT OR REPLACE INTO t (a) VALUES (?) ON CONFLICT (a) DO NOTHING;` => ['INSERT OR REPLACE', 'ON CONFLICT (a) DO NOTHING']
+    def insert_clauses(sql)
+      sql = sql.gsub(%r{--[^\n]*|/\*.*?\*/}m, ' ')
+      verb = sql[/\A\s*(.*?)\s+INTO\b/im, 1].to_s.split.join(' ').upcase
+      values = sql =~ /\bVALUES\s*\(/i
+      tail = values ? after_parenthesis(sql, sql.index('(', values)) : ''
+      [verb, tail.strip.sub(/;\z/, '').strip]
+    end
+
+    # The text after the parenthesis opened at `start` is closed (quotes skipped).
+    def after_parenthesis(sql, start)
+      depth = 0
+      quote = nil
+      (start...sql.size).each do |i|
+        char = sql[i]
+        if quote
+          quote = nil if char == quote
+        elsif %w[' " `].include?(char)
+          quote = char
+        elsif char == '('
+          depth += 1
+        elsif char == ')' && (depth -= 1).zero?
+          return sql[(i + 1)..]
+        end
+      end
+      ''
     end
 
     def query_statements(query, func, params)
@@ -187,15 +219,24 @@ module SqlcGenRuby
 
       const = Code.sql_constant(query.name)
       stmt_name = "#{@statement_prefix}_#{func}"
-      statements = [@driver.prepare_stmt(stmt_name, const)].compact
+      prepare = @driver.prepare_stmt(stmt_name, const)
       cmd = BATCH_COMMANDS.fetch(query.cmd)
       body = []
       body << "query_params = [#{Code.comma_join(params.map { |p| @driver.encode_param("args.#{p.name}", p.column) })}]" unless params.empty?
-      body.concat(command_statements(query, stmt_name, const, !params.empty?, cmd: cmd))
-      body.pop if cmd == ':exec' # the trailing nil
+      commands = command_statements(query, stmt_name, const, !params.empty?, cmd: cmd)
+      commands.pop if cmd == ':exec' # the trailing nil
+      if @driver.prepares_batch_rows?
+        body << prepare
+        body << Code.block('begin', commands.join("\n")).sub(/\nend\z/, "\nensure\n  stmt.close\nend")
+      else
+        body.concat(commands)
+      end
       block_arg = params.empty? ? '_args' : 'args'
       loop = Code.block("rows.#{cmd == ':exec' ? 'each' : 'map'} do |#{block_arg}|", body.join("\n"))
       commands = cmd == ':exec' ? [loop, 'nil'] : [loop]
+      return commands if @driver.prepares_batch_rows?
+
+      statements = [prepare].compact
       if @driver.closes_statements?
         statements << Code.block('begin', commands.join("\n")).sub(/\nend\z/, "\nensure\n  stmt.close\nend")
       else

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'test_helper'
+require 'sqlc_gen_ruby/code'
 
 # Generator behaviour for the sqlc features the example schemas exercise (details of the runtime behaviour of the
 # generated code are covered by the end-to-end tests under tests/).
@@ -424,10 +425,10 @@ class FeaturesTest < Minitest::Test
     rb = generate(load_request('pg')).fetch('query_sql.rb')
     assert_includes rb, 'encode_bytea(payload),'
     assert_includes rb, 'encode_json(doc),'
-    refute_includes rb, 'encode_text_array'
+    assert_includes rb, 'encode_array(bio_types)'
+    assert_includes rb, 'def encode_array(value, kind = :value)'
     noprep = generate(load_request('pg', preparedStatements: false)).fetch('query_sql.rb')
-    assert_includes noprep, 'encode_text_array(bio_types)'
-    assert_includes noprep, 'def encode_text_array(value)'
+    assert_includes noprep, 'encode_array(bio_types)'
   end
 
   def test_transactions_finish_on_non_local_exits
@@ -460,6 +461,49 @@ class FeaturesTest < Minitest::Test
     query(request, 'GetAuthor').columns[2].type.name = 'UUID'
     assert_match(/class GetAuthorRow\n\s+attr_reader id: Integer\n\s+attr_reader name: String\n\s+attr_reader bio: String\?/,
                  generate(request).fetch('query_sql.rbs'))
+  end
+
+  def test_snake_case_keeps_acronyms_together
+    { 'MIN_ID' => 'min_id', 'ABC' => 'abc', 'HTTPServer' => 'http_server', 'UserId' => 'user_id',
+      'getHTTPResponse2Code' => 'get_http_response2_code', 'authorID' => 'author_id' }.each do |name, snake|
+      assert_equal snake, SqlcGenRuby::Code.snake_case(name)
+    end
+  end
+
+  def test_copyfrom_keeps_or_rejects_conflict_clauses
+    sqlite = generate(load_request('sqlite3')).fetch('query_sql.rb')
+    assert_includes sqlite, 'INSERT OR REPLACE INTO "tags"'
+    assert_includes sqlite, 'ON CONFLICT (name) DO UPDATE SET uses = tags.uses + excluded.uses'
+    mysql = generate(load_request('mysql2')).fetch('query_sql.rb')
+    assert_includes mysql, "IGNORE INTO TABLE `copy_types`"
+    assert_includes mysql, "REPLACE INTO TABLE `copy_types`"
+    { 'pg' => ' ON CONFLICT DO NOTHING', 'mysql2' => ' ON DUPLICATE KEY UPDATE bio = bio',
+      'sqlite3' => ' ON CONFLICT (name) DO UPDATE SET bio = ?' }.each do |driver, tail|
+      request = load_request(driver)
+      query(request, 'CopyAuthors').text += tail
+      error = assert_raises(StandardError, driver) { generate(request) }
+      assert_includes error.message, 'CopyAuthors', driver
+    end
+  end
+
+  def test_nested_transactions_reject_isolation_and_mode
+    { 'pg' => 'isolation:', 'mysql2' => 'isolation:', 'sqlite3' => 'mode:' }.each do |driver, option|
+      assert_includes generate(load_request(driver)).fetch('query_sql.rb'),
+                      "raise ArgumentError, '#{option} cannot be set on a nested transaction'"
+    end
+  end
+
+  def test_pg_encodes_float_and_array_parameters_as_text
+    rb = generate(load_request('pg')).fetch('query_sql.rb')
+    assert_includes rb, 'encode_float(args.ratio)'
+    assert_includes rb, 'encode_array(args.blobs, :bytea)'
+    assert_includes rb, 'encode_array(args.docs, :json)'
+    assert_includes rb, 'queries[TrueClass] = queries[FalseClass] = PG::TextEncoder::Boolean.new(oid: 16)'
+  end
+
+  def test_mysql_copyfrom_converts_json_columns_from_binary
+    rb = generate(load_request('mysql2')).fetch('query_sql.rb')
+    assert_includes rb, '(`id`, `code`, @sqlc_v2, `flags`, `amount`) SET `doc` = CONVERT(@sqlc_v2 USING utf8mb4)'
   end
 
   def test_schema_names_breaking_naming_cops_are_exempted_where_they_occur

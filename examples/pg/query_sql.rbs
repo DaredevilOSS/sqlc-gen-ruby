@@ -356,6 +356,82 @@ module PgCodegen
 
   TRUNCATE_REGRESSIONS_SQL: String
 
+  CREATE_BATCH_TYPES_BATCH_SQL: String
+
+  class CreateBatchTypesBatchArgs
+    attr_reader id: Integer
+    attr_reader ok: bool?
+    attr_reader ratio: Float?
+    attr_reader blobs: Array[String]?
+    attr_reader docs: Array[untyped]?
+    attr_reader counts: Array[Integer]?
+    attr_reader amounts: Array[BigDecimal]?
+    attr_reader stamps: Array[Time]?
+    def initialize: (
+        Integer id,
+        bool? ok,
+        Float? ratio,
+        Array[String]? blobs,
+        Array[untyped]? docs,
+        Array[Integer]? counts,
+        Array[BigDecimal]? amounts,
+        Array[Time]? stamps
+    ) -> void
+  end
+
+  class CopyBatchTypesArgs
+    attr_reader id: Integer
+    attr_reader ok: bool?
+    attr_reader ratio: Float?
+    attr_reader blobs: Array[String]?
+    attr_reader docs: Array[untyped]?
+    attr_reader counts: Array[Integer]?
+    attr_reader amounts: Array[BigDecimal]?
+    attr_reader stamps: Array[Time]?
+    def initialize: (
+        Integer id,
+        bool? ok,
+        Float? ratio,
+        Array[String]? blobs,
+        Array[untyped]? docs,
+        Array[Integer]? counts,
+        Array[BigDecimal]? amounts,
+        Array[Time]? stamps
+    ) -> void
+  end
+
+  LIST_BATCH_TYPES_SQL: String
+
+  class ListBatchTypesRow
+    attr_reader id: Integer
+    attr_reader ok: bool?
+    attr_reader ratio: Float?
+    attr_reader blobs: Array[String]?
+    attr_reader docs: Array[untyped]?
+    attr_reader counts: Array[Integer]?
+    attr_reader amounts: Array[BigDecimal]?
+    attr_reader stamps: Array[Time]?
+    def initialize: (
+        Integer id,
+        bool? ok,
+        Float? ratio,
+        Array[String]? blobs,
+        Array[untyped]? docs,
+        Array[Integer]? counts,
+        Array[BigDecimal]? amounts,
+        Array[Time]? stamps
+    ) -> void
+  end
+
+  COUNT_BATCH_TYPES_ABOVE_SQL: String
+
+  class CountBatchTypesAboveRow
+    attr_reader count: Integer
+    def initialize: (  Integer count) -> void
+  end
+
+  TRUNCATE_BATCH_TYPES_SQL: String
+
   class QuerySql
     class NotFound < StandardError
     end
@@ -470,6 +546,18 @@ module PgCodegen
 
     def truncate_regressions: -> void
 
+    def create_batch_types_batch: (Array[CreateBatchTypesBatchArgs] rows) -> void
+
+    def copy_batch_types: (Array[CopyBatchTypesArgs] rows) -> void
+
+    def list_batch_types: -> Array[ListBatchTypesRow]
+
+    def count_batch_types_above: (min_id: Integer) -> CountBatchTypesAboveRow?
+
+    def count_batch_types_above!: (min_id: Integer) -> CountBatchTypesAboveRow
+
+    def truncate_batch_types: -> void
+
     private
 
     def instrument: [T] (String name) { () -> T } -> T
@@ -483,5 +571,11 @@ module PgCodegen
     def encode_bytea: (String? value) -> String?
 
     def encode_json: (untyped value) -> untyped
+
+    def encode_float: (untyped value) -> untyped
+
+    def encode_array: (Array[untyped]? value, ?Symbol kind) -> untyped
+
+    def array_elements: (Array[untyped] values, Symbol kind) -> Array[untyped]
   end
 end

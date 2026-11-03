@@ -91,3 +91,14 @@ CREATE TABLE regressions (
   bio_types extended.bio_type[],
   uids      uuid[]
 );
+
+CREATE TABLE batch_types (
+  id      bigint PRIMARY KEY,
+  ok      boolean,
+  ratio   float8,
+  blobs   bytea[],
+  docs    jsonb[],
+  counts  int[],
+  amounts numeric[],
+  stamps  timestamptz[]
+);

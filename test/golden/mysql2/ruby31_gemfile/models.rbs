@@ -166,4 +166,26 @@ module Mysql2Codegen
     def initialize: (  id: Integer, order: String, note: String?, payload: String?) -> void
     def self.new: (  id: Integer, order: String, note: String?, payload: String?) -> Regression
   end
+
+  class CopyType < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor code: String
+    attr_accessor doc: String?
+    attr_accessor flags: String?
+    attr_accessor amount: Integer?
+    def initialize: (
+        id: Integer,
+        code: String,
+        doc: String?,
+        flags: String?,
+        amount: Integer?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        code: String,
+        doc: String?,
+        flags: String?,
+        amount: Integer?
+    ) -> CopyType
+  end
 end

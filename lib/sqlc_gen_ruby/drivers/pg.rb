@@ -73,7 +73,12 @@ module SqlcGenRuby
       end
 
       # COPY ... FROM STDIN, one row at a time through the pg gem's CopyRow encoder.
-      def copy_from_lines(rows_var, table, columns, values, _label)
+      def copy_from_lines(rows_var, table, columns, values, _label, query_name:, sources:, verb:, tail:)
+        unless verb == 'INSERT' && tail.empty?
+          raise ArgumentError, "#{query_name}: :copyfrom on PostgreSQL (COPY) takes a plain INSERT ... VALUES (...), " \
+                               'without ON CONFLICT / RETURNING'
+        end
+
         put = Code.block("#{rows_var}.each do |row|", "client.put_copy_data([#{values.join(', ')}])")
         [
           'encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)',
@@ -82,15 +87,17 @@ module SqlcGenRuby
         ]
       end
 
-      # bytea, json / jsonb (BasicTypeMapForQueries sends a Ruby Array as a PG array) and, without prepared
-      # statements (no server-side parameter types), arrays of String-typed values such as uuid[] / enum[]
+      # bytea, json / jsonb (BasicTypeMapForQueries sends a Ruby Array as a PG array), float (the pg gem's encoder
+      # drops digits) and arrays (the pg gem types an Array from its first element)
       def encode_param(expr, column)
-        helper = encoder_for(column)
-        helper ? "#{helper}(#{expr})" : expr
+        helper, kind = encoder_for(column)
+        return expr unless helper
+
+        kind ? "#{helper}(#{expr}, :#{kind})" : "#{helper}(#{expr})"
       end
 
       def helper_methods(queries)
-        used = queries.flat_map { |q| q.params.map { |p| encoder_for(p.column) } }.compact.uniq
+        used = queries.flat_map { |q| q.params.map { |p| encoder_for(p.column)&.first } }.compact.uniq
         ENCODERS.select { |name, _| used.include?(name) }.values
       end
 
@@ -107,13 +114,38 @@ module SqlcGenRuby
             value.is_a?(Array) ? PG::TextEncoder::JSON.new.encode(value) : value
           end
         RUBY
-        'encode_text_array' => [<<~'RUBY'.chomp, 'def encode_text_array: (Array[untyped]? value) -> String?']
-          # Without prepared statements an Array of Strings would be typed text[]; as an array literal the server
-          # converts it to the column type (uuid[], enum[], ...).
-          def encode_text_array(value)
-            value && PG::TextEncoder::Array.new(elements_type: PG::TextEncoder::String.new).encode(value)
+        'encode_float' => [<<~'RUBY'.chomp, 'def encode_float: (untyped value) -> untyped'],
+          # Float#to_s is the shortest text that reads back as the same Float (the pg gem's encoder drops digits).
+          def encode_float(value)
+            value.is_a?(Float) ? value.to_s : value
           end
         RUBY
+        'encode_array' => [<<~'RUBY'.chomp, <<~'RBS'.chomp]
+          # Array parameters are sent as array literals, which the server converts to the parameter's type (the pg gem
+          # would type them from their first element: wrong for [], [nil, ...], bytea[], json[]).
+          def encode_array(value, kind = :value)
+            return value unless value.is_a?(Array)
+
+            PG::TextEncoder::Array.new(elements_type: PG::TextEncoder::String.new).encode(array_elements(value, kind))
+          end
+
+          def array_elements(values, kind)
+            values.map do |value|
+              case value
+              when nil then nil
+              when Array then kind == :json ? PG::TextEncoder::JSON.new.encode(value) : array_elements(value, kind)
+              when Hash then PG::TextEncoder::JSON.new.encode(value)
+              when String then kind == :bytea ? PG::TextEncoder::Bytea.new.encode(value) : value
+              when Time then PG::TextEncoder::TimestampWithTimeZone.new.encode(value)
+              else defined?(IPAddr) && value.is_a?(IPAddr) ? "#{value}/#{value.prefix}" : value.to_s
+              end
+            end
+          end
+        RUBY
+          def encode_array: (Array[untyped]? value, ?Symbol kind) -> untyped
+
+          def array_elements: (Array[untyped] values, Symbol kind) -> Array[untyped]
+        RBS
       }.freeze
 
       CONNECTION_STATE = <<~'RUBY'.chomp
@@ -168,6 +200,8 @@ module SqlcGenRuby
         def transaction(isolation: nil)
           with_client('transaction') do |client|
             outermost = client.transaction_status == PG::PQTRANS_IDLE
+            raise ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
+
             savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
             if outermost
               client.exec(isolation ? "BEGIN ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}" : 'BEGIN')
@@ -184,11 +218,12 @@ module SqlcGenRuby
               raise
             ensure
               unless failed
+                # a statement failed and the block rescued the error: PostgreSQL can only roll back
+                rescued = client.transaction_status == PG::PQTRANS_INERROR
                 commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-                result = client.exec(Thread.current.status == 'aborting' ? rollback : commit)
-                # COMMIT of a transaction aborted by an error the block rescued is a ROLLBACK
-                rolled_back = outermost && result.cmd_status == 'ROLLBACK' && Thread.current.status != 'aborting'
-                raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rolled_back
+                client.exec(rescued || Thread.current.status == 'aborting' ? rollback : commit)
+                client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
+                raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && Thread.current.status != 'aborting'
               end
             end
           end
@@ -199,6 +234,7 @@ module SqlcGenRuby
         def with_client(name)
           instrument(name) do
             @db.with do |client|
+              client.reset if client.status == PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
               configure(client) unless client.is_a?(ConnectionState)
               yield client
             end
@@ -212,7 +248,10 @@ module SqlcGenRuby
           type_map = PG::BasicTypeMapForResults.new(client)
           type_map.default_type_map = string_arrays(client) # uuid, enums, money, ... come back as Strings
           client.type_map_for_results = type_map
-          client.type_map_for_queries = PG::BasicTypeMapForQueries.new(client)
+          queries = PG::BasicTypeMapForQueries.new(client)
+          # true / false as text ('t' / 'f'), also valid in COPY (the default binary encoder is not)
+          queries[TrueClass] = queries[FalseClass] = PG::TextEncoder::Boolean.new(oid: 16)
+          client.type_map_for_queries = queries
           client.extend(ConnectionState)
         end
 
@@ -238,9 +277,10 @@ module SqlcGenRuby
 
         type = normalize_type(column.type.name)
         if column.is_array
-          'encode_text_array' if !@prepared && !%w[bytea json jsonb].include?(type) && column_type(column) == 'String'
-        elsif type == 'bytea' then 'encode_bytea'
-        elsif %w[json jsonb].include?(type) then 'encode_json'
+          ['encode_array', ({ 'bytea' => 'bytea', 'json' => 'json', 'jsonb' => 'json' }[type])]
+        elsif type == 'bytea' then ['encode_bytea']
+        elsif %w[json jsonb].include?(type) then ['encode_json']
+        elsif column_type(column, fallback: nil) == 'Float' then ['encode_float']
         end
       end
 

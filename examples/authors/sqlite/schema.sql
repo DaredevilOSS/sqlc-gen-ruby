@@ -28,3 +28,8 @@ CREATE TABLE regressions (
     "order" VARCHAR(255) NOT NULL,
     price DECIMAL(10,2)
 );
+
+CREATE TABLE tags (
+    name TEXT NOT NULL PRIMARY KEY,
+    uses INTEGER NOT NULL DEFAULT 0
+);

@@ -130,6 +130,27 @@ module PgCodegen
     ) -> void
   end
 
+  class BatchType
+    attr_reader id: Integer
+    attr_reader ok: bool?
+    attr_reader ratio: Float?
+    attr_reader blobs: Array[String]?
+    attr_reader docs: Array[untyped]?
+    attr_reader counts: Array[Integer]?
+    attr_reader amounts: Array[BigDecimal]?
+    attr_reader stamps: Array[Time]?
+    def initialize: (
+        Integer id,
+        bool? ok,
+        Float? ratio,
+        Array[String]? blobs,
+        Array[untyped]? docs,
+        Array[Integer]? counts,
+        Array[BigDecimal]? amounts,
+        Array[Time]? stamps
+    ) -> void
+  end
+
   class ExtendedBio
     attr_reader author_name: String
     attr_reader name: String

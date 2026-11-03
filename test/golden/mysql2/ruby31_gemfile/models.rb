@@ -83,4 +83,13 @@ module Mysql2Codegen
     :payload,
     keyword_init: true
   )
+
+  CopyType = Struct.new(
+    :id,
+    :code,
+    :doc,
+    :flags,
+    :amount,
+    keyword_init: true
+  )
 end

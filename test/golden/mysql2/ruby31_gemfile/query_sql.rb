@@ -246,6 +246,58 @@ module Mysql2Codegen
     TRUNCATE TABLE regressions
   SQL
 
+  CopyCopyTypesArgs = Struct.new(
+    :id,
+    :code,
+    :doc,
+    :flags,
+    :amount,
+    keyword_init: true
+  )
+
+  CopyCopyTypesIgnoreArgs = Struct.new(:id, :code, keyword_init: true)
+
+  CopyCopyTypesReplaceArgs = Struct.new(:id, :code, keyword_init: true)
+
+  CREATE_COPY_TYPES_BATCH_SQL = <<~'SQL'
+    INSERT INTO copy_types (id, code, flags, amount) VALUES (?, ?, ?, ?)
+  SQL
+
+  CreateCopyTypesBatchArgs = Struct.new(
+    :id,
+    :code,
+    :flags,
+    :amount,
+    keyword_init: true
+  )
+
+  COUNT_COPY_TYPES_BY_CODES_SQL = <<~'SQL'
+    SELECT count(*) AS matches FROM copy_types WHERE code = ? OR code = ?
+  SQL
+
+  CountCopyTypesByCodesRow = Struct.new(:matches, keyword_init: true)
+
+  # rubocop:disable Naming/VariableNumber
+  CountCopyTypesByCodesArgs = Struct.new(:code, :code_2, keyword_init: true)
+  # rubocop:enable Naming/VariableNumber
+
+  LIST_COPY_TYPES_SQL = <<~'SQL'
+    SELECT id, code, doc, flags, amount FROM copy_types ORDER BY id
+  SQL
+
+  ListCopyTypesRow = Struct.new(
+    :id,
+    :code,
+    :doc,
+    :flags,
+    :amount,
+    keyword_init: true
+  )
+
+  TRUNCATE_COPY_TYPES_SQL = <<~'SQL'
+    TRUNCATE TABLE copy_types
+  SQL
+
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
@@ -303,6 +355,8 @@ module Mysql2Codegen
     def transaction(isolation: nil)
       with_client('transaction') do |client|
         outermost = !client.in_transaction
+        raise ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
+
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         if outermost
           client.query("SET TRANSACTION ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}") if isolation
@@ -712,48 +766,48 @@ module Mysql2Codegen
 
     def create_authors_batch(rows)
       with_client('create_authors_batch') do |client|
-        stmt = client.prepare(CREATE_AUTHORS_BATCH_SQL)
-        begin
-          rows.each do |args|
-            query_params = [args.name, args.bio]
+        rows.each do |args|
+          query_params = [args.name, args.bio]
+          stmt = client.prepare(CREATE_AUTHORS_BATCH_SQL)
+          begin
             stmt.execute(*query_params)
+          ensure
+            stmt.close
           end
-          nil
-        ensure
-          stmt.close
         end
+        nil
       end
     end
 
     def get_author_batch(rows)
       with_client('get_author_batch') do |client|
-        stmt = client.prepare(GET_AUTHOR_BATCH_SQL)
-        begin
-          rows.map do |args|
-            query_params = [args.id]
+        rows.map do |args|
+          query_params = [args.id]
+          stmt = client.prepare(GET_AUTHOR_BATCH_SQL)
+          begin
             result = stmt.execute(*query_params, as: :array)
             row = result.first
             row && GetAuthorBatchRow.new(id: row[0], name: row[1], bio: row[2])
+          ensure
+            stmt.close
           end
-        ensure
-          stmt.close
         end
       end
     end
 
     def list_authors_by_name_batch(rows)
       with_client('list_authors_by_name_batch') do |client|
-        stmt = client.prepare(LIST_AUTHORS_BY_NAME_BATCH_SQL)
-        begin
-          rows.map do |args|
-            query_params = [args.name]
+        rows.map do |args|
+          query_params = [args.name]
+          stmt = client.prepare(LIST_AUTHORS_BY_NAME_BATCH_SQL)
+          begin
             result = stmt.execute(*query_params, as: :array)
             result.map do |row|
               ListAuthorsByNameBatchRow.new(id: row[0], name: row[1], bio: row[2])
             end
+          ensure
+            stmt.close
           end
-        ensure
-          stmt.close
         end
       end
     end
@@ -848,6 +902,114 @@ module Mysql2Codegen
       end
     end
 
+    def copy_copy_types(rows)
+      with_client('copy_copy_types') do |client|
+        return if rows.empty?
+
+        Tempfile.create(['copy_copy_types', '.csv']) do |file|
+          rows.each do |row|
+            file.write(csv_line([row.id, row.code, row.doc, row.flags, row.amount]))
+          end
+          file.flush
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`, @sqlc_v2, `flags`, `amount`) SET `doc` = CONVERT(@sqlc_v2 USING utf8mb4)")
+        end
+        nil
+      end
+    end
+
+    def copy_copy_types_ignore(rows)
+      with_client('copy_copy_types_ignore') do |client|
+        return if rows.empty?
+
+        Tempfile.create(['copy_copy_types_ignore', '.csv']) do |file|
+          rows.each do |row|
+            file.write(csv_line([row.id, row.code]))
+          end
+          file.flush
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' IGNORE INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)", strict: false)
+        end
+        nil
+      end
+    end
+
+    def copy_copy_types_replace(rows)
+      with_client('copy_copy_types_replace') do |client|
+        return if rows.empty?
+
+        Tempfile.create(['copy_copy_types_replace', '.csv']) do |file|
+          rows.each do |row|
+            file.write(csv_line([row.id, row.code]))
+          end
+          file.flush
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' REPLACE INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)")
+        end
+        nil
+      end
+    end
+
+    def create_copy_types_batch(rows)
+      with_client('create_copy_types_batch') do |client|
+        rows.each do |args|
+          query_params = [args.id, args.code, args.flags, args.amount]
+          stmt = client.prepare(CREATE_COPY_TYPES_BATCH_SQL)
+          begin
+            stmt.execute(*query_params)
+          ensure
+            stmt.close
+          end
+        end
+        nil
+      end
+    end
+
+    def count_copy_types_by_codes(rows)
+      with_client('count_copy_types_by_codes') do |client|
+        rows.map do |args|
+          query_params = [args.code, args.code_2]
+          stmt = client.prepare(COUNT_COPY_TYPES_BY_CODES_SQL)
+          begin
+            result = stmt.execute(*query_params, as: :array)
+            row = result.first
+            row && CountCopyTypesByCodesRow.new(matches: row[0])
+          ensure
+            stmt.close
+          end
+        end
+      end
+    end
+
+    def list_copy_types
+      with_client('list_copy_types') do |client|
+        stmt = client.prepare(LIST_COPY_TYPES_SQL)
+        begin
+          result = stmt.execute(as: :array)
+          result.map do |row|
+            ListCopyTypesRow.new(
+              id: row[0],
+              code: row[1],
+              doc: row[2],
+              flags: row[3],
+              amount: row[4]
+            )
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def truncate_copy_types
+      with_client('truncate_copy_types') do |client|
+        stmt = client.prepare(TRUNCATE_COPY_TYPES_SQL)
+        begin
+          stmt.execute
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
     def many_params(c0:, c1:, c2:, c3:, c4:)
       with_client('many_params') do |client|
         query_params = [
@@ -926,7 +1088,13 @@ module Mysql2Codegen
       instrument(name) do
         @db.with do |client|
           client.extend(ConnectionState) unless client.is_a?(ConnectionState)
-          yield client
+          begin
+            yield client
+          rescue Mysql2::Error
+            # a connection closed by the server (restart, KILL, wait_timeout) is replaced by the pool
+            @db.discard_current_connection if client.closed? && @db.respond_to?(:discard_current_connection)
+            raise
+          end
         end
       end
     end
@@ -945,15 +1113,15 @@ module Mysql2Codegen
       "#{fields.join(',')}\n"
     end
 
-    # Runs LOAD DATA in a transaction (a savepoint inside #transaction): all rows or none, and an error instead
-    # of the warnings LOAD DATA LOCAL gives for duplicate keys and invalid values.
-    def load_data(client, sql)
+    # Runs LOAD DATA in a transaction (a savepoint inside #transaction): all rows or none, and (strict) an error
+    # instead of the warnings LOAD DATA LOCAL gives for duplicate keys and invalid values.
+    def load_data(client, sql, strict: true)
       outermost = !client.in_transaction
       client.query(outermost ? 'BEGIN' : 'SAVEPOINT sqlc_copy')
       done = false
       begin
         client.query(sql)
-        unless client.warning_count.zero?
+        if strict && !client.warning_count.zero?
           warnings = client.query('SHOW WARNINGS', as: :array).reject { |level, *| level == 'Note' }
           raise Mysql2::Error, "LOAD DATA: #{warnings.map { |w| w[2] }.join('; ')}" unless warnings.empty?
         end

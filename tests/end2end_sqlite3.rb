@@ -338,4 +338,21 @@ class TestSqlite3 < Minitest::Test
     refute @db.transaction_active?
     assert_equal ['break 0', 'break 1', 'throw'], @query_sql.list_authors.map(&:name).sort
   end
+
+  # ---- final sweep fixes: :copyfrom conflict clauses, nested modes ------------------------------------------------
+
+  def test_copyfrom_keeps_conflict_clauses
+    @query_sql.copy_tags_or_ignore([CopyTagsOrIgnoreArgs.new('a', 1), CopyTagsOrIgnoreArgs.new('a', 2)])
+    assert_equal [['a', 1]], @query_sql.list_tags.map { |t| [t.name, t.uses] }
+    @query_sql.copy_tags_or_replace([CopyTagsOrReplaceArgs.new('a', 5), CopyTagsOrReplaceArgs.new('b', 1)])
+    assert_equal [['a', 5], ['b', 1]], @query_sql.list_tags.map { |t| [t.name, t.uses] }
+    @query_sql.copy_tags_adding_uses([CopyTagsAddingUsesArgs.new('a', 1), CopyTagsAddingUsesArgs.new('c', 1)])
+    assert_equal [['a', 6], ['b', 1], ['c', 1]], @query_sql.list_tags.map { |t| [t.name, t.uses] }
+  end
+
+  def test_nested_transaction_rejects_a_mode
+    @query_sql.transaction do |tx|
+      assert_raises(ArgumentError) { tx.transaction(mode: :immediate) { nil } }
+    end
+  end
 end

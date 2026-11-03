@@ -79,5 +79,17 @@ module PgCodegen
     keyword_init: true
   )
 
+  BatchType = Struct.new(
+    :id,
+    :ok,
+    :ratio,
+    :blobs,
+    :docs,
+    :counts,
+    :amounts,
+    :stamps,
+    keyword_init: true
+  )
+
   ExtendedBio = Struct.new(:author_name, :name, :bio_type, keyword_init: true)
 end

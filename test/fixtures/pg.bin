@@ -1,7 +1,7 @@
 
 
 2
-postgresql‹public"ÉpublicÍ
+postgresqlËpublic"‰publicÍ
 	authors)
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserial&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextH
@@ -81,7 +81,20 @@ pg_catalogint8+
 payload0ÿÿÿÿÿÿÿÿÿRregressionsbbytea(
 doc0ÿÿÿÿÿÿÿÿÿRregressionsbjsonb@
 	bio_types 0ÿÿÿÿÿÿÿÿÿRregressionsbextendedbio_typeˆ-
-uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidˆ"´extendedÔ
+uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidˆ½
+batch_types4
+id0ÿÿÿÿÿÿÿÿÿRbatch_typesb
+pg_catalogint82
+ok0ÿÿÿÿÿÿÿÿÿRbatch_typesb
+pg_catalogbool+
+ratio0ÿÿÿÿÿÿÿÿÿRbatch_typesbfloat8/
+blobs 0ÿÿÿÿÿÿÿÿÿRbatch_typesbbyteaˆ.
+docs 0ÿÿÿÿÿÿÿÿÿRbatch_typesbjsonbˆ;
+counts 0ÿÿÿÿÿÿÿÿÿRbatch_typesb
+pg_catalogint4ˆ?
+amounts 0ÿÿÿÿÿÿÿÿÿRbatch_typesb
+pg_catalognumericˆ6
+stamps 0ÿÿÿÿÿÿÿÿÿRbatch_typesbtimestamptzˆ"´extendedÔ
 extendedbiosC
 author_name0ÿÿÿÿÿÿÿÿÿRextendedbiosb
 pg_catalogvarchar<
@@ -372,4 +385,40 @@ pg_catalogint8zid"2
 uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidzuidsˆ*#
 
 order_name0ÿÿÿÿÿÿÿÿÿbtext:	query.sqlC
-TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sqló
+uINSERT INTO batch_types (id, ok, ratio, blobs, docs, counts, amounts, stamps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)CreateBatchTypesBatch
+:batchexec*C?
+id0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbpg_catalog.int8zid*A=
+ok0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbpg_catalog.boolzok*>:
+ratio0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbfloat8zratio*B>
+blobs 0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbbyteazblobsˆ*@<
+docs 0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbjsonbzdocsˆ*NJ
+counts 0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbpg_catalog.int4zcountsˆ*SO
+amounts 0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbpg_catalog.numericzamountsˆ*JF
+stamps 0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbtimestamptzzstampsˆ:	query.sqlBbatch_typesë
+uINSERT INTO batch_types (id, ok, ratio, blobs, docs, counts, amounts, stamps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)CopyBatchTypes	:copyfrom*C?
+id0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbpg_catalog.int8zid*A=
+ok0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbpg_catalog.boolzok*>:
+ratio0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbfloat8zratio*B>
+blobs 0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbbyteazblobsˆ*@<
+docs 0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbjsonbzdocsˆ*NJ
+counts 0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbpg_catalog.int4zcountsˆ*SO
+amounts 0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbpg_catalog.numericzamountsˆ*JF
+stamps 0ÿÿÿÿÿÿÿÿÿRpublicbatch_typesbtimestamptzzstampsˆ:	query.sqlBbatch_typesÞ
+WSELECT id, ok, ratio, blobs, docs, counts, amounts, stamps FROM batch_types ORDER BY idListBatchTypes:many"8
+id0ÿÿÿÿÿÿÿÿÿRbatch_typesb
+pg_catalogint8zid"6
+ok0ÿÿÿÿÿÿÿÿÿRbatch_typesb
+pg_catalogboolzok"2
+ratio0ÿÿÿÿÿÿÿÿÿRbatch_typesbfloat8zratio"6
+blobs 0ÿÿÿÿÿÿÿÿÿRbatch_typesbbyteazblobsˆ"4
+docs 0ÿÿÿÿÿÿÿÿÿRbatch_typesbjsonbzdocsˆ"C
+counts 0ÿÿÿÿÿÿÿÿÿRbatch_typesb
+pg_catalogint4zcountsˆ"H
+amounts 0ÿÿÿÿÿÿÿÿÿRbatch_typesb
+pg_catalognumericzamountsˆ">
+stamps 0ÿÿÿÿÿÿÿÿÿRbatch_typesbtimestamptzzstampsˆ:	query.sql¼
+.SELECT count(*) FROM batch_types WHERE id > $1CountBatchTypesAbove:one" 
+count0ÿÿÿÿÿÿÿÿÿ@bbigint*A=
+min_id0ÿÿÿÿÿÿÿÿÿ8Rbatch_typesbpg_catalog.int8zid:	query.sqlB
+TRUNCATE TABLE batch_typesTruncateBatchTypes:exec:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

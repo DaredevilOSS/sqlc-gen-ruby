@@ -54,9 +54,15 @@ module SqlcGenRuby
 
       # LOAD DATA LOCAL INFILE from a temporary CSV (the client needs `local_infile: true`, the server
       # `local_infile=1`).
-      def copy_from_lines(rows_var, table, columns, values, label)
+      def copy_from_lines(rows_var, table, columns, values, label, query_name:, sources:, verb:, tail:)
+        unless tail.empty? && verb.match?(/\A(INSERT|REPLACE)\b/)
+          raise ArgumentError, "#{query_name}: :copyfrom (LOAD DATA) takes INSERT [IGNORE] / REPLACE ... VALUES (...), " \
+                               'without ON DUPLICATE KEY UPDATE'
+        end
+
         write = Code.block("#{rows_var}.each do |row|", "file.write(csv_line([#{values.join(', ')}]))")
-        load_data = format(LOAD_DATA, table: table, columns: columns.join(', '))
+        load_data = format(LOAD_DATA, table: table, **load_columns(columns, sources),
+                                      mode: load_mode(verb), strict: verb.split.include?('IGNORE') ? ', strict: false' : '')
         [
           "return if #{rows_var}.empty?",
           '',
@@ -65,13 +71,32 @@ module SqlcGenRuby
         ]
       end
 
+      # INSERT IGNORE skips duplicates and adjusts invalid values (with warnings); REPLACE replaces duplicates.
+      def load_mode(verb)
+        if verb.start_with?('REPLACE') then 'REPLACE '
+        elsif verb.split.include?('IGNORE') then 'IGNORE '
+        else ''
+        end
+      end
+
+      # The file is read as binary (binary columns keep every byte); JSON columns need text: they are loaded through
+      # a user variable converted to utf8mb4.
+      def load_columns(columns, sources)
+        json = columns.each_index.select { |i| normalize_type(sources[i].type.name) == 'json' }
+        list = columns.each_with_index.map { |c, i| json.include?(i) ? "@sqlc_v#{i}" : c }
+        set = json.map { |i| "#{columns[i]} = CONVERT(@sqlc_v#{i} USING utf8mb4)" }
+        { columns: list.join(', '), set: set.empty? ? '' : " SET #{set.join(', ')}" }
+      end
+
+      def prepares_batch_rows? = true
+
       def extra_requires(queries, _ruby_version) = copy_from?(queries) ? %w[tempfile] : []
 
       def helper_methods(queries)
         return [] unless copy_from?(queries)
 
         [[CSV_LINE, 'def csv_line: (Array[untyped] values) -> String'],
-         [LOAD_DATA_HELPER, 'def load_data: (untyped client, String sql) -> void']]
+         [LOAD_DATA_HELPER, 'def load_data: (untyped client, String sql, ?strict: bool) -> void']]
       end
 
       CONNECTION_STATE = <<~'RUBY'.chomp
@@ -105,6 +130,8 @@ module SqlcGenRuby
         def transaction(isolation: nil)
           with_client('transaction') do |client|
             outermost = !client.in_transaction
+            raise ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
+
             savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
             if outermost
               client.query("SET TRANSACTION ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}") if isolation
@@ -140,7 +167,13 @@ module SqlcGenRuby
           instrument(name) do
             @db.with do |client|
               client.extend(ConnectionState) unless client.is_a?(ConnectionState)
-              yield client
+              begin
+                yield client
+              rescue Mysql2::Error
+                # a connection closed by the server (restart, KILL, wait_timeout) is replaced by the pool
+                @db.discard_current_connection if client.closed? && @db.respond_to?(:discard_current_connection)
+                raise
+              end
             end
           end
         end
@@ -148,20 +181,20 @@ module SqlcGenRuby
 
       # Template of the generated statement (single-quoted heredoc: backslashes are copied verbatim).
       LOAD_DATA = <<~'RUBY'.chomp
-        load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE %<table>s CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (%<columns>s)")
+        load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' %<mode>sINTO TABLE %<table>s CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (%<columns>s)%<set>s"%<strict>s)
       RUBY
 
       # LOAD DATA LOCAL skips duplicate keys and converts invalid values with a warning instead of failing.
       LOAD_DATA_HELPER = <<~'RUBY'.chomp
-        # Runs LOAD DATA in a transaction (a savepoint inside #transaction): all rows or none, and an error instead
-        # of the warnings LOAD DATA LOCAL gives for duplicate keys and invalid values.
-        def load_data(client, sql)
+        # Runs LOAD DATA in a transaction (a savepoint inside #transaction): all rows or none, and (strict) an error
+        # instead of the warnings LOAD DATA LOCAL gives for duplicate keys and invalid values.
+        def load_data(client, sql, strict: true)
           outermost = !client.in_transaction
           client.query(outermost ? 'BEGIN' : 'SAVEPOINT sqlc_copy')
           done = false
           begin
             client.query(sql)
-            unless client.warning_count.zero?
+            if strict && !client.warning_count.zero?
               warnings = client.query('SHOW WARNINGS', as: :array).reject { |level, *| level == 'Note' }
               raise Mysql2::Error, "LOAD DATA: #{warnings.map { |w| w[2] }.join('; ')}" unless warnings.empty?
             end

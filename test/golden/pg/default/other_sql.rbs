@@ -40,5 +40,7 @@ module PgCodegen
     def string_arrays: (untyped client) -> untyped
 
     def encode_bytea: (String? value) -> String?
+
+    def encode_float: (untyped value) -> untyped
   end
 end

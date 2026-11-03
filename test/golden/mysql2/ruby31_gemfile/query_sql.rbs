@@ -333,6 +333,94 @@ module Mysql2Codegen
 
   TRUNCATE_REGRESSIONS_SQL: String
 
+  class CopyCopyTypesArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor code: String
+    attr_accessor doc: String?
+    attr_accessor flags: String?
+    attr_accessor amount: Integer?
+    def initialize: (
+        id: Integer,
+        code: String,
+        doc: String?,
+        flags: String?,
+        amount: Integer?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        code: String,
+        doc: String?,
+        flags: String?,
+        amount: Integer?
+    ) -> CopyCopyTypesArgs
+  end
+
+  class CopyCopyTypesIgnoreArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor code: String
+    def initialize: (  id: Integer, code: String) -> void
+    def self.new: (  id: Integer, code: String) -> CopyCopyTypesIgnoreArgs
+  end
+
+  class CopyCopyTypesReplaceArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor code: String
+    def initialize: (  id: Integer, code: String) -> void
+    def self.new: (  id: Integer, code: String) -> CopyCopyTypesReplaceArgs
+  end
+
+  CREATE_COPY_TYPES_BATCH_SQL: String
+
+  class CreateCopyTypesBatchArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor code: String
+    attr_accessor flags: String?
+    attr_accessor amount: Integer?
+    def initialize: (  id: Integer, code: String, flags: String?, amount: Integer?) -> void
+    def self.new: (  id: Integer, code: String, flags: String?, amount: Integer?) -> CreateCopyTypesBatchArgs
+  end
+
+  COUNT_COPY_TYPES_BY_CODES_SQL: String
+
+  class CountCopyTypesByCodesRow < ::Struct[untyped]
+    attr_accessor matches: Integer
+    def initialize: (  matches: Integer) -> void
+    def self.new: (  matches: Integer) -> CountCopyTypesByCodesRow
+  end
+
+  class CountCopyTypesByCodesArgs < ::Struct[untyped]
+    attr_accessor code: String
+    attr_accessor code_2: String
+    def initialize: (  code: String, code_2: String) -> void
+    def self.new: (  code: String, code_2: String) -> CountCopyTypesByCodesArgs
+  end
+
+  LIST_COPY_TYPES_SQL: String
+
+  class ListCopyTypesRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor code: String
+    attr_accessor doc: String?
+    attr_accessor flags: String?
+    attr_accessor amount: Integer?
+    def initialize: (
+        id: Integer,
+        code: String,
+        doc: String?,
+        flags: String?,
+        amount: Integer?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        code: String,
+        doc: String?,
+        flags: String?,
+        amount: Integer?
+    ) -> ListCopyTypesRow
+  end
+
+  TRUNCATE_COPY_TYPES_SQL: String
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow < ::Struct[untyped]
@@ -464,6 +552,20 @@ module Mysql2Codegen
 
     def truncate_regressions: -> void
 
+    def copy_copy_types: (Array[CopyCopyTypesArgs] rows) -> void
+
+    def copy_copy_types_ignore: (Array[CopyCopyTypesIgnoreArgs] rows) -> void
+
+    def copy_copy_types_replace: (Array[CopyCopyTypesReplaceArgs] rows) -> void
+
+    def create_copy_types_batch: (Array[CreateCopyTypesBatchArgs] rows) -> void
+
+    def count_copy_types_by_codes: (Array[CountCopyTypesByCodesArgs] rows) -> Array[CountCopyTypesByCodesRow?]
+
+    def list_copy_types: -> Array[ListCopyTypesRow]
+
+    def truncate_copy_types: -> void
+
     def many_params: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow?
 
     def many_params!: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow
@@ -480,7 +582,7 @@ module Mysql2Codegen
 
     def csv_line: (Array[untyped] values) -> String
 
-    def load_data: (untyped client, String sql) -> void
+    def load_data: (untyped client, String sql, ?strict: bool) -> void
 
     def slice_placeholders: (Array[untyped] values) -> String
   end

@@ -118,3 +118,24 @@ SELECT id, payload FROM regressions ORDER BY id;
 
 -- name: TruncateRegressions :exec
 TRUNCATE TABLE regressions;
+
+-- name: CopyCopyTypes :copyfrom
+INSERT INTO copy_types (id, code, doc, flags, amount) VALUES (?, ?, ?, ?, ?);
+
+-- name: CopyCopyTypesIgnore :copyfrom
+INSERT IGNORE INTO copy_types (id, code) VALUES (?, ?);
+
+-- name: CopyCopyTypesReplace :copyfrom
+REPLACE INTO copy_types (id, code) VALUES (?, ?);
+
+-- name: CreateCopyTypesBatch :batchexec
+INSERT INTO copy_types (id, code, flags, amount) VALUES (?, ?, ?, ?);
+
+-- name: CountCopyTypesByCodes :batchone
+SELECT count(*) AS matches FROM copy_types WHERE code = ? OR code = ?;
+
+-- name: ListCopyTypes :many
+SELECT id, code, doc, flags, amount FROM copy_types ORDER BY id;
+
+-- name: TruncateCopyTypes :exec
+TRUNCATE TABLE copy_types;

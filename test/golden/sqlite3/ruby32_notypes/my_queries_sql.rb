@@ -35,6 +35,8 @@ module Sqlite3Codegen
       instrument('transaction') do
         @lock.synchronize do
           outermost = !@db.transaction_active?
+          raise ArgumentError, 'mode: cannot be set on a nested transaction' if mode && !outermost
+
           savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
           @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
           rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
