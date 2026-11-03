@@ -64,9 +64,14 @@ module Mysql2Codegen
         failed = false
         begin
           yield self
-        rescue Exception # rubocop:disable Lint/RescueException
+        rescue Exception => e # rubocop:disable Lint/RescueException
           failed = true
-          client.query(rollback)
+          begin
+            client.query(rollback)
+          rescue Mysql2::Error
+            # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone
+            raise unless e.is_a?(Mysql2::Error)
+          end
           raise
         ensure
           begin
@@ -148,6 +153,7 @@ module Mysql2Codegen
     def quote(client, value)
       case value
       when NilClass then 'NULL'
+      when Symbol then quote(client, value.to_s)
       when TrueClass then 'TRUE'
       when FalseClass then 'FALSE'
       when Integer then value.to_s

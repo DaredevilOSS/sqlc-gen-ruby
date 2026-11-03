@@ -553,6 +553,21 @@ module PgCodegen
 
   TRUNCATE_NAME_CASES_SQL: String
 
+  GET_UNNAMED_COLUMNS_SQL: String
+
+  class GetUnnamedColumnsRow
+    attr_reader column_1: Integer
+    attr_reader column_2: String
+    def initialize: (  Integer column_1, String column_2) -> void
+  end
+
+  GET_QUOTED_ALIAS_SQL: String
+
+  class GetQuotedAliasRow
+    attr_reader it_s: Integer
+    def initialize: (  Integer it_s) -> void
+  end
+
   class QuerySql
     class NotFound < StandardError
     end
@@ -716,6 +731,14 @@ module PgCodegen
     def get_http_server!: (id: Integer) -> GetHTTPServerRow
 
     def truncate_name_cases: -> void
+
+    def get_unnamed_columns: -> GetUnnamedColumnsRow?
+
+    def get_unnamed_columns!: -> GetUnnamedColumnsRow
+
+    def get_quoted_alias: -> GetQuotedAliasRow?
+
+    def get_quoted_alias!: -> GetQuotedAliasRow
 
     private
 

@@ -70,3 +70,25 @@ sql:
       generateTypes: false
       rename:
         "options_audit.option_items": PgItems
+- schema: "pg_schema.sql"
+  queries:
+  - "pg_queries/first.sql"
+  engine: "postgresql"
+  codegen:
+  - plugin: ruby
+    out: ".generated/pg_first"
+    options:
+      driver: pg
+      moduleName: Options::PgFirst
+      generateTypes: false
+- schema: "pg_schema.sql"
+  queries:
+  - "pg_second_queries/first.sql"
+  engine: "postgresql"
+  codegen:
+  - plugin: ruby
+    out: ".generated/pg_second"
+    options:
+      driver: pg
+      moduleName: Options::PgSecond
+      generateTypes: false

@@ -238,3 +238,9 @@ SELECT * FROM name_cases WHERE id = sqlc.arg(id);
 
 -- name: TruncateNameCases :exec
 TRUNCATE TABLE name_cases;
+
+-- name: GetUnnamedColumns :one
+SELECT 1, 'two';
+
+-- name: GetQuotedAlias :one
+SELECT 1 AS "it's";

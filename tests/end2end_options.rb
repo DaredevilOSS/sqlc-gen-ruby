@@ -106,6 +106,14 @@ class TestOptions < Minitest::Test
     pool = ConnectionPool.new(size: 1) { PG.connect(**params) }
     row = Options::PgDb::FirstSql.new(pool).get_pg_option_author(id: 1)
     assert_equal [1, 'note', 'tag', 'extra'], [row.id, row.memo, row.tag, row.extra]
+    require File.join(OUTPUT_DIR, 'pg_first/first_sql.rb')
+    require File.join(OUTPUT_DIR, 'pg_second/first_sql.rb')
+    first = Options::PgFirst::FirstSql.new(pool)
+    second = Options::PgSecond::FirstSql.new(pool)
+    2.times do
+      assert_equal 1, first.get_pg_option_author(id: 1).id
+      assert_equal 'second module', second.get_pg_option_author(id: 1).label
+    end
   ensure
     pool&.shutdown(&:close)
     conn&.exec('DROP SCHEMA IF EXISTS options_audit CASCADE')

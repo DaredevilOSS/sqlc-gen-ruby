@@ -438,6 +438,29 @@ module Mysql2Codegen
     TRUNCATE TABLE name_cases
   SQL
 
+  GET_UNNAMED_COLUMNS_SQL = <<~'SQL'
+    SELECT 1, 'two'
+  SQL
+
+  # rubocop:disable Naming/VariableNumber
+  class GetUnnamedColumnsRow < Data.define(:column_1, :column_2)
+  end
+  # rubocop:enable Naming/VariableNumber
+
+  GET_QUOTED_ALIAS_SQL = <<~'SQL'
+    SELECT 1 AS `it's`
+  SQL
+
+  class GetQuotedAliasRow < Data.define(:it_s)
+  end
+
+  GET_AUTHORS_NOT_IN_IDS_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors WHERE id NOT IN (/*SLICE:ids*/?) ORDER BY id
+  SQL
+
+  class GetAuthorsNotInIdsRow < Data.define(:id, :name, :bio)
+  end
+
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
@@ -508,9 +531,14 @@ module Mysql2Codegen
           result = yield self
           completed = true
           result
-        rescue Exception # rubocop:disable Lint/RescueException
+        rescue Exception => e # rubocop:disable Lint/RescueException
           failed = true
-          client.query(rollback)
+          begin
+            client.query(rollback)
+          rescue Mysql2::Error
+            # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone
+            raise unless e.is_a?(Mysql2::Error)
+          end
           raise
         ensure
           begin
@@ -1175,6 +1203,43 @@ module Mysql2Codegen
       end
     end
 
+    def get_unnamed_columns
+      with_client('get_unnamed_columns') do |client|
+        result = client.query(bind_params(client, GET_UNNAMED_COLUMNS_SQL, []), as: :array)
+        row = result.first
+        row && GetUnnamedColumnsRow.new(row[0], row[1])
+      end
+    end
+
+    # Like #get_unnamed_columns, but raises NotFound when there is no row.
+    def get_unnamed_columns!(...)
+      get_unnamed_columns(...) || raise(NotFound, 'GetUnnamedColumns returned no row')
+    end
+
+    def get_quoted_alias
+      with_client('get_quoted_alias') do |client|
+        result = client.query(bind_params(client, GET_QUOTED_ALIAS_SQL, []), as: :array)
+        row = result.first
+        row && GetQuotedAliasRow.new(row[0])
+      end
+    end
+
+    # Like #get_quoted_alias, but raises NotFound when there is no row.
+    def get_quoted_alias!(...)
+      get_quoted_alias(...) || raise(NotFound, 'GetQuotedAlias returned no row')
+    end
+
+    def get_authors_not_in_ids(ids:)
+      with_client('get_authors_not_in_ids') do |client|
+        query_params = [*ids]
+        sql = GET_AUTHORS_NOT_IN_IDS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
+        result = client.query(bind_params(client, sql, query_params), as: :array)
+        result.map do |row|
+          GetAuthorsNotInIdsRow.new(row[0], row[1], row[2])
+        end
+      end
+    end
+
     def many_params(c0:, c1:, c2:, c3:, c4:)
       with_client('many_params') do |client|
         query_params = [
@@ -1257,6 +1322,7 @@ module Mysql2Codegen
     def quote(client, value)
       case value
       when NilClass then 'NULL'
+      when Symbol then quote(client, value.to_s)
       when TrueClass then 'TRUE'
       when FalseClass then 'FALSE'
       when Integer then value.to_s
@@ -1374,7 +1440,7 @@ module Mysql2Codegen
     end
 
     def slice_placeholders(values)
-      values.empty? ? 'NULL' : Array.new(values.size, '?').join(', ')
+      values.empty? ? 'SELECT NULL WHERE FALSE' : Array.new(values.size, '?').join(', ')
     end
   end
 end

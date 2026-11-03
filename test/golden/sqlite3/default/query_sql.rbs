@@ -371,6 +371,32 @@ module Sqlite3Codegen
 
   TRUNCATE_NAME_CASES_SQL: String
 
+  GET_UNNAMED_COLUMNS_SQL: String
+
+  class GetUnnamedColumnsRow
+    attr_reader column_1: Integer
+    attr_reader column_2: String
+    def initialize: (  Integer column_1, String column_2) -> void
+  end
+
+  GET_QUOTED_ALIAS_SQL: String
+
+  class GetQuotedAliasRow
+    attr_reader it_s: Integer
+    def initialize: (  Integer it_s) -> void
+  end
+
+  GET_AUTHORS_NOT_IN_IDS_SQL: String
+
+  class GetAuthorsNotInIdsRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
+  CREATE_AUTHOR_OR_ROLLBACK_SQL: String
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow
@@ -525,6 +551,18 @@ module Sqlite3Codegen
     def get_http_server!: (id: Integer) -> GetHTTPServerRow
 
     def truncate_name_cases: -> void
+
+    def get_unnamed_columns: -> GetUnnamedColumnsRow?
+
+    def get_unnamed_columns!: -> GetUnnamedColumnsRow
+
+    def get_quoted_alias: -> GetQuotedAliasRow?
+
+    def get_quoted_alias!: -> GetQuotedAliasRow
+
+    def get_authors_not_in_ids: (ids: Array[Integer]) -> Array[GetAuthorsNotInIdsRow]
+
+    def create_author_or_rollback: (id: Integer, name: String) -> void
 
     def many_params: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow?
 
