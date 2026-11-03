@@ -102,7 +102,7 @@ per table, one module of constants per enum), `connection.rb` (shared helpers) a
 * **Logging:** `connect(params, logger: Rails.logger)` / `new(pool, logger:)` logs `QuerySql#get_author (0.4ms)` at
   debug level for each query and transaction. Parameter values are never logged.
 * **Async / fibers:** it is plain synchronous Ruby and works with the Fiber scheduler ([`async`](https://github.com/socketry/async)):
-  inside `Sync { ... }`, pooled `pg` and `mysql2` queries run concurrently. MySQL parameters are quoted client-side
+  inside `Sync { ... }`, pooled `pg` and `mysql2` queries run concurrently (`mysql2` blocks the thread on Windows). MySQL parameters are quoted client-side
   with `Mysql2::Client#escape` and sent with `Client#query`, not server-side prepared statements. SQLite queries run
   one at a time.
 * **Style:** SQL lives in frozen heredoc constants (`GET_AUTHOR_SQL`), comments above a query become its doc comment,

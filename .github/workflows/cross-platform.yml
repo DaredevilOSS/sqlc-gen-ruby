@@ -1,0 +1,215 @@
+name: Cross-platform
+
+# Called by build.yml after build-wasm: macOS and Windows run the plugin.wasm built on Linux (the artifact a release
+# publishes) through sqlc, and the generated code against natively installed PostgreSQL / MySQL and SQLite.
+# The full Ruby / option matrix stays on Linux (tests.yml); here the oldest and newest supported Ruby.
+on:
+  workflow_call:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  DB_NAME: tests
+  DB_USER: root
+  DB_PASS: pass # ignored by the servers below (trust / empty-password root), required by the pg tests' env
+  POSTGRES_HOST: 127.0.0.1
+  MYSQL_HOST: 127.0.0.1
+
+jobs:
+  codegen:
+    name: Codegen (${{ matrix.os-name }}, Ruby ${{ matrix.ruby-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+        ruby-version: ['3.1', '4.0']
+        include:
+          - { os: macos-latest, os-name: macOS }
+          - { os: windows-latest, os-name: Windows }
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Load tool versions
+        run: grep -E '^[A-Z_]+=' scripts/tool-versions.env >> "$GITHUB_ENV"
+
+      - uses: sqlc-dev/setup-sqlc@bac53b7fb28c039a6c7f5736fd1e89744021bdd6 # v5.0.0
+        with:
+          sqlc-version: '${{ env.SQLC_VERSION }}'
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: wasm-file
+          path: dist
+
+      - name: Updating plugin sha
+        run: ./scripts/wasm/update_sha.sh sqlc.ci.yaml
+
+      # the process plugin on this OS's Ruby: no bundler, only the standard library + minitest
+      - name: Unit & golden tests
+        run: ruby -Ilib -Itest -e 'Dir["test/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
+
+      # the committed examples/ (LF, byte for byte) must come out of sqlc + the Linux-built WASM on this OS too
+      - name: Verify generated code is synced (WASM plugin)
+        run: sqlc -f sqlc.ci.yaml diff
+
+      - name: Verify generated code is synced (process plugin)
+        run: |
+          if [ "${RUNNER_OS}" = Windows ]; then
+            # Windows cannot execute plugin.rb directly: sqlc runs the exe\plugin.cmd wrapper (through cmd.exe, so backslashes)
+            sed 's#cmd: ./exe/plugin.rb#cmd: exe\\plugin.cmd#' sqlc.local.yaml > .sqlc-windows.yaml
+            trap 'rm -f .sqlc-windows.yaml' EXIT
+            sqlc -f .sqlc-windows.yaml diff
+          else
+            sqlc -f sqlc.local.yaml diff
+          fi
+
+      - name: Generate with the WASM for Ruby ${{ matrix.ruby-version }} and check the output
+        run: ruby scripts/tests/run_codegen.rb sqlc.ci.yaml "${{ matrix.ruby-version }}" true true
+
+  end2end:
+    name: End-to-End (${{ matrix.os-name }}, Ruby ${{ matrix.ruby-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+        ruby-version: ['3.1', '4.0']
+        include:
+          - { os: macos-latest, os-name: macOS, postgres-version: '16' }
+          - { os: windows-latest, os-name: Windows, postgres-version: '17' } # the only version on windows-2025
+
+    env:
+      EXAMPLES_DIR: ${{ github.workspace }}/.examples-ruby-${{ matrix.ruby-version }}
+      BUNDLE_GEMFILE: ${{ github.workspace }}/Gemfile.e2e
+      BUNDLE_PATH: ${{ github.workspace }}/.e2e-gems
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Load tool versions
+        run: grep -E '^[A-Z_]+=' scripts/tool-versions.env >> "$GITHUB_ENV"
+
+      - uses: sqlc-dev/setup-sqlc@bac53b7fb28c039a6c7f5736fd1e89744021bdd6 # v5.0.0
+        with:
+          sqlc-version: '${{ env.SQLC_VERSION }}'
+
+      - uses: ankane/setup-postgres@b1a598d92f86cb2ed364411898d150d4eac6d5ca # v1
+        with:
+          postgres-version: ${{ matrix.postgres-version }}
+          database: ${{ env.DB_NAME }}
+          user: ${{ env.DB_USER }}
+
+      - uses: ankane/setup-mysql@4aa1b08412d4c8bf537fea5bc412e4e831d839d7 # v1
+        if: runner.os != 'Windows'
+        with:
+          mysql-version: '8.4'
+          database: ${{ env.DB_NAME }}
+          user: ${{ env.DB_USER }}
+
+      # windows-2025 ships MySQL 8.4 (on PATH); setup-mysql only treats 8.0 as preinstalled there and fails to
+      # reinstall 8.4 over it, so start the image's server the same way the action does
+      - name: Start the preinstalled MySQL 8.4 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $bin = 'C:\Program Files\MySQL\MySQL Server 8.4\bin'
+          & "$bin\mysqld" --initialize-insecure
+          & "$bin\mysqld" --install
+          net start MySQL
+          & "$bin\mysqladmin" -u $env:DB_USER create $env:DB_NAME
+
+      # after the databases: their bin dirs (PostgreSQL ships its own zlib/iconv DLLs) must come after Ruby's MSYS2
+      # toolchain on PATH, or gcc fails silently on Windows and no native gem builds
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: wasm-file
+          path: dist
+
+      - name: Updating plugin sha
+        run: ./scripts/wasm/update_sha.sh sqlc.ci.yaml
+
+      # the E2E suites below run this WASM output, with the Gemfile it generates
+      - name: Generate the E2E examples with the WASM
+        run: ruby scripts/tests/generate_examples.rb "${{ matrix.ruby-version }}" sqlc.ci.yaml --generate-gemfile
+
+      - name: Create the schemas (and allow LOAD DATA LOCAL INFILE for :copyfrom)
+        run: |
+          psql -v ON_ERROR_STOP=1 -h "${POSTGRES_HOST}" -U "${DB_USER}" -d "${DB_NAME}" -f examples/authors/postgresql/schema.sql
+          mysql -h "${MYSQL_HOST}" -u "${DB_USER}" -e 'SET GLOBAL local_infile = 1'
+          mysql -h "${MYSQL_HOST}" -u "${DB_USER}" --default-character-set=utf8mb4 "${DB_NAME}" < examples/authors/mysql/schema.sql
+
+      - name: Native build settings for mysql2
+        run: |
+          if [ "${RUNNER_OS}" = Windows ]; then
+            ridk.cmd exec pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-libmariadbclient
+            # mysql2's extconf can't glob for mariadb_config.exe through Windows PATH entries, so point at it
+            mariadb_config=$(cygpath -m "${RI_DEVKIT}/ucrt64/bin/mariadb_config.exe")
+            test -x "${mariadb_config}"
+            echo "BUNDLE_BUILD__MYSQL2=--with-mysql-config=${mariadb_config}" >> "$GITHUB_ENV"
+          else
+            echo "BUNDLE_BUILD__MYSQL2=--with-opt-dir=$(brew --prefix openssl@3):$(brew --prefix zstd)" >> "$GITHUB_ENV"
+          fi
+
+      # prism (minitest 6), mysql2 and date compile from source on Windows (~2 min): keep the installed E2E gems, per runner
+      # image (the native extensions link against its libraries)
+      - name: Runner image
+        id: image
+        run: echo "version=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ${{ env.BUNDLE_PATH }}
+          key: e2e-gems-${{ steps.image.outputs.version }}-ruby${{ matrix.ruby-version }}-${{ hashFiles('Gemfile.e2e') }}
+
+      - name: End-to-End tests (SQLite)
+        if: ${{ !cancelled() }}
+        env:
+          EXAMPLES_DRIVER: sqlite3
+        run: bundle install && bundle exec rake end2end_sqlite3
+
+      - name: End-to-End tests (PostgreSQL ${{ matrix.postgres-version }})
+        if: ${{ !cancelled() }}
+        env:
+          EXAMPLES_DRIVER: pg
+        run: bundle install && bundle exec rake end2end_pg
+
+      - name: End-to-End tests (MySQL 8.4)
+        if: ${{ !cancelled() }}
+        env:
+          EXAMPLES_DRIVER: mysql2
+        run: bundle install && bundle exec rake end2end_mysql2
+
+      - name: Generator options E2E
+        if: ${{ !cancelled() }}
+        env:
+          BUNDLE_GEMFILE: ${{ github.workspace }}/Gemfile.options.e2e
+        # default gem path (only prebuilt gems): with BUNDLE_PATH, the test's nested `bundle install` on Windows Ruby
+        # 3.1 trips over setup-ruby's newer Bundler next to the default 2.3 one
+        run: |
+          unset BUNDLE_PATH
+          bundle install && bundle exec ruby tests/end2end_options.rb
+
+      - name: Native extension build logs
+        if: failure()
+        run: find "$(ruby -e 'print Gem.dir')" -name mkmf.log -exec sh -c 'echo "== $1"; cat "$1"' _ {} \;

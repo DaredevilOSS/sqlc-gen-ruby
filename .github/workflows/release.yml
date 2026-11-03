@@ -39,6 +39,7 @@ jobs:
   plan:
     name: Plan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.ref == 'refs/heads/main' # releases are cut from main only
     outputs:
       version: ${{ steps.next.outputs.version }}
@@ -74,6 +75,7 @@ jobs:
     name: Release ${{ needs.plan.outputs.version }}
     needs: [plan, build, tests]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write # tag + release
     env:
@@ -140,6 +142,7 @@ jobs:
     needs: [plan, release]
     if: ${{ !inputs.dry_run && !inputs.draft }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       VERSION: ${{ needs.plan.outputs.version }}
       SHA256: ${{ needs.release.outputs.sha256 }}
