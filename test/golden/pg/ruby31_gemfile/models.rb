@@ -11,10 +11,16 @@ module PgCodegen
     ALL = [AUTOBIOGRAPHY, BIOGRAPHY, MEMOIR].freeze
   end
 
-  # People who wrote at least one book.
-  Author = Struct.new(:id, :name, :bio, keyword_init: true)
+  module LateMood
+    CALM = 'calm'
+    HAPPY = 'happy'
+    ALL = [CALM, HAPPY].freeze
+  end
 
-  NodePostgresType = Struct.new(
+  # People who wrote at least one book.
+  Author = ::Struct.new(:id, :name, :bio, keyword_init: true)
+
+  NodePostgresType = ::Struct.new(
     :c_bit,
     :c_smallint,
     :c_boolean,
@@ -36,7 +42,7 @@ module PgCodegen
     keyword_init: true
   )
 
-  Book = Struct.new(
+  Book = ::Struct.new(
     :id,
     :name,
     :author_id,
@@ -44,9 +50,9 @@ module PgCodegen
     keyword_init: true
   )
 
-  DeferredBook = Struct.new(:id, :author_id, keyword_init: true)
+  DeferredBook = ::Struct.new(:id, :author_id, keyword_init: true)
 
-  PostgresExtraType = Struct.new(
+  PostgresExtraType = ::Struct.new(
     :c_uuid,
     :c_jsonb,
     :c_text_array,
@@ -58,7 +64,7 @@ module PgCodegen
     keyword_init: true
   )
 
-  PostgresRemainingType = Struct.new(
+  PostgresRemainingType = ::Struct.new(
     :c_hstore,
     :c_ltree,
     :c_regclass,
@@ -75,11 +81,11 @@ module PgCodegen
     keyword_init: true
   )
 
-  JsonRoundTrip = Struct.new(:id, :json_value, :jsonb_value, keyword_init: true)
+  JsonRoundTrip = ::Struct.new(:id, :json_value, :jsonb_value, keyword_init: true)
 
-  PostgresArrayType = Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix, keyword_init: true)
+  PostgresArrayType = ::Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix, keyword_init: true)
 
-  PostgresSpecialType = Struct.new(
+  PostgresSpecialType = ::Struct.new(
     :c_timetz,
     :c_tsvector,
     :c_point,
@@ -90,7 +96,7 @@ module PgCodegen
     keyword_init: true
   )
 
-  Regression = Struct.new(
+  Regression = ::Struct.new(
     :id,
     :order,
     :payload,
@@ -100,7 +106,7 @@ module PgCodegen
     keyword_init: true
   )
 
-  BatchType = Struct.new(
+  BatchType = ::Struct.new(
     :id,
     :ok,
     :ratio,
@@ -113,7 +119,7 @@ module PgCodegen
   )
 
   # rubocop:disable Naming/MethodName
-  NameCase = Struct.new(
+  NameCase = ::Struct.new(
     :id,
     :class_,
     :end,
@@ -126,5 +132,35 @@ module PgCodegen
   )
   # rubocop:enable Naming/MethodName
 
-  ExtendedBio = Struct.new(:author_name, :name, :bio_type, keyword_init: true)
+  Exception = ::Struct.new(:id, keyword_init: true)
+
+  StandardError = ::Struct.new(:id, keyword_init: true)
+
+  Thread = ::Struct.new(:id, keyword_init: true)
+
+  Process = ::Struct.new(:id, keyword_init: true)
+
+  Data = ::Struct.new(:id, keyword_init: true)
+
+  Struct = ::Struct.new(:id, keyword_init: true)
+
+  Set = ::Struct.new(:id, keyword_init: true)
+
+  String = ::Struct.new(:id, keyword_init: true)
+
+  Integer = ::Struct.new(:id, keyword_init: true)
+
+  Time = ::Struct.new(:id, keyword_init: true)
+
+  Encoding = ::Struct.new(:id, keyword_init: true)
+
+  Monitor = ::Struct.new(:id, keyword_init: true)
+
+  Mutex = ::Struct.new(:id, keyword_init: true)
+
+  ConnectionPool = ::Struct.new(:id, keyword_init: true)
+
+  ExtendedBio = ::Struct.new(:author_name, :name, :bio_type, keyword_init: true)
+
+  LateFeeling = ::Struct.new(:id, :moods, keyword_init: true)
 end

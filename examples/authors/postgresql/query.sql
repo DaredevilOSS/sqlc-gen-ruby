@@ -244,3 +244,18 @@ SELECT 1, 'two';
 
 -- name: GetQuotedAlias :one
 SELECT 1 AS "it's";
+
+-- name: CreateException :exec
+INSERT INTO exceptions DEFAULT VALUES;
+
+-- name: CountExceptions :one
+SELECT COUNT(*) AS n FROM exceptions;
+
+-- name: TruncateExceptions :exec
+TRUNCATE exceptions;
+
+-- name: CreateLateFeeling :exec
+INSERT INTO late.feelings (id, moods) VALUES ($1, $2);
+
+-- name: GetLateFeeling :one
+SELECT moods FROM late.feelings WHERE id = $1;

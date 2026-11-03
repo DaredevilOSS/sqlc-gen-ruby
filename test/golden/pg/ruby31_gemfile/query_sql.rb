@@ -13,14 +13,14 @@ module PgCodegen
     WHERE id = $1 LIMIT 1
   SQL
 
-  GetAuthorRow = Struct.new(:id, :name, :bio, keyword_init: true)
+  GetAuthorRow = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
   LIST_AUTHORS_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     ORDER BY name
   SQL
 
-  ListAuthorsRow = Struct.new(:id, :name, :bio, keyword_init: true)
+  ListAuthorsRow = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
   CREATE_AUTHOR_SQL = <<~'SQL'
     INSERT INTO authors (
@@ -31,7 +31,7 @@ module PgCodegen
     RETURNING id, name, bio
   SQL
 
-  CreateAuthorRow = Struct.new(:id, :name, :bio, keyword_init: true)
+  CreateAuthorRow = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
   DELETE_AUTHOR_SQL = <<~'SQL'
     DELETE FROM authors
@@ -43,7 +43,7 @@ module PgCodegen
     LIMIT 1
   SQL
 
-  TestRow = Struct.new(
+  TestRow = ::Struct.new(
     :c_bit,
     :c_smallint,
     :c_boolean,
@@ -73,7 +73,7 @@ module PgCodegen
     SELECT json_value, jsonb_value FROM json_round_trips WHERE id = $1
   SQL
 
-  GetJSONRoundTripRow = Struct.new(:json_value, :jsonb_value, keyword_init: true)
+  GetJSONRoundTripRow = ::Struct.new(:json_value, :jsonb_value, keyword_init: true)
 
   TOGGLE_JSONB_ROUND_TRIP_SQL = <<~'SQL'
     UPDATE json_round_trips
@@ -89,7 +89,7 @@ module PgCodegen
     SELECT pg_sleep($1::double precision)
   SQL
 
-  PauseQueryRow = Struct.new(:pg_sleep, keyword_init: true)
+  PauseQueryRow = ::Struct.new(:pg_sleep, keyword_init: true)
 
   LIST_AUTHORS_PAGED_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
@@ -98,14 +98,14 @@ module PgCodegen
     OFFSET $1
   SQL
 
-  ListAuthorsPagedRow = Struct.new(:id, :name, :bio, keyword_init: true)
+  ListAuthorsPagedRow = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
   GET_AUTHOR_BY_NAME_PATTERN_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     WHERE name LIKE COALESCE($1, '%')
   SQL
 
-  GetAuthorByNamePatternRow = Struct.new(:id, :name, :bio, keyword_init: true)
+  GetAuthorByNamePatternRow = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
   GET_AUTHORS_BY_OPTIONAL_NAME_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
@@ -114,13 +114,13 @@ module PgCodegen
     LIMIT $2
   SQL
 
-  GetAuthorsByOptionalNameRow = Struct.new(:id, :name, :bio, keyword_init: true)
+  GetAuthorsByOptionalNameRow = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
   CREATE_AUTHOR_RETURN_ID_SQL = <<~'SQL'
     INSERT INTO authors (name, bio) VALUES ($1, $2) RETURNING id
   SQL
 
-  CreateAuthorReturnIdRow = Struct.new(:id, keyword_init: true)
+  CreateAuthorReturnIdRow = ::Struct.new(:id, keyword_init: true)
 
   UPDATE_AUTHOR_BIOS_SQL = <<~'SQL'
     UPDATE authors
@@ -133,16 +133,16 @@ module PgCodegen
     WHERE id = ANY($1::BIGINT [])
   SQL
 
-  GetAuthorsByIdsRow = Struct.new(:id, :name, :bio, keyword_init: true)
+  GetAuthorsByIdsRow = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
   GET_AUTHORS_BY_IDS_AND_NAMES_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     WHERE id = ANY($1::BIGINT []) AND name = ANY($2::TEXT [])
   SQL
 
-  GetAuthorsByIdsAndNamesRow = Struct.new(:id, :name, :bio, keyword_init: true)
+  GetAuthorsByIdsAndNamesRow = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
-  CopyAuthorsArgs = Struct.new(:name, :bio, keyword_init: true)
+  CopyAuthorsArgs = ::Struct.new(:name, :bio, keyword_init: true)
 
   TRUNCATE_AUTHORS_SQL = <<~'SQL'
     TRUNCATE TABLE authors CASCADE
@@ -152,7 +152,7 @@ module PgCodegen
     INSERT INTO books (name, author_id) VALUES ($1, $2) RETURNING id
   SQL
 
-  CreateBookRow = Struct.new(:id, keyword_init: true)
+  CreateBookRow = ::Struct.new(:id, keyword_init: true)
 
   CREATE_DEFERRED_BOOK_SQL = <<~'SQL'
     INSERT INTO deferred_books (author_id) VALUES ($1)
@@ -171,7 +171,7 @@ module PgCodegen
     ORDER BY authors.name
   SQL
 
-  ListAllAuthorsBooksRow = Struct.new(:author, :book, keyword_init: true)
+  ListAllAuthorsBooksRow = ::Struct.new(:author, :book, keyword_init: true)
 
   GET_DUPLICATE_AUTHORS_SQL = <<~'SQL'
     SELECT
@@ -182,7 +182,7 @@ module PgCodegen
     WHERE authors1.id < authors2.id
   SQL
 
-  GetDuplicateAuthorsRow = Struct.new(:author, :author2, keyword_init: true)
+  GetDuplicateAuthorsRow = ::Struct.new(:author, :author2, keyword_init: true)
 
   GET_AUTHORS_BY_BOOK_NAME_SQL = <<~'SQL'
     SELECT
@@ -192,7 +192,7 @@ module PgCodegen
     WHERE books.name = $1
   SQL
 
-  GetAuthorsByBookNameRow = Struct.new(
+  GetAuthorsByBookNameRow = ::Struct.new(
     :id,
     :name,
     :bio,
@@ -208,7 +208,7 @@ module PgCodegen
     SELECT author_name, name, bio_type FROM extended.bios WHERE bio_type = $1 LIMIT 1
   SQL
 
-  GetFirstExtendedBioByTypeRow = Struct.new(:author_name, :name, :bio_type, keyword_init: true)
+  GetFirstExtendedBioByTypeRow = ::Struct.new(:author_name, :name, :bio_type, keyword_init: true)
 
   TRUNCATE_EXTENDED_BIOS_SQL = <<~'SQL'
     TRUNCATE TABLE extended.bios
@@ -223,7 +223,7 @@ module PgCodegen
     SELECT c_uuid, c_jsonb, c_text_array, c_integer_array, c_timestamptz, c_inet, c_money, c_not_null FROM postgres_extra_types LIMIT 1
   SQL
 
-  GetExtraTypesRow = Struct.new(
+  GetExtraTypesRow = ::Struct.new(
     :c_uuid,
     :c_jsonb,
     :c_text_array,
@@ -252,7 +252,7 @@ module PgCodegen
     SELECT c_hstore, c_ltree, c_regclass, c_cidr, c_macaddr, c_interval, c_varbit, c_xml, c_numeric, c_bigint, c_timestamp, c_timestamptz, c_text_matrix FROM postgres_remaining_types LIMIT 1
   SQL
 
-  GetRemainingTypesRow = Struct.new(
+  GetRemainingTypesRow = ::Struct.new(
     :c_hstore,
     :c_ltree,
     :c_regclass,
@@ -281,7 +281,7 @@ module PgCodegen
     SELECT c_uuid_array, c_bio_type_array, c_integer_matrix FROM postgres_array_types LIMIT 1
   SQL
 
-  GetArrayTypesRow = Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix, keyword_init: true)
+  GetArrayTypesRow = ::Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix, keyword_init: true)
 
   TRUNCATE_ARRAY_TYPES_SQL = <<~'SQL'
     TRUNCATE TABLE postgres_array_types
@@ -296,7 +296,7 @@ module PgCodegen
     ORDER BY authors.name
   SQL
 
-  ListAuthorsWithOptionalBookRow = Struct.new(:author, :book, keyword_init: true)
+  ListAuthorsWithOptionalBookRow = ::Struct.new(:author, :book, keyword_init: true)
 
   LIST_AUTHORS_BETWEEN_IDS_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
@@ -304,7 +304,7 @@ module PgCodegen
     ORDER BY id
   SQL
 
-  ListAuthorsBetweenIdsRow = Struct.new(:id, :name, :bio, keyword_init: true)
+  ListAuthorsBetweenIdsRow = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
   INSERT_SPECIAL_TYPES_SQL = <<~'SQL'
     INSERT INTO postgres_special_types (c_timetz, c_tsvector, c_point, c_int4range, c_oid, c_dimensions, c_positive)
@@ -315,7 +315,7 @@ module PgCodegen
     SELECT c_timetz, c_tsvector, c_point, c_int4range, c_oid, c_dimensions, c_positive FROM postgres_special_types LIMIT 1
   SQL
 
-  GetSpecialTypesRow = Struct.new(
+  GetSpecialTypesRow = ::Struct.new(
     :c_timetz,
     :c_tsvector,
     :c_point,
@@ -338,29 +338,29 @@ module PgCodegen
     INSERT INTO authors (name, bio) VALUES ($1, $2)
   SQL
 
-  CreateAuthorsBatchArgs = Struct.new(:name, :bio, keyword_init: true)
+  CreateAuthorsBatchArgs = ::Struct.new(:name, :bio, keyword_init: true)
 
   GET_AUTHOR_BATCH_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors WHERE id = $1
   SQL
 
-  GetAuthorBatchRow = Struct.new(:id, :name, :bio, keyword_init: true)
+  GetAuthorBatchRow = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
-  GetAuthorBatchArgs = Struct.new(:id, keyword_init: true)
+  GetAuthorBatchArgs = ::Struct.new(:id, keyword_init: true)
 
   LIST_AUTHORS_BY_NAME_BATCH_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors WHERE name = $1 ORDER BY id
   SQL
 
-  ListAuthorsByNameBatchRow = Struct.new(:id, :name, :bio, keyword_init: true)
+  ListAuthorsByNameBatchRow = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
-  ListAuthorsByNameBatchArgs = Struct.new(:name, keyword_init: true)
+  ListAuthorsByNameBatchArgs = ::Struct.new(:name, keyword_init: true)
 
   CREATE_REGRESSION_SQL = <<~'SQL'
     INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, "order", payload, doc, bio_types, uids
   SQL
 
-  CreateRegressionRow = Struct.new(
+  CreateRegressionRow = ::Struct.new(
     :id,
     :order,
     :payload,
@@ -374,9 +374,9 @@ module PgCodegen
     INSERT INTO regressions (id, "order") VALUES ($1, $2) ON CONFLICT (id) DO NOTHING RETURNING id
   SQL
 
-  CreateRegressionIfNewRow = Struct.new(:id, keyword_init: true)
+  CreateRegressionIfNewRow = ::Struct.new(:id, keyword_init: true)
 
-  CopyRegressionsArgs = Struct.new(
+  CopyRegressionsArgs = ::Struct.new(
     :id,
     :order,
     :payload,
@@ -388,7 +388,7 @@ module PgCodegen
     INSERT INTO regressions (id, "order", payload, doc) VALUES ($1, $2, $3, $4)
   SQL
 
-  CreateRegressionsBatchArgs = Struct.new(
+  CreateRegressionsBatchArgs = ::Struct.new(
     :id,
     :order,
     :payload,
@@ -400,7 +400,7 @@ module PgCodegen
     SELECT id, "order", payload, doc, bio_types, uids FROM regressions WHERE ($1::text IS NULL OR "order" = $1) ORDER BY id
   SQL
 
-  ListRegressionsRow = Struct.new(
+  ListRegressionsRow = ::Struct.new(
     :id,
     :order,
     :payload,
@@ -418,7 +418,7 @@ module PgCodegen
     INSERT INTO batch_types (id, ok, ratio, blobs, docs, counts, amounts, stamps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
   SQL
 
-  CreateBatchTypesBatchArgs = Struct.new(
+  CreateBatchTypesBatchArgs = ::Struct.new(
     :id,
     :ok,
     :ratio,
@@ -430,7 +430,7 @@ module PgCodegen
     keyword_init: true
   )
 
-  CopyBatchTypesArgs = Struct.new(
+  CopyBatchTypesArgs = ::Struct.new(
     :id,
     :ok,
     :ratio,
@@ -446,7 +446,7 @@ module PgCodegen
     SELECT id, ok, ratio, blobs, docs, counts, amounts, stamps FROM batch_types ORDER BY id
   SQL
 
-  ListBatchTypesRow = Struct.new(
+  ListBatchTypesRow = ::Struct.new(
     :id,
     :ok,
     :ratio,
@@ -462,7 +462,7 @@ module PgCodegen
     SELECT count(*) FROM batch_types WHERE id > $1
   SQL
 
-  CountBatchTypesAboveRow = Struct.new(:count_, keyword_init: true)
+  CountBatchTypesAboveRow = ::Struct.new(:count_, keyword_init: true)
 
   TRUNCATE_BATCH_TYPES_SQL = <<~'SQL'
     TRUNCATE TABLE batch_types
@@ -482,7 +482,7 @@ module PgCodegen
   SQL
 
   # rubocop:disable Naming/MethodName
-  GetNameCaseRow = Struct.new(
+  GetNameCaseRow = ::Struct.new(
     :id,
     :class_,
     :end,
@@ -500,7 +500,7 @@ module PgCodegen
   SQL
 
   # rubocop:disable Naming/MethodName
-  GetHTTPServerRow = Struct.new(
+  GetHTTPServerRow = ::Struct.new(
     :id,
     :class_,
     :end,
@@ -522,28 +522,52 @@ module PgCodegen
   SQL
 
   # rubocop:disable Naming/VariableNumber
-  GetUnnamedColumnsRow = Struct.new(:column_1, :column_2, keyword_init: true)
+  GetUnnamedColumnsRow = ::Struct.new(:column_1, :column_2, keyword_init: true)
   # rubocop:enable Naming/VariableNumber
 
   GET_QUOTED_ALIAS_SQL = <<~'SQL'
     SELECT 1 AS "it's"
   SQL
 
-  GetQuotedAliasRow = Struct.new(:it_s, keyword_init: true)
+  GetQuotedAliasRow = ::Struct.new(:it_s, keyword_init: true)
+
+  CREATE_EXCEPTION_SQL = <<~'SQL'
+    INSERT INTO exceptions DEFAULT VALUES
+  SQL
+
+  COUNT_EXCEPTIONS_SQL = <<~'SQL'
+    SELECT COUNT(*) AS n FROM exceptions
+  SQL
+
+  CountExceptionsRow = ::Struct.new(:n, keyword_init: true)
+
+  TRUNCATE_EXCEPTIONS_SQL = <<~'SQL'
+    TRUNCATE exceptions
+  SQL
+
+  CREATE_LATE_FEELING_SQL = <<~'SQL'
+    INSERT INTO late.feelings (id, moods) VALUES ($1, $2)
+  SQL
+
+  GET_LATE_FEELING_SQL = <<~'SQL'
+    SELECT moods FROM late.feelings WHERE id = $1
+  SQL
+
+  GetLateFeelingRow = ::Struct.new(:moods, keyword_init: true)
 
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
   SQL
 
-  ManyParamsRow = Struct.new(:c0, :c1, keyword_init: true)
+  ManyParamsRow = ::Struct.new(:c0, :c1, keyword_init: true)
 
   MANY_ROWS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
   SQL
 
-  ManyRowsRow = Struct.new(
+  ManyRowsRow = ::Struct.new(
     :c0,
     :c1,
     :c2,
@@ -557,7 +581,7 @@ module PgCodegen
     	  WHERE a = 1
   SQL
 
-  FourColsRow = Struct.new(
+  FourColsRow = ::Struct.new(
     :c0,
     :c1,
     :c2,
@@ -567,12 +591,12 @@ module PgCodegen
 
   class QuerySql
     # Raised by the bang variants (get_author!) when the query returns no row.
-    class NotFound < StandardError; end
+    class NotFound < ::StandardError; end
 
     # Opens a pool of connections: QuerySql.connect({ dbname: 'app' }, size: 5, timeout: 5, logger: Logger.new($stdout))
     # (pool_options go to ConnectionPool.new). To share an existing pool use QuerySql.new(pool).
     def self.connect(pg_params, logger: nil, **pool_options)
-      new(ConnectionPool.new(**pool_options) { PG.connect(**pg_params) }, logger: logger)
+      new(::ConnectionPool.new(**pool_options) { ::PG.connect(**pg_params) }, logger: logger)
     end
 
     # db: a ConnectionPool (or anything that responds to #with and yields a PG::Connection).
@@ -584,11 +608,12 @@ module PgCodegen
 
     # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
     # (also through break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call
-    # becomes a SAVEPOINT. Yields self, bound to that connection.
+    # becomes a SAVEPOINT. Yields a copy of self whose queries run in the transaction, also from other fibers and
+    # threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
     def transaction(isolation: nil)
       with_client('transaction') do |client|
-        outermost = client.transaction_status == PG::PQTRANS_IDLE
-        raise ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
+        outermost = client.transaction_status == ::PG::PQTRANS_IDLE
+        raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
 
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         if outermost
@@ -599,37 +624,40 @@ module PgCodegen
         entered = !client.in_transaction
         client.in_transaction = true
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        bound = TransactionConnection.new(client) unless @db.is_a?(TransactionConnection)
         failed = false
         completed = false
         begin
-          result = yield self
+          result = bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
           completed = true
           result
-        rescue Exception # rubocop:disable Lint/RescueException
+        rescue ::Exception # rubocop:disable Lint/RescueException
           failed = true
-          client.cancel if client.transaction_status == PG::PQTRANS_ACTIVE
-          client.exec(rollback) unless client.status == PG::CONNECTION_BAD # the server already rolled back
+          bound&.close
+          client.cancel if client.transaction_status == ::PG::PQTRANS_ACTIVE
+          client.exec(rollback) unless client.status == ::PG::CONNECTION_BAD # the server already rolled back
           raise
         ensure
+          bound&.close
           client.in_transaction = false if entered
           if failed
             nil
-          elsif client.status == PG::CONNECTION_BAD
+          elsif client.status == ::PG::CONNECTION_BAD
             # the block rescued the error of a lost connection: the server rolled the transaction back
-            raise PG::ConnectionBad, 'transaction rolled back: the connection was lost' if Thread.current.status != 'aborting'
+            raise ::PG::ConnectionBad, 'transaction rolled back: the connection was lost' if ::Thread.current.status != 'aborting'
           else
             # a statement failed and the block rescued the error: PostgreSQL can only roll back
-            rescued = client.transaction_status == PG::PQTRANS_INERROR
+            rescued = client.transaction_status == ::PG::PQTRANS_INERROR
             commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-            client.exec(rescued || Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
+            client.exec(rescued || ::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
             client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
-            raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && Thread.current.status != 'aborting'
+            raise ::PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && ::Thread.current.status != 'aborting'
           end
         end
       end
     end
 
-    ExecResult = Struct.new(:rows_affected, :last_insert_id, keyword_init: true)
+    ExecResult = ::Struct.new(:rows_affected, :last_insert_id, keyword_init: true)
 
     # Returns the author with the given id, or nil when there is none.
     def get_author(id:)
@@ -893,7 +921,7 @@ module PgCodegen
     # Bulk insert: pass an Array of CopyAuthorsArgs.
     def copy_authors(rows)
       with_client('copy_authors') do |client|
-        encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
+        encoder = ::PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
         client.copy_data('COPY "authors" ("name", "bio") FROM STDIN', encoder) do
           rows.each do |row|
             client.put_copy_data([row.name, row.bio])
@@ -1406,7 +1434,7 @@ module PgCodegen
 
     def copy_regressions(rows)
       with_client('copy_regressions') do |client|
-        encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
+        encoder = ::PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
         client.copy_data('COPY "regressions" ("id", "order", "payload", "doc") FROM STDIN', encoder) do
           rows.each do |row|
             client.put_copy_data([row.id, row.order, encode_bytea(row.payload), encode_json(row.doc)])
@@ -1487,7 +1515,7 @@ module PgCodegen
 
     def copy_batch_types(rows)
       with_client('copy_batch_types') do |client|
-        encoder = PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
+        encoder = ::PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
         client.copy_data('COPY "batch_types" ("id", "ok", "ratio", "blobs", "docs", "counts", "amounts", "stamps") FROM STDIN', encoder) do
           rows.each do |row|
             client.put_copy_data([row.id, row.ok, encode_float(row.ratio), encode_array(row.blobs, :bytea), encode_array(row.docs, :json), encode_array(row.counts), encode_array(row.amounts), encode_array(row.stamps)])
@@ -1677,6 +1705,75 @@ module PgCodegen
       get_quoted_alias(...) || raise(NotFound, 'GetQuotedAlias returned no row')
     end
 
+    def create_exception
+      with_client('create_exception') do |client|
+        unless client.prepared_statements.include?('pg_codegen_query_sql_create_exception')
+          client.prepare('pg_codegen_query_sql_create_exception', CREATE_EXCEPTION_SQL)
+          client.prepared_statements.add('pg_codegen_query_sql_create_exception')
+        end
+        client.exec_prepared('pg_codegen_query_sql_create_exception')
+        nil
+      end
+    end
+
+    def count_exceptions
+      with_client('count_exceptions') do |client|
+        unless client.prepared_statements.include?('pg_codegen_query_sql_count_exceptions')
+          client.prepare('pg_codegen_query_sql_count_exceptions', COUNT_EXCEPTIONS_SQL)
+          client.prepared_statements.add('pg_codegen_query_sql_count_exceptions')
+        end
+        result = client.exec_prepared('pg_codegen_query_sql_count_exceptions')
+        row = result.first
+        row && CountExceptionsRow.new(n: row['n'])
+      end
+    end
+
+    # Like #count_exceptions, but raises NotFound when there is no row.
+    def count_exceptions!(...)
+      count_exceptions(...) || raise(NotFound, 'CountExceptions returned no row')
+    end
+
+    def truncate_exceptions
+      with_client('truncate_exceptions') do |client|
+        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_exceptions')
+          client.prepare('pg_codegen_query_sql_truncate_exceptions', TRUNCATE_EXCEPTIONS_SQL)
+          client.prepared_statements.add('pg_codegen_query_sql_truncate_exceptions')
+        end
+        client.exec_prepared('pg_codegen_query_sql_truncate_exceptions')
+        nil
+      end
+    end
+
+    def create_late_feeling(id:, moods:)
+      with_client('create_late_feeling') do |client|
+        query_params = [id, encode_array(moods)]
+        unless client.prepared_statements.include?('pg_codegen_query_sql_create_late_feeling')
+          client.prepare('pg_codegen_query_sql_create_late_feeling', CREATE_LATE_FEELING_SQL)
+          client.prepared_statements.add('pg_codegen_query_sql_create_late_feeling')
+        end
+        client.exec_prepared('pg_codegen_query_sql_create_late_feeling', query_params)
+        nil
+      end
+    end
+
+    def get_late_feeling(id:)
+      with_client('get_late_feeling') do |client|
+        query_params = [id]
+        unless client.prepared_statements.include?('pg_codegen_query_sql_get_late_feeling')
+          client.prepare('pg_codegen_query_sql_get_late_feeling', GET_LATE_FEELING_SQL)
+          client.prepared_statements.add('pg_codegen_query_sql_get_late_feeling')
+        end
+        result = client.exec_prepared('pg_codegen_query_sql_get_late_feeling', query_params)
+        row = result.first
+        row && GetLateFeelingRow.new(moods: row['moods'])
+      end
+    end
+
+    # Like #get_late_feeling, but raises NotFound when there is no row.
+    def get_late_feeling!(...)
+      get_late_feeling(...) || raise(NotFound, 'GetLateFeeling returned no row')
+    end
+
     def many_params(c0:, c1:, c2:, c3:, c4:)
       with_client('many_params') do |client|
         query_params = [
@@ -1739,11 +1836,11 @@ module PgCodegen
     def instrument(name)
       return yield unless @logger
 
-      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       begin
         yield
       ensure
-        elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+        elapsed = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started) * 1000
         @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
       end
     end
@@ -1751,46 +1848,48 @@ module PgCodegen
     def with_client(name)
       instrument(name) do
         @db.with do |client|
-          if client.status == PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
+          if client.status == ::PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
             # inside #transaction a new session would run the rest of the block outside the transaction
-            raise PG::ConnectionBad, 'the connection was lost inside a transaction' if client.is_a?(ConnectionState) && client.in_transaction
+            raise ::PG::ConnectionBad, 'the connection was lost inside a transaction' if client.is_a?(ConnectionState) && client.in_transaction
 
             client.reset
           end
           configure(client) unless client.is_a?(ConnectionState)
           begin
             yield client
-          rescue Exception # rubocop:disable Lint/RescueException
+          rescue ::Exception # rubocop:disable Lint/RescueException
             # a query left by Timeout / Thread#raise keeps running: cancel it before the connection is reused
-            client.cancel if client.transaction_status == PG::PQTRANS_ACTIVE
+            client.cancel if client.transaction_status == ::PG::PQTRANS_ACTIVE
             raise
           end
         end
       end
     end
 
+    # A copy of this query object whose queries run on the transaction's connection.
+    def bound_to(connection) = dup.tap { |tx| tx.instance_variable_set(:@db, connection) }
+
     # Connections of an injected pool are set up on first use: typed results and Ruby arrays as parameters.
     def configure(client)
-      type_map = PG::BasicTypeMapForResults.new(client)
+      type_map = ::PG::BasicTypeMapForResults.new(client)
       type_map.default_type_map = string_arrays(client) # uuid, enums, money, ... come back as Strings
       client.type_map_for_results = type_map
-      queries = PG::BasicTypeMapForQueries.new(client)
+      queries = ::PG::BasicTypeMapForQueries.new(client)
       # true / false as text ('t' / 'f'), also valid in COPY (the default binary encoder is not)
-      queries[TrueClass] = queries[FalseClass] = PG::TextEncoder::Boolean.new(oid: 16)
+      queries[::TrueClass] = queries[::FalseClass] = ::PG::TextEncoder::Boolean.new(oid: 16)
       client.type_map_for_queries = queries
       client.extend(ConnectionState)
     end
 
     # Arrays of types without a decoder (uuid[], enum[], ...) become Arrays of Strings, other types Strings.
     def string_arrays(client)
-      strings = PG::TypeMapAllStrings.new
-      arrays = PG::TypeMapByOid.new
-      client.exec("SELECT oid, typdelim FROM pg_type WHERE typcategory = 'A'", [], 0, strings).each do |row|
-        arrays.add_coder(PG::TextDecoder::Array.new(oid: row['oid'].to_i, delimiter: row['typdelim'],
-                                                    elements_type: PG::TextDecoder::String.new))
+      strings = ::PG::TypeMapAllStrings.new
+      known = ::PG::TypeMapByOid.new
+      client.exec('SELECT oid, typcategory, typdelim FROM pg_type', [], 0, strings).each do |row|
+        known.add_coder(NewTypes.decoder(row['oid'].to_i, row['typcategory'], row['typdelim']))
       end
-      arrays.default_type_map = strings
-      arrays
+      known.default_type_map = NewTypes.new(client, known)
+      known
     end
 
     def timeout_exits_with_throw?
@@ -1800,41 +1899,41 @@ module PgCodegen
 
     # bytea parameters are sent escaped: binary Strings (NUL bytes, invalid UTF-8) are not valid text.
     def encode_bytea(value)
-      value && PG::TextEncoder::Bytea.new.encode(value)
+      value && ::PG::TextEncoder::Bytea.new.encode(value)
     end
 
     # json / jsonb parameters: booleans and Arrays need JSON encoding, not PostgreSQL's boolean / array encoding,
     # and Floats their shortest exact text. Hashes and JSON text pass through; nil stays nil.
     def encode_json(value)
       case value
-      when Array, TrueClass, FalseClass then PG::TextEncoder::JSON.new.encode(value)
-      when Float then value.to_s
+      when ::Array, ::TrueClass, ::FalseClass then ::PG::TextEncoder::JSON.new.encode(value)
+      when ::Float then value.to_s
       else value
       end
     end
 
     # Float#to_s is the shortest text that reads back as the same Float (the pg gem's encoder drops digits).
     def encode_float(value)
-      value.is_a?(Float) ? value.to_s : value
+      value.is_a?(::Float) ? value.to_s : value
     end
 
-    # Array parameters are sent as array literals, which the server converts to the parameter's type (the pg gem
+    # ::Array parameters are sent as array literals, which the server converts to the parameter's type (the pg gem
     # would type them from their first element: wrong for [], [nil, ...], bytea[], json[]).
     def encode_array(value, kind = :value)
-      return value unless value.is_a?(Array)
+      return value unless value.is_a?(::Array)
 
-      PG::TextEncoder::Array.new(elements_type: PG::TextEncoder::String.new).encode(array_elements(value, kind))
+      ::PG::TextEncoder::Array.new(elements_type: ::PG::TextEncoder::String.new).encode(array_elements(value, kind))
     end
 
     def array_elements(values, kind)
       values.map do |value|
         case value
         when nil then nil
-        when Array then kind == :json ? PG::TextEncoder::JSON.new.encode(value) : array_elements(value, kind)
-        when Hash then PG::TextEncoder::JSON.new.encode(value)
-        when String then kind == :bytea ? PG::TextEncoder::Bytea.new.encode(value) : value
-        when Time then PG::TextEncoder::TimestampWithTimeZone.new.encode(value)
-        else defined?(IPAddr) && value.is_a?(IPAddr) ? "#{value}/#{value.prefix}" : value.to_s
+        when ::Array then kind == :json ? ::PG::TextEncoder::JSON.new.encode(value) : array_elements(value, kind)
+        when ::Hash then ::PG::TextEncoder::JSON.new.encode(value)
+        when ::String then kind == :bytea ? ::PG::TextEncoder::Bytea.new.encode(value) : value
+        when ::Time then ::PG::TextEncoder::TimestampWithTimeZone.new.encode(value)
+        else defined?(::IPAddr) && value.is_a?(::IPAddr) ? "#{value}/#{value.prefix}" : value.to_s
         end
       end
     end

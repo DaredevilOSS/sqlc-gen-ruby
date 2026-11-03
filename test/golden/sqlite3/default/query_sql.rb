@@ -13,7 +13,7 @@ module Sqlite3Codegen
     WHERE id = ? LIMIT 1
   SQL
 
-  class GetAuthorRow < Data.define(:id, :name, :bio)
+  class GetAuthorRow < ::Data.define(:id, :name, :bio)
   end
 
   LIST_AUTHORS_SQL = <<~'SQL'
@@ -21,7 +21,7 @@ module Sqlite3Codegen
     ORDER BY name
   SQL
 
-  class ListAuthorsRow < Data.define(:id, :name, :bio)
+  class ListAuthorsRow < ::Data.define(:id, :name, :bio)
   end
 
   CREATE_AUTHOR_SQL = <<~'SQL'
@@ -43,7 +43,7 @@ module Sqlite3Codegen
     LIMIT ? OFFSET ?
   SQL
 
-  class ListAuthorsPagedRow < Data.define(:id, :name, :bio)
+  class ListAuthorsPagedRow < ::Data.define(:id, :name, :bio)
   end
 
   GET_AUTHOR_BY_NAME_PATTERN_SQL = <<~'SQL'
@@ -51,7 +51,7 @@ module Sqlite3Codegen
     WHERE name LIKE COALESCE(?, '%')
   SQL
 
-  class GetAuthorByNamePatternRow < Data.define(:id, :name, :bio)
+  class GetAuthorByNamePatternRow < ::Data.define(:id, :name, :bio)
   end
 
   GET_AUTHORS_BY_OPTIONAL_NAME_SQL = <<~'SQL'
@@ -61,14 +61,14 @@ module Sqlite3Codegen
     LIMIT ?
   SQL
 
-  class GetAuthorsByOptionalNameRow < Data.define(:id, :name, :bio)
+  class GetAuthorsByOptionalNameRow < ::Data.define(:id, :name, :bio)
   end
 
   CREATE_AUTHOR_RETURN_ID_SQL = <<~'SQL'
     INSERT INTO authors (name, bio) VALUES (?, ?) RETURNING id
   SQL
 
-  class CreateAuthorReturnIdRow < Data.define(:id)
+  class CreateAuthorReturnIdRow < ::Data.define(:id)
   end
 
   UPDATE_AUTHOR_BIOS_SQL = <<~'SQL'
@@ -81,14 +81,14 @@ module Sqlite3Codegen
     SELECT id, name, bio FROM authors WHERE id IN (/*SLICE:ids*/?)
   SQL
 
-  class GetAuthorsByIdsRow < Data.define(:id, :name, :bio)
+  class GetAuthorsByIdsRow < ::Data.define(:id, :name, :bio)
   end
 
   GET_AUTHORS_BY_IDS_AND_NAMES_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors WHERE id IN (/*SLICE:ids*/?) AND name IN (/*SLICE:names*/?)
   SQL
 
-  class GetAuthorsByIdsAndNamesRow < Data.define(:id, :name, :bio)
+  class GetAuthorsByIdsAndNamesRow < ::Data.define(:id, :name, :bio)
   end
 
   GET_AUTHORS_BY_MIXED_PLACEHOLDERS_SQL = <<~'SQL'
@@ -102,7 +102,7 @@ module Sqlite3Codegen
     ORDER BY id
   SQL
 
-  class GetAuthorsByMixedPlaceholdersRow < Data.define(:id, :name, :bio)
+  class GetAuthorsByMixedPlaceholdersRow < ::Data.define(:id, :name, :bio)
   end
 
   GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_SQL = <<~'SQL'
@@ -114,7 +114,7 @@ module Sqlite3Codegen
     ORDER BY id
   SQL
 
-  class GetAuthorsByRepeatedNamedAndPositionalRow < Data.define(:id, :name, :bio)
+  class GetAuthorsByRepeatedNamedAndPositionalRow < ::Data.define(:id, :name, :bio)
   end
 
   GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_BATCH_SQL = <<~'SQL'
@@ -127,16 +127,16 @@ module Sqlite3Codegen
     LIMIT 1
   SQL
 
-  class GetAuthorsByRepeatedNamedAndPositionalBatchRow < Data.define(:id, :name, :bio)
+  class GetAuthorsByRepeatedNamedAndPositionalBatchRow < ::Data.define(:id, :name, :bio)
   end
 
-  class GetAuthorsByRepeatedNamedAndPositionalBatchArgs < Data.define(:n, :other, :id)
+  class GetAuthorsByRepeatedNamedAndPositionalBatchArgs < ::Data.define(:n, :other, :id)
   end
 
-  class CopyAuthorsArgs < Data.define(:name, :bio)
+  class CopyAuthorsArgs < ::Data.define(:name, :bio)
   end
 
-  class CopyAuthorsNamedArgs < Data.define(:name, :bio)
+  class CopyAuthorsNamedArgs < ::Data.define(:name, :bio)
   end
 
   TRUNCATE_AUTHORS_SQL = <<~'SQL'
@@ -147,7 +147,7 @@ module Sqlite3Codegen
     INSERT INTO books (name, author_id) VALUES (?, ?) RETURNING id
   SQL
 
-  class CreateBookRow < Data.define(:id)
+  class CreateBookRow < ::Data.define(:id)
   end
 
   LIST_ALL_AUTHORS_BOOKS_SQL = <<~'SQL'
@@ -158,7 +158,7 @@ module Sqlite3Codegen
     ORDER BY authors.name
   SQL
 
-  class ListAllAuthorsBooksRow < Data.define(:author, :book)
+  class ListAllAuthorsBooksRow < ::Data.define(:author, :book)
   end
 
   GET_DUPLICATE_AUTHORS_SQL = <<~'SQL'
@@ -170,7 +170,7 @@ module Sqlite3Codegen
     WHERE authors1.id < authors2.id
   SQL
 
-  class GetDuplicateAuthorsRow < Data.define(:author, :author2)
+  class GetDuplicateAuthorsRow < ::Data.define(:author, :author2)
   end
 
   GET_AUTHORS_BY_BOOK_NAME_SQL = <<~'SQL'
@@ -181,7 +181,7 @@ module Sqlite3Codegen
     WHERE books.name = ?
   SQL
 
-  class GetAuthorsByBookNameRow < Data.define(:id, :name, :bio, :book)
+  class GetAuthorsByBookNameRow < ::Data.define(:id, :name, :bio, :book)
   end
 
   CREATE_AUTHOR_RESULT_SQL = <<~'SQL'
@@ -192,27 +192,27 @@ module Sqlite3Codegen
     INSERT INTO authors (name, bio) VALUES (?, ?)
   SQL
 
-  class CreateAuthorsBatchArgs < Data.define(:name, :bio)
+  class CreateAuthorsBatchArgs < ::Data.define(:name, :bio)
   end
 
   GET_AUTHOR_BATCH_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors WHERE id = ?
   SQL
 
-  class GetAuthorBatchRow < Data.define(:id, :name, :bio)
+  class GetAuthorBatchRow < ::Data.define(:id, :name, :bio)
   end
 
-  class GetAuthorBatchArgs < Data.define(:id)
+  class GetAuthorBatchArgs < ::Data.define(:id)
   end
 
   LIST_AUTHORS_BY_NAME_BATCH_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors WHERE name = ? ORDER BY id
   SQL
 
-  class ListAuthorsByNameBatchRow < Data.define(:id, :name, :bio)
+  class ListAuthorsByNameBatchRow < ::Data.define(:id, :name, :bio)
   end
 
-  class ListAuthorsByNameBatchArgs < Data.define(:name)
+  class ListAuthorsByNameBatchArgs < ::Data.define(:name)
   end
 
   INSERT_DECLARED_TYPES_SQL = <<~'SQL'
@@ -223,7 +223,7 @@ module Sqlite3Codegen
     SELECT c_varchar, c_decimal, c_unsigned_big_int, c_native, c_double, c_json, c_uuid FROM declared_types LIMIT 1
   SQL
 
-  class GetDeclaredTypesRow < Data.define(
+  class GetDeclaredTypesRow < ::Data.define(
     :c_varchar,
     :c_decimal,
     :c_unsigned_big_int,
@@ -242,45 +242,45 @@ module Sqlite3Codegen
     INSERT INTO regressions ("order", price) VALUES (?, ?) RETURNING id
   SQL
 
-  class CreateRegressionRow < Data.define(:id)
+  class CreateRegressionRow < ::Data.define(:id)
   end
 
   UPDATE_REGRESSION_PRICES_SQL = <<~'SQL'
     UPDATE regressions SET price = ? RETURNING id
   SQL
 
-  class UpdateRegressionPricesRow < Data.define(:id)
+  class UpdateRegressionPricesRow < ::Data.define(:id)
   end
 
-  class CopyRegressionsArgs < Data.define(:order, :price)
+  class CopyRegressionsArgs < ::Data.define(:order, :price)
   end
 
   LIST_REGRESSIONS_SQL = <<~'SQL'
     SELECT id, "order", price FROM regressions ORDER BY id
   SQL
 
-  class ListRegressionsRow < Data.define(:id, :order, :price)
+  class ListRegressionsRow < ::Data.define(:id, :order, :price)
   end
 
   GET_MAX_REGRESSION_PRICE_SQL = <<~'SQL'
     SELECT coalesce(max(price), 0) AS max_price FROM regressions
   SQL
 
-  class GetMaxRegressionPriceRow < Data.define(:max_price)
+  class GetMaxRegressionPriceRow < ::Data.define(:max_price)
   end
 
   TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
     DELETE FROM regressions
   SQL
 
-  class CopyRegressionRowsArgs < Data.define(:id, :order, :price, :payload)
+  class CopyRegressionRowsArgs < ::Data.define(:id, :order, :price, :payload)
   end
 
   LIST_REGRESSION_ROWS_SQL = <<~'SQL'
     SELECT id, "order", price, payload FROM regressions ORDER BY id
   SQL
 
-  class ListRegressionRowsRow < Data.define(:id, :order, :price, :payload)
+  class ListRegressionRowsRow < ::Data.define(:id, :order, :price, :payload)
   end
 
   TRUNCATE_REGRESSION_ROWS_SQL = <<~'SQL'
@@ -291,23 +291,23 @@ module Sqlite3Codegen
     SELECT sleep(?)
   SQL
 
-  class PauseQueryRow < Data.define(:sleep)
+  class PauseQueryRow < ::Data.define(:sleep)
   end
 
-  class CopyTagsOrReplaceArgs < Data.define(:name, :uses)
+  class CopyTagsOrReplaceArgs < ::Data.define(:name, :uses)
   end
 
-  class CopyTagsOrIgnoreArgs < Data.define(:name, :uses)
+  class CopyTagsOrIgnoreArgs < ::Data.define(:name, :uses)
   end
 
-  class CopyTagsAddingUsesArgs < Data.define(:name, :uses)
+  class CopyTagsAddingUsesArgs < ::Data.define(:name, :uses)
   end
 
   LIST_TAGS_SQL = <<~'SQL'
     SELECT name, uses FROM tags ORDER BY name
   SQL
 
-  class ListTagsRow < Data.define(:name, :uses)
+  class ListTagsRow < ::Data.define(:name, :uses)
   end
 
   TRUNCATE_TAGS_SQL = <<~'SQL'
@@ -321,7 +321,7 @@ module Sqlite3Codegen
     ORDER BY authors.id
   SQL
 
-  class ListAuthorsWithOptionalBookRow < Data.define(:author, :book)
+  class ListAuthorsWithOptionalBookRow < ::Data.define(:author, :book)
   end
 
   INSERT_NAME_CASE_SQL = <<~'SQL'
@@ -338,7 +338,7 @@ module Sqlite3Codegen
   SQL
 
   # rubocop:disable Naming/MethodName
-  class GetNameCaseRow < Data.define(
+  class GetNameCaseRow < ::Data.define(
     :id,
     :class_,
     :end,
@@ -356,7 +356,7 @@ module Sqlite3Codegen
   SQL
 
   # rubocop:disable Naming/MethodName
-  class GetHTTPServerRow < Data.define(
+  class GetHTTPServerRow < ::Data.define(
     :id,
     :class_,
     :end,
@@ -378,7 +378,7 @@ module Sqlite3Codegen
   SQL
 
   # rubocop:disable Naming/VariableNumber
-  class GetUnnamedColumnsRow < Data.define(:column_1, :column_2)
+  class GetUnnamedColumnsRow < ::Data.define(:column_1, :column_2)
   end
   # rubocop:enable Naming/VariableNumber
 
@@ -386,26 +386,44 @@ module Sqlite3Codegen
     SELECT 1 AS "it's"
   SQL
 
-  class GetQuotedAliasRow < Data.define(:it_s)
+  class GetQuotedAliasRow < ::Data.define(:it_s)
   end
 
   GET_AUTHORS_NOT_IN_IDS_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors WHERE id NOT IN (/*SLICE:ids*/?) ORDER BY id
   SQL
 
-  class GetAuthorsNotInIdsRow < Data.define(:id, :name, :bio)
+  class GetAuthorsNotInIdsRow < ::Data.define(:id, :name, :bio)
   end
 
   CREATE_AUTHOR_OR_ROLLBACK_SQL = <<~'SQL'
     INSERT OR ROLLBACK INTO authors (id, name) VALUES (?, ?)
   SQL
 
+  CREATE_TAG_RESULT_SQL = <<~'SQL'
+    INSERT INTO tags (name, uses) VALUES (?, ?) RETURNING name
+  SQL
+
+  class CreateTagResultRow < ::Data.define(:name)
+  end
+
+  CREATE_EXCEPTION_SQL = <<~'SQL'
+    INSERT INTO exceptions (id) VALUES (NULL)
+  SQL
+
+  COUNT_EXCEPTIONS_SQL = <<~'SQL'
+    SELECT COUNT(*) AS n FROM exceptions
+  SQL
+
+  class CountExceptionsRow < ::Data.define(:n)
+  end
+
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
   SQL
 
-  class ManyParamsRow < Data.define(:c0, :c1)
+  class ManyParamsRow < ::Data.define(:c0, :c1)
   end
 
   MANY_ROWS_SQL = <<~'SQL'
@@ -413,7 +431,7 @@ module Sqlite3Codegen
     	  WHERE a = ?
   SQL
 
-  class ManyRowsRow < Data.define(
+  class ManyRowsRow < ::Data.define(
     :c0,
     :c1,
     :c2,
@@ -427,12 +445,12 @@ module Sqlite3Codegen
     	  WHERE a = 1
   SQL
 
-  class FourColsRow < Data.define(:c0, :c1, :c2, :c3)
+  class FourColsRow < ::Data.define(:c0, :c1, :c2, :c3)
   end
 
   class QuerySql
     # Raised by the bang variants (get_author!) when the query returns no row.
-    class NotFound < StandardError; end
+    class NotFound < ::StandardError; end
 
     # db: a SQLite3::Database (a single connection; threads and fibers using it take turns).
     # logger: optional, anything with #debug (Logger, Rails.logger); logs the name and duration of every query.
@@ -445,36 +463,40 @@ module Sqlite3Codegen
     # Runs the block in a transaction and returns its value: COMMIT when the block returns (also through
     # break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call becomes a
     # SAVEPOINT. mode: :deferred (default), :immediate or :exclusive. Other threads / fibers using the same
-    # database wait until it ends.
+    # database wait until it ends. Yields a copy of self whose queries run in the transaction, also from other
+    # fibers and threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
     def transaction(mode: nil)
-      raise ArgumentError, "unknown transaction mode: #{mode.inspect}" unless [nil, *TRANSACTION_MODES].include?(mode)
+      raise ::ArgumentError, "unknown transaction mode: #{mode.inspect}" unless [nil, *TRANSACTION_MODES].include?(mode)
 
       instrument('transaction') do
         @lock.synchronize do
           outermost = !@db.transaction_active?
-          raise ArgumentError, 'mode: cannot be set on a nested transaction' if mode && !outermost
+          raise ::ArgumentError, 'mode: cannot be set on a nested transaction' if mode && !outermost
 
           savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
           @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
           rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+          bound = TransactionConnection.new(@db) unless @lock.is_a?(TransactionConnection)
           failed = false
           begin
-            yield self
-          rescue Exception # rubocop:disable Lint/RescueException
+            bound ? yield(bound_to(bound)) : @lock.unlocked { yield self }
+          rescue ::Exception # rubocop:disable Lint/RescueException
             failed = true
+            bound&.close
             @db.execute(rollback) if @db.transaction_active? # ON CONFLICT ROLLBACK already ended it
             raise
           ensure
+            bound&.close
             unless failed
               commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-              @db.execute(Thread.current.status == 'aborting' ? rollback : commit)
+              @db.execute(::Thread.current.status == 'aborting' ? rollback : commit)
             end
           end
         end
       end
     end
 
-    class ExecResult < Data.define(:rows_affected, :last_insert_id)
+    class ExecResult < ::Data.define(:rows_affected, :last_insert_id)
     end
 
     # Returns the author with the given id, or nil when there is none.
@@ -706,7 +728,7 @@ module Sqlite3Codegen
       with_client('copy_authors') do |client|
         atomically(client) do
           rows.each_slice(499) do |batch|
-            sql = %(INSERT INTO "authors" ("name", "bio") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
+            sql = %(INSERT INTO "authors" ("name", "bio") VALUES #{::Array.new(batch.size, '(?, ?)').join(', ')})
             client.execute(sql, batch.flat_map { |row| [row.name, row.bio] })
           end
         end
@@ -718,7 +740,7 @@ module Sqlite3Codegen
       with_client('copy_authors_named') do |client|
         atomically(client) do
           rows.each_slice(499) do |batch|
-            sql = %(INSERT INTO "authors" ("name", "bio") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
+            sql = %(INSERT INTO "authors" ("name", "bio") VALUES #{::Array.new(batch.size, '(?, ?)').join(', ')})
             client.execute(sql, batch.flat_map { |row| [row.name, row.bio] })
           end
         end
@@ -948,7 +970,7 @@ module Sqlite3Codegen
       with_client('copy_regressions') do |client|
         atomically(client) do
           rows.each_slice(499) do |batch|
-            sql = %(INSERT INTO "regressions" ("order", "price") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
+            sql = %(INSERT INTO "regressions" ("order", "price") VALUES #{::Array.new(batch.size, '(?, ?)').join(', ')})
             client.execute(sql, batch.flat_map { |row| [row.order, row.price] })
           end
         end
@@ -1004,7 +1026,7 @@ module Sqlite3Codegen
       with_client('copy_regression_rows') do |client|
         atomically(client) do
           rows.each_slice(249) do |batch|
-            sql = %(INSERT INTO "regressions" ("id", "order", "price", "payload") VALUES #{Array.new(batch.size, '(?, ?, ?, ?)').join(', ')})
+            sql = %(INSERT INTO "regressions" ("id", "order", "price", "payload") VALUES #{::Array.new(batch.size, '(?, ?, ?, ?)').join(', ')})
             client.execute(sql, batch.flat_map { |row| [row.id, row.order, row.price, row.payload] })
           end
         end
@@ -1055,7 +1077,7 @@ module Sqlite3Codegen
       with_client('copy_tags_or_replace') do |client|
         atomically(client) do
           rows.each_slice(499) do |batch|
-            sql = %(INSERT OR REPLACE INTO "tags" ("name", "uses") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
+            sql = %(INSERT OR REPLACE INTO "tags" ("name", "uses") VALUES #{::Array.new(batch.size, '(?, ?)').join(', ')})
             client.execute(sql, batch.flat_map { |row| [row.name, row.uses] })
           end
         end
@@ -1067,7 +1089,7 @@ module Sqlite3Codegen
       with_client('copy_tags_or_ignore') do |client|
         atomically(client) do
           rows.each_slice(499) do |batch|
-            sql = %(INSERT OR IGNORE INTO "tags" ("name", "uses") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
+            sql = %(INSERT OR IGNORE INTO "tags" ("name", "uses") VALUES #{::Array.new(batch.size, '(?, ?)').join(', ')})
             client.execute(sql, batch.flat_map { |row| [row.name, row.uses] })
           end
         end
@@ -1079,7 +1101,7 @@ module Sqlite3Codegen
       with_client('copy_tags_adding_uses') do |client|
         atomically(client) do
           rows.each_slice(499) do |batch|
-            sql = %(INSERT INTO "tags" ("name", "uses") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')} ON CONFLICT (name) DO UPDATE SET uses = tags.uses + excluded.uses)
+            sql = %(INSERT INTO "tags" ("name", "uses") VALUES #{::Array.new(batch.size, '(?, ?)').join(', ')} ON CONFLICT (name) DO UPDATE SET uses = tags.uses + excluded.uses)
             client.execute(sql, batch.flat_map { |row| [row.name, row.uses] })
           end
         end
@@ -1294,6 +1316,49 @@ module Sqlite3Codegen
       end
     end
 
+    def create_tag_result(name:, uses:)
+      with_client('create_tag_result') do |client|
+        query_params = [name, uses]
+        stmt = client.prepare(CREATE_TAG_RESULT_SQL)
+        begin
+          execute_statement(stmt, *query_params).to_a
+          ExecResult.new(client.changes, client.last_insert_row_id)
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def create_exception
+      with_client('create_exception') do |client|
+        stmt = client.prepare(CREATE_EXCEPTION_SQL)
+        begin
+          execute_statement(stmt)
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def count_exceptions
+      with_client('count_exceptions') do |client|
+        stmt = client.prepare(COUNT_EXCEPTIONS_SQL)
+        begin
+          result = execute_statement(stmt)
+          row = result.first
+          row && CountExceptionsRow.new(row[0])
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    # Like #count_exceptions, but raises NotFound when there is no row.
+    def count_exceptions!(...)
+      count_exceptions(...) || raise(NotFound, 'CountExceptions returned no row')
+    end
+
     def many_params(c0:, c1:, c2:, c3:, c4:)
       with_client('many_params') do |client|
         query_params = [
@@ -1359,11 +1424,11 @@ module Sqlite3Codegen
     def instrument(name)
       return yield unless @logger
 
-      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       begin
         yield
       ensure
-        elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+        elapsed = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started) * 1000
         @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
       end
     end
@@ -1372,10 +1437,13 @@ module Sqlite3Codegen
       instrument(name) { @lock.synchronize { block.call(@db) } }
     end
 
+    # A copy of this query object whose queries run on the transaction's connection.
+    def bound_to(connection) = dup.tap { |tx| tx.instance_variable_set(:@lock, connection) }
+
     def execute_statement(stmt, *params)
       stmt.reset! if stmt.active? || stmt.done?
       stmt.bind_params(*params) unless params.empty?
-      result = SQLite3::ResultSet.new(@db, stmt)
+      result = ::SQLite3::ResultSet.new(@db, stmt)
       stmt.step if stmt.column_count.zero?
       result
     end
@@ -1393,7 +1461,7 @@ module Sqlite3Codegen
     end
 
     def slice_placeholders(values)
-      values.empty? ? 'SELECT NULL WHERE FALSE' : Array.new(values.size, '?').join(', ')
+      values.empty? ? 'SELECT NULL WHERE FALSE' : ::Array.new(values.size, '?').join(', ')
     end
   end
 end

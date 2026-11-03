@@ -15,12 +15,12 @@ module PgCodegen
 
   class My_queriesSql
     # Raised by the bang variants (get_author!) when the query returns no row.
-    class NotFound < StandardError; end
+    class NotFound < ::StandardError; end
 
     # Opens a pool of connections: QuerySql.connect({ dbname: 'app' }, size: 5, timeout: 5, logger: Logger.new($stdout))
     # (pool_options go to ConnectionPool.new). To share an existing pool use QuerySql.new(pool).
     def self.connect(pg_params, logger: nil, **pool_options)
-      new(ConnectionPool.new(**pool_options) { PG.connect(**pg_params) }, logger: logger)
+      new(::ConnectionPool.new(**pool_options) { ::PG.connect(**pg_params) }, logger: logger)
     end
 
     # db: a ConnectionPool (or anything that responds to #with and yields a PG::Connection).
@@ -32,11 +32,12 @@ module PgCodegen
 
     # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
     # (also through break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call
-    # becomes a SAVEPOINT. Yields self, bound to that connection.
+    # becomes a SAVEPOINT. Yields a copy of self whose queries run in the transaction, also from other fibers and
+    # threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
     def transaction(isolation: nil)
       with_client('transaction') do |client|
-        outermost = client.transaction_status == PG::PQTRANS_IDLE
-        raise ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
+        outermost = client.transaction_status == ::PG::PQTRANS_IDLE
+        raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
 
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         if outermost
@@ -47,31 +48,34 @@ module PgCodegen
         entered = !client.in_transaction
         client.in_transaction = true
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        bound = TransactionConnection.new(client) unless @db.is_a?(TransactionConnection)
         failed = false
         completed = false
         begin
-          result = yield self
+          result = bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
           completed = true
           result
-        rescue Exception # rubocop:disable Lint/RescueException
+        rescue ::Exception # rubocop:disable Lint/RescueException
           failed = true
-          client.cancel if client.transaction_status == PG::PQTRANS_ACTIVE
-          client.exec(rollback) unless client.status == PG::CONNECTION_BAD # the server already rolled back
+          bound&.close
+          client.cancel if client.transaction_status == ::PG::PQTRANS_ACTIVE
+          client.exec(rollback) unless client.status == ::PG::CONNECTION_BAD # the server already rolled back
           raise
         ensure
+          bound&.close
           client.in_transaction = false if entered
           if failed
             nil
-          elsif client.status == PG::CONNECTION_BAD
+          elsif client.status == ::PG::CONNECTION_BAD
             # the block rescued the error of a lost connection: the server rolled the transaction back
-            raise PG::ConnectionBad, 'transaction rolled back: the connection was lost' if Thread.current.status != 'aborting'
+            raise ::PG::ConnectionBad, 'transaction rolled back: the connection was lost' if ::Thread.current.status != 'aborting'
           else
             # a statement failed and the block rescued the error: PostgreSQL can only roll back
-            rescued = client.transaction_status == PG::PQTRANS_INERROR
+            rescued = client.transaction_status == ::PG::PQTRANS_INERROR
             commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-            client.exec(rescued || Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
+            client.exec(rescued || ::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
             client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
-            raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && Thread.current.status != 'aborting'
+            raise ::PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && ::Thread.current.status != 'aborting'
           end
         end
       end
@@ -94,11 +98,11 @@ module PgCodegen
     def instrument(name)
       return yield unless @logger
 
-      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       begin
         yield
       ensure
-        elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+        elapsed = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started) * 1000
         @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
       end
     end
@@ -106,46 +110,48 @@ module PgCodegen
     def with_client(name)
       instrument(name) do
         @db.with do |client|
-          if client.status == PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
+          if client.status == ::PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
             # inside #transaction a new session would run the rest of the block outside the transaction
-            raise PG::ConnectionBad, 'the connection was lost inside a transaction' if client.is_a?(ConnectionState) && client.in_transaction
+            raise ::PG::ConnectionBad, 'the connection was lost inside a transaction' if client.is_a?(ConnectionState) && client.in_transaction
 
             client.reset
           end
           configure(client) unless client.is_a?(ConnectionState)
           begin
             yield client
-          rescue Exception # rubocop:disable Lint/RescueException
+          rescue ::Exception # rubocop:disable Lint/RescueException
             # a query left by Timeout / Thread#raise keeps running: cancel it before the connection is reused
-            client.cancel if client.transaction_status == PG::PQTRANS_ACTIVE
+            client.cancel if client.transaction_status == ::PG::PQTRANS_ACTIVE
             raise
           end
         end
       end
     end
 
+    # A copy of this query object whose queries run on the transaction's connection.
+    def bound_to(connection) = dup.tap { |tx| tx.instance_variable_set(:@db, connection) }
+
     # Connections of an injected pool are set up on first use: typed results and Ruby arrays as parameters.
     def configure(client)
-      type_map = PG::BasicTypeMapForResults.new(client)
+      type_map = ::PG::BasicTypeMapForResults.new(client)
       type_map.default_type_map = string_arrays(client) # uuid, enums, money, ... come back as Strings
       client.type_map_for_results = type_map
-      queries = PG::BasicTypeMapForQueries.new(client)
+      queries = ::PG::BasicTypeMapForQueries.new(client)
       # true / false as text ('t' / 'f'), also valid in COPY (the default binary encoder is not)
-      queries[TrueClass] = queries[FalseClass] = PG::TextEncoder::Boolean.new(oid: 16)
+      queries[::TrueClass] = queries[::FalseClass] = ::PG::TextEncoder::Boolean.new(oid: 16)
       client.type_map_for_queries = queries
       client.extend(ConnectionState)
     end
 
     # Arrays of types without a decoder (uuid[], enum[], ...) become Arrays of Strings, other types Strings.
     def string_arrays(client)
-      strings = PG::TypeMapAllStrings.new
-      arrays = PG::TypeMapByOid.new
-      client.exec("SELECT oid, typdelim FROM pg_type WHERE typcategory = 'A'", [], 0, strings).each do |row|
-        arrays.add_coder(PG::TextDecoder::Array.new(oid: row['oid'].to_i, delimiter: row['typdelim'],
-                                                    elements_type: PG::TextDecoder::String.new))
+      strings = ::PG::TypeMapAllStrings.new
+      known = ::PG::TypeMapByOid.new
+      client.exec('SELECT oid, typcategory, typdelim FROM pg_type', [], 0, strings).each do |row|
+        known.add_coder(NewTypes.decoder(row['oid'].to_i, row['typcategory'], row['typdelim']))
       end
-      arrays.default_type_map = strings
-      arrays
+      known.default_type_map = NewTypes.new(client, known)
+      known
     end
 
     def timeout_exits_with_throw?

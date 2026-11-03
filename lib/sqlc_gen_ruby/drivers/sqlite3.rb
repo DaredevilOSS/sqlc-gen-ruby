@@ -12,7 +12,7 @@ module SqlcGenRuby
 
       def name = 'Sqlite3'
 
-      def module_members = [[CONNECTION_LOCK, CONNECTION_LOCK_RBS]]
+      def module_members = [[CONNECTION_LOCK, CONNECTION_LOCK_RBS], [TRANSACTION_CONNECTION, TRANSACTION_CONNECTION_RBS]]
 
       def extra_requires(_queries, _ruby_version) = %w[monitor]
 
@@ -25,11 +25,11 @@ module SqlcGenRuby
       def class_methods(ruby_version)
         transaction = legacy_transaction_template(
           TRANSACTION, ruby_version,
-          "Thread.current.status == 'aborting' ? rollback : commit",
-          "Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit"
+          "::Thread.current.status == 'aborting' ? rollback : commit",
+          "::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit"
         )
         [
-          [NOT_FOUND, "class NotFound < StandardError\nend"],
+          [NOT_FOUND, "class NotFound < ::StandardError\nend"],
           [INITIALIZE, 'def initialize: (untyped db, ?logger: untyped) -> void'],
           [transaction, "def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (self) -> T } -> T"]
         ]
@@ -39,7 +39,8 @@ module SqlcGenRuby
         [
           [INSTRUMENT, INSTRUMENT_RBS],
           ["def with_client(name, &block)\n  instrument(name) { @lock.synchronize { block.call(@db) } }\nend",
-           'def with_client: [T] (String name) { (untyped) -> T } -> T'],
+           'def with_client: [T] (::String name) { (untyped) -> T } -> T'],
+          bound_to_method('@lock'),
           [EXECUTE_STATEMENT, 'def execute_statement: (untyped stmt, *untyped params) -> untyped'],
           *timeout_exit_methods(ruby_version)
         ]
@@ -57,7 +58,7 @@ module SqlcGenRuby
         def execute_statement(stmt, *params)
           stmt.reset! if stmt.active? || stmt.done?
           stmt.bind_params(*params) unless params.empty?
-          result = SQLite3::ResultSet.new(@db, stmt)
+          result = ::SQLite3::ResultSet.new(@db, stmt)
           stmt.step if stmt.column_count.zero?
           result
         end
@@ -189,7 +190,9 @@ module SqlcGenRuby
 
       def exec_rows_lines(exec, query) = [query.columns.empty? ? exec : "#{exec}.to_a", 'client.changes']
 
-      def exec_result_lines(exec) = [exec, 'client.changes', 'client.last_insert_row_id']
+      def exec_result_lines(exec, query)
+        [query.columns.empty? ? exec : "#{exec}.to_a", 'client.changes', 'client.last_insert_row_id']
+      end
 
       # Relies on a user-written `RETURNING <id>`.
       def exec_last_id_lines(exec, query)
@@ -209,7 +212,7 @@ module SqlcGenRuby
         placeholders = "(#{(['?'] * columns.size).join(', ')})"
         tail = tail.empty? ? '' : " #{tail.gsub('\\') { '\\\\' }.gsub('#', '\\#')}"
         body = [
-          "sql = %(#{verb} INTO #{table} (#{columns.join(', ')}) VALUES \#{Array.new(batch.size, '#{placeholders}').join(', ')}#{tail})",
+          "sql = %(#{verb} INTO #{table} (#{columns.join(', ')}) VALUES \#{::Array.new(batch.size, '#{placeholders}').join(', ')}#{tail})",
           "client.execute(sql, batch.flat_map { |row| [#{values.join(', ')}] })"
         ].join("\n")
         [Code.block('atomically(client) do', Code.block("#{rows_var}.each_slice(#{rows_per_batch}) do |batch|", body)), 'nil']
@@ -229,29 +232,33 @@ module SqlcGenRuby
         # Runs the block in a transaction and returns its value: COMMIT when the block returns (also through
         # break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call becomes a
         # SAVEPOINT. mode: :deferred (default), :immediate or :exclusive. Other threads / fibers using the same
-        # database wait until it ends.
+        # database wait until it ends. Yields a copy of self whose queries run in the transaction, also from other
+        # fibers and threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
         def transaction(mode: nil)
-          raise ArgumentError, "unknown transaction mode: #{mode.inspect}" unless [nil, *TRANSACTION_MODES].include?(mode)
+          raise ::ArgumentError, "unknown transaction mode: #{mode.inspect}" unless [nil, *TRANSACTION_MODES].include?(mode)
 
           instrument('transaction') do
             @lock.synchronize do
               outermost = !@db.transaction_active?
-              raise ArgumentError, 'mode: cannot be set on a nested transaction' if mode && !outermost
+              raise ::ArgumentError, 'mode: cannot be set on a nested transaction' if mode && !outermost
 
               savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
               @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
               rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+              bound = TransactionConnection.new(@db) unless @lock.is_a?(TransactionConnection)
               failed = false
               begin
-                yield self
-              rescue Exception # rubocop:disable Lint/RescueException
+                bound ? yield(bound_to(bound)) : @lock.unlocked { yield self }
+              rescue ::Exception # rubocop:disable Lint/RescueException
                 failed = true
+                bound&.close
                 @db.execute(rollback) if @db.transaction_active? # ON CONFLICT ROLLBACK already ended it
                 raise
               ensure
+                bound&.close
                 unless failed
                   commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-                  @db.execute(Thread.current.status == 'aborting' ? rollback : commit)
+                  @db.execute(::Thread.current.status == 'aborting' ? rollback : commit)
                 end
               end
             end
@@ -263,7 +270,7 @@ module SqlcGenRuby
       # database (a Monitor, owned per Fiber, so a transaction's own queries re-enter it).
       CONNECTION_LOCK = <<~'RUBY'.chomp
         module ConnectionLock
-          MUTEX = Mutex.new
+          MUTEX = ::Mutex.new
 
           def self.for(db)
             MUTEX.synchronize do
@@ -272,7 +279,7 @@ module SqlcGenRuby
             end
           end
 
-          def sqlc_lock = @sqlc_lock ||= Monitor.new
+          def sqlc_lock = @sqlc_lock ||= ::Monitor.new
         end
 
         TRANSACTION_MODES = %i[deferred immediate exclusive].freeze
@@ -280,14 +287,14 @@ module SqlcGenRuby
 
       CONNECTION_LOCK_RBS = <<~'RBS'.chomp
         module ConnectionLock
-          MUTEX: Thread::Mutex
-          @sqlc_lock: Monitor
+          MUTEX: ::Thread::Mutex
+          @sqlc_lock: ::Monitor
 
-          def self.for: (untyped db) -> Monitor
-          def sqlc_lock: () -> Monitor
+          def self.for: (untyped db) -> ::Monitor
+          def sqlc_lock: () -> ::Monitor
         end
 
-        TRANSACTION_MODES: Array[Symbol]
+        TRANSACTION_MODES: ::Array[::Symbol]
       RBS
 
       # All rows or none: a SAVEPOINT is a transaction of its own outside #transaction.

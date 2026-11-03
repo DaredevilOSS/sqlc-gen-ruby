@@ -26,17 +26,17 @@ class TestSqlite3 < Minitest::Test
   end
 
   def assert_row_layout(row)
-    if defined?(Data) && row.is_a?(Data)
+    if defined?(::Data) && row.is_a?(::Data)
       assert_predicate row, :frozen?
       assert_equal row.to_h, row.with.to_h
     else
-      assert_kind_of Struct, row
+      assert_kind_of ::Struct, row
       assert row.class.keyword_init?
       refute_predicate row, :frozen?
     end
     case row
     in { id:, name: }
-      assert_kind_of Integer, id
+      assert_kind_of ::Integer, id
       assert_equal row.name, name
     else
       flunk 'row did not support keyword pattern matching'
@@ -110,9 +110,9 @@ class TestSqlite3 < Minitest::Test
   def test_execlastid_returns_the_returning_column
     first = create_author('a')
     second = create_author('b')
-    assert_kind_of Integer, first
+    assert_kind_of ::Integer, first
     assert_equal first + 1, second
-    assert_kind_of Integer, @query_sql.create_book(name: 'book', author_id: first)
+    assert_kind_of ::Integer, @query_sql.create_book(name: 'book', author_id: first)
   end
 
   def test_execresult_returns_rows_affected_and_last_id
@@ -180,7 +180,7 @@ class TestSqlite3 < Minitest::Test
              camel_case: 'camel', http_server: 'server' }
     @query_sql.insert_name_case(**args)
     row = @query_sql.get_name_case(**args)
-    count_member = row.is_a?(Struct) ? :count_ : :count
+    count_member = row.is_a?(::Struct) ? :count_ : :count
     assert_equal %i[id class_ end hash_ method_].concat([count_member, :camelCase, :HTTPServer]), row.class.members
     assert_equal %w[class end hash method], %i[class_ end hash_ method_].map { |member| row.public_send(member) }
     assert_equal 7, row.public_send(count_member)
@@ -443,7 +443,7 @@ class TestSqlite3 < Minitest::Test
     db.execute_batch(SCHEMA)
     queries = QuerySql.new(db)
     id = queries.create_author_return_id(name: 'hash', bio: 'rows')
-    assert_kind_of Integer, id
+    assert_kind_of ::Integer, id
     assert_equal row_for(GetAuthorRow, [id, 'hash', 'rows']), queries.get_author(id: id)
     queries.create_book(name: 'book', author_id: id)
     row = queries.list_all_authors_books.first
@@ -525,7 +525,7 @@ class TestSqlite3 < Minitest::Test
   def test_threads_sharing_a_database_take_turns_in_transactions
     other = QuerySql.new(@db)
     threads = Array.new(8) do |i|
-      Thread.new do
+      ::Thread.new do
         20.times do |j|
           (i.even? ? @query_sql : other).transaction do |tx|
             tx.transaction { tx.create_author_return_id(name: "t#{i}-#{j}", bio: nil) }
@@ -597,7 +597,7 @@ class TestSqlite3 < Minitest::Test
 
   def test_thread_kill_rolls_back_and_leaves_connection_inactive
     started = Queue.new
-    thread = Thread.new do
+    thread = ::Thread.new do
       @query_sql.transaction do |tx|
         tx.create_author_return_id(name: 'killed', bio: nil)
         started << true
@@ -684,7 +684,7 @@ class TestSqlite3 < Minitest::Test
       end
     end.sort
     threads = plan.each_with_index.map do |actions, thread_index|
-      Thread.new do
+      ::Thread.new do
         actions.each_with_index do |action, index|
           name = names[thread_index][index]
           begin
@@ -745,5 +745,54 @@ class TestSqlite3 < Minitest::Test
     end
     refute_predicate @db, :transaction_active?
     assert_equal ['a'], @query_sql.list_authors.map(&:name)
+  end
+
+  # Models named like Ruby core / library constants (Exception, Data, Thread, ...) used to shadow the constants the
+  # generated code relies on: a raise in a transaction committed, or the code did not even load.
+  CORE_NAMED_MODELS = %i[Exception StandardError Thread Process Data Struct Set String Integer Time Encoding Monitor
+                         Mutex ConnectionPool].freeze
+
+  def test_models_named_like_core_constants_do_not_shadow_them
+    codegen = Object.const_get(ENV.fetch('EXAMPLES_MODULE', 'Sqlite3Codegen'))
+    CORE_NAMED_MODELS.each { |name| assert_equal [:id], codegen.const_get(name, false).members, name }
+    assert_raises(::ArgumentError) do
+      @query_sql.transaction do |tx|
+        tx.create_exception
+        raise ::ArgumentError
+      end
+    end
+    assert_equal 0, @query_sql.count_exceptions.n
+    @query_sql.transaction(&:create_exception)
+    assert_equal 1, @query_sql.count_exceptions!.n
+    assert_raises(QuerySql::NotFound) { @query_sql.get_author!(id: -1) }
+    log = ::StringIO.new
+    QuerySql.new(@db, logger: Logger.new(log)).count_exceptions
+    assert_includes log.string, 'count_exceptions'
+  end
+
+  def test_execresult_with_returning_runs_the_statement
+    result = @query_sql.create_tag_result(name: 'ruby', uses: 3)
+    assert_equal 1, result.rows_affected
+    assert_kind_of ::Integer, result.last_insert_id
+    assert_equal [['ruby', 3]], @query_sql.list_tags.map { |t| [t.name, t.uses] }
+  end
+
+  # The query object #transaction yields keeps its queries in the transaction from other fibers and threads (they
+  # used to check another connection out of the pool and commit on their own) and fails once the transaction ended.
+  def test_transaction_query_object_works_from_other_fibers_and_threads
+    assert_raises(::ArgumentError) do
+      @query_sql.transaction do |tx|
+        ::Enumerator.new { |y| y << tx.create_exception }.next
+        ::Fiber.new { tx.create_exception }.resume
+        ::Thread.new { tx.create_exception }.join
+        Sync { Async { tx.create_exception }.wait }
+        tx.transaction { ::Enumerator.new { |y| y << tx.create_exception }.next }
+        assert_equal 5, tx.count_exceptions!.n
+        raise ::ArgumentError
+      end
+    end
+    assert_equal 0, @query_sql.count_exceptions!.n
+    leaked = @query_sql.transaction { |tx| tx }
+    assert_raises(TransactionEnded) { leaked.count_exceptions }
   end
 end

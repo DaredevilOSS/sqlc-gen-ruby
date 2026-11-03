@@ -4,5 +4,23 @@ module Mysql2Codegen
     attr_accessor in_transaction: bool
   end
 
-  ISOLATION_LEVELS: Hash[Symbol, String]
+  class TransactionEnded < ::StandardError
+  end
+
+  class TransactionConnection
+    @client: untyped
+    @mutex: ::Thread::Mutex
+
+    def initialize: (untyped client) -> void
+    def with: [T] () { (untyped) -> T } -> T
+    def synchronize: [T] () { () -> T } -> T
+    def unlocked: [T] () { () -> T } -> T
+    def close: () -> void
+
+    private
+
+    def client: () -> untyped
+  end
+
+  ISOLATION_LEVELS: ::Hash[::Symbol, ::String]
 end

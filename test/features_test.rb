@@ -12,7 +12,7 @@ class FeaturesTest < Minitest::Test
 
   def test_nullable_columns_get_optional_types
     rbs = generate(load_request('pg')).fetch('query_sql.rbs')
-    assert_match(/class GetAuthorRow\n\s+attr_reader id: Integer\n\s+attr_reader name: String\n\s+attr_reader bio: String\?/, rbs)
+    assert_match(/class GetAuthorRow\n\s+attr_reader id: ::Integer\n\s+attr_reader name: ::String\n\s+attr_reader bio: ::String\?/, rbs)
   end
 
   def test_overrides_replace_type_and_nullability
@@ -20,7 +20,7 @@ class FeaturesTest < Minitest::Test
                  { column: '*:name', ruby_type: { type: 'Pathname', notNull: false } }]
     rbs = generate(load_request('pg', overrides: overrides)).fetch('query_sql.rbs')
     assert_match(/class GetAuthorRow\n.*\n\s+attr_reader name: Pathname\?\n\s+attr_reader bio: Symbol\n/, rbs)
-    assert_match(/class ListAuthorsRow\n.*\n\s+attr_reader name: Pathname\?\n\s+attr_reader bio: String\?\n/, rbs)
+    assert_match(/class ListAuthorsRow\n.*\n\s+attr_reader name: Pathname\?\n\s+attr_reader bio: ::String\?\n/, rbs)
   end
 
   def test_invalid_overrides_are_rejected
@@ -29,8 +29,8 @@ class FeaturesTest < Minitest::Test
 
   def test_array_parameters_and_columns
     rbs = generate(load_request('pg')).fetch('query_sql.rbs')
-    assert_includes rbs, 'def get_authors_by_ids: (param1: Array[Integer]) -> Array[GetAuthorsByIdsRow]'
-    assert_includes rbs, 'attr_reader c_text_array: Array[String]?'
+    assert_includes rbs, 'def get_authors_by_ids: (param1: ::Array[::Integer]) -> ::Array[GetAuthorsByIdsRow]'
+    assert_includes rbs, 'attr_reader c_text_array: ::Array[::String]?'
   end
 
   def test_unnamed_parameters_get_positional_names
@@ -40,10 +40,10 @@ class FeaturesTest < Minitest::Test
 
   def test_models_cover_tables_and_enums
     pg = generate(load_request('pg'))
-    assert_includes pg.fetch('models.rb'), 'class Author < Data.define(:id, :name, :bio)'
+    assert_includes pg.fetch('models.rb'), 'class Author < ::Data.define(:id, :name, :bio)'
     assert_includes pg.fetch('models.rb'), "AUTOBIOGRAPHY = 'Autobiography'"
     assert_includes pg.fetch('models.rb'), 'module ExtendedBioType'
-    assert_includes pg.fetch('models.rbs'), 'attr_reader bio_type: String?'
+    assert_includes pg.fetch('models.rbs'), 'attr_reader bio_type: ::String?'
     assert_includes pg.fetch('query_sql.rb'), "require_relative 'models'"
     mysql = generate(load_request('mysql2')).fetch('models.rb')
     assert_includes mysql, 'module ExtendedBiosBioType'
@@ -67,18 +67,18 @@ class FeaturesTest < Minitest::Test
 
   def test_more_postgres_types_composites_and_domains
     rbs = generate(load_request('pg')).fetch('query_sql.rbs')
-    %w[c_timetz c_tsvector c_point c_int4range c_dimensions].each { |c| assert_includes rbs, "attr_reader #{c}: String?" }
-    assert_includes rbs, 'attr_reader c_oid: Integer?'
+    %w[c_timetz c_tsvector c_point c_int4range c_dimensions].each { |c| assert_includes rbs, "attr_reader #{c}: ::String?" }
+    assert_includes rbs, 'attr_reader c_oid: ::Integer?'
     assert_includes rbs, 'attr_reader c_positive: untyped' # sqlc does not send the base type of a domain
   end
 
   def test_sqlite_declared_types_follow_type_affinity
     rbs = generate(load_request('sqlite3')).fetch('query_sql.rbs')
-    assert_match(/attr_reader c_varchar: String\?\n\s+attr_reader c_decimal: Float\?\n\s+attr_reader c_unsigned_big_int: Integer\?/, rbs)
+    assert_match(/attr_reader c_varchar: ::String\?\n\s+attr_reader c_decimal: ::Float\?\n\s+attr_reader c_unsigned_big_int: ::Integer\?/, rbs)
     request = load_request('sqlite3')
     query(request, 'GetAuthor').columns.first.type.name = 'MEDIUMINT(4)'
     query(request, 'GetAuthor').columns[1].type.name = 'STRING'
-    assert_match(/class GetAuthorRow\n\s+attr_reader id: Integer\n\s+attr_reader name: Float\n/, generate(request).fetch('query_sql.rbs'))
+    assert_match(/class GetAuthorRow\n\s+attr_reader id: ::Integer\n\s+attr_reader name: ::Float\n/, generate(request).fetch('query_sql.rbs'))
   end
 
   def test_execresult_returns_rows_affected_and_last_insert_id
@@ -86,8 +86,8 @@ class FeaturesTest < Minitest::Test
       'sqlite3' => 'ExecResult.new(client.changes, client.last_insert_row_id)' }.each do |driver, line|
       files = generate(load_request(driver))
       assert_includes files.fetch('query_sql.rb'), line
-      assert_includes files.fetch('query_sql.rb'), 'class ExecResult < Data.define(:rows_affected, :last_insert_id)'
-      assert_includes files.fetch('query_sql.rbs'), 'def create_author_result: (name: String, bio: String?) -> ExecResult'
+      assert_includes files.fetch('query_sql.rb'), 'class ExecResult < ::Data.define(:rows_affected, :last_insert_id)'
+      assert_includes files.fetch('query_sql.rbs'), 'def create_author_result: (name: ::String, bio: ::String?) -> ExecResult'
     end
   end
 
@@ -95,20 +95,20 @@ class FeaturesTest < Minitest::Test
     %w[pg mysql2 sqlite3].each do |driver|
       files = generate(load_request(driver))
       rbs = files.fetch('query_sql.rbs')
-      assert_includes rbs, 'def create_authors_batch: (Array[CreateAuthorsBatchArgs] rows) -> void'
-      assert_includes rbs, 'def get_author_batch: (Array[GetAuthorBatchArgs] rows) -> Array[GetAuthorBatchRow?]'
-      assert_includes rbs, 'def list_authors_by_name_batch: (Array[ListAuthorsByNameBatchArgs] rows) -> ' \
-                           'Array[Array[ListAuthorsByNameBatchRow]]'
-      assert_includes files.fetch('query_sql.rb'), 'class CreateAuthorsBatchArgs < Data.define(:name, :bio)'
+      assert_includes rbs, 'def create_authors_batch: (::Array[CreateAuthorsBatchArgs] rows) -> void'
+      assert_includes rbs, 'def get_author_batch: (::Array[GetAuthorBatchArgs] rows) -> ::Array[GetAuthorBatchRow?]'
+      assert_includes rbs, 'def list_authors_by_name_batch: (::Array[ListAuthorsByNameBatchArgs] rows) -> ' \
+                           '::Array[::Array[ListAuthorsByNameBatchRow]]'
+      assert_includes files.fetch('query_sql.rb'), 'class CreateAuthorsBatchArgs < ::Data.define(:name, :bio)'
       assert_includes files.fetch('query_sql.rb'), "rows.map do |args|\n"
     end
   end
 
   def test_embedded_tables_become_model_attributes
     rb = generate(load_request('pg')).fetch('query_sql.rb')
-    assert_includes rb, 'class ListAllAuthorsBooksRow < Data.define(:author, :book)'
-    assert_includes rb, 'class GetDuplicateAuthorsRow < Data.define(:author, :author2)'
-    assert_includes rb, 'class GetAuthorsByBookNameRow < Data.define(:id, :name, :bio, :book)'
+    assert_includes rb, 'class ListAllAuthorsBooksRow < ::Data.define(:author, :book)'
+    assert_includes rb, 'class GetDuplicateAuthorsRow < ::Data.define(:author, :author2)'
+    assert_includes rb, 'class GetAuthorsByBookNameRow < ::Data.define(:id, :name, :bio, :book)'
     assert_includes rb, 'GetDuplicateAuthorsRow.new(Author.new(row[0], row[1], row[2]), Author.new(row[3], row[4], row[5]))'
   end
 
@@ -116,8 +116,8 @@ class FeaturesTest < Minitest::Test
     files = generate(load_request('mysql2'))
     assert_includes files.fetch('query_sql.rb'), "sql = GET_AUTHORS_BY_IDS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))"
     assert_includes files.fetch('query_sql.rb'), 'query_params = [*ids]'
-    assert_includes files.fetch('query_sql.rbs'), 'def get_authors_by_ids: (ids: Array[Integer]) -> Array[GetAuthorsByIdsRow]'
-    assert_includes files.fetch('query_sql.rbs'), 'def slice_placeholders: (Array[untyped] values) -> String'
+    assert_includes files.fetch('query_sql.rbs'), 'def get_authors_by_ids: (ids: ::Array[::Integer]) -> ::Array[GetAuthorsByIdsRow]'
+    assert_includes files.fetch('query_sql.rbs'), 'def slice_placeholders: (::Array[untyped] values) -> ::String'
   end
 
   def test_slices_are_rejected_for_postgres
@@ -128,20 +128,20 @@ class FeaturesTest < Minitest::Test
 
   def test_command_signatures
     rbs = generate(load_request('pg')).fetch('query_sql.rbs')
-    assert_includes rbs, 'def get_author: (id: Integer) -> GetAuthorRow?'
-    assert_includes rbs, 'def update_author_bios: (bio: String?) -> Integer'
-    assert_includes rbs, 'def create_author_return_id: (name: String, bio: String?) -> Integer'
-    assert_includes rbs, 'def create_book: (name: String, author_id: Integer) -> String'
-    assert_includes rbs, 'def copy_authors: (Array[CopyAuthorsArgs] rows) -> void'
-    assert_includes rbs, 'def list_authors: -> Array[ListAuthorsRow]'
-    assert_includes rbs, 'def delete_author: (id: Integer) -> void'
+    assert_includes rbs, 'def get_author: (id: ::Integer) -> GetAuthorRow?'
+    assert_includes rbs, 'def update_author_bios: (bio: ::String?) -> ::Integer'
+    assert_includes rbs, 'def create_author_return_id: (name: ::String, bio: ::String?) -> ::Integer'
+    assert_includes rbs, 'def create_book: (name: ::String, author_id: ::Integer) -> ::String'
+    assert_includes rbs, 'def copy_authors: (::Array[CopyAuthorsArgs] rows) -> void'
+    assert_includes rbs, 'def list_authors: -> ::Array[ListAuthorsRow]'
+    assert_includes rbs, 'def delete_author: (id: ::Integer) -> void'
     assert_includes rbs, 'def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | :serializable)?) { (self) -> T } -> T'
   end
 
   def test_named_nullable_parameters_are_optional_keywords
     files = generate(load_request('pg'))
     assert_includes files.fetch('query_sql.rb'), 'def get_author_by_name_pattern(name_pattern: nil)'
-    assert_includes files.fetch('query_sql.rbs'), 'def get_author_by_name_pattern: (?name_pattern: String?) -> Array[GetAuthorByNamePatternRow]'
+    assert_includes files.fetch('query_sql.rbs'), 'def get_author_by_name_pattern: (?name_pattern: ::String?) -> ::Array[GetAuthorByNamePatternRow]'
     # a plain nullable INSERT column has to be passed explicitly
     assert_includes files.fetch('query_sql.rb'), 'def create_author_return_id(name:, bio:)'
   end
@@ -188,7 +188,7 @@ class FeaturesTest < Minitest::Test
   def test_returning_last_id_is_optional_when_no_row_is_returned
     %w[pg sqlite3].each do |driver|
       rbs = generate(load_request(driver)).fetch('query_sql.rbs')
-      assert_match(/def create_author_return_id: .*-> Integer\?/, rbs)
+      assert_match(/def create_author_return_id: .*-> ::Integer\?/, rbs)
     end
   end
 
@@ -281,8 +281,8 @@ class FeaturesTest < Minitest::Test
   # Ruby < 3.2 has no Data: rows are keyword_init Structs, built with keywords like Data rows.
   def test_struct_classes_are_valid_and_usable
     files = generate(load_request('pg', rubyVersion: '3.1'))
-    assert_includes files.fetch('models.rb'), 'Author = Struct.new(:id, :name, :bio, keyword_init: true)'
-    assert_includes files.fetch('query_sql.rb'), 'GetAuthorRow = Struct.new(:id, :name, :bio, keyword_init: true)'
+    assert_includes files.fetch('models.rb'), 'Author = ::Struct.new(:id, :name, :bio, keyword_init: true)'
+    assert_includes files.fetch('query_sql.rb'), 'GetAuthorRow = ::Struct.new(:id, :name, :bio, keyword_init: true)'
     assert_includes files.fetch('query_sql.rb'), "GetAuthorRow.new(id: row['id'], name: row['name'], bio: row['bio'])"
     assert_includes files.fetch('models.rbs'), "class Author < ::Struct[untyped]\n"
     scope = Module.new
@@ -308,8 +308,8 @@ class FeaturesTest < Minitest::Test
     %w[pg mysql2 sqlite3].each do |driver|
       files = generate(load_request(driver))
       assert_includes files.fetch('query_sql.rb'), "def get_author!(...)\n      get_author(...) || raise(NotFound, 'GetAuthor returned no row')"
-      assert_includes files.fetch('query_sql.rb'), 'class NotFound < StandardError'
-      assert_includes files.fetch('query_sql.rbs'), 'def get_author!: (id: Integer) -> GetAuthorRow'
+      assert_includes files.fetch('query_sql.rb'), 'class NotFound < ::StandardError'
+      assert_includes files.fetch('query_sql.rbs'), 'def get_author!: (id: ::Integer) -> GetAuthorRow'
       refute_includes files.fetch('query_sql.rb'), 'def list_authors!' # only :one queries
     end
   end
@@ -320,7 +320,7 @@ class FeaturesTest < Minitest::Test
       assert_includes rb, 'def initialize(db, logger: nil)'
       assert_includes rb, "with_client('get_author') do |client|"
       assert_includes rb, 'def instrument(name)'
-      assert_includes generate(load_request(driver)).fetch('query_sql.rbs'), 'def instrument: [T] (String name) { () -> T } -> T'
+      assert_includes generate(load_request(driver)).fetch('query_sql.rbs'), 'def instrument: [T] (::String name) { () -> T } -> T'
     end
     assert_includes generate(load_request('pg')).fetch('query_sql.rb'), 'def self.connect(pg_params, logger: nil, **pool_options)'
   end
@@ -356,15 +356,15 @@ class FeaturesTest < Minitest::Test
     author = tables.find { |t| t.rel.name == 'authors' }
     tables << Plugin::Table.new(rel: Plugin::Identifier.new(name: 'author'), columns: author.columns)
     models = generate(request).fetch('models.rb')
-    assert_includes models, 'class Authors < Data.define(:id, :name, :bio)'
-    assert_includes models, 'class Author < Data.define(:id, :name, :bio)'
+    assert_includes models, 'class Authors < ::Data.define(:id, :name, :bio)'
+    assert_includes models, 'class Author < ::Data.define(:id, :name, :bio)'
     assert_equal 0, ruby_syntax_check(models)
   end
 
   def test_repeated_parameter_names_get_a_suffix
     files = generate(load_request('pg'))
     assert_includes files.fetch('query_sql.rb'), 'def list_authors_between_ids(id:, id_2:)'
-    assert_includes files.fetch('query_sql.rbs'), 'def list_authors_between_ids: (id: Integer, id_2: Integer) -> Array[ListAuthorsBetweenIdsRow]'
+    assert_includes files.fetch('query_sql.rbs'), 'def list_authors_between_ids: (id: ::Integer, id_2: ::Integer) -> ::Array[ListAuthorsBetweenIdsRow]'
   end
 
   def test_outer_join_embeds_are_optional
@@ -376,7 +376,7 @@ class FeaturesTest < Minitest::Test
 
   def test_multi_dimensional_arrays
     assert_includes generate(load_request('pg')).fetch('query_sql.rbs'),
-                    'attr_reader c_integer_matrix: Array[Array[Integer]]?'
+                    'attr_reader c_integer_matrix: ::Array[::Array[::Integer]]?'
   end
 
   def test_table_column_and_db_type_overrides_apply_to_models_and_rows
@@ -393,11 +393,11 @@ class FeaturesTest < Minitest::Test
 
   def test_rename_and_exact_table_names
     files = generate(load_request('pg', rename: { 'authors' => 'Writer', 'bio' => 'biography' }))
-    assert_includes files.fetch('models.rb'), 'class Writer < Data.define(:id, :name, :biography)'
-    assert_includes files.fetch('query_sql.rb'), 'class GetAuthorRow < Data.define(:id, :name, :biography)'
+    assert_includes files.fetch('models.rb'), 'class Writer < ::Data.define(:id, :name, :biography)'
+    assert_includes files.fetch('query_sql.rb'), 'class GetAuthorRow < ::Data.define(:id, :name, :biography)'
     assert_includes files.fetch('query_sql.rb'), "GetAuthorRow.new(row['id'], row['name'], row['bio'])"
     assert_includes files.fetch('query_sql.rb'), 'Writer.new(row[0], row[1], row[2])'
-    assert_includes generate(load_request('pg', exactTableNames: true)).fetch('models.rb'), 'class Authors < Data.define'
+    assert_includes generate(load_request('pg', exactTableNames: true)).fetch('models.rb'), 'class Authors < ::Data.define'
     assert_raises(RuntimeError) { generate(load_request('pg', rename: { 'authors' => 'writer' })) }
   end
 
@@ -422,8 +422,8 @@ class FeaturesTest < Minitest::Test
 
   def test_table_column_and_enum_comments_become_doc_comments
     files = generate(load_request('pg'))
-    assert_includes files.fetch('models.rb'), "  # People who wrote at least one book.\n  class Author < Data.define"
-    assert_includes files.fetch('models.rbs'), "    # Short biography, NULL when unknown.\n    attr_reader bio: String?"
+    assert_includes files.fetch('models.rb'), "  # People who wrote at least one book.\n  class Author < ::Data.define"
+    assert_includes files.fetch('models.rbs'), "    # Short biography, NULL when unknown.\n    attr_reader bio: ::String?"
     assert_includes files.fetch('models.rb'), "  # Kinds of biographies.\n  module ExtendedBioType"
   end
 
@@ -444,14 +444,14 @@ class FeaturesTest < Minitest::Test
 
   def test_sqlite_types_with_modifiers_and_untyped_expressions
     files = generate(load_request('sqlite3'))
-    assert_match(/class Regression\n\s+attr_reader id: Integer\n\s+attr_reader order: String\n\s+attr_reader price: Float\?/,
+    assert_match(/class Regression\n\s+attr_reader id: ::Integer\n\s+attr_reader order: ::String\n\s+attr_reader price: ::Float\?/,
                  files.fetch('models.rbs'))
     assert_includes files.fetch('query_sql.rbs'), 'attr_reader max_price: untyped'
   end
 
   def test_casted_narg_is_optional
     assert_includes generate(load_request('pg')).fetch('query_sql.rbs'),
-                    'def list_regressions: (?order_name: String?) -> Array[ListRegressionsRow]'
+                    'def list_regressions: (?order_name: ::String?) -> ::Array[ListRegressionsRow]'
   end
 
   def test_copyfrom_quotes_identifiers
@@ -464,7 +464,7 @@ class FeaturesTest < Minitest::Test
     rb = generate(load_request('pg')).fetch('query_sql.rb')
     assert_includes rb, 'encode_bytea(payload),'
     assert_includes rb, 'encode_json(doc),'
-    assert_includes rb, 'when Array, TrueClass, FalseClass then PG::TextEncoder::JSON.new.encode(value)'
+    assert_includes rb, 'when ::Array, ::TrueClass, ::FalseClass then ::PG::TextEncoder::JSON.new.encode(value)'
     assert_includes rb, 'encode_array(bio_types)'
     assert_includes rb, 'def encode_array(value, kind = :value)'
     noprep = generate(load_request('pg', preparedStatements: false)).fetch('query_sql.rb')
@@ -513,7 +513,7 @@ class FeaturesTest < Minitest::Test
   def test_db_type_overrides_also_type_array_elements
     overrides = [{ db_type: 'uuid', ruby_type: { type: 'UUIDString' } }]
     rbs = generate(load_request('pg', overrides: overrides)).fetch('query_sql.rbs')
-    assert_includes rbs, 'attr_reader uids: Array[UUIDString]?'
+    assert_includes rbs, 'attr_reader uids: ::Array[UUIDString]?'
   end
 
   def test_batch_parameters_are_encoded_like_other_parameters
@@ -526,7 +526,7 @@ class FeaturesTest < Minitest::Test
     request = load_request('sqlite3')
     query(request, 'GetAuthor').columns[1].type.name = 'JSON'
     query(request, 'GetAuthor').columns[2].type.name = 'UUID'
-    assert_match(/class GetAuthorRow\n\s+attr_reader id: Integer\n\s+attr_reader name: String\n\s+attr_reader bio: String\?/,
+    assert_match(/class GetAuthorRow\n\s+attr_reader id: ::Integer\n\s+attr_reader name: ::String\n\s+attr_reader bio: ::String\?/,
                  generate(request).fetch('query_sql.rbs'))
   end
 
@@ -556,7 +556,7 @@ class FeaturesTest < Minitest::Test
   def test_nested_transactions_reject_isolation_and_mode
     { 'pg' => 'isolation:', 'mysql2' => 'isolation:', 'sqlite3' => 'mode:' }.each do |driver, option|
       assert_includes generate(load_request(driver)).fetch('query_sql.rb'),
-                      "raise ArgumentError, '#{option} cannot be set on a nested transaction'"
+                      "raise ::ArgumentError, '#{option} cannot be set on a nested transaction'"
     end
   end
 
@@ -565,7 +565,7 @@ class FeaturesTest < Minitest::Test
     assert_includes rb, 'encode_float(args.ratio)'
     assert_includes rb, 'encode_array(args.blobs, :bytea)'
     assert_includes rb, 'encode_array(args.docs, :json)'
-    assert_includes rb, 'queries[TrueClass] = queries[FalseClass] = PG::TextEncoder::Boolean.new(oid: 16)'
+    assert_includes rb, 'queries[::TrueClass] = queries[::FalseClass] = ::PG::TextEncoder::Boolean.new(oid: 16)'
   end
 
   def test_mysql_copyfrom_converts_json_columns_from_binary
@@ -580,7 +580,7 @@ class FeaturesTest < Minitest::Test
     get_author.columns[2].name = 'naïve'
     get_author.params.first.column.name = 'm'
     code = generate(request).fetch('query_sql.rb')
-    assert_match(/# rubocop:disable Naming\/MethodName\n\s+class GetAuthorRow < Data.define\(:id, :UserId, :naïve\)\n\s+end\n\s+# rubocop:enable/, code)
+    assert_match(/# rubocop:disable Naming\/MethodName\n\s+class GetAuthorRow < ::Data.define\(:id, :UserId, :naïve\)\n\s+end\n\s+# rubocop:enable/, code)
     assert_match(/# rubocop:disable Naming\/MethodParameterName\n\s+def get_author\(m:\)/, code)
     assert_equal 1, code.scan('rubocop:disable Naming/MethodParameterName').size
     out, status = rubocop(code)
@@ -603,7 +603,7 @@ class FeaturesTest < Minitest::Test
     columns = query(request, 'GetAuthor').columns
     columns[1].name = 'Weird Name'
     columns[2].name = 'hash'
-    assert_includes generate(request).fetch('query_sql.rb'), 'class GetAuthorRow < Data.define(:id, :weird_name, :hash_)'
+    assert_includes generate(request).fetch('query_sql.rb'), 'class GetAuthorRow < ::Data.define(:id, :weird_name, :hash_)'
   end
 
   def test_duplicate_result_columns_are_rejected
@@ -634,7 +634,7 @@ class FeaturesTest < Minitest::Test
 
       files = generate(request)
       assert_includes files.fetch('query_sql.rb'), 'def mixed_keyword_order(id:, name_pattern: nil)'
-      assert_match(/def mixed_keyword_order: \(id: Integer, \?name_pattern: String\??\) -> void/,
+      assert_match(/def mixed_keyword_order: \(id: ::Integer, \?name_pattern: ::String\??\) -> void/,
                    files.fetch('query_sql.rbs'))
     end
   end

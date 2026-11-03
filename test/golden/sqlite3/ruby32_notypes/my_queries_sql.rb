@@ -15,7 +15,7 @@ module Sqlite3Codegen
 
   class My_queriesSql
     # Raised by the bang variants (get_author!) when the query returns no row.
-    class NotFound < StandardError; end
+    class NotFound < ::StandardError; end
 
     # db: a SQLite3::Database (a single connection; threads and fibers using it take turns).
     # logger: optional, anything with #debug (Logger, Rails.logger); logs the name and duration of every query.
@@ -28,32 +28,36 @@ module Sqlite3Codegen
     # Runs the block in a transaction and returns its value: COMMIT when the block returns (also through
     # break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call becomes a
     # SAVEPOINT. mode: :deferred (default), :immediate or :exclusive. Other threads / fibers using the same
-    # database wait until it ends.
+    # database wait until it ends. Yields a copy of self whose queries run in the transaction, also from other
+    # fibers and threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
     def transaction(mode: nil)
-      raise ArgumentError, "unknown transaction mode: #{mode.inspect}" unless [nil, *TRANSACTION_MODES].include?(mode)
+      raise ::ArgumentError, "unknown transaction mode: #{mode.inspect}" unless [nil, *TRANSACTION_MODES].include?(mode)
 
       instrument('transaction') do
         @lock.synchronize do
           outermost = !@db.transaction_active?
-          raise ArgumentError, 'mode: cannot be set on a nested transaction' if mode && !outermost
+          raise ::ArgumentError, 'mode: cannot be set on a nested transaction' if mode && !outermost
 
           savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
           @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
           rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+          bound = TransactionConnection.new(@db) unless @lock.is_a?(TransactionConnection)
           failed = false
           completed = false
           begin
-            result = yield self
+            result = bound ? yield(bound_to(bound)) : @lock.unlocked { yield self }
             completed = true
             result
-          rescue Exception # rubocop:disable Lint/RescueException
+          rescue ::Exception # rubocop:disable Lint/RescueException
             failed = true
+            bound&.close
             @db.execute(rollback) if @db.transaction_active? # ON CONFLICT ROLLBACK already ended it
             raise
           ensure
+            bound&.close
             unless failed
               commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-              @db.execute(Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
+              @db.execute(::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
             end
           end
         end
@@ -78,11 +82,11 @@ module Sqlite3Codegen
     def instrument(name)
       return yield unless @logger
 
-      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       begin
         yield
       ensure
-        elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+        elapsed = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started) * 1000
         @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
       end
     end
@@ -91,10 +95,13 @@ module Sqlite3Codegen
       instrument(name) { @lock.synchronize { block.call(@db) } }
     end
 
+    # A copy of this query object whose queries run on the transaction's connection.
+    def bound_to(connection) = dup.tap { |tx| tx.instance_variable_set(:@lock, connection) }
+
     def execute_statement(stmt, *params)
       stmt.reset! if stmt.active? || stmt.done?
       stmt.bind_params(*params) unless params.empty?
-      result = SQLite3::ResultSet.new(@db, stmt)
+      result = ::SQLite3::ResultSet.new(@db, stmt)
       stmt.step if stmt.column_count.zero?
       result
     end

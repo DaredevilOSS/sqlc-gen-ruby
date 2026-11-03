@@ -11,6 +11,7 @@ module SqlcGenRuby
       def module_members
         [
           [CONNECTION_STATE, "module ConnectionState\n  attr_accessor in_transaction: bool\nend"],
+          [TRANSACTION_CONNECTION, TRANSACTION_CONNECTION_RBS],
           [ISOLATION_LEVELS, ISOLATION_RBS]
         ]
       end
@@ -18,12 +19,12 @@ module SqlcGenRuby
       def class_methods(ruby_version)
         transaction = legacy_transaction_template(
           TRANSACTION, ruby_version,
-          "Thread.current.status == 'aborting' ? rollback : commit",
-          "Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit"
+          "::Thread.current.status == 'aborting' ? rollback : commit",
+          "::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit"
         )
         [
-          [NOT_FOUND, "class NotFound < StandardError\nend"],
-          [CONNECT, 'def self.connect: (Hash[untyped, untyped] mysql2_params, ?logger: untyped, **untyped pool_options) -> instance'],
+          [NOT_FOUND, "class NotFound < ::StandardError\nend"],
+          [CONNECT, 'def self.connect: (::Hash[untyped, untyped] mysql2_params, ?logger: untyped, **untyped pool_options) -> instance'],
           [INITIALIZE, 'def initialize: (untyped db, ?logger: untyped) -> void'],
           [transaction, TRANSACTION_RBS]
         ]
@@ -32,7 +33,8 @@ module SqlcGenRuby
       def private_methods(ruby_version)
         [
           [INSTRUMENT, INSTRUMENT_RBS],
-          [WITH_CLIENT, 'def with_client: [T] (String name) { (untyped) -> T } -> T'],
+          [WITH_CLIENT, 'def with_client: [T] (::String name) { (untyped) -> T } -> T'],
+          bound_to_method('@db'),
           *timeout_exit_methods(ruby_version)
         ]
       end
@@ -59,7 +61,7 @@ module SqlcGenRuby
 
       def exec_last_id_lines(exec, _query) = [exec, 'client.last_id']
 
-      def exec_result_lines(exec) = [exec, 'client.affected_rows', 'client.last_id']
+      def exec_result_lines(exec, _query) = [exec, 'client.affected_rows', 'client.last_id']
 
       # LOAD DATA LOCAL INFILE from a temporary CSV (the client needs `local_infile: true`, the server
       # `local_infile=1`).
@@ -75,7 +77,7 @@ module SqlcGenRuby
         [
           "return if #{rows_var}.empty?",
           '',
-          Code.block("Tempfile.create(['#{label}', '.csv']) do |file|", "#{write}\nfile.flush\n#{load_data}"),
+          Code.block("::Tempfile.create(['#{label}', '.csv']) do |file|", "#{write}\nfile.flush\n#{load_data}"),
           'nil'
         ]
       end
@@ -104,10 +106,10 @@ module SqlcGenRuby
       def extra_gems(_queries) = %w[bigdecimal date]
 
       def helper_methods(queries)
-      helpers = [[QUOTE, 'def quote: (untyped client, untyped value) -> String'],
-                 [BIND_PARAMS, 'def bind_params: (untyped client, String sql, Array[untyped] params) -> String']]
-        helpers.concat([[CSV_LINE, 'def csv_line: (Array[untyped] values) -> String'],
-                        [LOAD_DATA_HELPER, 'def load_data: (untyped client, String sql, ?strict: bool) -> void']]) if copy_from?(queries)
+      helpers = [[QUOTE, 'def quote: (untyped client, untyped value) -> ::String'],
+                 [BIND_PARAMS, 'def bind_params: (untyped client, ::String sql, ::Array[untyped] params) -> ::String']]
+        helpers.concat([[CSV_LINE, 'def csv_line: (::Array[untyped] values) -> ::String'],
+                        [LOAD_DATA_HELPER, 'def load_data: (untyped client, ::String sql, ?strict: bool) -> void']]) if copy_from?(queries)
         helpers
       end
 
@@ -131,18 +133,19 @@ module SqlcGenRuby
         # Opens a pool of connections: QuerySql.connect({ database: 'app' }, size: 5, timeout: 5, logger: Logger.new($stdout))
         # (pool_options go to ConnectionPool.new). To share an existing pool use QuerySql.new(pool).
         def self.connect(mysql2_params, logger: nil, **pool_options)
-          new(ConnectionPool.new(**pool_options) { Mysql2::Client.new(**mysql2_params) }, logger: logger)
+          new(::ConnectionPool.new(**pool_options) { ::Mysql2::Client.new(**mysql2_params) }, logger: logger)
         end
       RUBY
 
       TRANSACTION = <<~'RUBY'.chomp
         # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
         # (also through break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call
-        # becomes a SAVEPOINT. Yields self, bound to that connection.
+        # becomes a SAVEPOINT. Yields a copy of self whose queries run in the transaction, also from other fibers and
+        # threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
         def transaction(isolation: nil)
           with_client('transaction') do |client|
             outermost = !client.in_transaction
-            raise ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
+            raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
 
             savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
             if outermost
@@ -153,24 +156,27 @@ module SqlcGenRuby
               client.query("SAVEPOINT #{savepoint}")
             end
             rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+            bound = TransactionConnection.new(client) unless @db.is_a?(TransactionConnection)
             failed = false
             begin
-              yield self
-            rescue Exception => e # rubocop:disable Lint/RescueException
+              bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
+            rescue ::Exception => e # rubocop:disable Lint/RescueException
               failed = true
+              bound&.close
               begin
                 client.query(rollback)
-              rescue Mysql2::Error
+              rescue ::Mysql2::Error
                 # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone;
                 # an interrupted query closed the connection: the server rolls back
-                raise unless e.is_a?(Mysql2::Error) || client.closed?
+                raise unless e.is_a?(::Mysql2::Error) || client.closed?
               end
               raise
             ensure
+              bound&.close
               begin
                 unless failed
                   commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-                  client.query(Thread.current.status == 'aborting' ? rollback : commit)
+                  client.query(::Thread.current.status == 'aborting' ? rollback : commit)
                 end
               ensure
                 client.in_transaction = false if outermost
@@ -187,7 +193,7 @@ module SqlcGenRuby
               client.extend(ConnectionState) unless client.is_a?(ConnectionState)
               begin
                 yield client
-              rescue Exception # rubocop:disable Lint/RescueException
+              rescue ::Exception # rubocop:disable Lint/RescueException
                 # a connection closed by the server (restart, KILL, wait_timeout) or by mysql2 when a running query
                 # was interrupted (Async task stopped, Thread#raise) is replaced by the pool
                 @db.discard_current_connection if client.closed? && @db.respond_to?(:discard_current_connection)
@@ -215,7 +221,7 @@ module SqlcGenRuby
             client.query(sql)
             if strict && !client.warning_count.zero?
               warnings = client.query('SHOW WARNINGS', as: :array).reject { |level, *| level == 'Note' }
-              raise Mysql2::Error, "LOAD DATA: #{warnings.map { |w| w[2] }.join('; ')}" unless warnings.empty?
+              raise ::Mysql2::Error, "LOAD DATA: #{warnings.map { |w| w[2] }.join('; ')}" unless warnings.empty?
             end
             done = true
           ensure
@@ -238,7 +244,7 @@ module SqlcGenRuby
             when nil then '\N'
             when true then '1'
             when false then '0'
-            when Time then value.strftime('%Y-%m-%d %H:%M:%S.%6N')
+            when ::Time then value.strftime('%Y-%m-%d %H:%M:%S.%6N')
             else %("#{value.to_s.b.gsub('\\') { '\\\\' }.gsub('"', '""')}")
             end
           end
@@ -249,31 +255,31 @@ module SqlcGenRuby
       QUOTE = <<~'RUBY'.chomp
         def quote(client, value)
           case value
-          when NilClass then 'NULL'
-          when Symbol then quote(client, value.to_s)
-          when TrueClass then 'TRUE'
-          when FalseClass then 'FALSE'
-          when Integer then value.to_s
-          when Float
-            raise ArgumentError, 'cannot bind a non-finite Float to MySQL' unless value.finite?
+          when ::NilClass then 'NULL'
+          when ::Symbol then quote(client, value.to_s)
+          when ::TrueClass then 'TRUE'
+          when ::FalseClass then 'FALSE'
+          when ::Integer then value.to_s
+          when ::Float
+            raise ::ArgumentError, 'cannot bind a non-finite Float to MySQL' unless value.finite?
 
             value.to_s
-          when BigDecimal
-            raise ArgumentError, 'cannot bind a non-finite BigDecimal to MySQL' unless value.finite?
+          when ::BigDecimal
+            raise ::ArgumentError, 'cannot bind a non-finite BigDecimal to MySQL' unless value.finite?
 
             value.to_s('F')
-          when DateTime, Time
+          when ::DateTime, ::Time
             "'#{value.strftime('%Y-%m-%d %H:%M:%S.%6N')}'"
-          when Date
+          when ::Date
             "'#{value.strftime('%Y-%m-%d')}'"
-          when String
-            if value.encoding == Encoding::BINARY || !value.valid_encoding?
+          when ::String
+            if value.encoding == ::Encoding::BINARY || !value.valid_encoding?
               "X'#{value.unpack1('H*')}'"
             else
               "'#{client.escape(value)}'"
             end
           else
-            raise TypeError, "cannot bind #{value.class} to MySQL"
+            raise ::TypeError, "cannot bind #{value.class} to MySQL"
           end
         end
       RUBY
@@ -318,7 +324,7 @@ module SqlcGenRuby
               output << sql[index...finish]
               index = finish
             elsif char == '?'
-              raise ArgumentError, 'more MySQL placeholders than parameters' if parameter >= params.length
+              raise ::ArgumentError, 'more MySQL placeholders than parameters' if parameter >= params.length
 
               output << quote(client, params[parameter])
               parameter += 1
@@ -328,7 +334,7 @@ module SqlcGenRuby
               index += 1
             end
           end
-          raise ArgumentError, 'fewer MySQL placeholders than parameters' unless parameter == params.length
+          raise ::ArgumentError, 'fewer MySQL placeholders than parameters' unless parameter == params.length
 
           output
         end

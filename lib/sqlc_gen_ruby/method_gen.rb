@@ -8,8 +8,8 @@ module SqlcGenRuby
   #   queries.get_author(id: 1)  queries.create_author(name: 'x', bio: nil)  queries.get_authors_by_ids(ids: [1, 2])
   class MethodGen
     SLICE_HELPER = [
-      "def slice_placeholders(values)\n  values.empty? ? 'SELECT NULL WHERE FALSE' : Array.new(values.size, '?').join(', ')\nend",
-      'def slice_placeholders: (Array[untyped] values) -> String'
+      "def slice_placeholders(values)\n  values.empty? ? 'SELECT NULL WHERE FALSE' : ::Array.new(values.size, '?').join(', ')\nend",
+      'def slice_placeholders: (::Array[untyped] values) -> ::String'
     ].freeze
 
     # :batch* run the query once per element of an Array of <Query>Args, on one connection
@@ -88,7 +88,7 @@ module SqlcGenRuby
     def type(query)
       func = Code.snake_case(query.name)
       if ROWS_COMMANDS.include?(query.cmd)
-        signature = "(Array[#{query.name}Args] rows)"
+        signature = "(::Array[#{query.name}Args] rows)"
       else
         optional, required = params(query).reject(&:reused).partition(&:optional)
         list = (required + optional).map { |p| "#{p.optional ? '?' : ''}#{p.name}: #{p.type}" }
@@ -135,19 +135,19 @@ module SqlcGenRuby
     def return_type(query)
       case query.cmd
       when ':one' then "#{Code.upcase_first(query.name)}Row?"
-      when ':many' then "Array[#{Code.upcase_first(query.name)}Row]"
-      when ':execrows' then 'Integer'
+      when ':many' then "::Array[#{Code.upcase_first(query.name)}Row]"
+      when ':execrows' then '::Integer'
       when ':execlastid' then last_id_type(query)
       when ':execresult' then 'ExecResult'
-      when ':batchone' then "Array[#{query.name}Row?]"
-      when ':batchmany' then "Array[Array[#{query.name}Row]]"
+      when ':batchone' then "::Array[#{query.name}Row?]"
+      when ':batchmany' then "::Array[::Array[#{query.name}Row]]"
       else 'void'
       end
     end
 
     # MySQL: client.last_id (Integer); PostgreSQL / SQLite: the RETURNING column
     def last_id_type(query)
-      return 'Integer' if query.columns.empty?
+      return '::Integer' if query.columns.empty?
 
       type = @types.type(query.columns.first, query_name: query.name)
       type.end_with?('?') ? type : "#{type}?"
@@ -272,7 +272,7 @@ module SqlcGenRuby
       when ':exec' then @driver.exec_lines(exec, query)
       when ':execrows' then @driver.exec_rows_lines(exec, query)
       when ':execlastid' then @driver.exec_last_id_lines(exec, query)
-      when ':execresult' then exec_result_lines(exec)
+      when ':execresult' then exec_result_lines(exec, query)
       else raise ArgumentError, "unsupported query command: #{query.cmd}"
       end
     end
@@ -304,8 +304,8 @@ module SqlcGenRuby
     end
 
     # Struct rows (Ruby < 3.2) are built with keywords (keyword_init: true), Data rows positionally.
-    def exec_result_lines(exec)
-      *lines, rows_affected, last_insert_id = @driver.exec_result_lines(exec)
+    def exec_result_lines(exec, query)
+      *lines, rows_affected, last_insert_id = @driver.exec_result_lines(exec, query)
       lines << "ExecResult.new(#{constructor_args(%w[rows_affected last_insert_id], [rows_affected, last_insert_id]).join(', ')})"
     end
 

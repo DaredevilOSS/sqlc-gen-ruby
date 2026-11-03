@@ -17,9 +17,9 @@ module Mysql2Codegen
     ALL = [AUTHOR, EDITOR, TRANSLATOR].freeze
   end
 
-  Author = Struct.new(:id, :name, :bio, keyword_init: true)
+  Author = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
-  NodeMysqlType = Struct.new(
+  NodeMysqlType = ::Struct.new(
     :c_bit,
     :c_tinyint,
     :c_bool,
@@ -60,7 +60,7 @@ module Mysql2Codegen
     keyword_init: true
   )
 
-  Book = Struct.new(
+  Book = ::Struct.new(
     :id,
     :name,
     :author_id,
@@ -68,7 +68,7 @@ module Mysql2Codegen
     keyword_init: true
   )
 
-  ExtendedBio = Struct.new(
+  ExtendedBio = ::Struct.new(
     :author_name,
     :name,
     :bio_type,
@@ -76,7 +76,7 @@ module Mysql2Codegen
     keyword_init: true
   )
 
-  Regression = Struct.new(
+  Regression = ::Struct.new(
     :id,
     :order,
     :note,
@@ -84,7 +84,7 @@ module Mysql2Codegen
     keyword_init: true
   )
 
-  CopyType = Struct.new(
+  CopyType = ::Struct.new(
     :id,
     :code,
     :doc,
@@ -94,7 +94,7 @@ module Mysql2Codegen
   )
 
   # rubocop:disable Naming/VariableNumber
-  MysqlBindingValu = Struct.new(
+  MysqlBindingValu = ::Struct.new(
     :id,
     :text_value,
     :blob_value,
@@ -115,7 +115,7 @@ module Mysql2Codegen
   )
   # rubocop:enable Naming/VariableNumber
 
-  NameCase = Struct.new(
+  NameCase = ::Struct.new(
     :id,
     :class_,
     :end,
@@ -126,4 +126,32 @@ module Mysql2Codegen
     :httpserver,
     keyword_init: true
   )
+
+  Exception = ::Struct.new(:id, keyword_init: true)
+
+  StandardError = ::Struct.new(:id, keyword_init: true)
+
+  Thread = ::Struct.new(:id, keyword_init: true)
+
+  Process = ::Struct.new(:id, keyword_init: true)
+
+  Data = ::Struct.new(:id, keyword_init: true)
+
+  Struct = ::Struct.new(:id, keyword_init: true)
+
+  Set = ::Struct.new(:id, keyword_init: true)
+
+  String = ::Struct.new(:id, keyword_init: true)
+
+  Integer = ::Struct.new(:id, keyword_init: true)
+
+  Time = ::Struct.new(:id, keyword_init: true)
+
+  Encoding = ::Struct.new(:id, keyword_init: true)
+
+  Monitor = ::Struct.new(:id, keyword_init: true)
+
+  Mutex = ::Struct.new(:id, keyword_init: true)
+
+  ConnectionPool = ::Struct.new(:id, keyword_init: true)
 end

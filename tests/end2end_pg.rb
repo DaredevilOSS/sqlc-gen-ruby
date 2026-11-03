@@ -27,17 +27,17 @@ class TestPg < Minitest::Test
   end
 
   def assert_row_layout(row)
-    if defined?(Data) && row.is_a?(Data)
+    if defined?(::Data) && row.is_a?(::Data)
       assert_predicate row, :frozen?
       assert_equal row.to_h, row.with.to_h
     else
-      assert_kind_of Struct, row
+      assert_kind_of ::Struct, row
       assert row.class.keyword_init?
       refute_predicate row, :frozen?
     end
     case row
     in { id:, name: }
-      assert_kind_of Integer, id
+      assert_kind_of ::Integer, id
       assert_equal row.name, name
     else
       flunk 'row did not support keyword pattern matching'
@@ -93,6 +93,7 @@ class TestPg < Minitest::Test
     @query_sql.truncate_name_cases
     @query_sql.truncate_json_round_trips
     @query_sql.truncate_deferred_books
+    @query_sql.truncate_exceptions
   end
 
   def create_author(name, bio = nil)
@@ -138,7 +139,7 @@ class TestPg < Minitest::Test
   def test_execlastid_returns_the_returning_column
     first = create_author('a')
     second = create_author('b')
-    assert_kind_of Integer, first
+    assert_kind_of ::Integer, first
     assert_equal first + 1, second
   end
 
@@ -286,7 +287,7 @@ class TestPg < Minitest::Test
              camel_case: 'camel', http_server: 'server' }
     @query_sql.insert_name_case(**args)
     row = @query_sql.get_name_case(**args)
-    count_member = row.is_a?(Struct) ? :count_ : :count
+    count_member = row.is_a?(::Struct) ? :count_ : :count
     assert_equal %i[id class_ end hash_ method_].concat([count_member, :camelCase, :HTTPServer]), row.class.members
     assert_equal %w[class end hash method], %i[class_ end hash_ method_].map { |member| row.public_send(member) }
     assert_equal 7, row.public_send(count_member)
@@ -361,7 +362,7 @@ class TestPg < Minitest::Test
     gates = Array.new(3) { Queue.new }
     # three threads, each holding a different connection until it is released
     threads = gates.map do |gate|
-      Thread.new do
+      ::Thread.new do
         pool.with do |client|
           held << client.object_id
           gate.pop
@@ -381,7 +382,7 @@ class TestPg < Minitest::Test
 
   def test_extra_types_round_trip
     uuid = '0e52082f-bf69-480e-aff0-1a85139a1074'
-    time = Time.utc(2024, 5, 6, 7, 8, 9)
+    time = ::Time.utc(2024, 5, 6, 7, 8, 9)
     @query_sql.insert_extra_types(
       c_uuid: uuid, c_jsonb: { 'a' => [1, 2, { 'b' => nil }] }.to_json, c_text_array: ['x', nil, 'y z'],
       c_integer_array: [1, 2, 3], c_timestamptz: time, c_inet: '10.1.2.3', c_money: '12.50', c_not_null: 'nn'
@@ -451,8 +452,8 @@ class TestPg < Minitest::Test
   end
 
   def test_remaining_postgresql_types_round_trip
-    timestamp = Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
-    timestamptz = Time.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
+    timestamp = ::Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
+    timestamptz = ::Time.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
     matrix = [['', "a,'b", nil], ["back\\slash", "line\nbreak", '🙂']]
     @query_sql.insert_remaining_types(
       c_hstore: '"key"=>"value", "quoted"=>"two"',
@@ -521,7 +522,7 @@ class TestPg < Minitest::Test
 
   def test_extra_types_match_declared_types
     @query_sql.insert_extra_types(
-      c_uuid: SecureRandom.uuid, c_jsonb: '[1]', c_text_array: %w[a], c_integer_array: [1], c_timestamptz: Time.now,
+      c_uuid: SecureRandom.uuid, c_jsonb: '[1]', c_text_array: %w[a], c_integer_array: [1], c_timestamptz: ::Time.now,
       c_inet: '::1', c_money: '1', c_not_null: 'x'
     )
     assert_empty RbsTypes.mismatches(@query_sql.get_extra_types, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'),
@@ -576,26 +577,26 @@ class TestPg < Minitest::Test
   end
 
   def test_queries_can_share_an_injected_pool
-    pool = ConnectionPool.new(size: 2) { PG.connect(**pg_params.transform_keys(&:to_sym)) }
+    pool = ::ConnectionPool.new(size: 2) { PG.connect(**pg_params.transform_keys(&:to_sym)) }
     first = QuerySql.new(pool)
     second = QuerySql.new(pool) # same connections and statement names: must not clash
     id = first.create_author_return_id(name: 'shared', bio: nil)
     assert_equal 'shared', second.get_author(id: id).name
     assert_equal 'shared', first.get_author(id: id).name
-    assert_kind_of Integer, id # connection was configured on first use (typed results)
+    assert_kind_of ::Integer, id # connection was configured on first use (typed results)
   end
 
   # The generated classes are plain synchronous Ruby; under the Fiber scheduler (the `async` gem) the pooled
   # queries overlap because pg and connection_pool are fiber aware.
   def test_queries_run_concurrently_under_the_fiber_scheduler
     queries = QuerySql.connect(pg_params, size: 5)
-    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
     Sync do
       barrier = Async::Barrier.new
       5.times { barrier.async { queries.pause_query(seconds: 0.4) } }
       barrier.wait
     end
-    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    elapsed = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started
     assert_operator elapsed, :<, 1.5, "5 x 0.4s queries took #{elapsed}s: they ran one after the other"
 
     names = Sync do
@@ -678,7 +679,7 @@ class TestPg < Minitest::Test
 
   def test_prepared_statements_survive_a_connection_reset
     client = PG.connect(**pg_params)
-    query_sql = QuerySql.new(ConnectionPool.new(size: 1) { client })
+    query_sql = QuerySql.new(::ConnectionPool.new(size: 1) { client })
     query_sql.list_authors
     client.reset
     assert_empty query_sql.list_authors
@@ -768,7 +769,7 @@ class TestPg < Minitest::Test
 
   def test_thread_kill_rolls_back_and_leaves_connection_idle
     started = Queue.new
-    thread = Thread.new do
+    thread = ::Thread.new do
       @query_sql.transaction do |tx|
         tx.create_author_return_id(name: 'killed', bio: nil)
         started << true
@@ -812,7 +813,7 @@ class TestPg < Minitest::Test
   # ---- final sweep fixes: :batch* / :copyfrom parameter encoding, nested rescued errors, dead connections ---------
 
   def batch_type_rows
-    stamp = Time.at(1_700_000_000, 123_456, :usec)
+    stamp = ::Time.at(1_700_000_000, 123_456, :usec)
     [{ id: 1, ok: true, ratio: 115_610.38729014261, blobs: ["\x00\xFF".b, nil], docs: [{ 'a' => 1 }, [1, 2], nil],
        counts: [], amounts: [nil, BigDecimal('1.25')], stamps: [nil, stamp] },
      { id: 2, ok: false, ratio: 1.0e-305, blobs: [], docs: [], counts: [nil], amounts: [], stamps: [] },
@@ -848,7 +849,7 @@ class TestPg < Minitest::Test
   def test_array_parameters_need_no_server_side_parameter_types
     # what preparedStatements: false sends: exec_params without prepared parameter types
     params = [9, nil, nil, @query_sql.send(:encode_array, ["\x00".b], :bytea), @query_sql.send(:encode_array, [{ 'a' => 1 }], :json),
-              @query_sql.send(:encode_array, []), @query_sql.send(:encode_array, [nil]), @query_sql.send(:encode_array, [nil, Time.now])]
+              @query_sql.send(:encode_array, []), @query_sql.send(:encode_array, [nil]), @query_sql.send(:encode_array, [nil, ::Time.now])]
     @query_sql.instance_variable_get(:@db).with { |client| client.exec_params(CREATE_BATCH_TYPES_BATCH_SQL, params) }
     row = @query_sql.list_batch_types.first
     assert_equal [["\x00".b], [{ 'a' => 1 }], [], [nil]], [row.blobs, row.docs, row.counts, row.amounts]
@@ -896,7 +897,7 @@ class TestPg < Minitest::Test
     @query_sql.instance_variable_get(:@db).with do |client|
       assert_equal PG::PQTRANS_IDLE, client.transaction_status
     end
-    assert_kind_of Integer, @query_sql.create_author_return_id(name: 'usable', bio: nil)
+    assert_kind_of ::Integer, @query_sql.create_author_return_id(name: 'usable', bio: nil)
   end
 
   def test_terminated_backend_inside_transaction_is_replaced
@@ -987,7 +988,7 @@ class TestPg < Minitest::Test
       end
     end.sort
     threads = plan.each_with_index.map do |actions, thread_index|
-      Thread.new do
+      ::Thread.new do
         actions.each_with_index do |action, index|
           name = names[thread_index][index]
           begin
@@ -1047,9 +1048,70 @@ class TestPg < Minitest::Test
           in_transaction ? queries.transaction { |tx| tx.pause_query(seconds: 3) } : queries.pause_query(seconds: 3)
         end
       end
-      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       queries.list_authors
-      assert_operator Process.clock_gettime(Process::CLOCK_MONOTONIC) - started, :<, 1
+      assert_operator ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started, :<, 1
     end
+  end
+
+  # Models named like Ruby core / library constants (Exception, Data, Thread, ...) used to shadow the constants the
+  # generated code relies on: a raise in a transaction committed, or the code did not even load.
+  CORE_NAMED_MODELS = %i[Exception StandardError Thread Process Data Struct Set String Integer Time Encoding Monitor
+                         Mutex ConnectionPool].freeze
+
+  def test_models_named_like_core_constants_do_not_shadow_them
+    codegen = Object.const_get(ENV.fetch('EXAMPLES_MODULE', 'PgCodegen'))
+    CORE_NAMED_MODELS.each { |name| assert_equal [:id], codegen.const_get(name, false).members, name }
+    assert_raises(::ArgumentError) do
+      @query_sql.transaction do |tx|
+        tx.create_exception
+        raise ::ArgumentError
+      end
+    end
+    assert_equal 0, @query_sql.count_exceptions.n
+    @query_sql.transaction(&:create_exception)
+    assert_equal 1, @query_sql.count_exceptions!.n
+    assert_raises(QuerySql::NotFound) { @query_sql.get_author!(id: -1) }
+    log = ::StringIO.new
+    QuerySql.connect(pg_params, logger: Logger.new(log)).count_exceptions
+    assert_includes log.string, 'count_exceptions'
+  end
+
+  # A migration that (re)creates an enum after the pool opened its connections: its arrays are still decoded.
+  def test_enum_arrays_of_a_type_created_after_connecting_are_decoded
+    query_sql = QuerySql.connect(pg_params, size: 1)
+    query_sql.count_exceptions
+    admin = PG.connect(**pg_params)
+    begin
+      admin.exec(<<~SQL)
+        DROP SCHEMA late CASCADE;
+        CREATE SCHEMA late;
+        CREATE TYPE late.mood AS ENUM ('calm', 'happy');
+        CREATE TABLE late.feelings (id INTEGER PRIMARY KEY, moods late.mood[] NOT NULL);
+      SQL
+    ensure
+      admin.close
+    end
+    query_sql.create_late_feeling(id: 1, moods: %w[calm happy])
+    assert_equal %w[calm happy], query_sql.get_late_feeling!(id: 1).moods
+  end
+
+  # The query object #transaction yields keeps its queries in the transaction from other fibers and threads (they
+  # used to check another connection out of the pool and commit on their own) and fails once the transaction ended.
+  def test_transaction_query_object_works_from_other_fibers_and_threads
+    assert_raises(::ArgumentError) do
+      @query_sql.transaction do |tx|
+        ::Enumerator.new { |y| y << tx.create_exception }.next
+        ::Fiber.new { tx.create_exception }.resume
+        ::Thread.new { tx.create_exception }.join
+        Sync { Async { tx.create_exception }.wait }
+        tx.transaction { ::Enumerator.new { |y| y << tx.create_exception }.next }
+        assert_equal 5, tx.count_exceptions!.n
+        raise ::ArgumentError
+      end
+    end
+    assert_equal 0, @query_sql.count_exceptions!.n
+    leaked = @query_sql.transaction { |tx| tx }
+    assert_raises(TransactionEnded) { leaked.count_exceptions }
   end
 end

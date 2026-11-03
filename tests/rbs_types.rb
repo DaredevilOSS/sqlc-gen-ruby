@@ -12,7 +12,12 @@ module RbsTypes
   def attributes(rbs_path, class_name)
     body = File.read(rbs_path)[/^( *)class #{Regexp.escape(class_name)}(?: < [^\n]+)?\n(.*?)^\1end$/m, 2] or
       raise "#{class_name} not in #{rbs_path}"
-    body.scan(/attr_(?:reader|accessor) (\w+): (.+)$/).to_h
+    body.scan(/attr_(?:reader|accessor) (\w+): (.+)$/).to_h { |name, type| [name, top_level(type)] }
+  end
+
+  # `::Array[::String]` -> `Array[String]`: the generated RBS roots core types so models cannot shadow them.
+  def top_level(type)
+    type.gsub(/(?<![\w:])::(?=[A-Z])/, '')
   end
 
   # Returns the list of mismatches (empty when every attribute value has its declared type).
@@ -29,7 +34,7 @@ module RbsTypes
     return unless File.file?(rbs_path)
 
     module_name = query_class.name.sub(/::QuerySql\z/, '')
-    signatures = File.read(rbs_path).scan(/^\s+def ([\w!?]+):.*?-> (.+)$/).to_h
+    signatures = File.read(rbs_path).scan(/^\s+def ([\w!?]+):.*?-> (.+)$/).to_h { |name, type| [name, top_level(type)] }
     methods = query_class.public_instance_methods(false).filter_map do |name|
       type = signatures[name.to_s]
       [name, type] if type && type != 'T' && name != :transaction
@@ -71,6 +76,7 @@ module RbsTypes
     end
     klass = resolve_type(type, module_name)
     return ["expected #{type}, got #{value.class}"] unless klass && value.is_a?(klass)
+    return [] unless klass.is_a?(Module) && klass.name.to_s.start_with?("#{module_name}::")
 
     class_name = type.split('::').last
     class_rbs_path = [rbs_path, File.join(File.dirname(rbs_path), 'models.rbs')].find do |path|

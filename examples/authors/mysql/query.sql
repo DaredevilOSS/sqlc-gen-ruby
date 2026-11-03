@@ -208,3 +208,12 @@ SELECT 1 AS `it's`;
 
 -- name: GetAuthorsNotInIds :many
 SELECT * FROM authors WHERE id NOT IN (sqlc.slice('ids')) ORDER BY id;
+
+-- name: CreateException :exec
+INSERT INTO exceptions (id) VALUES (NULL);
+
+-- name: CountExceptions :one
+SELECT COUNT(*) AS n FROM exceptions;
+
+-- name: TruncateExceptions :exec
+TRUNCATE TABLE exceptions;

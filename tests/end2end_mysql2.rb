@@ -27,17 +27,17 @@ class TestMysql2 < Minitest::Test
   end
 
   def assert_row_layout(row)
-    if defined?(Data) && row.is_a?(Data)
+    if defined?(::Data) && row.is_a?(::Data)
       assert_predicate row, :frozen?
       assert_equal row.to_h, row.with.to_h
     else
-      assert_kind_of Struct, row
+      assert_kind_of ::Struct, row
       assert row.class.keyword_init?
       refute_predicate row, :frozen?
     end
     case row
     in { id:, name: }
-      assert_kind_of Integer, id
+      assert_kind_of ::Integer, id
       assert_equal row.name, name
     else
       flunk 'row did not support keyword pattern matching'
@@ -88,6 +88,7 @@ class TestMysql2 < Minitest::Test
     @query_sql.truncate_copy_types
     @query_sql.truncate_mysql_binding_values
     @query_sql.truncate_name_cases
+    @query_sql.truncate_exceptions
   end
 
   def create_author(name, bio = nil)
@@ -156,9 +157,9 @@ class TestMysql2 < Minitest::Test
   def test_execlastid_returns_the_new_id
     first = create_author('a')
     second = create_author('b')
-    assert_kind_of Integer, first
+    assert_kind_of ::Integer, first
     assert_equal first + 1, second
-    assert_kind_of Integer, @query_sql.create_book(name: 'book', author_id: first)
+    assert_kind_of ::Integer, @query_sql.create_book(name: 'book', author_id: first)
   end
 
   def test_execresult_returns_rows_affected_and_last_id
@@ -437,7 +438,7 @@ class TestMysql2 < Minitest::Test
   end
 
   def test_queries_can_share_an_injected_pool
-    pool = ConnectionPool.new(size: 2) { Mysql2::Client.new(**mysql2_params.transform_keys(&:to_sym)) }
+    pool = ::ConnectionPool.new(size: 2) { Mysql2::Client.new(**mysql2_params.transform_keys(&:to_sym)) }
     first = QuerySql.new(pool)
     second = QuerySql.new(pool)
     id = first.create_author_return_id(name: 'shared', bio: nil)
@@ -447,10 +448,10 @@ class TestMysql2 < Minitest::Test
   # Both query and transaction paths must use Mysql2::Client#query for Fiber scheduler cooperation.
   def test_generated_queries_overlap_across_threads
     queries = QuerySql.connect(mysql2_params, size: 5)
-    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    threads = Array.new(5) { Thread.new { queries.pause_query(seconds: 0.4) } }
+    started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+    threads = Array.new(5) { ::Thread.new { queries.pause_query(seconds: 0.4) } }
     threads.each(&:value)
-    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    elapsed = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started
     assert_operator elapsed, :<, 1.5, "5 x 0.4s queries took #{elapsed}s: they ran one after the other"
 
     names = Sync do
@@ -467,24 +468,24 @@ class TestMysql2 < Minitest::Test
     queries = QuerySql.connect(mysql2_params, size: 5)
     count = 5
     seconds = 0.3
-    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
     count.times { queries.pause_query(seconds: seconds) }
-    serial = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
-    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    serial = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started
+    started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
     Sync do
       barrier = Async::Barrier.new
       tasks = Array.new(count) { barrier.async { queries.pause_query(seconds: seconds) } }
       barrier.wait
       tasks.each(&:wait)
     end
-    concurrent = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    concurrent = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started
     assert_operator concurrent, :<, serial * 0.6,
                     "#{count} generated queries took #{concurrent}s vs #{serial}s serially"
 
-    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
     count.times { queries.transaction { |tx| tx.pause_query(seconds: seconds) } }
-    serial = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
-    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    serial = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started
+    started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
     Sync do
       barrier = Async::Barrier.new
       tasks = Array.new(count) do
@@ -493,7 +494,7 @@ class TestMysql2 < Minitest::Test
       barrier.wait
       tasks.each(&:wait)
     end
-    concurrent = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    concurrent = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started
     assert_operator concurrent, :<, serial * 0.6,
                     "#{count} generated transactions took #{concurrent}s vs #{serial}s serially"
   end
@@ -509,7 +510,7 @@ class TestMysql2 < Minitest::Test
     binary = "\x00\xFF\x80\x01".b
     decimal = BigDecimal('123456789012345678901234567890.123456789012345678901234567890')
     float = 1.0 / 3
-    time = Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
+    time = ::Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
     date_time = DateTime.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
     @query_sql.insert_mysql_binding_values(
       id: 42, text_value: text, blob_value: binary, signed_value: -9_223_372_036_854_775_808,
@@ -539,7 +540,7 @@ class TestMysql2 < Minitest::Test
     assert_nil row.nullable_value
     assert_equal [0xAA, 0xAA].pack('C*'), row.bit_value
     assert_equal 2024, row.year_value
-    assert_equal Time.utc(2000, 1, 1, 12, 34, 56), row.time_value
+    assert_equal ::Time.utc(2000, 1, 1, 12, 34, 56), row.time_value
     assert_equal 'Grüße 🙂', JSON.parse(row.json_unicode).fetch('greeting')
 
     @query_sql.insert_mysql_binding_values(**binding_values(43).merge(bool_value: false))
@@ -551,7 +552,7 @@ class TestMysql2 < Minitest::Test
 
   def test_time_values_match_mysql2_prepared_statement_storage
     client = Mysql2::Client.new(mysql2_params)
-    time = Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
+    time = ::Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
     date_time = DateTime.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
     statement = client.prepare('INSERT INTO mysql_binding_values (id, datetime_value, datetime_2) VALUES (?, ?, ?)')
     statement.execute(1, time, date_time)
@@ -628,7 +629,7 @@ class TestMysql2 < Minitest::Test
              camel_case: 'camel', http_server: 'server' }
     @query_sql.insert_name_case(**args)
     row = @query_sql.get_name_case(**args)
-    count_member = row.is_a?(Struct) ? :count_ : :count
+    count_member = row.is_a?(::Struct) ? :count_ : :count
     assert_equal %i[id class_ end hash_ method_].concat([count_member, :camelcase, :httpserver]), row.class.members
     assert_equal %w[class end hash method], %i[class_ end hash_ method_].map { |member| row.public_send(member) }
     assert_equal 7, row.public_send(count_member)
@@ -725,7 +726,7 @@ class TestMysql2 < Minitest::Test
 
   def test_thread_kill_rolls_back_and_leaves_connection_outside_transaction
     started = Queue.new
-    thread = Thread.new do
+    thread = ::Thread.new do
       @query_sql.transaction do |tx|
         tx.create_author_return_id(name: 'killed', bio: nil)
         started << true
@@ -880,7 +881,7 @@ class TestMysql2 < Minitest::Test
       end
     end.sort
     threads = plan.each_with_index.map do |actions, thread_index|
-      Thread.new do
+      ::Thread.new do
         actions.each_with_index do |action, index|
           name = names[thread_index][index]
           begin
@@ -938,7 +939,7 @@ class TestMysql2 < Minitest::Test
     queries = QuerySql.connect(mysql2_params, size: 2)
     locked = Queue.new
     threads = [ids, ids.reverse].map do |first, second|
-      Thread.new do
+      ::Thread.new do
         queries.transaction do |tx|
           tx.delete_author(id: first)
           locked << first
@@ -953,5 +954,47 @@ class TestMysql2 < Minitest::Test
     errors = threads.map(&:value).compact
     assert_equal [1213], errors.map(&:error_number), errors.map(&:message).inspect
     assert_empty @query_sql.list_authors
+  end
+
+  # Models named like Ruby core / library constants (Exception, Data, Thread, ...) used to shadow the constants the
+  # generated code relies on: a raise in a transaction committed, or the code did not even load.
+  CORE_NAMED_MODELS = %i[Exception StandardError Thread Process Data Struct Set String Integer Time Encoding Monitor
+                         Mutex ConnectionPool].freeze
+
+  def test_models_named_like_core_constants_do_not_shadow_them
+    codegen = Object.const_get(ENV.fetch('EXAMPLES_MODULE', 'Mysql2Codegen'))
+    CORE_NAMED_MODELS.each { |name| assert_equal [:id], codegen.const_get(name, false).members, name }
+    assert_raises(::ArgumentError) do
+      @query_sql.transaction do |tx|
+        tx.create_exception
+        raise ::ArgumentError
+      end
+    end
+    assert_equal 0, @query_sql.count_exceptions.n
+    @query_sql.transaction(&:create_exception)
+    assert_equal 1, @query_sql.count_exceptions!.n
+    assert_raises(QuerySql::NotFound) { @query_sql.get_author!(id: -1) }
+    log = ::StringIO.new
+    QuerySql.connect(mysql2_params, logger: Logger.new(log)).count_exceptions
+    assert_includes log.string, 'count_exceptions'
+  end
+
+  # The query object #transaction yields keeps its queries in the transaction from other fibers and threads (they
+  # used to check another connection out of the pool and commit on their own) and fails once the transaction ended.
+  def test_transaction_query_object_works_from_other_fibers_and_threads
+    assert_raises(::ArgumentError) do
+      @query_sql.transaction do |tx|
+        ::Enumerator.new { |y| y << tx.create_exception }.next
+        ::Fiber.new { tx.create_exception }.resume
+        ::Thread.new { tx.create_exception }.join
+        Sync { Async { tx.create_exception }.wait }
+        tx.transaction { ::Enumerator.new { |y| y << tx.create_exception }.next }
+        assert_equal 5, tx.count_exceptions!.n
+        raise ::ArgumentError
+      end
+    end
+    assert_equal 0, @query_sql.count_exceptions!.n
+    leaked = @query_sql.transaction { |tx| tx }
+    assert_raises(TransactionEnded) { leaked.count_exceptions }
   end
 end
