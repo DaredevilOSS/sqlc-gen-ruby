@@ -314,6 +314,65 @@ module Sqlite3Codegen
     DELETE FROM tags
   SQL
 
+  LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL = <<~'SQL'
+    SELECT authors.id, authors.name, authors.bio, books.id, books.name, books.author_id, books.description
+    FROM authors
+    LEFT JOIN books ON authors.id = books.author_id
+    ORDER BY authors.id
+  SQL
+
+  class ListAuthorsWithOptionalBookRow < Data.define(:author, :book)
+  end
+
+  INSERT_NAME_CASE_SQL = <<~'SQL'
+    INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer")
+    VALUES (?, ?, ?, ?, ?, ?,
+            ?, ?)
+  SQL
+
+  GET_NAME_CASE_SQL = <<~'SQL'
+    SELECT id, class, "end", hash, method, count, camelCase, HTTPServer FROM name_cases
+    WHERE id = ? AND "class" = ? AND "end" = ? AND "hash" = ?
+      AND "method" = ? AND "count" = ?
+      AND "HTTPServer" = ? AND "camelCase" = ?
+  SQL
+
+  # rubocop:disable Naming/MethodName
+  class GetNameCaseRow < Data.define(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count,
+    :camelCase,
+    :HTTPServer
+  )
+  end
+  # rubocop:enable Naming/MethodName
+
+  GET_HTTP_SERVER_SQL = <<~'SQL'
+    SELECT id, class, "end", hash, method, count, camelCase, HTTPServer FROM name_cases WHERE id = ?
+  SQL
+
+  # rubocop:disable Naming/MethodName
+  class GetHTTPServerRow < Data.define(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count,
+    :camelCase,
+    :HTTPServer
+  )
+  end
+  # rubocop:enable Naming/MethodName
+
+  TRUNCATE_NAME_CASES_SQL = <<~'SQL'
+    DELETE FROM name_cases
+  SQL
+
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
@@ -1021,6 +1080,122 @@ module Sqlite3Codegen
     def truncate_tags
       with_client('truncate_tags') do |client|
         stmt = client.prepare(TRUNCATE_TAGS_SQL)
+        begin
+          stmt.execute
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def list_authors_with_optional_book
+      with_client('list_authors_with_optional_book') do |client|
+        stmt = client.prepare(LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL)
+        begin
+          result = stmt.execute
+          result.map do |row|
+            ListAuthorsWithOptionalBookRow.new(
+              row[0].nil? && row[1].nil? ? nil : Author.new(row[0], row[1], row[2]),
+              row[3].nil? && row[4].nil? && row[5].nil? ? nil : Book.new(row[3], row[4], row[5], row[6])
+            )
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def insert_name_case(id:, class_:, end_:, hash:, method:, count:, camel_case:, http_server:)
+      with_client('insert_name_case') do |client|
+        query_params = [
+          id,
+          class_,
+          end_,
+          hash,
+          method,
+          count,
+          camel_case,
+          http_server
+        ]
+        stmt = client.prepare(INSERT_NAME_CASE_SQL)
+        begin
+          stmt.execute(*query_params)
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def get_name_case(id:, class_:, end_:, hash:, method:, count:, http_server:, camel_case:)
+      with_client('get_name_case') do |client|
+        query_params = [
+          id,
+          class_,
+          end_,
+          hash,
+          method,
+          count,
+          http_server,
+          camel_case
+        ]
+        stmt = client.prepare(GET_NAME_CASE_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          row = result.first
+          row && GetNameCaseRow.new(
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4],
+            row[5],
+            row[6],
+            row[7]
+          )
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    # Like #get_name_case, but raises NotFound when there is no row.
+    def get_name_case!(...)
+      get_name_case(...) || raise(NotFound, 'GetNameCase returned no row')
+    end
+
+    def get_http_server(id:)
+      with_client('get_http_server') do |client|
+        query_params = [id]
+        stmt = client.prepare(GET_HTTP_SERVER_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          row = result.first
+          row && GetHTTPServerRow.new(
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4],
+            row[5],
+            row[6],
+            row[7]
+          )
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    # Like #get_http_server, but raises NotFound when there is no row.
+    def get_http_server!(...)
+      get_http_server(...) || raise(NotFound, 'GetHTTPServer returned no row')
+    end
+
+    def truncate_name_cases
+      with_client('truncate_name_cases') do |client|
+        stmt = client.prepare(TRUNCATE_NAME_CASES_SQL)
         begin
           stmt.execute
           nil

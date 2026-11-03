@@ -202,6 +202,10 @@ module Mysql2Codegen
     attr_accessor datetime_2: Time?
     attr_accessor bool_value: Integer?
     attr_accessor nullable_value: String?
+    attr_accessor bit_value: String?
+    attr_accessor year_value: Integer?
+    attr_accessor time_value: Time?
+    attr_accessor json_unicode: String?
     def initialize: (
         id: Integer,
         text_value: String?,
@@ -214,7 +218,11 @@ module Mysql2Codegen
         datetime_value: Time?,
         datetime_2: Time?,
         bool_value: Integer?,
-        nullable_value: String?
+        nullable_value: String?,
+        bit_value: String?,
+        year_value: Integer?,
+        time_value: Time?,
+        json_unicode: String?
     ) -> void
     def self.new: (
         id: Integer,
@@ -228,7 +236,42 @@ module Mysql2Codegen
         datetime_value: Time?,
         datetime_2: Time?,
         bool_value: Integer?,
-        nullable_value: String?
+        nullable_value: String?,
+        bit_value: String?,
+        year_value: Integer?,
+        time_value: Time?,
+        json_unicode: String?
     ) -> MysqlBindingValu
+  end
+
+  class NameCase < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor class_: String
+    attr_accessor end: String
+    attr_accessor hash_: String
+    attr_accessor method_: String
+    attr_accessor count_: Integer
+    attr_accessor camelcase: String
+    attr_accessor httpserver: String
+    def initialize: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelcase: String,
+        httpserver: String
+    ) -> void
+    def self.new: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelcase: String,
+        httpserver: String
+    ) -> NameCase
   end
 end

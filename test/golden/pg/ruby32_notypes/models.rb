@@ -55,6 +55,23 @@ module PgCodegen
   )
   end
 
+  class PostgresRemainingType < Data.define(
+    :c_hstore,
+    :c_ltree,
+    :c_regclass,
+    :c_cidr,
+    :c_macaddr,
+    :c_interval,
+    :c_varbit,
+    :c_xml,
+    :c_numeric,
+    :c_bigint,
+    :c_timestamp,
+    :c_timestamptz,
+    :c_text_matrix
+  )
+  end
+
   class JsonRoundTrip < Data.define(:id, :json_value, :jsonb_value)
   end
 
@@ -93,6 +110,20 @@ module PgCodegen
     :stamps
   )
   end
+
+  # rubocop:disable Naming/MethodName
+  class NameCase < Data.define(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count,
+    :camelCase,
+    :HTTPServer
+  )
+  end
+  # rubocop:enable Naming/MethodName
 
   class ExtendedBio < Data.define(:author_name, :name, :bio_type)
   end

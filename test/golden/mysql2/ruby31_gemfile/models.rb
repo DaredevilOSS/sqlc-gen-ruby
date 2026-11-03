@@ -107,7 +107,23 @@ module Mysql2Codegen
     :datetime_2,
     :bool_value,
     :nullable_value,
+    :bit_value,
+    :year_value,
+    :time_value,
+    :json_unicode,
     keyword_init: true
   )
   # rubocop:enable Naming/VariableNumber
+
+  NameCase = Struct.new(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count_,
+    :camelcase,
+    :httpserver,
+    keyword_init: true
+  )
 end

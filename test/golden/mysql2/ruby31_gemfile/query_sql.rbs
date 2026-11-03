@@ -360,6 +360,15 @@ module Mysql2Codegen
     def self.new: (  id: Integer, order: String, note: String?, payload: String?) -> ListRegressionRowsRow
   end
 
+  LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL: String
+
+  class ListAuthorsWithOptionalBookRow < ::Struct[untyped]
+    attr_accessor author: Author?
+    attr_accessor book: Book?
+    def initialize: (  author: Author?, book: Book?) -> void
+    def self.new: (  author: Author?, book: Book?) -> ListAuthorsWithOptionalBookRow
+  end
+
   TRUNCATE_REGRESSIONS_SQL: String
 
   class CopyCopyTypesArgs < ::Struct[untyped]
@@ -483,6 +492,10 @@ module Mysql2Codegen
     attr_accessor datetime_2: Time?
     attr_accessor bool_value: Integer?
     attr_accessor nullable_value: String?
+    attr_accessor bit_value: String?
+    attr_accessor year_value: Integer?
+    attr_accessor time_value: Time?
+    attr_accessor json_unicode: String?
     def initialize: (
         id: Integer,
         text_value: String?,
@@ -495,7 +508,11 @@ module Mysql2Codegen
         datetime_value: Time?,
         datetime_2: Time?,
         bool_value: Integer?,
-        nullable_value: String?
+        nullable_value: String?,
+        bit_value: String?,
+        year_value: Integer?,
+        time_value: Time?,
+        json_unicode: String?
     ) -> void
     def self.new: (
         id: Integer,
@@ -509,11 +526,85 @@ module Mysql2Codegen
         datetime_value: Time?,
         datetime_2: Time?,
         bool_value: Integer?,
-        nullable_value: String?
+        nullable_value: String?,
+        bit_value: String?,
+        year_value: Integer?,
+        time_value: Time?,
+        json_unicode: String?
     ) -> GetMysqlBindingValuesRow
   end
 
   TRUNCATE_MYSQL_BINDING_VALUES_SQL: String
+
+  INSERT_NAME_CASE_SQL: String
+
+  GET_NAME_CASE_SQL: String
+
+  class GetNameCaseRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor class_: String
+    attr_accessor end: String
+    attr_accessor hash_: String
+    attr_accessor method_: String
+    attr_accessor count_: Integer
+    attr_accessor camelcase: String
+    attr_accessor httpserver: String
+    def initialize: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelcase: String,
+        httpserver: String
+    ) -> void
+    def self.new: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelcase: String,
+        httpserver: String
+    ) -> GetNameCaseRow
+  end
+
+  GET_HTTP_SERVER_SQL: String
+
+  class GetHTTPServerRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor class_: String
+    attr_accessor end: String
+    attr_accessor hash_: String
+    attr_accessor method_: String
+    attr_accessor count_: Integer
+    attr_accessor camelcase: String
+    attr_accessor httpserver: String
+    def initialize: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelcase: String,
+        httpserver: String
+    ) -> void
+    def self.new: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelcase: String,
+        httpserver: String
+    ) -> GetHTTPServerRow
+  end
+
+  TRUNCATE_NAME_CASES_SQL: String
 
   MANY_PARAMS_SQL: String
 
@@ -650,6 +741,8 @@ module Mysql2Codegen
 
     def list_regression_rows: -> Array[ListRegressionRowsRow]
 
+    def list_authors_with_optional_book: -> Array[ListAuthorsWithOptionalBookRow]
+
     def truncate_regressions: -> void
 
     def copy_copy_types: (Array[CopyCopyTypesArgs] rows) -> void
@@ -677,6 +770,18 @@ module Mysql2Codegen
     def get_mysql_binding_values!: (id: Integer) -> GetMysqlBindingValuesRow
 
     def truncate_mysql_binding_values: -> void
+
+    def insert_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, camel_case: String, http_server: String) -> void
+
+    def get_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow?
+
+    def get_name_case!: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow
+
+    def get_http_server: (id: Integer) -> GetHTTPServerRow?
+
+    def get_http_server!: (id: Integer) -> GetHTTPServerRow
+
+    def truncate_name_cases: -> void
 
     def many_params: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow?
 

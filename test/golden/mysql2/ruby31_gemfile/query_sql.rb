@@ -271,6 +271,15 @@ module Mysql2Codegen
     keyword_init: true
   )
 
+  LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL = <<~'SQL'
+    SELECT authors.id, authors.name, authors.bio, books.id, books.name, books.author_id, books.description
+    FROM authors
+    LEFT JOIN books ON authors.id = books.author_id
+    ORDER BY authors.id
+  SQL
+
+  ListAuthorsWithOptionalBookRow = Struct.new(:author, :book, keyword_init: true)
+
   TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
     TRUNCATE TABLE regressions
   SQL
@@ -353,7 +362,7 @@ module Mysql2Codegen
   SQL
 
   GET_MYSQL_BINDING_VALUES_SQL = <<~'SQL'
-    SELECT id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value, datetime_value, datetime_2, bool_value, nullable_value FROM mysql_binding_values WHERE id = ?
+    SELECT id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value, datetime_value, datetime_2, bool_value, nullable_value, bit_value, year_value, time_value, json_unicode FROM mysql_binding_values WHERE id = ?
   SQL
 
   # rubocop:disable Naming/VariableNumber
@@ -370,12 +379,61 @@ module Mysql2Codegen
     :datetime_2,
     :bool_value,
     :nullable_value,
+    :bit_value,
+    :year_value,
+    :time_value,
+    :json_unicode,
     keyword_init: true
   )
   # rubocop:enable Naming/VariableNumber
 
   TRUNCATE_MYSQL_BINDING_VALUES_SQL = <<~'SQL'
     TRUNCATE TABLE mysql_binding_values
+  SQL
+
+  INSERT_NAME_CASE_SQL = <<~'SQL'
+    INSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`)
+    VALUES (?, ?, ?, ?, ?, ?,
+            ?, ?)
+  SQL
+
+  GET_NAME_CASE_SQL = <<~'SQL'
+    SELECT id, class, end, hash, method, count, camelcase, httpserver FROM name_cases
+    WHERE id = ? AND `class` = ? AND `end` = ? AND `hash` = ?
+      AND `method` = ? AND `count` = ?
+      AND `HTTPServer` = ? AND `camelCase` = ?
+  SQL
+
+  GetNameCaseRow = Struct.new(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count_,
+    :camelcase,
+    :httpserver,
+    keyword_init: true
+  )
+
+  GET_HTTP_SERVER_SQL = <<~'SQL'
+    SELECT id, class, end, hash, method, count, camelcase, httpserver FROM name_cases WHERE id = ?
+  SQL
+
+  GetHTTPServerRow = Struct.new(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count_,
+    :camelcase,
+    :httpserver,
+    keyword_init: true
+  )
+
+  TRUNCATE_NAME_CASES_SQL = <<~'SQL'
+    TRUNCATE TABLE name_cases
   SQL
 
   MANY_PARAMS_SQL = <<~'SQL'
@@ -865,6 +923,18 @@ module Mysql2Codegen
       end
     end
 
+    def list_authors_with_optional_book
+      with_client('list_authors_with_optional_book') do |client|
+        result = client.query(bind_params(client, LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL, []), as: :array)
+        result.map do |row|
+          ListAuthorsWithOptionalBookRow.new(
+            author: row[0].nil? && row[1].nil? ? nil : Author.new(id: row[0], name: row[1], bio: row[2]),
+            book: row[3].nil? && row[4].nil? && row[5].nil? ? nil : Book.new(id: row[3], name: row[4], author_id: row[5], description: row[6])
+          )
+        end
+      end
+    end
+
     def truncate_regressions
       with_client('truncate_regressions') do |client|
         client.query(bind_params(client, TRUNCATE_REGRESSIONS_SQL, []))
@@ -1019,7 +1089,11 @@ module Mysql2Codegen
           datetime_value: row[8],
           datetime_2: row[9],
           bool_value: row[10],
-          nullable_value: row[11]
+          nullable_value: row[11],
+          bit_value: row[12],
+          year_value: row[13],
+          time_value: row[14],
+          json_unicode: row[15]
         )
       end
     end
@@ -1032,6 +1106,85 @@ module Mysql2Codegen
     def truncate_mysql_binding_values
       with_client('truncate_mysql_binding_values') do |client|
         client.query(bind_params(client, TRUNCATE_MYSQL_BINDING_VALUES_SQL, []))
+        nil
+      end
+    end
+
+    def insert_name_case(id:, class_:, end_:, hash:, method:, count:, camel_case:, http_server:)
+      with_client('insert_name_case') do |client|
+        query_params = [
+          id,
+          class_,
+          end_,
+          hash,
+          method,
+          count,
+          camel_case,
+          http_server
+        ]
+        client.query(bind_params(client, INSERT_NAME_CASE_SQL, query_params))
+        nil
+      end
+    end
+
+    def get_name_case(id:, class_:, end_:, hash:, method:, count:, http_server:, camel_case:)
+      with_client('get_name_case') do |client|
+        query_params = [
+          id,
+          class_,
+          end_,
+          hash,
+          method,
+          count,
+          http_server,
+          camel_case
+        ]
+        result = client.query(bind_params(client, GET_NAME_CASE_SQL, query_params), as: :array)
+        row = result.first
+        row && GetNameCaseRow.new(
+          id: row[0],
+          class_: row[1],
+          end: row[2],
+          hash_: row[3],
+          method_: row[4],
+          count_: row[5],
+          camelcase: row[6],
+          httpserver: row[7]
+        )
+      end
+    end
+
+    # Like #get_name_case, but raises NotFound when there is no row.
+    def get_name_case!(...)
+      get_name_case(...) || raise(NotFound, 'GetNameCase returned no row')
+    end
+
+    def get_http_server(id:)
+      with_client('get_http_server') do |client|
+        query_params = [id]
+        result = client.query(bind_params(client, GET_HTTP_SERVER_SQL, query_params), as: :array)
+        row = result.first
+        row && GetHTTPServerRow.new(
+          id: row[0],
+          class_: row[1],
+          end: row[2],
+          hash_: row[3],
+          method_: row[4],
+          count_: row[5],
+          camelcase: row[6],
+          httpserver: row[7]
+        )
+      end
+    end
+
+    # Like #get_http_server, but raises NotFound when there is no row.
+    def get_http_server!(...)
+      get_http_server(...) || raise(NotFound, 'GetHTTPServer returned no row')
+    end
+
+    def truncate_name_cases
+      with_client('truncate_name_cases') do |client|
+        client.query(bind_params(client, TRUNCATE_NAME_CASES_SQL, []))
         nil
       end
     end

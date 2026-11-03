@@ -297,6 +297,14 @@ module Mysql2Codegen
     def initialize: (  Integer id, String order, String? note, String? payload) -> void
   end
 
+  LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL: String
+
+  class ListAuthorsWithOptionalBookRow
+    attr_reader author: Author?
+    attr_reader book: Book?
+    def initialize: (  Author? author, Book? book) -> void
+  end
+
   TRUNCATE_REGRESSIONS_SQL: String
 
   class CopyCopyTypesArgs
@@ -399,6 +407,10 @@ module Mysql2Codegen
     attr_reader datetime_2: Time?
     attr_reader bool_value: Integer?
     attr_reader nullable_value: String?
+    attr_reader bit_value: String?
+    attr_reader year_value: Integer?
+    attr_reader time_value: Time?
+    attr_reader json_unicode: String?
     def initialize: (
         Integer id,
         String? text_value,
@@ -411,11 +423,65 @@ module Mysql2Codegen
         Time? datetime_value,
         Time? datetime_2,
         Integer? bool_value,
-        String? nullable_value
+        String? nullable_value,
+        String? bit_value,
+        Integer? year_value,
+        Time? time_value,
+        String? json_unicode
     ) -> void
   end
 
   TRUNCATE_MYSQL_BINDING_VALUES_SQL: String
+
+  INSERT_NAME_CASE_SQL: String
+
+  GET_NAME_CASE_SQL: String
+
+  class GetNameCaseRow
+    attr_reader id: Integer
+    attr_reader class_: String
+    attr_reader end: String
+    attr_reader hash_: String
+    attr_reader method_: String
+    attr_reader count: Integer
+    attr_reader camelcase: String
+    attr_reader httpserver: String
+    def initialize: (
+        Integer id,
+        String class_,
+        String end,
+        String hash_,
+        String method_,
+        Integer count,
+        String camelcase,
+        String httpserver
+    ) -> void
+  end
+
+  GET_HTTP_SERVER_SQL: String
+
+  class GetHTTPServerRow
+    attr_reader id: Integer
+    attr_reader class_: String
+    attr_reader end: String
+    attr_reader hash_: String
+    attr_reader method_: String
+    attr_reader count: Integer
+    attr_reader camelcase: String
+    attr_reader httpserver: String
+    def initialize: (
+        Integer id,
+        String class_,
+        String end,
+        String hash_,
+        String method_,
+        Integer count,
+        String camelcase,
+        String httpserver
+    ) -> void
+  end
+
+  TRUNCATE_NAME_CASES_SQL: String
 
   MANY_PARAMS_SQL: String
 
@@ -542,6 +608,8 @@ module Mysql2Codegen
 
     def list_regression_rows: -> Array[ListRegressionRowsRow]
 
+    def list_authors_with_optional_book: -> Array[ListAuthorsWithOptionalBookRow]
+
     def truncate_regressions: -> void
 
     def copy_copy_types: (Array[CopyCopyTypesArgs] rows) -> void
@@ -569,6 +637,18 @@ module Mysql2Codegen
     def get_mysql_binding_values!: (id: Integer) -> GetMysqlBindingValuesRow
 
     def truncate_mysql_binding_values: -> void
+
+    def insert_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, camel_case: String, http_server: String) -> void
+
+    def get_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow?
+
+    def get_name_case!: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow
+
+    def get_http_server: (id: Integer) -> GetHTTPServerRow?
+
+    def get_http_server!: (id: Integer) -> GetHTTPServerRow
+
+    def truncate_name_cases: -> void
 
     def many_params: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow?
 

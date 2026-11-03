@@ -232,6 +232,43 @@ module PgCodegen
 
   TRUNCATE_EXTRA_TYPES_SQL: String
 
+  INSERT_REMAINING_TYPES_SQL: String
+
+  GET_REMAINING_TYPES_SQL: String
+
+  class GetRemainingTypesRow
+    attr_reader c_hstore: String?
+    attr_reader c_ltree: String?
+    attr_reader c_regclass: String?
+    attr_reader c_cidr: IPAddr?
+    attr_reader c_macaddr: String?
+    attr_reader c_interval: String?
+    attr_reader c_varbit: String?
+    attr_reader c_xml: String?
+    attr_reader c_numeric: BigDecimal?
+    attr_reader c_bigint: Integer?
+    attr_reader c_timestamp: Time?
+    attr_reader c_timestamptz: Time?
+    attr_reader c_text_matrix: Array[Array[String]]?
+    def initialize: (
+        String? c_hstore,
+        String? c_ltree,
+        String? c_regclass,
+        IPAddr? c_cidr,
+        String? c_macaddr,
+        String? c_interval,
+        String? c_varbit,
+        String? c_xml,
+        BigDecimal? c_numeric,
+        Integer? c_bigint,
+        Time? c_timestamp,
+        Time? c_timestamptz,
+        Array[Array[String]]? c_text_matrix
+    ) -> void
+  end
+
+  TRUNCATE_REMAINING_TYPES_SQL: String
+
   INSERT_ARRAY_TYPES_SQL: String
 
   GET_ARRAY_TYPES_SQL: String
@@ -466,6 +503,56 @@ module PgCodegen
 
   TRUNCATE_BATCH_TYPES_SQL: String
 
+  INSERT_NAME_CASE_SQL: String
+
+  GET_NAME_CASE_SQL: String
+
+  class GetNameCaseRow
+    attr_reader id: Integer
+    attr_reader class_: String
+    attr_reader end: String
+    attr_reader hash_: String
+    attr_reader method_: String
+    attr_reader count: Integer
+    attr_reader camelCase: String
+    attr_reader HTTPServer: String
+    def initialize: (
+        Integer id,
+        String class_,
+        String end,
+        String hash_,
+        String method_,
+        Integer count,
+        String camelCase,
+        String HTTPServer
+    ) -> void
+  end
+
+  GET_HTTP_SERVER_SQL: String
+
+  class GetHTTPServerRow
+    attr_reader id: Integer
+    attr_reader class_: String
+    attr_reader end: String
+    attr_reader hash_: String
+    attr_reader method_: String
+    attr_reader count: Integer
+    attr_reader camelCase: String
+    attr_reader HTTPServer: String
+    def initialize: (
+        Integer id,
+        String class_,
+        String end,
+        String hash_,
+        String method_,
+        Integer count,
+        String camelCase,
+        String HTTPServer
+    ) -> void
+  end
+
+  TRUNCATE_NAME_CASES_SQL: String
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow
@@ -591,6 +678,14 @@ module PgCodegen
 
     def truncate_extra_types: -> void
 
+    def insert_remaining_types: (c_hstore: String?, c_ltree: String?, c_regclass: String?, c_cidr: IPAddr?, c_macaddr: String?, c_interval: String?, c_varbit: String?, c_xml: String?, c_numeric: BigDecimal?, c_bigint: Integer?, c_timestamp: Time?, c_timestamptz: Time?, c_text_matrix: Array[Array[String]]?) -> void
+
+    def get_remaining_types: -> GetRemainingTypesRow?
+
+    def get_remaining_types!: -> GetRemainingTypesRow
+
+    def truncate_remaining_types: -> void
+
     def insert_array_types: (c_uuid_array: Array[String]?, c_bio_type_array: Array[String]?, c_integer_matrix: Array[Array[Integer]]?) -> void
 
     def get_array_types: -> GetArrayTypesRow?
@@ -644,6 +739,18 @@ module PgCodegen
     def count_batch_types_above!: (min_id: Integer) -> CountBatchTypesAboveRow
 
     def truncate_batch_types: -> void
+
+    def insert_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, camel_case: String, http_server: String) -> void
+
+    def get_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow?
+
+    def get_name_case!: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow
+
+    def get_http_server: (id: Integer) -> GetHTTPServerRow?
+
+    def get_http_server!: (id: Integer) -> GetHTTPServerRow
+
+    def truncate_name_cases: -> void
 
     def many_params: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow?
 

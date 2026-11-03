@@ -177,10 +177,11 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   The generated SQLite code uses `Monitor`: if you run Steep, add `library "monitor"` to your `Steepfile`.
 
 ### Names
-* Query method names and keyword arguments are snake_cased, with acronyms kept together (`MIN_ID` → `min_id`,
-  `HTTPServer` → `http_server`). Ruby keywords and names a method already uses get a trailing `_`.
-* Row members retain the column spelling unless they conflict with a generated row method: `"camelCase"` is `camelCase`
-  on a row but `camel_case:` as an argument; a column named `end` is row member `:end` and argument `end_:`.
+* Query methods and keyword arguments are snake_cased, with acronyms kept together (`MIN_ID` → `min_id`,
+  `HTTPServer` → `http_server`); Ruby keywords get a trailing `_` (`end_:`). Row members use the column spelling
+  reported by sqlc for the engine, except names that conflict with generated row methods (`class_`, `hash_`):
+  PostgreSQL and SQLite keep `"camelCase"` as `:camelCase`, while MySQL reports it as `:camelcase`. A column named
+  `end` is the row member `:end` but the argument `end_:`.
 * A parameter used twice is one keyword when named with `sqlc.arg`; repeated `?` / `$n` of one column become `id:`, `id_2:`.
 * A table `authors` next to a table `author` keeps its plural model name (`Authors`). Query names that would replace
   a generated method (`Transaction`, `Initialize`, ...) are errors.
@@ -189,8 +190,8 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 * Two result columns with the same name (e.g. `a.id, b.id`) are an error: alias one (`b.id AS book_id`) or use `sqlc.embed`.
 * SQLite's `NUMERIC` affinity can return an `Integer` where `Float` is declared.
 * `:batchexec` / `:batchone` / `:batchmany` are not atomic on their own: wrap them in `transaction` for all-or-nothing.
-* SQLite: a transaction belongs to the thread that opened it; a Fiber / `Enumerator#next` inside it that uses the same
-  database waits for it (with `async`, run the work in the transaction's own fiber).
+* SQLite transactions belong to the thread that opened them; fibers sharing the same database take turns, and a
+  transaction holds it until it ends.
 * Not applicable to Ruby (they exist in the C# plugin): `withAsyncSuffix` / `withCancellationToken` (use the Fiber
   scheduler), `useDapper`, target framework / csproj options (`moduleName` replaces the namespace).
 

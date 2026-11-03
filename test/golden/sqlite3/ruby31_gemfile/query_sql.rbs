@@ -357,6 +357,85 @@ module Sqlite3Codegen
 
   TRUNCATE_TAGS_SQL: String
 
+  LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL: String
+
+  class ListAuthorsWithOptionalBookRow < ::Struct[untyped]
+    attr_accessor author: Author?
+    attr_accessor book: Book?
+    def initialize: (  author: Author?, book: Book?) -> void
+    def self.new: (  author: Author?, book: Book?) -> ListAuthorsWithOptionalBookRow
+  end
+
+  INSERT_NAME_CASE_SQL: String
+
+  GET_NAME_CASE_SQL: String
+
+  class GetNameCaseRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor class_: String
+    attr_accessor end: String
+    attr_accessor hash_: String
+    attr_accessor method_: String
+    attr_accessor count_: Integer
+    attr_accessor camelCase: String
+    attr_accessor HTTPServer: String
+    def initialize: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelCase: String,
+        HTTPServer: String
+    ) -> void
+    def self.new: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelCase: String,
+        HTTPServer: String
+    ) -> GetNameCaseRow
+  end
+
+  GET_HTTP_SERVER_SQL: String
+
+  class GetHTTPServerRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor class_: String
+    attr_accessor end: String
+    attr_accessor hash_: String
+    attr_accessor method_: String
+    attr_accessor count_: Integer
+    attr_accessor camelCase: String
+    attr_accessor HTTPServer: String
+    def initialize: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelCase: String,
+        HTTPServer: String
+    ) -> void
+    def self.new: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelCase: String,
+        HTTPServer: String
+    ) -> GetHTTPServerRow
+  end
+
+  TRUNCATE_NAME_CASES_SQL: String
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow < ::Struct[untyped]
@@ -507,6 +586,20 @@ module Sqlite3Codegen
     def list_tags: -> Array[ListTagsRow]
 
     def truncate_tags: -> void
+
+    def list_authors_with_optional_book: -> Array[ListAuthorsWithOptionalBookRow]
+
+    def insert_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, camel_case: String, http_server: String) -> void
+
+    def get_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow?
+
+    def get_name_case!: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow
+
+    def get_http_server: (id: Integer) -> GetHTTPServerRow?
+
+    def get_http_server!: (id: Integer) -> GetHTTPServerRow
+
+    def truncate_name_cases: -> void
 
     def many_params: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow?
 

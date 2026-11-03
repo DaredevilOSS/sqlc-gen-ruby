@@ -583,6 +583,14 @@ class FeaturesTest < Minitest::Test
     assert_includes generate(request).fetch('query_sql.rb'), 'class GetAuthorRow < Data.define(:id, :weird_name, :hash_)'
   end
 
+  def test_duplicate_result_columns_are_rejected
+    request = load_request('pg')
+    columns = query(request, 'GetAuthor').columns
+    columns << columns.first.dup
+    error = assert_raises(RuntimeError) { generate(request) }
+    assert_match(/duplicate column names in GetAuthorRow: id/, error.message)
+  end
+
   def test_query_method_colliding_with_a_generated_method_is_an_error
     request = load_request('pg')
     query(request, 'GetAuthor').name = 'Transaction'

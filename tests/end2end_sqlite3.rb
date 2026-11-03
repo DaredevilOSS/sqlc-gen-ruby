@@ -132,6 +132,12 @@ class TestSqlite3 < Minitest::Test
     assert_nil @query_sql.create_authors_batch([])
   end
 
+  def test_batches_are_not_atomic_without_a_transaction
+    rows = [CreateAuthorsBatchArgs.new(name: 'committed', bio: nil), CreateAuthorsBatchArgs.new(name: nil, bio: nil)]
+    assert_raises(SQLite3::ConstraintException) { @query_sql.create_authors_batch(rows) }
+    assert_equal ['committed'], @query_sql.list_authors.map(&:name)
+  end
+
   def test_declared_types_with_parameters
     uid = '6f1c4a52-1d2b-4c3e-9f00-0a1b2c3d4e5f'
     @query_sql.insert_declared_types(c_varchar: 'v', c_decimal: 1.5, c_unsigned_big_int: 7, c_native: 'n', c_double: 2.5,

@@ -92,8 +92,24 @@ module Mysql2Codegen
     :datetime_value,
     :datetime_2,
     :bool_value,
-    :nullable_value
+    :nullable_value,
+    :bit_value,
+    :year_value,
+    :time_value,
+    :json_unicode
   )
   end
   # rubocop:enable Naming/VariableNumber
+
+  class NameCase < Data.define(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count,
+    :camelcase,
+    :httpserver
+  )
+  end
 end

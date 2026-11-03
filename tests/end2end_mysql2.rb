@@ -178,6 +178,12 @@ class TestMysql2 < Minitest::Test
     assert_nil @query_sql.create_authors_batch([])
   end
 
+  def test_batches_are_not_atomic_without_a_transaction
+    rows = [CreateAuthorsBatchArgs.new(name: 'committed', bio: nil), CreateAuthorsBatchArgs.new(name: nil, bio: nil)]
+    assert_raises(Mysql2::Error) { @query_sql.create_authors_batch(rows) }
+    assert_equal ['committed'], @query_sql.list_authors.map(&:name)
+  end
+
   def test_execrows_returns_affected_row_count
     create_author('with bio', 'bio')
     create_author('with bio 2', 'bio')

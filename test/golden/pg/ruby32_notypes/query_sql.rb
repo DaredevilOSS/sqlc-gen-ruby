@@ -249,6 +249,40 @@ module PgCodegen
     TRUNCATE TABLE postgres_extra_types
   SQL
 
+  INSERT_REMAINING_TYPES_SQL = <<~'SQL'
+    INSERT INTO postgres_remaining_types (
+      c_hstore, c_ltree, c_regclass, c_cidr, c_macaddr, c_interval, c_varbit, c_xml,
+      c_numeric, c_bigint, c_timestamp, c_timestamptz, c_text_matrix
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+    )
+  SQL
+
+  GET_REMAINING_TYPES_SQL = <<~'SQL'
+    SELECT c_hstore, c_ltree, c_regclass, c_cidr, c_macaddr, c_interval, c_varbit, c_xml, c_numeric, c_bigint, c_timestamp, c_timestamptz, c_text_matrix FROM postgres_remaining_types LIMIT 1
+  SQL
+
+  class GetRemainingTypesRow < Data.define(
+    :c_hstore,
+    :c_ltree,
+    :c_regclass,
+    :c_cidr,
+    :c_macaddr,
+    :c_interval,
+    :c_varbit,
+    :c_xml,
+    :c_numeric,
+    :c_bigint,
+    :c_timestamp,
+    :c_timestamptz,
+    :c_text_matrix
+  )
+  end
+
+  TRUNCATE_REMAINING_TYPES_SQL = <<~'SQL'
+    TRUNCATE TABLE postgres_remaining_types
+  SQL
+
   INSERT_ARRAY_TYPES_SQL = <<~'SQL'
     INSERT INTO postgres_array_types (c_uuid_array, c_bio_type_array, c_integer_matrix) VALUES ($1, $2, $3)
   SQL
@@ -442,6 +476,55 @@ module PgCodegen
 
   TRUNCATE_BATCH_TYPES_SQL = <<~'SQL'
     TRUNCATE TABLE batch_types
+  SQL
+
+  INSERT_NAME_CASE_SQL = <<~'SQL'
+    INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer")
+    VALUES ($1, $2, $3, $4, $5, $6,
+            $7, $8)
+  SQL
+
+  GET_NAME_CASE_SQL = <<~'SQL'
+    SELECT id, class, "end", hash, method, count, "camelCase", "HTTPServer" FROM name_cases
+    WHERE id = $1 AND "class" = $2 AND "end" = $3 AND "hash" = $4
+      AND "method" = $5 AND "count" = $6
+      AND "HTTPServer" = $7 AND "camelCase" = $8
+  SQL
+
+  # rubocop:disable Naming/MethodName
+  class GetNameCaseRow < Data.define(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count,
+    :camelCase,
+    :HTTPServer
+  )
+  end
+  # rubocop:enable Naming/MethodName
+
+  GET_HTTP_SERVER_SQL = <<~'SQL'
+    SELECT id, class, "end", hash, method, count, "camelCase", "HTTPServer" FROM name_cases WHERE id = $1
+  SQL
+
+  # rubocop:disable Naming/MethodName
+  class GetHTTPServerRow < Data.define(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count,
+    :camelCase,
+    :HTTPServer
+  )
+  end
+  # rubocop:enable Naming/MethodName
+
+  TRUNCATE_NAME_CASES_SQL = <<~'SQL'
+    TRUNCATE TABLE name_cases
   SQL
 
   MANY_PARAMS_SQL = <<~'SQL'
@@ -993,6 +1076,74 @@ module PgCodegen
       end
     end
 
+    def insert_remaining_types(c_hstore:, c_ltree:, c_regclass:, c_cidr:, c_macaddr:, c_interval:, c_varbit:, c_xml:, c_numeric:, c_bigint:, c_timestamp:, c_timestamptz:, c_text_matrix:)
+      with_client('insert_remaining_types') do |client|
+        query_params = [
+          c_hstore,
+          c_ltree,
+          c_regclass,
+          c_cidr,
+          c_macaddr,
+          c_interval,
+          c_varbit,
+          c_xml,
+          c_numeric,
+          c_bigint,
+          c_timestamp,
+          c_timestamptz,
+          encode_array(c_text_matrix)
+        ]
+        unless client.prepared_statements.include?('query_sql_insert_remaining_types')
+          client.prepare('query_sql_insert_remaining_types', INSERT_REMAINING_TYPES_SQL)
+          client.prepared_statements.add('query_sql_insert_remaining_types')
+        end
+        client.exec_prepared('query_sql_insert_remaining_types', query_params)
+        nil
+      end
+    end
+
+    def get_remaining_types
+      with_client('get_remaining_types') do |client|
+        unless client.prepared_statements.include?('query_sql_get_remaining_types')
+          client.prepare('query_sql_get_remaining_types', GET_REMAINING_TYPES_SQL)
+          client.prepared_statements.add('query_sql_get_remaining_types')
+        end
+        result = client.exec_prepared('query_sql_get_remaining_types')
+        row = result.first
+        row && GetRemainingTypesRow.new(
+          row['c_hstore'],
+          row['c_ltree'],
+          row['c_regclass'],
+          row['c_cidr'],
+          row['c_macaddr'],
+          row['c_interval'],
+          row['c_varbit'],
+          row['c_xml'],
+          row['c_numeric'],
+          row['c_bigint'],
+          row['c_timestamp'],
+          row['c_timestamptz'],
+          row['c_text_matrix']
+        )
+      end
+    end
+
+    # Like #get_remaining_types, but raises NotFound when there is no row.
+    def get_remaining_types!(...)
+      get_remaining_types(...) || raise(NotFound, 'GetRemainingTypes returned no row')
+    end
+
+    def truncate_remaining_types
+      with_client('truncate_remaining_types') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_remaining_types')
+          client.prepare('query_sql_truncate_remaining_types', TRUNCATE_REMAINING_TYPES_SQL)
+          client.prepared_statements.add('query_sql_truncate_remaining_types')
+        end
+        client.exec_prepared('query_sql_truncate_remaining_types')
+        nil
+      end
+    end
+
     def insert_array_types(c_uuid_array:, c_bio_type_array:, c_integer_matrix:)
       with_client('insert_array_types') do |client|
         query_params = [encode_array(c_uuid_array), encode_array(c_bio_type_array), encode_array(c_integer_matrix)]
@@ -1361,6 +1512,101 @@ module PgCodegen
           client.prepared_statements.add('query_sql_truncate_batch_types')
         end
         client.exec_prepared('query_sql_truncate_batch_types')
+        nil
+      end
+    end
+
+    def insert_name_case(id:, class_:, end_:, hash:, method:, count:, camel_case:, http_server:)
+      with_client('insert_name_case') do |client|
+        query_params = [
+          id,
+          class_,
+          end_,
+          hash,
+          method,
+          count,
+          camel_case,
+          http_server
+        ]
+        unless client.prepared_statements.include?('query_sql_insert_name_case')
+          client.prepare('query_sql_insert_name_case', INSERT_NAME_CASE_SQL)
+          client.prepared_statements.add('query_sql_insert_name_case')
+        end
+        client.exec_prepared('query_sql_insert_name_case', query_params)
+        nil
+      end
+    end
+
+    def get_name_case(id:, class_:, end_:, hash:, method:, count:, http_server:, camel_case:)
+      with_client('get_name_case') do |client|
+        query_params = [
+          id,
+          class_,
+          end_,
+          hash,
+          method,
+          count,
+          http_server,
+          camel_case
+        ]
+        unless client.prepared_statements.include?('query_sql_get_name_case')
+          client.prepare('query_sql_get_name_case', GET_NAME_CASE_SQL)
+          client.prepared_statements.add('query_sql_get_name_case')
+        end
+        result = client.exec_prepared('query_sql_get_name_case', query_params)
+        row = result.first
+        row && GetNameCaseRow.new(
+          row['id'],
+          row['class'],
+          row['end'],
+          row['hash'],
+          row['method'],
+          row['count'],
+          row['camelCase'],
+          row['HTTPServer']
+        )
+      end
+    end
+
+    # Like #get_name_case, but raises NotFound when there is no row.
+    def get_name_case!(...)
+      get_name_case(...) || raise(NotFound, 'GetNameCase returned no row')
+    end
+
+    def get_http_server(id:)
+      with_client('get_http_server') do |client|
+        query_params = [id]
+        unless client.prepared_statements.include?('query_sql_get_http_server')
+          client.prepare('query_sql_get_http_server', GET_HTTP_SERVER_SQL)
+          client.prepared_statements.add('query_sql_get_http_server')
+        end
+        result = client.exec_prepared('query_sql_get_http_server', query_params)
+        row = result.first
+        row && GetHTTPServerRow.new(
+          row['id'],
+          row['class'],
+          row['end'],
+          row['hash'],
+          row['method'],
+          row['count'],
+          row['camelCase'],
+          row['HTTPServer']
+        )
+      end
+    end
+
+    # Like #get_http_server, but raises NotFound when there is no row.
+    def get_http_server!(...)
+      get_http_server(...) || raise(NotFound, 'GetHTTPServer returned no row')
+    end
+
+    def truncate_name_cases
+      with_client('truncate_name_cases') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_name_cases')
+          client.prepare('query_sql_truncate_name_cases', TRUNCATE_NAME_CASES_SQL)
+          client.prepared_statements.add('query_sql_truncate_name_cases')
+        end
+        client.exec_prepared('query_sql_truncate_name_cases')
         nil
       end
     end

@@ -33,4 +33,18 @@ module Sqlite3Codegen
   )
 
   Tag = Struct.new(:name, :uses, keyword_init: true)
+
+  # rubocop:disable Naming/MethodName
+  NameCase = Struct.new(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count_,
+    :camelCase,
+    :HTTPServer,
+    keyword_init: true
+  )
+  # rubocop:enable Naming/MethodName
 end

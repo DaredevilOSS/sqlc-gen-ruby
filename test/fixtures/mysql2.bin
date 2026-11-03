@@ -1,7 +1,7 @@
 
 
 
-2mysqlópublic"èpublic€
+2mysql»!public"°!public€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
@@ -87,7 +87,7 @@ copy_typesbjson
 flags0R
 copy_typesbbit+
 amount0ÿÿÿÿÿÿÿÿÿR
-copy_typesbint€Í
+copy_typesbint€Ÿ
 mysql_binding_values3
 id0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigint;
 
@@ -109,7 +109,33 @@ datetime_20Rmysql_binding_valuesb
 datetime1
 
 bool_value0Rmysql_binding_valuesb	tinyint;
-nullable_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbtext":
+nullable_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbtext,
+	bit_value0Rmysql_binding_valuesbbit7
+
+year_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbyear.
+
+time_value0
+Rmysql_binding_valuesbtime9
+json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjsonó
+
+name_cases)
+id0ÿÿÿÿÿÿÿÿÿR
+name_casesbbigint*
+class0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext(
+end0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext)
+hash0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext+
+method0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext)
+count0ÿÿÿÿÿÿÿÿÿR
+name_casesbint.
+	camelcase0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext/
+
+httpserver0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext":
 extended_bios_bio_typeAutobiography	BiographyMemoir"7
 extended_bios_author_typeAuthorEditor
 TranslatorË
@@ -333,7 +359,13 @@ HINSERT INTO regressions (id, `order`, note, payload) VALUES (?, ?, ?, ?)CopyR
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid"-
 order0ÿRregressionsb	varcharzorder".
 note0ÿÿÿÿÿÿÿÿÿRregressionsbtextznote"0
-payload0Rregressionsb	varbinaryzpayload:	query.sqlC
+payload0Rregressionsb	varbinaryzpayload:	query.sql«
+·SELECT authors.id, authors.name, authors.bio, books.id, books.name, books.author_id, books.description
+FROM authors
+LEFT JOIN books ON authors.id = books.author_id
+ORDER BY authors.idListAuthorsWithOptionalBook:many"!
+authors0ÿÿÿÿÿÿÿÿÿb r	authors"
+books0ÿÿÿÿÿÿÿÿÿb rbooks:	query.sqlC
 TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sql 
 LINSERT INTO copy_types (id, code, doc, flags, amount) VALUES (?, ?, ?, ?, ?)CopyCopyTypes	:copyfrom*95
 id0ÿÿÿÿÿÿÿÿÿRpublic
@@ -431,8 +463,8 @@ datetime_2*KG
 
 bool_value08Rpublicmysql_binding_valuesb	tinyintz
 bool_value*YU
-nullable_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbtextznullable_value:	query.sqlBmysql_binding_valuesÿ
-ÆSELECT id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value, datetime_value, datetime_2, bool_value, nullable_value FROM mysql_binding_values WHERE id = ?GetMysqlBindingValues:one"7
+nullable_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbtextznullable_value:	query.sqlBmysql_binding_values³
+÷SELECT id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value, datetime_value, datetime_2, bool_value, nullable_value, bit_value, year_value, time_value, json_unicode FROM mysql_binding_values WHERE id = ?GetMysqlBindingValues:one"7
 id0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigintzid"G
 
 text_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
@@ -458,6 +490,99 @@ datetime_2"=
 
 bool_value0Rmysql_binding_valuesb	tinyintz
 bool_value"K
-nullable_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbtextznullable_value*=9
+nullable_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbtextznullable_value"7
+	bit_value0Rmysql_binding_valuesbbitz	bit_value"C
+
+year_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbyearz
+year_value":
+
+time_value0
+Rmysql_binding_valuesbtimez
+time_value"G
+json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjsonzjson_unicode*=9
 id0ÿÿÿÿÿÿÿÿÿ8Rmysql_binding_valuesbbigintzid:	query.sqlS
-#TRUNCATE TABLE mysql_binding_valuesTruncateMysqlBindingValues:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+#TRUNCATE TABLE mysql_binding_valuesTruncateMysqlBindingValues:exec:	query.sqlÐ
+‰INSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`)
+VALUES (?, ?, ?, ?, ?, ?,
+        ?, ?)InsertNameCase:exec*;7
+id0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbbigintzid*?;
+class0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzclass*<8
+end_0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzend*=9
+hash0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzhash*A=
+method0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzmethod*>:
+count0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbintzcount*HD
+
+camel_case0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextz	camelcase*JF
+http_server0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextz
+httpserver:	query.sqlB
+name_casesï
+ÙSELECT id, class, end, hash, method, count, camelcase, httpserver FROM name_cases
+WHERE id = ? AND `class` = ? AND `end` = ? AND `hash` = ?
+  AND `method` = ? AND `count` = ?
+  AND `HTTPServer` = ? AND `camelCase` = ?GetNameCase:one"-
+id0ÿÿÿÿÿÿÿÿÿR
+name_casesbbigintzid"1
+class0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzclass"-
+end0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzend"/
+hash0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzhash"3
+method0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzmethod"0
+count0ÿÿÿÿÿÿÿÿÿR
+name_casesbintzcount"9
+	camelcase0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz	camelcase";
+
+httpserver0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz
+httpserver*3/
+id0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbbigintzid*73
+class0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzclass*40
+end_0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzend*51
+hash0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzhash*95
+method0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzmethod*62
+count0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbintzcount*B>
+http_server0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextz
+httpserver*@<
+
+camel_case0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextz	camelcase:	query.sqlÖ
+^SELECT id, class, end, hash, method, count, camelcase, httpserver FROM name_cases WHERE id = ?GetHTTPServer:one"-
+id0ÿÿÿÿÿÿÿÿÿR
+name_casesbbigintzid"1
+class0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzclass"-
+end0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzend"/
+hash0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzhash"3
+method0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzmethod"0
+count0ÿÿÿÿÿÿÿÿÿR
+name_casesbintzcount"9
+	camelcase0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz	camelcase";
+
+httpserver0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz
+httpserver*3/
+id0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbbigintzid:	query.sql@
+TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

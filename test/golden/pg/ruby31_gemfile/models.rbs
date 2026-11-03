@@ -126,6 +126,52 @@ module PgCodegen
     ) -> PostgresExtraType
   end
 
+  class PostgresRemainingType < ::Struct[untyped]
+    attr_accessor c_hstore: String?
+    attr_accessor c_ltree: String?
+    attr_accessor c_regclass: String?
+    attr_accessor c_cidr: IPAddr?
+    attr_accessor c_macaddr: String?
+    attr_accessor c_interval: String?
+    attr_accessor c_varbit: String?
+    attr_accessor c_xml: String?
+    attr_accessor c_numeric: BigDecimal?
+    attr_accessor c_bigint: Integer?
+    attr_accessor c_timestamp: Time?
+    attr_accessor c_timestamptz: Time?
+    attr_accessor c_text_matrix: Array[Array[String]]?
+    def initialize: (
+        c_hstore: String?,
+        c_ltree: String?,
+        c_regclass: String?,
+        c_cidr: IPAddr?,
+        c_macaddr: String?,
+        c_interval: String?,
+        c_varbit: String?,
+        c_xml: String?,
+        c_numeric: BigDecimal?,
+        c_bigint: Integer?,
+        c_timestamp: Time?,
+        c_timestamptz: Time?,
+        c_text_matrix: Array[Array[String]]?
+    ) -> void
+    def self.new: (
+        c_hstore: String?,
+        c_ltree: String?,
+        c_regclass: String?,
+        c_cidr: IPAddr?,
+        c_macaddr: String?,
+        c_interval: String?,
+        c_varbit: String?,
+        c_xml: String?,
+        c_numeric: BigDecimal?,
+        c_bigint: Integer?,
+        c_timestamp: Time?,
+        c_timestamptz: Time?,
+        c_text_matrix: Array[Array[String]]?
+    ) -> PostgresRemainingType
+  end
+
   class JsonRoundTrip < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor json_value: untyped
@@ -224,6 +270,37 @@ module PgCodegen
         amounts: Array[BigDecimal]?,
         stamps: Array[Time]?
     ) -> BatchType
+  end
+
+  class NameCase < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor class_: String
+    attr_accessor end: String
+    attr_accessor hash_: String
+    attr_accessor method_: String
+    attr_accessor count_: Integer
+    attr_accessor camelCase: String
+    attr_accessor HTTPServer: String
+    def initialize: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelCase: String,
+        HTTPServer: String
+    ) -> void
+    def self.new: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelCase: String,
+        HTTPServer: String
+    ) -> NameCase
   end
 
   class ExtendedBio < ::Struct[untyped]
