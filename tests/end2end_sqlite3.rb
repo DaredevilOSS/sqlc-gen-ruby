@@ -72,9 +72,11 @@ class TestSqlite3 < Minitest::Test
   end
 
   def test_declared_types_with_parameters
-    @query_sql.insert_declared_types(c_varchar: 'v', c_decimal: 1.5, c_unsigned_big_int: 7, c_native: 'n', c_double: 2.5)
+    uid = '6f1c4a52-1d2b-4c3e-9f00-0a1b2c3d4e5f'
+    @query_sql.insert_declared_types(c_varchar: 'v', c_decimal: 1.5, c_unsigned_big_int: 7, c_native: 'n', c_double: 2.5,
+                                     c_json: '{"a":[1]}', c_uuid: uid)
     row = @query_sql.get_declared_types
-    assert_equal ['v', 1.5, 7, 'n', 2.5], row.to_h.values
+    assert_equal ['v', 1.5, 7, 'n', 2.5, '{"a":[1]}', uid], row.to_h.values
     assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/sqlite3/query_sql.rbs', __dir__), 'GetDeclaredTypesRow')
   end
 
@@ -282,6 +284,42 @@ class TestSqlite3 < Minitest::Test
     @query_sql.copy_regressions([CopyRegressionsArgs.new(order: 'x', price: 3.5)])
     assert_equal [['x', 3.5]], @query_sql.list_regressions.map { |r| [r.order, r.price] }
     assert_in_delta 3.5, @query_sql.get_max_regression_price!.max_price
+  end
+
+  def test_copyfrom_is_all_or_nothing
+    rows = (1..3000).map { |i| CopyRegressionsArgs.new(order: i == 2900 ? nil : "o#{i}", price: i) }
+    assert_raises(SQLite3::ConstraintException) { @query_sql.copy_regressions(rows) }
+    assert_empty @query_sql.list_regressions
+  end
+
+  def test_failed_copyfrom_in_a_transaction_rolls_back_only_itself
+    @query_sql.transaction do |tx|
+      tx.create_author_return_id(name: 'kept', bio: nil)
+      bad = [CopyRegressionsArgs.new(order: 'a', price: 1), CopyRegressionsArgs.new(order: nil, price: 2)]
+      assert_raises(SQLite3::ConstraintException) { tx.copy_regressions(bad) }
+    end
+    assert_equal ['kept'], @query_sql.list_authors.map(&:name)
+    assert_empty @query_sql.list_regressions
+  end
+
+  def test_threads_sharing_a_database_take_turns_in_transactions
+    other = QuerySql.new(@db)
+    threads = Array.new(8) do |i|
+      Thread.new do
+        20.times do |j|
+          (i.even? ? @query_sql : other).transaction do |tx|
+            tx.transaction { tx.create_author_return_id(name: "t#{i}-#{j}", bio: nil) }
+          end
+        end
+      end
+    end
+    threads.each(&:join)
+    assert_equal 160, @query_sql.list_authors.size
+  end
+
+  def test_unknown_transaction_mode_is_rejected_before_beginning
+    assert_raises(ArgumentError) { @query_sql.transaction(mode: :bogus) { flunk } }
+    refute_predicate @db, :transaction_active?
   end
 
   def test_transaction_left_with_break_or_throw_commits

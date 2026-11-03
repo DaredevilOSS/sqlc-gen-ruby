@@ -18,7 +18,9 @@ CREATE TABLE declared_types (
     c_decimal DECIMAL(10, 5),
     c_unsigned_big_int UNSIGNED BIG INT,
     c_native NATIVE CHARACTER(70),
-    c_double DOUBLE PRECISION
+    c_double DOUBLE PRECISION,
+    c_json JSON,
+    c_uuid UUID
 );
 
 CREATE TABLE regressions (

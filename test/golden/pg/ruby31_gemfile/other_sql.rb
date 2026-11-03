@@ -65,7 +65,10 @@ module PgCodegen
         ensure
           unless failed
             commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-            client.exec(Thread.current.status == 'aborting' ? rollback : commit)
+            result = client.exec(Thread.current.status == 'aborting' ? rollback : commit)
+            # COMMIT of a transaction aborted by an error the block rescued is a ROLLBACK
+            rolled_back = outermost && result.cmd_status == 'ROLLBACK' && Thread.current.status != 'aborting'
+            raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rolled_back
           end
         end
       end

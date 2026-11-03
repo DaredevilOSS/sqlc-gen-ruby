@@ -15,7 +15,8 @@ module SqlcGenRuby
     def type(column, query_name: nil, table: column.table, fallback: 'untyped')
       override = @options.override_for(query_name, column, table: table)
       base = override ? override.type : driver_type(column, query_name, fallback)
-      base = array_of(base, column) if column.is_array && !override
+      # a db_type override names the element type; a column override the whole type
+      base = array_of(base, column) if column.is_array && (override.nil? || override.db_type)
       not_null?(column, override) || base == 'untyped' ? base : "#{base}?"
     end
 

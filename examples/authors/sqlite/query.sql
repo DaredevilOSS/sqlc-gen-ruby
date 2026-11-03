@@ -87,7 +87,7 @@ SELECT * FROM authors WHERE id = ?;
 SELECT * FROM authors WHERE name = ? ORDER BY id;
 
 -- name: InsertDeclaredTypes :exec
-INSERT INTO declared_types (c_varchar, c_decimal, c_unsigned_big_int, c_native, c_double) VALUES (?, ?, ?, ?, ?);
+INSERT INTO declared_types (c_varchar, c_decimal, c_unsigned_big_int, c_native, c_double, c_json, c_uuid) VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetDeclaredTypes :one
 SELECT * FROM declared_types LIMIT 1;

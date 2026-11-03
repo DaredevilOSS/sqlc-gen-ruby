@@ -14,7 +14,9 @@ module Sqlite3Codegen
     :c_decimal,
     :c_unsigned_big_int,
     :c_native,
-    :c_double
+    :c_double,
+    :c_json,
+    :c_uuid
   )
   end
 

@@ -396,6 +396,17 @@ module PgCodegen
     def self.new: (  id: Integer, order: String, payload: String?, doc: untyped) -> CopyRegressionsArgs
   end
 
+  CREATE_REGRESSIONS_BATCH_SQL: String
+
+  class CreateRegressionsBatchArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor order: String
+    attr_accessor payload: String?
+    attr_accessor doc: untyped
+    def initialize: (  id: Integer, order: String, payload: String?, doc: untyped) -> void
+    def self.new: (  id: Integer, order: String, payload: String?, doc: untyped) -> CreateRegressionsBatchArgs
+  end
+
   LIST_REGRESSIONS_SQL: String
 
   class ListRegressionsRow < ::Struct[untyped]
@@ -577,6 +588,8 @@ module PgCodegen
     def create_regression_if_new: (id: Integer, order: String) -> Integer
 
     def copy_regressions: (Array[CopyRegressionsArgs] rows) -> void
+
+    def create_regressions_batch: (Array[CreateRegressionsBatchArgs] rows) -> void
 
     def list_regressions: (?order_name: String?) -> Array[ListRegressionsRow]
 

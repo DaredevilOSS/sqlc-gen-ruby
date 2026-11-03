@@ -355,6 +355,12 @@ KINSERT INTO regressions (id, "order", payload, doc) VALUES ($1, $2, $3, $4)Co
 id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbpg_catalog.int8zid*>:
 order0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextzorder*A=
 payload0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbyteazpayload*95
+doc0ÿÿÿÿÿÿÿÿÿRpublicregressionsbjsonbzdoc:	query.sqlBregressionsŽ
+KINSERT INTO regressions (id, "order", payload, doc) VALUES ($1, $2, $3, $4)CreateRegressionsBatch
+:batchexec*C?
+id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbpg_catalog.int8zid*>:
+order0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextzorder*A=
+payload0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbyteazpayload*95
 doc0ÿÿÿÿÿÿÿÿÿRpublicregressionsbjsonbzdoc:	query.sqlBregressions—
 wSELECT id, "order", payload, doc, bio_types, uids FROM regressions WHERE ($1::text IS NULL OR "order" = $1) ORDER BY idListRegressions:many"8
 id0ÿÿÿÿÿÿÿÿÿRregressionsb

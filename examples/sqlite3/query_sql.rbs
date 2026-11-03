@@ -156,12 +156,16 @@ module Sqlite3Codegen
     attr_reader c_unsigned_big_int: Integer?
     attr_reader c_native: String?
     attr_reader c_double: Float?
+    attr_reader c_json: String?
+    attr_reader c_uuid: String?
     def initialize: (
         String? c_varchar,
         Float? c_decimal,
         Integer? c_unsigned_big_int,
         String? c_native,
-        Float? c_double
+        Float? c_double,
+        String? c_json,
+        String? c_uuid
     ) -> void
   end
 
@@ -261,7 +265,7 @@ module Sqlite3Codegen
 
     def list_authors_by_name_batch: (Array[ListAuthorsByNameBatchArgs] rows) -> Array[Array[ListAuthorsByNameBatchRow]]
 
-    def insert_declared_types: (c_varchar: String?, c_decimal: Float?, c_unsigned_big_int: Integer?, c_native: String?, c_double: Float?) -> void
+    def insert_declared_types: (c_varchar: String?, c_decimal: Float?, c_unsigned_big_int: Integer?, c_native: String?, c_double: Float?, c_json: String?, c_uuid: String?) -> void
 
     def get_declared_types: -> GetDeclaredTypesRow?
 
@@ -288,6 +292,8 @@ module Sqlite3Codegen
     def instrument: [T] (String name) { () -> T } -> T
 
     def with_client: [T] (String name) { (untyped) -> T } -> T
+
+    def atomically: (untyped client) { () -> void } -> void
 
     def slice_placeholders: (Array[untyped] values) -> String
   end

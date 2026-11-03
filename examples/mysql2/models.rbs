@@ -120,6 +120,7 @@ module Mysql2Codegen
     attr_reader id: Integer
     attr_reader order: String
     attr_reader note: String?
-    def initialize: (  Integer id, String order, String? note) -> void
+    attr_reader payload: String?
+    def initialize: (  Integer id, String order, String? note, String? payload) -> void
   end
 end

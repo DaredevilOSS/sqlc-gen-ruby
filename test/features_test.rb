@@ -442,6 +442,46 @@ class FeaturesTest < Minitest::Test
     assert_includes generate(request).fetch('query_sql.rb'), "def get_author(client_:)\n"
   end
 
+  def test_db_type_overrides_also_type_array_elements
+    overrides = [{ db_type: 'uuid', ruby_type: { type: 'UUIDString' } }]
+    rbs = generate(load_request('pg', overrides: overrides)).fetch('query_sql.rbs')
+    assert_includes rbs, 'attr_reader uids: Array[UUIDString]?'
+  end
+
+  def test_batch_parameters_are_encoded_like_other_parameters
+    request = load_request('pg')
+    query(request, 'CreateAuthorsBatch').params[1].column.type.name = 'bytea'
+    assert_includes generate(request).fetch('query_sql.rb'), 'query_params = [args.name, encode_bytea(args.bio)]'
+  end
+
+  def test_sqlite_json_and_uuid_declarations_are_strings
+    request = load_request('sqlite3')
+    query(request, 'GetAuthor').columns[1].type.name = 'JSON'
+    query(request, 'GetAuthor').columns[2].type.name = 'UUID'
+    assert_match(/class GetAuthorRow\n\s+attr_reader id: Integer\n\s+attr_reader name: String\n\s+attr_reader bio: String\?/,
+                 generate(request).fetch('query_sql.rbs'))
+  end
+
+  def test_schema_names_breaking_naming_cops_are_exempted_where_they_occur
+    request = load_request('pg')
+    get_author = query(request, 'GetAuthor')
+    get_author.columns[1].name = 'UserId'
+    get_author.columns[2].name = 'naïve'
+    get_author.params.first.column.name = 'm'
+    code = generate(request).fetch('query_sql.rb')
+    assert_match(/# rubocop:disable Naming\/MethodName\n\s+class GetAuthorRow < Data.define\(:id, :UserId, :naïve\)\n\s+end\n\s+# rubocop:enable/, code)
+    assert_match(/# rubocop:disable Naming\/MethodParameterName\n\s+def get_author\(m:\)/, code)
+    assert_equal 1, code.scan('rubocop:disable Naming/MethodParameterName').size
+    out, status = rubocop(code)
+    assert status.success?, out
+  end
+
+  def rubocop(source)
+    out, _err, status = Open3.capture3(RbConfig.ruby, Gem.bin_path('rubocop', 'rubocop'), '--stdin', 'examples/pg/query_sql.rb',
+                                       '--format', 'emacs', stdin_data: source, chdir: ROOT)
+    [out, status]
+  end
+
   def test_columns_become_valid_non_overriding_attributes
     request = load_request('pg')
     columns = query(request, 'GetAuthor').columns

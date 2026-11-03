@@ -92,6 +92,24 @@ module SqlcGenRuby
       name
     end
 
+    # Naming/MethodParameterName's default AllowedNames
+    SHORT_NAMES = %w[as at by cc db id if in io ip of on os pp to].freeze
+
+    # The Naming cops that names taken from the schema (a "UserId" column, a 2-letter parameter, non-ASCII) trip.
+    def naming_cops(attributes: [], params: [])
+      cops = []
+      cops << 'Naming/MethodName' unless attributes.all? { |n| n.match?(/\A[\d[[:lower:]]_]+\z/) }
+      cops << 'Naming/MethodParameterName' if params.any? { |n| n.length < 3 && !n.match?(/\d\z/) && !SHORT_NAMES.include?(n) }
+      cops << 'Naming/AsciiIdentifiers' unless params.all?(&:ascii_only?)
+      cops
+    end
+
+    def without_cops(code, cops)
+      return code if cops.empty?
+
+      "# rubocop:disable #{cops.join(', ')}\n#{code}\n# rubocop:enable #{cops.join(', ')}"
+    end
+
     def identifier(name)
       return '_' if name.empty?
 

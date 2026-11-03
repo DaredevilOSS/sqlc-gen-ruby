@@ -23,19 +23,25 @@ module Sqlite3Codegen
     attr_accessor c_unsigned_big_int: Integer?
     attr_accessor c_native: String?
     attr_accessor c_double: Float?
+    attr_accessor c_json: String?
+    attr_accessor c_uuid: String?
     def initialize: (
         c_varchar: String?,
         c_decimal: Float?,
         c_unsigned_big_int: Integer?,
         c_native: String?,
-        c_double: Float?
+        c_double: Float?,
+        c_json: String?,
+        c_uuid: String?
     ) -> void
     def self.new: (
         c_varchar: String?,
         c_decimal: Float?,
         c_unsigned_big_int: Integer?,
         c_native: String?,
-        c_double: Float?
+        c_double: Float?,
+        c_json: String?,
+        c_uuid: String?
     ) -> DeclaredType
   end
 

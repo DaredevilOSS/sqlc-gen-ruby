@@ -52,7 +52,7 @@ overrides:
     ruby_type:
       type: "String"
 ```
-The first match wins, in this order: `<query>:<column>`, `<table>.<column>`, `*:<column>`, `db_type`.
+The first match wins, in this order: `<query>:<column>`, `<table>.<column>`, `*:<column>`, `db_type`. A `db_type` override types the elements of arrays of that type too (`uuid[]` → `Array[String]`). Unknown keys in an override are rejected.
 
 ### Configuration
 ```yaml
@@ -127,7 +127,7 @@ end
 * **Connections:** `QuerySql.connect(params, **pool_options)` builds a [`connection_pool`](https://github.com/mperham/connection_pool); to share a pool you already have (or to inject a fake in tests) use `QuerySql.new(pool)` - anything that responds to `#with` and yields a connection. For SQLite pass a `SQLite3::Database` to `QuerySql.new(db)`.
 * **Async / fibers:** the generated code is plain synchronous Ruby and works with the Fiber scheduler (the [`async`](https://github.com/socketry/async) gem): inside `Sync { ... }` pooled queries on `pg` and `mysql2` overlap instead of blocking (see `tests/end2end_pg.rb`). SQLite calls are synchronous C calls and do not overlap.
 * **SQL** is kept in frozen heredoc constants (`GET_AUTHOR_SQL`); query comments in the `.sql` file become doc comments on the method; `.rbs` signatures are generated for everything.
-* The generated code is RuboCop-clean (`rake rubocop`) and 2-space indented.
+* The generated code is RuboCop-clean (`rake rubocop`) and 2-space indented. Names taken from the schema that break a `Naming` cop (a `"UserId"` column, two-letter or non-ASCII parameters) get a `# rubocop:disable` / `enable` pair around the class or method using them.
 
 ## Supported features
 ✅ supported · 🚫 not offered by the database / sqlc
@@ -142,7 +142,7 @@ end
 | `:execlastid` | ✅ | ✅ | ✅ | PostgreSQL / SQLite need a `RETURNING <id>` clause (the value of that column is returned); MySQL returns `client.last_id` |
 | `:execresult` | ✅ | ✅ | ✅ | returns `ExecResult` (`rows_affected`, `last_insert_id`; `last_insert_id` is `nil` on PostgreSQL, use `RETURNING`) |
 | `:batchexec` / `:batchone` / `:batchmany` | ✅ | ✅ | ✅ | take an `Array` of `<Query>Args` and run the prepared statement once per element on one connection; return `nil` / `Array[Row?]` / `Array[Array[Row]]` |
-| `:copyfrom`   | ✅ | ✅ | ✅ | takes an `Array` of `<Query>Args` (a generated `Data` class). PostgreSQL: `COPY ... FROM STDIN`. MySQL: `LOAD DATA LOCAL INFILE` from a temporary CSV - needs `local_infile: true` in the `Mysql2::Client` params and `local_infile=1` on the server. SQLite: batched multi-row `INSERT` |
+| `:copyfrom`   | ✅ | ✅ | ✅ | takes an `Array` of `<Query>Args` (a generated `Data` class). PostgreSQL: `COPY ... FROM STDIN`. MySQL: `LOAD DATA LOCAL INFILE` from a temporary CSV (binary-safe) - needs `local_infile: true` in the `Mysql2::Client` params and `local_infile=1` on the server; a duplicate key or invalid value raises `Mysql2::Error` (instead of the warnings `LOAD DATA LOCAL` gives). SQLite: batched multi-row `INSERT`s in a savepoint. All rows or none on every driver |
 
 ### Macros
 | Macro         | PostgreSQL | MySQL | SQLite | Notes |
@@ -154,12 +154,12 @@ end
 
 ### Other
 * **Models:** a `models.rb` / `models.rbs` with one `Data` (`Struct` below Ruby 3.2) class per table, and one module with constants per enum (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`). Enum columns are `String`s.
-* **Transactions:** `queries.transaction { |tx| tx.create_author(...) }` runs everything in the block on one connection in a transaction (commit when the block returns, also through `break` / `return` / `throw`; rollback when it raises or the thread is killed) and returns the block's value. Nested calls become savepoints; `isolation:` (`pg`, `mysql2`) / `mode:` (`sqlite3`) choose the isolation level / locking mode.
+* **Transactions:** `queries.transaction { |tx| tx.create_author(...) }` runs everything in the block on one connection in a transaction (commit when the block returns, also through `break` / `return` / `throw`; rollback when it raises or the thread is killed) and returns the block's value. Nested calls become savepoints; `isolation:` (`pg`, `mysql2`) / `mode:` (`sqlite3`: `:deferred`, `:immediate`, `:exclusive`) choose the isolation level / locking mode; unknown values raise before the transaction starts. On `pg`, a block that rescues a failed statement and returns normally raises `PG::InFailedSqlTransaction` (PostgreSQL rolled the transaction back) instead of returning as if it had committed. On `sqlite3`, threads and fibers sharing one `SQLite3::Database` take turns: one lock per database, held for a whole transaction.
 * **Nullability:** nullable columns / parameters are typed `T?` in the `.rbs`.
 * **Arrays (PostgreSQL):** `Array[T]` for columns and parameters (`Array[Array[T]]` for `T[][]`); arrays of types without a decoder (`uuid[]`, enum arrays, ...) are `Array[String]`.
 * **Names:** a parameter repeated in a query gets a suffix (`id:`, `id_2:`); result columns named like a keyword or a method every row has (`class`, `hash`, `end`, ...) get a trailing `_` (`class_`); a table `authors` next to a table `author` keeps its plural model name (`Authors`). Query names that would replace a generated method (`Transaction`, `Initialize`, ...) are rejected.
 * **Other PostgreSQL types:** geometric, range / multirange, full-text, `hstore`, `ltree`, `timetz`, `reg*` and composite types are `String`s (the text the pg gem returns); domains and types the plugin does not know are `untyped` instead of failing the generation.
-* **SQLite declared types** (`VARCHAR(255)`, `DECIMAL(10,5)`, `UNSIGNED BIG INT`, ...) follow SQLite's [type affinity](https://www.sqlite.org/datatype3.html#determination_of_column_affinity).
+* **SQLite declared types** (`VARCHAR(255)`, `DECIMAL(10,5)`, `UNSIGNED BIG INT`, ...) follow SQLite's [type affinity](https://www.sqlite.org/datatype3.html#determination_of_column_affinity); `JSON` / `JSONB` and `UUID` columns are `String`s (stored as text). The generated SQLite code uses `Monitor`: add `library "monitor"` to your `Steepfile`.
 * Types follow the Ruby classes the drivers actually return (e.g. `BigDecimal` for `numeric`/`decimal`, `Date`, `Time`, `IPAddr`; `json`/`jsonb` are parsed, so `untyped`).
 
 Not applicable to the Ruby plugin (they exist in the C# plugin because of its runtime): `withAsyncSuffix` / `withCancellationToken` (Ruby has no async/await: use the Fiber scheduler, see above), `useDapper`, target framework / csproj / namespace options (`moduleName` is the equivalent of the namespace).

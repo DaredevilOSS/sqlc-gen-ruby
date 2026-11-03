@@ -195,6 +195,7 @@ module SqlcGenRuby
       raise ArgumentError, "duplicate column names in #{name}: #{dupes.join(', ')}" unless dupes.empty?
 
       code, rbs = @options.ruby_version.immutable_data_supported? ? data_define(name, pairs, attr_docs) : new_struct(name, pairs, attr_docs)
+      code = Code.without_cops(code, Code.naming_cops(attributes: pairs.map(&:first)))
       comment = Code.comment(doc)
       comment.empty? ? [code, rbs] : ["#{comment}\n#{code}", "#{comment}\n#{rbs}"]
     end
