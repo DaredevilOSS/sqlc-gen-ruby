@@ -464,6 +464,8 @@ class TestMysql2 < Minitest::Test
   end
 
   def test_generated_queries_overlap_under_sync_including_transactions
+    # mysql2 has no non-blocking query on Windows (its C extension blocks the thread there): results only, no overlap
+    overlap = !Gem.win_platform?
     queries = QuerySql.connect(mysql2_params, size: 5)
     count = 5
     seconds = 0.3
@@ -479,7 +481,7 @@ class TestMysql2 < Minitest::Test
     end
     concurrent = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
     assert_operator concurrent, :<, serial * 0.6,
-                    "#{count} generated queries took #{concurrent}s vs #{serial}s serially"
+                    "#{count} generated queries took #{concurrent}s vs #{serial}s serially" if overlap
 
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     count.times { queries.transaction { |tx| tx.pause_query(seconds: seconds) } }
@@ -495,7 +497,7 @@ class TestMysql2 < Minitest::Test
     end
     concurrent = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
     assert_operator concurrent, :<, serial * 0.6,
-                    "#{count} generated transactions took #{concurrent}s vs #{serial}s serially"
+                    "#{count} generated transactions took #{concurrent}s vs #{serial}s serially" if overlap
   end
 
   def test_sql_placeholders_inside_literals_identifiers_and_comments_are_ignored
@@ -827,6 +829,7 @@ class TestMysql2 < Minitest::Test
                                  note: random.rand(3).zero? ? nil : random_text(random),
                                  payload: random.bytes(random.rand(0..16)).b)
     end
+    rows << CopyRegressionRowsArgs.new(id: 5_000_001_000, order: "ctrl-z \x1A text", note: "\x1A", payload: "\x1A\x1A".b)
     @query_sql.copy_regression_rows(rows)
     expected = rows.map { |r| [r.id, r.order, r.note, r.payload] }.sort_by(&:first)
     actual = @query_sql.list_regression_rows.map { |r| [r.id, r.order, r.note, r.payload] }

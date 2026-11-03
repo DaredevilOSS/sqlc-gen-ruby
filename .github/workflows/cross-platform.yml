@@ -126,6 +126,10 @@ jobs:
         run: |
           if [ "${RUNNER_OS}" = Windows ]; then
             ridk.cmd exec pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-libmariadbclient
+            # mysql2's extconf can't glob for mariadb_config.exe through Windows PATH entries, so point at it
+            mariadb_config=$(cygpath -m "${RI_DEVKIT}/ucrt64/bin/mariadb_config.exe")
+            test -x "${mariadb_config}"
+            echo "BUNDLE_BUILD__MYSQL2=--with-mysql-config=${mariadb_config}" >> "$GITHUB_ENV"
           else
             echo "BUNDLE_BUILD__MYSQL2=--with-opt-dir=$(brew --prefix openssl@3):$(brew --prefix zstd)" >> "$GITHUB_ENV"
           fi
