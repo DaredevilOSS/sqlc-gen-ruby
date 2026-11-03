@@ -197,7 +197,7 @@ module PgCodegen
       client.exec('SELECT oid, typcategory, typdelim FROM pg_type', [], 0, strings).each do |row|
         known.add_coder(NewTypes.decoder(row['oid'].to_i, row['typcategory'], row['typdelim']))
       end
-      known.default_type_map = NewTypes.new(client, known)
+      known.default_type_map = NewTypes.map(client, known)
       known
     end
 

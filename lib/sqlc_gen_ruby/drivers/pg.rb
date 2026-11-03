@@ -198,7 +198,10 @@ module SqlcGenRuby
       NEW_TYPES = <<~'RUBY'.chomp
         # Result decoder for types created after a connection was set up (a migration run while the application is
         # up): looked up once per connection, their arrays become Arrays of Strings, other types Strings.
-        class NewTypes < ::PG::TypeMapInRuby
+        # A module, so connection.rb loads before `pg` does.
+        module NewTypes
+          def self.map(client, known) = (@map ||= ::Class.new(::PG::TypeMapInRuby) { include NewTypes }).new(client, known)
+
           def self.decoder(oid, category, delimiter)
             return ::PG::TextDecoder::String.new(oid: oid) unless category == 'A'
 
@@ -227,7 +230,7 @@ module SqlcGenRuby
               row = @client.exec("SELECT typcategory, typdelim FROM pg_type WHERE oid = #{Integer(oid)}").tap do |types|
                 types.type_map = ::PG::TypeMapAllStrings.new
               end.first
-              decoder = row && self.class.decoder(oid, row['typcategory'], row['typdelim'])
+              decoder = row && NewTypes.decoder(oid, row['typcategory'], row['typdelim'])
               @known.add_coder(decoder) if decoder # later results no longer come here
               @decoders[oid] = decoder
             end
@@ -238,10 +241,14 @@ module SqlcGenRuby
       RUBY
 
       NEW_TYPES_RBS = <<~'RBS'.chomp
-        class NewTypes
+        module NewTypes
+          self.@map: untyped
+
           @client: untyped
           @known: untyped
           @decoders: ::Hash[::Integer, untyped]
+
+          def self.map: (untyped client, untyped known) -> untyped
 
           def self.decoder: (::Integer oid, ::String category, ::String delimiter) -> untyped
 
@@ -365,7 +372,7 @@ module SqlcGenRuby
           client.exec('SELECT oid, typcategory, typdelim FROM pg_type', [], 0, strings).each do |row|
             known.add_coder(NewTypes.decoder(row['oid'].to_i, row['typcategory'], row['typdelim']))
           end
-          known.default_type_map = NewTypes.new(client, known)
+          known.default_type_map = NewTypes.map(client, known)
           known
         end
       RUBY

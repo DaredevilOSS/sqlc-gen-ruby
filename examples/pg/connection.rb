@@ -65,7 +65,10 @@ module PgCodegen
 
   # Result decoder for types created after a connection was set up (a migration run while the application is
   # up): looked up once per connection, their arrays become Arrays of Strings, other types Strings.
-  class NewTypes < ::PG::TypeMapInRuby
+  # A module, so connection.rb loads before `pg` does.
+  module NewTypes
+    def self.map(client, known) = (@map ||= ::Class.new(::PG::TypeMapInRuby) { include NewTypes }).new(client, known)
+
     def self.decoder(oid, category, delimiter)
       return ::PG::TextDecoder::String.new(oid: oid) unless category == 'A'
 
@@ -94,7 +97,7 @@ module PgCodegen
         row = @client.exec("SELECT typcategory, typdelim FROM pg_type WHERE oid = #{Integer(oid)}").tap do |types|
           types.type_map = ::PG::TypeMapAllStrings.new
         end.first
-        decoder = row && self.class.decoder(oid, row['typcategory'], row['typdelim'])
+        decoder = row && NewTypes.decoder(oid, row['typcategory'], row['typdelim'])
         @known.add_coder(decoder) if decoder # later results no longer come here
         @decoders[oid] = decoder
       end

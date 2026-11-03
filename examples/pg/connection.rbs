@@ -31,10 +31,14 @@ module PgCodegen
     def client: () -> untyped
   end
 
-  class NewTypes
+  module NewTypes
+    self.@map: untyped
+
     @client: untyped
     @known: untyped
     @decoders: ::Hash[::Integer, untyped]
+
+    def self.map: (untyped client, untyped known) -> untyped
 
     def self.decoder: (::Integer oid, ::String category, ::String delimiter) -> untyped
 
