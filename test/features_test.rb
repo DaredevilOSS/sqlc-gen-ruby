@@ -477,7 +477,12 @@ class FeaturesTest < Minitest::Test
   end
 
   def rubocop(source)
-    out, _err, status = Open3.capture3(RbConfig.ruby, Gem.bin_path('rubocop', 'rubocop'), '--stdin', 'examples/pg/query_sql.rb',
+    exe = begin
+      Gem.bin_path('rubocop', 'rubocop')
+    rescue Gem::GemNotFoundException
+      skip 'rubocop not installed'
+    end
+    out, _err, status = Open3.capture3(RbConfig.ruby, exe, '--stdin', 'examples/pg/query_sql.rb',
                                        '--format', 'emacs', stdin_data: source, chdir: ROOT)
     [out, status]
   end
