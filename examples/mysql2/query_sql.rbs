@@ -368,6 +368,55 @@ module Mysql2Codegen
 
   TRUNCATE_COPY_TYPES_SQL: String
 
+  FIND_AUTHORS_BY_EXACT_NAME_SQL: String
+
+  class FindAuthorsByExactNameRow
+    attr_reader id: Integer
+    def initialize: (  Integer id) -> void
+  end
+
+  GET_AUTHOR_WITH_QUESTION_MARKS_SQL: String
+
+  class GetAuthorWithQuestionMarksRow
+    attr_reader id: Integer
+    def initialize: (  Integer id) -> void
+  end
+
+  INSERT_MYSQL_BINDING_VALUES_SQL: String
+
+  GET_MYSQL_BINDING_VALUES_SQL: String
+
+  class GetMysqlBindingValuesRow
+    attr_reader id: Integer
+    attr_reader text_value: String?
+    attr_reader blob_value: String?
+    attr_reader signed_value: Integer?
+    attr_reader unsigned_value: Integer?
+    attr_reader decimal_value: BigDecimal?
+    attr_reader float_value: Float?
+    attr_reader date_value: Date?
+    attr_reader datetime_value: Time?
+    attr_reader datetime_2: Time?
+    attr_reader bool_value: Integer?
+    attr_reader nullable_value: String?
+    def initialize: (
+        Integer id,
+        String? text_value,
+        String? blob_value,
+        Integer? signed_value,
+        Integer? unsigned_value,
+        BigDecimal? decimal_value,
+        Float? float_value,
+        Date? date_value,
+        Time? datetime_value,
+        Time? datetime_2,
+        Integer? bool_value,
+        String? nullable_value
+    ) -> void
+  end
+
+  TRUNCATE_MYSQL_BINDING_VALUES_SQL: String
+
   class QuerySql
     class NotFound < StandardError
     end
@@ -474,11 +523,27 @@ module Mysql2Codegen
 
     def truncate_copy_types: -> void
 
+    def find_authors_by_exact_name: (name: String) -> Array[FindAuthorsByExactNameRow]
+
+    def get_author_with_question_marks: (name: String) -> Array[GetAuthorWithQuestionMarksRow]
+
+    def insert_mysql_binding_values: (id: Integer, ?text_value: String?, ?blob_value: String?, ?signed_value: Integer?, ?unsigned_value: Integer?, ?decimal_value: BigDecimal?, ?float_value: Float?, ?date_value: Date?, ?datetime_value: Time?, ?datetime_2: Time?, ?bool_value: Integer?, ?nullable_value: String?) -> void
+
+    def get_mysql_binding_values: (id: Integer) -> GetMysqlBindingValuesRow?
+
+    def get_mysql_binding_values!: (id: Integer) -> GetMysqlBindingValuesRow
+
+    def truncate_mysql_binding_values: -> void
+
     private
 
     def instrument: [T] (String name) { () -> T } -> T
 
     def with_client: [T] (String name) { (untyped) -> T } -> T
+
+    def quote: (untyped client, untyped value) -> String
+
+    def bind_params: (untyped client, String sql, Array[untyped] params) -> String
 
     def csv_line: (Array[untyped] values) -> String
 

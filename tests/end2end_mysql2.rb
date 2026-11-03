@@ -4,6 +4,8 @@ require 'minitest/autorun'
 require 'logger'
 require 'stringio'
 require 'json'
+require 'bigdecimal'
+require 'date'
 require 'async'
 require 'async/barrier'
 require 'timeout'
@@ -11,15 +13,35 @@ EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../e
 require_relative 'consts'
 require_relative 'rbs_types'
 require File.join(EXAMPLES_DIR, 'mysql2/query_sql')
+RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'Mysql2Codegen')}::QuerySql"),
+                 File.join(EXAMPLES_DIR, 'mysql2/query_sql.rbs'))
 
 # End-to-end tests of the code generated for examples/authors/mysql, against a real MySQL / MariaDB server.
 class TestMysql2 < Minitest::Test
-  include Mysql2Codegen
+  include Object.const_get(ENV.fetch('EXAMPLES_MODULE', 'Mysql2Codegen'))
 
   TEXT_PARTS = ["é", '🙂', "\t", "\n", "\r", '\\', "'", '"', ',', '\N', 'NULL'].freeze
 
   def row_for(klass, values)
     klass.new(**klass.members.zip(values).to_h)
+  end
+
+  def assert_row_layout(row)
+    if defined?(Data) && row.is_a?(Data)
+      assert_predicate row, :frozen?
+      assert_equal row.to_h, row.with.to_h
+    else
+      assert_kind_of Struct, row
+      assert row.class.keyword_init?
+      refute_predicate row, :frozen?
+    end
+    case row
+    in { id:, name: }
+      assert_kind_of Integer, id
+      assert_equal row.name, name
+    else
+      flunk 'row did not support keyword pattern matching'
+    end
   end
 
   def row_value(row, member)
@@ -58,23 +80,25 @@ class TestMysql2 < Minitest::Test
     }.compact
   end
 
-  def prepared_statement_count
-    client = Mysql2::Client.new(mysql2_params)
-    client.query("SHOW GLOBAL STATUS LIKE 'Prepared_stmt_count'").first.fetch('Value').to_i
-  ensure
-    client&.close
-  end
-
   def setup
     @query_sql = QuerySql.connect(mysql2_params)
     @query_sql.truncate_authors # cascades to books
     @query_sql.truncate_extended_bios
     @query_sql.truncate_regressions
     @query_sql.truncate_copy_types
+    @query_sql.truncate_mysql_binding_values
   end
 
   def create_author(name, bio = nil)
     @query_sql.create_author_return_id(name: name, bio: bio)
+  end
+
+  def binding_values(id, float_value = nil)
+    {
+      id: id, text_value: nil, blob_value: nil, signed_value: nil, unsigned_value: nil, decimal_value: nil,
+      float_value: float_value, date_value: nil, datetime_value: nil, datetime_2: nil, bool_value: nil,
+      nullable_value: nil
+    }
   end
 
   # ---- :one / :many / :exec -------------------------------------------------------------------------------------
@@ -95,6 +119,14 @@ class TestMysql2 < Minitest::Test
     assert_equal [Consts::DR_SEUSS_AUTHOR], @query_sql.list_authors.map(&:name)
   end
 
+  def test_rows_and_embedded_models_have_supported_layout_and_pattern_matching
+    first = create_author('pattern')
+    create_author('pattern')
+    assert_row_layout(@query_sql.get_author(id: first))
+    embedded = @query_sql.get_duplicate_authors.first.author
+    assert_row_layout(embedded)
+  end
+
   def test_nullable_columns_round_trip_nil
     id = create_author('no bio', nil)
     assert_nil @query_sql.get_author(id: id).bio
@@ -104,11 +136,18 @@ class TestMysql2 < Minitest::Test
     assert_nil @query_sql.test
   end
 
-  def test_prepared_statements_are_closed
-    before = prepared_statement_count
-    id = create_author('a')
-    300.times { @query_sql.get_author(id: id) }
-    assert_operator prepared_statement_count, :<=, before, 'prepared statements leak on the server'
+  def test_generated_queries_do_not_create_server_side_prepared_statements
+    client = Mysql2::Client.new(mysql2_params)
+    database = Object.new
+    database.define_singleton_method(:with) { |&block| block.call(client) }
+    queries = QuerySql.new(database)
+    before = client.query("SHOW SESSION STATUS LIKE 'Com_stmt_prepare'").first.fetch('Value').to_i
+    id = queries.create_author_return_id(name: 'plain query', bio: nil)
+    20.times { queries.get_author(id: id) }
+    after = client.query("SHOW SESSION STATUS LIKE 'Com_stmt_prepare'").first.fetch('Value').to_i
+    assert_equal before, after
+  ensure
+    client&.close
   end
 
   # ---- :execlastid / :execrows -----------------------------------------------------------------------------------
@@ -362,7 +401,7 @@ class TestMysql2 < Minitest::Test
     assert_equal 'shared', second.get_author(id: id).name
   end
 
-  # mysql2 prepared-statement execution blocks the Fiber scheduler; use threads for concurrent queries.
+  # Both query and transaction paths must use Mysql2::Client#query for Fiber scheduler cooperation.
   def test_generated_queries_overlap_across_threads
     queries = QuerySql.connect(mysql2_params, size: 5)
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -379,6 +418,105 @@ class TestMysql2 < Minitest::Test
     end
     assert_equal 10, names.uniq.size
     assert_equal 10, @query_sql.list_authors.size
+  end
+
+  def test_generated_queries_overlap_under_sync_including_transactions
+    queries = QuerySql.connect(mysql2_params, size: 5)
+    count = 5
+    seconds = 0.3
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    count.times { queries.pause_query(seconds: seconds) }
+    serial = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    Sync do
+      barrier = Async::Barrier.new
+      tasks = Array.new(count) { barrier.async { queries.pause_query(seconds: seconds) } }
+      barrier.wait
+      tasks.each(&:wait)
+    end
+    concurrent = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    assert_operator concurrent, :<, serial * 0.6,
+                    "#{count} generated queries took #{concurrent}s vs #{serial}s serially"
+
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    count.times { queries.transaction { |tx| tx.pause_query(seconds: seconds) } }
+    serial = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    Sync do
+      barrier = Async::Barrier.new
+      tasks = Array.new(count) do
+        barrier.async { queries.transaction { |tx| tx.pause_query(seconds: seconds) } }
+      end
+      barrier.wait
+      tasks.each(&:wait)
+    end
+    concurrent = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    assert_operator concurrent, :<, serial * 0.6,
+                    "#{count} generated transactions took #{concurrent}s vs #{serial}s serially"
+  end
+
+  def test_sql_placeholders_inside_literals_identifiers_and_comments_are_ignored
+    id = create_author('quoted ? -- # /* value')
+    rows = @query_sql.get_author_with_question_marks(name: 'quoted ? -- # /* value')
+    assert_equal [id], rows.map(&:id)
+  end
+
+  def test_client_side_quoting_round_trips_supported_values
+    text = "quotes ' \" slash \\ question ? -- # /* NUL \0 emoji 🙂"
+    binary = "\x00\xFF\x80\x01".b
+    decimal = BigDecimal('123456789012345678901234567890.123456789012345678901234567890')
+    float = 1.0 / 3
+    time = Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
+    date_time = DateTime.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
+    @query_sql.insert_mysql_binding_values(
+      id: 42, text_value: text, blob_value: binary, signed_value: -9_223_372_036_854_775_808,
+      unsigned_value: 18_446_744_073_709_551_615, decimal_value: decimal, float_value: float,
+      date_value: Date.new(2024, 2, 3), datetime_value: time, datetime_2: date_time,
+      bool_value: true, nullable_value: nil
+    )
+    row = @query_sql.get_mysql_binding_values(id: 42)
+    assert_equal text, row.text_value
+    assert_equal binary, row.blob_value
+    assert_equal(-9_223_372_036_854_775_808, row.signed_value)
+    assert_equal 18_446_744_073_709_551_615, row.unsigned_value
+    assert_equal decimal, row.decimal_value
+    assert_equal float, row.float_value
+    assert_equal Date.new(2024, 2, 3), row.date_value
+    assert_equal time.strftime('%Y-%m-%d %H:%M:%S.%6N'), row.datetime_value.strftime('%Y-%m-%d %H:%M:%S.%6N')
+    assert_equal date_time.strftime('%Y-%m-%d %H:%M:%S.%6N'), row.datetime_2.strftime('%Y-%m-%d %H:%M:%S.%6N')
+    assert_equal 1, row.bool_value
+    assert_nil row.nullable_value
+
+    @query_sql.insert_mysql_binding_values(**binding_values(43).merge(bool_value: false))
+    assert_equal 0, @query_sql.get_mysql_binding_values(id: 43).bool_value
+    assert_raises(ArgumentError) do
+      @query_sql.insert_mysql_binding_values(**binding_values(44, Float::INFINITY))
+    end
+  end
+
+  def test_time_values_match_mysql2_prepared_statement_storage
+    client = Mysql2::Client.new(mysql2_params)
+    time = Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
+    date_time = DateTime.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
+    statement = client.prepare('INSERT INTO mysql_binding_values (id, datetime_value, datetime_2) VALUES (?, ?, ?)')
+    statement.execute(1, time, date_time)
+    statement.close
+    @query_sql.insert_mysql_binding_values(**binding_values(2).merge(datetime_value: time, datetime_2: date_time))
+    prepared = @query_sql.get_mysql_binding_values(id: 1)
+    quoted = @query_sql.get_mysql_binding_values(id: 2)
+    assert_equal prepared.datetime_value, quoted.datetime_value
+    assert_equal prepared.datetime_2, quoted.datetime_2
+  ensure
+    client&.close
+  end
+
+  def test_injection_and_unsupported_parameters_are_safe
+    create_author('ordinary')
+    assert_empty @query_sql.find_authors_by_exact_name(name: "x' OR '1'='1")
+    [Hash.new, :symbol, Object.new].each do |value|
+      assert_raises(TypeError) { @query_sql.find_authors_by_exact_name(name: value) }
+    end
+    assert_equal ['ordinary'], @query_sql.list_authors.map(&:name)
   end
 
   # ---- Ruby conventions: bang finders, logger ----------------------------------------------------------------

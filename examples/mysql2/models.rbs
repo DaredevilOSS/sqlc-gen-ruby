@@ -138,4 +138,33 @@ module Mysql2Codegen
         Integer? amount
     ) -> void
   end
+
+  class MysqlBindingValu
+    attr_reader id: Integer
+    attr_reader text_value: String?
+    attr_reader blob_value: String?
+    attr_reader signed_value: Integer?
+    attr_reader unsigned_value: Integer?
+    attr_reader decimal_value: BigDecimal?
+    attr_reader float_value: Float?
+    attr_reader date_value: Date?
+    attr_reader datetime_value: Time?
+    attr_reader datetime_2: Time?
+    attr_reader bool_value: Integer?
+    attr_reader nullable_value: String?
+    def initialize: (
+        Integer id,
+        String? text_value,
+        String? blob_value,
+        Integer? signed_value,
+        Integer? unsigned_value,
+        BigDecimal? decimal_value,
+        Float? float_value,
+        Date? date_value,
+        Time? datetime_value,
+        Time? datetime_2,
+        Integer? bool_value,
+        String? nullable_value
+    ) -> void
+  end
 end

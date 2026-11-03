@@ -78,4 +78,22 @@ module Mysql2Codegen
     :amount
   )
   end
+
+  # rubocop:disable Naming/VariableNumber
+  class MysqlBindingValu < Data.define(
+    :id,
+    :text_value,
+    :blob_value,
+    :signed_value,
+    :unsigned_value,
+    :decimal_value,
+    :float_value,
+    :date_value,
+    :datetime_value,
+    :datetime_2,
+    :bool_value,
+    :nullable_value
+  )
+  end
+  # rubocop:enable Naming/VariableNumber
 end

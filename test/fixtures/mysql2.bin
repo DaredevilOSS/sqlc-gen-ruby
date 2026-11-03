@@ -1,7 +1,7 @@
 
 
 
-2mysql£public"˜public€
+2mysqlópublic"èpublic€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
@@ -87,7 +87,29 @@ copy_typesbjson
 flags0R
 copy_typesbbit+
 amount0ÿÿÿÿÿÿÿÿÿR
-copy_typesbint€":
+copy_typesbint€Í
+mysql_binding_values3
+id0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigint;
+
+text_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
+longtext;
+
+blob_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
+longblob;
+signed_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigint@
+unsigned_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigint€4
+decimal_value0ARmysql_binding_valuesb	decimal:
+float_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdouble7
+
+date_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdate6
+datetime_value0Rmysql_binding_valuesb
+datetime2
+
+datetime_20Rmysql_binding_valuesb
+datetime1
+
+bool_value0Rmysql_binding_valuesb	tinyint;
+nullable_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbtext":
 extended_bios_bio_typeAutobiography	BiographyMemoir"7
 extended_bios_author_typeAuthorEditor
 TranslatorË
@@ -365,4 +387,77 @@ copy_typesbjsonzdoc"%
 copy_typesbbitzflags"3
 amount0ÿÿÿÿÿÿÿÿÿR
 copy_typesbintzamount€:	query.sql@
-TRUNCATE TABLE copy_typesTruncateCopyTypes:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+TRUNCATE TABLE copy_typesTruncateCopyTypes:exec:	query.sql±
+%SELECT id FROM authors WHERE name = ?FindAuthorsByExactName:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid*2.
+name0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sqlî
+\SELECT id FROM authors AS `?`
+WHERE name = ? AND '?' = '?' AND "?" = "?" /* ? */
+ORDER BY idGetAuthorWithQuestionMarks:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid*0,
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname2 ?:	query.sql³
+
+õINSERT INTO mysql_binding_values (
+  id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value,
+  datetime_value, datetime_2, bool_value, nullable_value
+) VALUES (
+  ?, ?, ?, ?, ?,
+  ?, ?, ?, ?,
+  ?, ?, ?
+)InsertMysqlBindingValues:exec*EA
+id0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbbigintzid*UQ
+
+text_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesb
+longtextz
+text_value*UQ
+
+blob_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesb
+longblobz
+blob_value*WS
+signed_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbbigintzsigned_value*^Z
+unsigned_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbbigintzunsigned_value€*QM
+decimal_value0A8Rpublicmysql_binding_valuesb	decimalzdecimal_value*UQ
+float_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbdoublezfloat_value*QM
+
+date_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbdatez
+date_value*T	P
+datetime_value08Rpublicmysql_binding_valuesb
+datetimezdatetime_value*L
+H
+
+datetime_208Rpublicmysql_binding_valuesb
+datetimez
+datetime_2*KG
+
+bool_value08Rpublicmysql_binding_valuesb	tinyintz
+bool_value*YU
+nullable_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbtextznullable_value:	query.sqlBmysql_binding_valuesÿ
+ÆSELECT id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value, datetime_value, datetime_2, bool_value, nullable_value FROM mysql_binding_values WHERE id = ?GetMysqlBindingValues:one"7
+id0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigintzid"G
+
+text_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
+longtextz
+text_value"G
+
+blob_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
+longblobz
+blob_value"I
+signed_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigintzsigned_value"P
+unsigned_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigintzunsigned_value€"C
+decimal_value0ARmysql_binding_valuesb	decimalzdecimal_value"G
+float_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdoublezfloat_value"C
+
+date_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdatez
+date_value"F
+datetime_value0Rmysql_binding_valuesb
+datetimezdatetime_value">
+
+datetime_20Rmysql_binding_valuesb
+datetimez
+datetime_2"=
+
+bool_value0Rmysql_binding_valuesb	tinyintz
+bool_value"K
+nullable_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbtextznullable_value*=9
+id0ÿÿÿÿÿÿÿÿÿ8Rmysql_binding_valuesbbigintzid:	query.sqlS
+#TRUNCATE TABLE mysql_binding_valuesTruncateMysqlBindingValues:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

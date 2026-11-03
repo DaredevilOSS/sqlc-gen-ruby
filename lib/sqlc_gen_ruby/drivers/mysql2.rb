@@ -4,7 +4,7 @@ require_relative 'base'
 
 module SqlcGenRuby
   module Drivers
-    # MySQL / MariaDB via the `mysql2` gem (prepared statements, closed after use).
+    # MySQL / MariaDB via the `mysql2` gem.
     class Mysql2 < Base
       def name = 'Mysql2'
 
@@ -37,16 +37,16 @@ module SqlcGenRuby
         ]
       end
 
-      def prepare_stmt(_stmt_name, const) = "stmt = client.prepare(#{const})"
+      def prepare_stmt(_stmt_name, _const) = nil
 
-      def execute_stmt(_stmt_name, _const, has_params, array_rows: false)
-        args = []
-        args << '*query_params' if has_params
-        args << 'as: :array' if array_rows
-        args.empty? ? 'stmt.execute' : "stmt.execute(#{args.join(', ')})"
+      def execute_stmt(_stmt_name, const, has_params, array_rows: false)
+        sql = "bind_params(client, #{const}, #{has_params ? 'query_params' : '[]'})"
+        sql = "client.query(#{sql}"
+        sql += ', as: :array' if array_rows
+        "#{sql})"
       end
 
-      def closes_statements? = true
+      def closes_statements? = false
 
       def supports_slice? = true
 
@@ -55,11 +55,11 @@ module SqlcGenRuby
 
       def quote_identifier(name) = "`#{name.gsub('`', '``')}`"
 
-      def exec_rows_lines(exec, _query) = [exec, 'stmt.affected_rows']
+      def exec_rows_lines(exec, _query) = [exec, 'client.affected_rows']
 
       def exec_last_id_lines(exec, _query) = [exec, 'client.last_id']
 
-      def exec_result_lines(exec) = [exec, 'stmt.affected_rows', 'client.last_id']
+      def exec_result_lines(exec) = [exec, 'client.affected_rows', 'client.last_id']
 
       # LOAD DATA LOCAL INFILE from a temporary CSV (the client needs `local_infile: true`, the server
       # `local_infile=1`).
@@ -97,15 +97,18 @@ module SqlcGenRuby
         { columns: list.join(', '), set: set.empty? ? '' : " SET #{set.join(', ')}" }
       end
 
-      def prepares_batch_rows? = true
+      def prepares_batch_rows? = false
 
-      def extra_requires(queries, _ruby_version) = copy_from?(queries) ? %w[tempfile] : []
+      def extra_requires(queries, _ruby_version) = %w[bigdecimal date] + (copy_from?(queries) ? %w[tempfile] : [])
+
+      def extra_gems(_queries) = %w[bigdecimal date]
 
       def helper_methods(queries)
-        return [] unless copy_from?(queries)
-
-        [[CSV_LINE, 'def csv_line: (Array[untyped] values) -> String'],
-         [LOAD_DATA_HELPER, 'def load_data: (untyped client, String sql, ?strict: bool) -> void']]
+      helpers = [[QUOTE, 'def quote: (untyped client, untyped value) -> String'],
+                 [BIND_PARAMS, 'def bind_params: (untyped client, String sql, Array[untyped] params) -> String']]
+        helpers.concat([[CSV_LINE, 'def csv_line: (Array[untyped] values) -> String'],
+                        [LOAD_DATA_HELPER, 'def load_data: (untyped client, String sql, ?strict: bool) -> void']]) if copy_from?(queries)
+        helpers
       end
 
       CONNECTION_STATE = <<~'RUBY'.chomp
@@ -233,6 +236,93 @@ module SqlcGenRuby
             end
           end
           "#{fields.join(',')}\n"
+        end
+      RUBY
+
+      QUOTE = <<~'RUBY'.chomp
+        def quote(client, value)
+          case value
+          when NilClass then 'NULL'
+          when TrueClass then 'TRUE'
+          when FalseClass then 'FALSE'
+          when Integer then value.to_s
+          when Float
+            raise ArgumentError, 'cannot bind a non-finite Float to MySQL' unless value.finite?
+
+            value.to_s
+          when BigDecimal
+            raise ArgumentError, 'cannot bind a non-finite BigDecimal to MySQL' unless value.finite?
+
+            value.to_s('F')
+          when DateTime, Time
+            "'#{value.strftime('%Y-%m-%d %H:%M:%S.%6N')}'"
+          when Date
+            "'#{value.strftime('%Y-%m-%d')}'"
+          when String
+            if value.encoding == Encoding::BINARY || !value.valid_encoding?
+              "X'#{value.unpack1('H*')}'"
+            else
+              "'#{client.escape(value)}'"
+            end
+          else
+            raise TypeError, "cannot bind #{value.class} to MySQL"
+          end
+        end
+      RUBY
+
+      BIND_PARAMS = <<~'RUBY'.chomp
+        def bind_params(client, sql, params)
+          output = +''
+          index = 0
+          parameter = 0
+          while index < sql.length
+            char = sql[index]
+            if ["'", '"', '`'].include?(char)
+              quote_char = char
+              start = index
+              index += 1
+              while index < sql.length
+                if sql[index] == '\\'
+                  index += 2
+                elsif sql[index] == quote_char
+                  if sql[index + 1] == quote_char
+                    index += 2
+                  else
+                    index += 1
+                    break
+                  end
+                else
+                  index += 1
+                end
+              end
+              output << sql[start...index]
+            elsif sql[index, 2] == '--' && (sql[index + 2].nil? || sql[index + 2].match?(/\s/))
+              finish = sql.index("\n", index) || sql.length
+              output << sql[index...finish]
+              index = finish
+            elsif char == '#'
+              finish = sql.index("\n", index) || sql.length
+              output << sql[index...finish]
+              index = finish
+            elsif sql[index, 2] == '/*'
+              finish = sql.index('*/', index + 2)
+              finish = finish ? finish + 2 : sql.length
+              output << sql[index...finish]
+              index = finish
+            elsif char == '?'
+              raise ArgumentError, 'more MySQL placeholders than parameters' if parameter >= params.length
+
+              output << quote(client, params[parameter])
+              parameter += 1
+              index += 1
+            else
+              output << char
+              index += 1
+            end
+          end
+          raise ArgumentError, 'fewer MySQL placeholders than parameters' unless parameter == params.length
+
+          output
         end
       RUBY
 

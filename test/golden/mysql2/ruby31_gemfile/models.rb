@@ -92,4 +92,22 @@ module Mysql2Codegen
     :amount,
     keyword_init: true
   )
+
+  # rubocop:disable Naming/VariableNumber
+  MysqlBindingValu = Struct.new(
+    :id,
+    :text_value,
+    :blob_value,
+    :signed_value,
+    :unsigned_value,
+    :decimal_value,
+    :float_value,
+    :date_value,
+    :datetime_value,
+    :datetime_2,
+    :bool_value,
+    :nullable_value,
+    keyword_init: true
+  )
+  # rubocop:enable Naming/VariableNumber
 end

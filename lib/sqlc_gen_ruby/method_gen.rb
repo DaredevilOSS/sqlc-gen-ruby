@@ -148,7 +148,8 @@ module SqlcGenRuby
     def last_id_type(query)
       return 'Integer' if query.columns.empty?
 
-      @types.type(query.columns.first, query_name: query.name)
+      type = @types.type(query.columns.first, query_name: query.name)
+      type.end_with?('?') ? type : "#{type}?"
     end
 
     def copy_statements(query, params)

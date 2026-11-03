@@ -78,3 +78,18 @@ CREATE TABLE copy_types (
   flags  bit(8),
   amount int unsigned
 );
+
+CREATE TABLE mysql_binding_values (
+  id BIGINT NOT NULL PRIMARY KEY,
+  text_value LONGTEXT,
+  blob_value LONGBLOB,
+  signed_value BIGINT,
+  unsigned_value BIGINT UNSIGNED,
+  decimal_value DECIMAL(65, 30),
+  float_value DOUBLE,
+  date_value DATE,
+  datetime_value DATETIME(6),
+  datetime_2 DATETIME(6),
+  bool_value BOOLEAN,
+  nullable_value TEXT
+);

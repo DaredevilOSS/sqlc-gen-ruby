@@ -450,6 +450,71 @@ module Mysql2Codegen
 
   TRUNCATE_COPY_TYPES_SQL: String
 
+  FIND_AUTHORS_BY_EXACT_NAME_SQL: String
+
+  class FindAuthorsByExactNameRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    def initialize: (  id: Integer) -> void
+    def self.new: (  id: Integer) -> FindAuthorsByExactNameRow
+  end
+
+  GET_AUTHOR_WITH_QUESTION_MARKS_SQL: String
+
+  class GetAuthorWithQuestionMarksRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    def initialize: (  id: Integer) -> void
+    def self.new: (  id: Integer) -> GetAuthorWithQuestionMarksRow
+  end
+
+  INSERT_MYSQL_BINDING_VALUES_SQL: String
+
+  GET_MYSQL_BINDING_VALUES_SQL: String
+
+  class GetMysqlBindingValuesRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor text_value: String?
+    attr_accessor blob_value: String?
+    attr_accessor signed_value: Integer?
+    attr_accessor unsigned_value: Integer?
+    attr_accessor decimal_value: BigDecimal?
+    attr_accessor float_value: Float?
+    attr_accessor date_value: Date?
+    attr_accessor datetime_value: Time?
+    attr_accessor datetime_2: Time?
+    attr_accessor bool_value: Integer?
+    attr_accessor nullable_value: String?
+    def initialize: (
+        id: Integer,
+        text_value: String?,
+        blob_value: String?,
+        signed_value: Integer?,
+        unsigned_value: Integer?,
+        decimal_value: BigDecimal?,
+        float_value: Float?,
+        date_value: Date?,
+        datetime_value: Time?,
+        datetime_2: Time?,
+        bool_value: Integer?,
+        nullable_value: String?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        text_value: String?,
+        blob_value: String?,
+        signed_value: Integer?,
+        unsigned_value: Integer?,
+        decimal_value: BigDecimal?,
+        float_value: Float?,
+        date_value: Date?,
+        datetime_value: Time?,
+        datetime_2: Time?,
+        bool_value: Integer?,
+        nullable_value: String?
+    ) -> GetMysqlBindingValuesRow
+  end
+
+  TRUNCATE_MYSQL_BINDING_VALUES_SQL: String
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow < ::Struct[untyped]
@@ -601,6 +666,18 @@ module Mysql2Codegen
 
     def truncate_copy_types: -> void
 
+    def find_authors_by_exact_name: (name: String) -> Array[FindAuthorsByExactNameRow]
+
+    def get_author_with_question_marks: (name: String) -> Array[GetAuthorWithQuestionMarksRow]
+
+    def insert_mysql_binding_values: (id: Integer, ?text_value: String?, ?blob_value: String?, ?signed_value: Integer?, ?unsigned_value: Integer?, ?decimal_value: BigDecimal?, ?float_value: Float?, ?date_value: Date?, ?datetime_value: Time?, ?datetime_2: Time?, ?bool_value: Integer?, ?nullable_value: String?) -> void
+
+    def get_mysql_binding_values: (id: Integer) -> GetMysqlBindingValuesRow?
+
+    def get_mysql_binding_values!: (id: Integer) -> GetMysqlBindingValuesRow
+
+    def truncate_mysql_binding_values: -> void
+
     def many_params: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow?
 
     def many_params!: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow
@@ -616,6 +693,10 @@ module Mysql2Codegen
     def with_client: [T] (String name) { (untyped) -> T } -> T
 
     def timeout_exits_with_throw?: () -> bool
+
+    def quote: (untyped client, untyped value) -> String
+
+    def bind_params: (untyped client, String sql, Array[untyped] params) -> String
 
     def csv_line: (Array[untyped] values) -> String
 

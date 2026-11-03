@@ -25,6 +25,83 @@ module RbsTypes
     end
   end
 
+  def install(query_class, rbs_path)
+    return unless File.file?(rbs_path)
+
+    module_name = query_class.name.sub(/::QuerySql\z/, '')
+    signatures = File.read(rbs_path).scan(/^\s+def ([\w!?]+):.*?-> (.+)$/).to_h
+    methods = query_class.public_instance_methods(false).filter_map do |name|
+      type = signatures[name.to_s]
+      [name, type] if type && type != 'T' && name != :transaction
+    end
+    checker = Module.new do
+      methods.each do |name, type|
+        define_method(name) do |*args, **kwargs, &block|
+          value = super(*args, **kwargs, &block)
+          errors = RbsTypes.return_mismatches(value, type, rbs_path, module_name)
+          raise TypeError, "#{self.class}##{name}: #{errors.join('; ')}" unless errors.empty?
+
+          value
+        end
+      end
+    end
+    query_class.prepend(checker)
+  end
+
+  def return_mismatches(value, type, rbs_path, module_name)
+    return [] if %w[untyped untyped?].include?(type)
+    return ['expected nil'] if type == 'void' && !value.nil?
+    return [] if type == 'void'
+
+    optional = type.end_with?('?')
+    type = type.delete_suffix('?')
+    return optional ? [] : ["expected #{type}, got nil"] if value.nil?
+
+    if (element_type = type[/\AArray\[(.*)\]\z/, 1])
+      return ["expected Array, got #{value.class}"] unless value.is_a?(Array)
+      element_type += '?' unless element_type.end_with?('?')
+
+      return value.each_with_index.flat_map do |element, index|
+        return_mismatches(element, element_type, rbs_path, module_name).map { |error| "[#{index}] #{error}" }
+      end
+    end
+
+    if type == 'bool'
+      return [true, false].include?(value) ? [] : ["expected bool, got #{value.class}"]
+    end
+    klass = resolve_type(type, module_name)
+    return ["expected #{type}, got #{value.class}"] unless klass && value.is_a?(klass)
+
+    class_name = type.split('::').last
+    class_rbs_path = [rbs_path, File.join(File.dirname(rbs_path), 'models.rbs')].find do |path|
+      File.file?(path) && rbs_has_class?(path, class_name)
+    end
+    return [] unless class_rbs_path
+
+    attributes(class_rbs_path, class_name).flat_map do |name, attribute_type|
+      nested = return_mismatches(value.public_send(name), attribute_type, rbs_path, module_name)
+      nested.map { |error| "#{class_name}##{name} #{error}" }
+    end
+  end
+
+  def resolve_type(type, module_name)
+    return { 'String' => String, 'Integer' => Integer, 'Float' => Float, 'BigDecimal' => BigDecimal,
+             'Date' => Date, 'Time' => Time, 'IPAddr' => IPAddr, 'bool' => [TrueClass, FalseClass],
+             'nil' => NilClass }[type] if
+      %w[String Integer Float BigDecimal Date Time IPAddr bool nil].include?(type)
+
+    ["#{module_name}::#{type}", "#{module_name}::QuerySql::#{type}"].each do |name|
+      return Object.const_get(name)
+    rescue NameError
+      next
+    end
+    nil
+  end
+
+  def rbs_has_class?(rbs_path, class_name)
+    File.read(rbs_path).match?(/^\s*class #{Regexp.escape(class_name)}(?: < [^\n]+)?$/)
+  end
+
   def matches?(value, type)
     optional = type.end_with?('?')
     type = type.chomp('?')

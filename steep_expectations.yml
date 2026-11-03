@@ -3,50 +3,140 @@
   diagnostics:
   - range:
       start:
-        line: 334
+        line: 389
         character: 10
       end:
-        line: 334
+        line: 389
         character: 24
     severity: WARNING
     message: 'Cannot find the declaration of constant: `ConnectionPool`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 334
+        line: 389
         character: 47
       end:
-        line: 334
+        line: 389
         character: 53
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 334
+        line: 389
         character: 66
       end:
-        line: 334
+        line: 389
         character: 81
     severity: WARNING
     message: Empty kwargs doesn't have type annotation
     code: Ruby::UnannotatedEmptyCollection
   - range:
       start:
-        line: 1055
+        line: 1011
         character: 17
       end:
-        line: 1055
+        line: 1011
         character: 23
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1088
+        line: 1073
+        character: 20
+      end:
+        line: 1073
+        character: 38
+    severity: ERROR
+    message: |-
+      Cannot pass a value of type `(::String | nil)` as an argument of type `(::string | ::Integer)`
+        (::String | nil) <: (::string | ::Integer)
+          nil <: (::string | ::Integer)
+            nil <: ::string
+              nil <: (::String | ::_ToStr)
+                nil <: ::String
+    code: Ruby::ArgumentTypeMismatch
+  - range:
+      start:
+        line: 1074
+        character: 78
+      end:
+        line: 1074
+        character: 84
+    severity: ERROR
+    message: Type `(::String | nil)` does not have method `match?`
+    code: Ruby::NoMethod
+  - range:
+      start:
+        line: 1076
+        character: 20
+      end:
+        line: 1076
+        character: 39
+    severity: ERROR
+    message: |-
+      Cannot pass a value of type `(::String | nil)` as an argument of type `(::string | ::Integer)`
+        (::String | nil) <: (::string | ::Integer)
+          nil <: (::string | ::Integer)
+            nil <: ::string
+              nil <: (::String | ::_ToStr)
+                nil <: ::String
+    code: Ruby::ArgumentTypeMismatch
+  - range:
+      start:
+        line: 1080
+        character: 20
+      end:
+        line: 1080
+        character: 39
+    severity: ERROR
+    message: |-
+      Cannot pass a value of type `(::String | nil)` as an argument of type `(::string | ::Integer)`
+        (::String | nil) <: (::string | ::Integer)
+          nil <: (::string | ::Integer)
+            nil <: ::string
+              nil <: (::String | ::_ToStr)
+                nil <: ::String
+    code: Ruby::ArgumentTypeMismatch
+  - range:
+      start:
+        line: 1085
+        character: 20
+      end:
+        line: 1085
+        character: 39
+    severity: ERROR
+    message: |-
+      Cannot pass a value of type `(::String | nil)` as an argument of type `(::string | ::Integer)`
+        (::String | nil) <: (::string | ::Integer)
+          nil <: (::string | ::Integer)
+            nil <: ::string
+              nil <: (::String | ::_ToStr)
+                nil <: ::String
+    code: Ruby::ArgumentTypeMismatch
+  - range:
+      start:
+        line: 1094
+        character: 20
+      end:
+        line: 1094
+        character: 24
+    severity: ERROR
+    message: |-
+      Cannot pass a value of type `(::String | nil)` as an argument of type `(::string | ::Integer)`
+        (::String | nil) <: (::string | ::Integer)
+          nil <: (::string | ::Integer)
+            nil <: ::string
+              nil <: (::String | ::_ToStr)
+                nil <: ::String
+    code: Ruby::ArgumentTypeMismatch
+  - range:
+      start:
+        line: 1127
         character: 16
       end:
-        line: 1088
+        line: 1127
         character: 22
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'

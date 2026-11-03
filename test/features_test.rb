@@ -82,7 +82,7 @@ class FeaturesTest < Minitest::Test
   end
 
   def test_execresult_returns_rows_affected_and_last_insert_id
-    { 'pg' => 'ExecResult.new(result.cmd_tuples, nil)', 'mysql2' => 'ExecResult.new(stmt.affected_rows, client.last_id)',
+    { 'pg' => 'ExecResult.new(result.cmd_tuples, nil)', 'mysql2' => 'ExecResult.new(client.affected_rows, client.last_id)',
       'sqlite3' => 'ExecResult.new(client.changes, client.last_insert_row_id)' }.each do |driver, line|
       files = generate(load_request(driver))
       assert_includes files.fetch('query_sql.rb'), line
@@ -164,19 +164,35 @@ class FeaturesTest < Minitest::Test
     end
   end
 
+  def test_returning_last_id_is_optional_when_no_row_is_returned
+    %w[pg sqlite3].each do |driver|
+      rbs = generate(load_request(driver)).fetch('query_sql.rbs')
+      assert_match(/def create_author_return_id: .*-> Integer\?/, rbs)
+    end
+  end
+
   def test_mysql_copyfrom_writes_its_own_csv
     files = generate(load_request('mysql2', generateGemfile: true))
     refute_includes files.fetch('query_sql.rb'), "require 'csv'"
     assert_includes files.fetch('query_sql.rb'), "require 'tempfile'"
+    assert_includes files.fetch('query_sql.rb'), "require 'bigdecimal'"
+    assert_includes files.fetch('query_sql.rb'), "require 'date'"
     assert_includes files.fetch('query_sql.rb'), 'def csv_line(values)'
-    assert_equal "# frozen_string_literal: true\n\nsource 'https://rubygems.org'\n\ngem 'connection_pool'\ngem 'mysql2'\n",
+    assert_equal "# frozen_string_literal: true\n\nsource 'https://rubygems.org'\n\ngem 'bigdecimal'\ngem 'connection_pool'\ngem 'date'\ngem 'mysql2'\n",
                  files.fetch('Gemfile')
   end
 
-  def test_sqlite_and_mysql_close_prepared_statements
-    %w[mysql2 sqlite3].each do |driver|
-      assert_match(/ensure\n\s+stmt\.close\n/, generate(load_request(driver)).fetch('query_sql.rb'), driver)
-    end
+  def test_mysql_uses_client_side_binding_and_sqlite_closes_prepared_statements
+    mysql = generate(load_request('mysql2')).fetch('query_sql.rb')
+    assert_includes mysql, 'client.query(bind_params(client, GET_AUTHOR_SQL, query_params), as: :array)'
+    assert_includes mysql, 'def quote(client, value)'
+    assert_includes mysql, 'def bind_params(client, sql, params)'
+    refute_match(/\bstmt(?:\.| =)/, mysql)
+    refute_includes mysql, 'client.prepare('
+    refute_includes mysql, 'stmt.close'
+
+    sqlite = generate(load_request('sqlite3')).fetch('query_sql.rb')
+    assert_match(/ensure\n\s+stmt\.close\n/, sqlite)
   end
 
   # ---- Ruby style of the generated code ------------------------------------------------------------------------

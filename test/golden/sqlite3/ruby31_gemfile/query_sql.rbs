@@ -432,7 +432,7 @@ module Sqlite3Codegen
 
     def get_authors_by_optional_name: (lim: Integer, ?name_filter: untyped) -> Array[GetAuthorsByOptionalNameRow]
 
-    def create_author_return_id: (name: String, bio: String?) -> Integer
+    def create_author_return_id: (name: String, bio: String?) -> Integer?
 
     def update_author_bios: (bio: String?) -> Integer
 
@@ -452,7 +452,7 @@ module Sqlite3Codegen
 
     def truncate_authors: -> void
 
-    def create_book: (name: String, author_id: Integer) -> Integer
+    def create_book: (name: String, author_id: Integer) -> Integer?
 
     def list_all_authors_books: -> Array[ListAllAuthorsBooksRow]
 

@@ -151,3 +151,28 @@ SELECT id, code, doc, flags, amount FROM copy_types ORDER BY id;
 
 -- name: TruncateCopyTypes :exec
 TRUNCATE TABLE copy_types;
+
+-- name: FindAuthorsByExactName :many
+SELECT id FROM authors WHERE name = sqlc.arg(name);
+
+-- name: GetAuthorWithQuestionMarks :many
+SELECT id FROM authors AS `?`
+WHERE name = ? AND '?' = '?' AND "?" = "?" /* ? */
+# ?
+ORDER BY id;
+
+-- name: InsertMysqlBindingValues :exec
+INSERT INTO mysql_binding_values (
+  id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value,
+  datetime_value, datetime_2, bool_value, nullable_value
+) VALUES (
+  sqlc.arg(id), sqlc.arg(text_value), sqlc.arg(blob_value), sqlc.arg(signed_value), sqlc.arg(unsigned_value),
+  sqlc.arg(decimal_value), sqlc.arg(float_value), sqlc.arg(date_value), sqlc.arg(datetime_value),
+  sqlc.arg(datetime_2), sqlc.arg(bool_value), sqlc.arg(nullable_value)
+);
+
+-- name: GetMysqlBindingValues :one
+SELECT * FROM mysql_binding_values WHERE id = sqlc.arg(id);
+
+-- name: TruncateMysqlBindingValues :exec
+TRUNCATE TABLE mysql_binding_values;

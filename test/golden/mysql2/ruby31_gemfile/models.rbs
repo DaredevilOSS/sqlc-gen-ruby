@@ -188,4 +188,47 @@ module Mysql2Codegen
         amount: Integer?
     ) -> CopyType
   end
+
+  class MysqlBindingValu < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor text_value: String?
+    attr_accessor blob_value: String?
+    attr_accessor signed_value: Integer?
+    attr_accessor unsigned_value: Integer?
+    attr_accessor decimal_value: BigDecimal?
+    attr_accessor float_value: Float?
+    attr_accessor date_value: Date?
+    attr_accessor datetime_value: Time?
+    attr_accessor datetime_2: Time?
+    attr_accessor bool_value: Integer?
+    attr_accessor nullable_value: String?
+    def initialize: (
+        id: Integer,
+        text_value: String?,
+        blob_value: String?,
+        signed_value: Integer?,
+        unsigned_value: Integer?,
+        decimal_value: BigDecimal?,
+        float_value: Float?,
+        date_value: Date?,
+        datetime_value: Time?,
+        datetime_2: Time?,
+        bool_value: Integer?,
+        nullable_value: String?
+    ) -> void
+    def self.new: (
+        id: Integer,
+        text_value: String?,
+        blob_value: String?,
+        signed_value: Integer?,
+        unsigned_value: Integer?,
+        decimal_value: BigDecimal?,
+        float_value: Float?,
+        date_value: Date?,
+        datetime_value: Time?,
+        datetime_2: Time?,
+        bool_value: Integer?,
+        nullable_value: String?
+    ) -> MysqlBindingValu
+  end
 end
