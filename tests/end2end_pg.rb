@@ -914,6 +914,27 @@ class TestPg < Minitest::Test
     assert_empty pooled.list_authors
   end
 
+  def test_connection_lost_inside_transaction_is_not_reconnected_until_the_transaction_ends
+    pooled = QuerySql.connect(pg_params, size: 1)
+    error = assert_raises(PG::ConnectionBad) do
+      pooled.transaction do |tx|
+        tx.create_author_return_id(name: 'before the loss', bio: nil)
+        pid = pooled.instance_variable_get(:@db).with(&:backend_pid)
+        PG.connect(**pg_params.transform_keys(&:to_sym)) do |admin|
+          admin.exec_params('SELECT pg_terminate_backend($1)', [pid])
+          sleep 0.01 while admin.exec_params('SELECT 1 FROM pg_stat_activity WHERE pid = $1', [pid]).ntuples.positive?
+        end
+        assert_raises(PG::Error) { tx.list_authors }
+        # the block rescued the error: later calls must not run on a fresh connection outside the transaction
+        assert_raises(PG::ConnectionBad) { tx.create_author_return_id(name: 'after the loss', bio: nil) }
+        :committed
+      end
+    end
+    assert_match(/connection was lost/, error.message)
+    assert_empty pooled.list_authors
+    pooled.instance_variable_get(:@db).with { |client| assert_equal PG::PQTRANS_IDLE, client.transaction_status }
+  end
+
   def test_seeded_random_copyfrom_round_trip_and_duplicate_is_atomic
     random = seeded_random
     rows = Array.new(300) do |i|

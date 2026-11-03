@@ -32,5 +32,7 @@ module Sqlite3Codegen
     def instrument: [T] (String name) { () -> T } -> T
 
     def with_client: [T] (String name) { (untyped) -> T } -> T
+
+    def execute_statement: (untyped stmt, *untyped params) -> untyped
   end
 end

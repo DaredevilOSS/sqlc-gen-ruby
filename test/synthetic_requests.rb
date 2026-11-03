@@ -19,7 +19,9 @@ module SyntheticRequests
   end
 
   def query(name, cmd, columns, params, file = 'query.sql')
-    P::Query.new(name: name, cmd: cmd, text: "SELECT 1 -- ? ?\n\t  WHERE a = ?", columns: columns, filename: file,
+    # a placeholder for real only when the query has parameters (sqlc never reports fewer parameters than that)
+    text = "SELECT 1 -- ? ?\n\t  WHERE a = #{params.empty? ? '1' : '?'}"
+    P::Query.new(name: name, cmd: cmd, text: text, columns: columns, filename: file,
                  params: params.each_with_index.map { |c, i| P::Parameter.new(number: i + 1, column: c) })
   end
 

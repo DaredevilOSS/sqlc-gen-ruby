@@ -62,7 +62,7 @@ module Sqlite3Codegen
         query_params = [c0]
         stmt = client.prepare(WITH_NUMBERS2_GO_SQL)
         begin
-          stmt.execute(*query_params)
+          execute_statement(stmt, *query_params)
           nil
         ensure
           stmt.close
@@ -86,6 +86,14 @@ module Sqlite3Codegen
 
     def with_client(name, &block)
       instrument(name) { @lock.synchronize { block.call(@db) } }
+    end
+
+    def execute_statement(stmt, *params)
+      stmt.reset! if stmt.active? || stmt.done?
+      stmt.bind_params(*params) unless params.empty?
+      result = SQLite3::ResultSet.new(@db, stmt)
+      stmt.step if stmt.column_count.zero?
+      result
     end
   end
 end
