@@ -373,6 +373,33 @@ module Sqlite3Codegen
     DELETE FROM name_cases
   SQL
 
+  GET_UNNAMED_COLUMNS_SQL = <<~'SQL'
+    SELECT 1, 'two'
+  SQL
+
+  # rubocop:disable Naming/VariableNumber
+  class GetUnnamedColumnsRow < Data.define(:column_1, :column_2)
+  end
+  # rubocop:enable Naming/VariableNumber
+
+  GET_QUOTED_ALIAS_SQL = <<~'SQL'
+    SELECT 1 AS "it's"
+  SQL
+
+  class GetQuotedAliasRow < Data.define(:it_s)
+  end
+
+  GET_AUTHORS_NOT_IN_IDS_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors WHERE id NOT IN (/*SLICE:ids*/?) ORDER BY id
+  SQL
+
+  class GetAuthorsNotInIdsRow < Data.define(:id, :name, :bio)
+  end
+
+  CREATE_AUTHOR_OR_ROLLBACK_SQL = <<~'SQL'
+    INSERT OR ROLLBACK INTO authors (id, name) VALUES (?, ?)
+  SQL
+
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
@@ -438,7 +465,7 @@ module Sqlite3Codegen
             result
           rescue Exception # rubocop:disable Lint/RescueException
             failed = true
-            @db.execute(rollback)
+            @db.execute(rollback) if @db.transaction_active? # ON CONFLICT ROLLBACK already ended it
             raise
           ensure
             unless failed
@@ -1205,6 +1232,71 @@ module Sqlite3Codegen
       end
     end
 
+    def get_unnamed_columns
+      with_client('get_unnamed_columns') do |client|
+        stmt = client.prepare(GET_UNNAMED_COLUMNS_SQL)
+        begin
+          result = stmt.execute
+          row = result.first
+          row && GetUnnamedColumnsRow.new(row[0], row[1])
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    # Like #get_unnamed_columns, but raises NotFound when there is no row.
+    def get_unnamed_columns!(...)
+      get_unnamed_columns(...) || raise(NotFound, 'GetUnnamedColumns returned no row')
+    end
+
+    def get_quoted_alias
+      with_client('get_quoted_alias') do |client|
+        stmt = client.prepare(GET_QUOTED_ALIAS_SQL)
+        begin
+          result = stmt.execute
+          row = result.first
+          row && GetQuotedAliasRow.new(row[0])
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    # Like #get_quoted_alias, but raises NotFound when there is no row.
+    def get_quoted_alias!(...)
+      get_quoted_alias(...) || raise(NotFound, 'GetQuotedAlias returned no row')
+    end
+
+    def get_authors_not_in_ids(ids:)
+      with_client('get_authors_not_in_ids') do |client|
+        query_params = [*ids]
+        sql = GET_AUTHORS_NOT_IN_IDS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
+        stmt = client.prepare(sql)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            GetAuthorsNotInIdsRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def create_author_or_rollback(id:, name:)
+      with_client('create_author_or_rollback') do |client|
+        query_params = [id, name]
+        stmt = client.prepare(CREATE_AUTHOR_OR_ROLLBACK_SQL)
+        begin
+          stmt.execute(*query_params)
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
     def many_params(c0:, c1:, c2:, c3:, c4:)
       with_client('many_params') do |client|
         query_params = [
@@ -1301,7 +1393,7 @@ module Sqlite3Codegen
     end
 
     def slice_placeholders(values)
-      values.empty? ? 'NULL' : Array.new(values.size, '?').join(', ')
+      values.empty? ? 'SELECT NULL WHERE FALSE' : Array.new(values.size, '?').join(', ')
     end
   end
 end

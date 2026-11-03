@@ -62,6 +62,7 @@ module PgCodegen
           yield self
         rescue Exception # rubocop:disable Lint/RescueException
           failed = true
+          client.cancel if client.transaction_status == PG::PQTRANS_ACTIVE
           client.exec(rollback)
           raise
         ensure
@@ -86,22 +87,22 @@ module PgCodegen
           encode_float(c3),
           encode_bytea(c4)
         ]
-        unless client.prepared_statements.include?('other_sql_no_cols')
-          client.prepare('other_sql_no_cols', NO_COLS_SQL)
-          client.prepared_statements.add('other_sql_no_cols')
+        unless client.prepared_statements.include?('pg_codegen_other_sql_no_cols')
+          client.prepare('pg_codegen_other_sql_no_cols', NO_COLS_SQL)
+          client.prepared_statements.add('pg_codegen_other_sql_no_cols')
         end
-        client.exec_prepared('other_sql_no_cols', query_params)
+        client.exec_prepared('pg_codegen_other_sql_no_cols', query_params)
         nil
       end
     end
 
     def other_one
       with_client('other_one') do |client|
-        unless client.prepared_statements.include?('other_sql_other_one')
-          client.prepare('other_sql_other_one', OTHER_ONE_SQL)
-          client.prepared_statements.add('other_sql_other_one')
+        unless client.prepared_statements.include?('pg_codegen_other_sql_other_one')
+          client.prepare('pg_codegen_other_sql_other_one', OTHER_ONE_SQL)
+          client.prepared_statements.add('pg_codegen_other_sql_other_one')
         end
-        result = client.exec_prepared('other_sql_other_one')
+        result = client.exec_prepared('pg_codegen_other_sql_other_one')
         row = result.first
         row && OtherOneRow.new(row['c0'])
       end
@@ -115,11 +116,11 @@ module PgCodegen
     def count_rows(c0:)
       with_client('count_rows') do |client|
         query_params = [c0]
-        unless client.prepared_statements.include?('other_sql_count_rows')
-          client.prepare('other_sql_count_rows', COUNT_ROWS_SQL)
-          client.prepared_statements.add('other_sql_count_rows')
+        unless client.prepared_statements.include?('pg_codegen_other_sql_count_rows')
+          client.prepare('pg_codegen_other_sql_count_rows', COUNT_ROWS_SQL)
+          client.prepared_statements.add('pg_codegen_other_sql_count_rows')
         end
-        result = client.exec_prepared('other_sql_count_rows', query_params)
+        result = client.exec_prepared('pg_codegen_other_sql_count_rows', query_params)
         result.cmd_tuples
       end
     end
@@ -143,7 +144,13 @@ module PgCodegen
         @db.with do |client|
           client.reset if client.status == PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
           configure(client) unless client.is_a?(ConnectionState)
-          yield client
+          begin
+            yield client
+          rescue Exception # rubocop:disable Lint/RescueException
+            # a query left by Timeout / Thread#raise keeps running: cancel it before the connection is reused
+            client.cancel if client.transaction_status == PG::PQTRANS_ACTIVE
+            raise
+          end
         end
       end
     end

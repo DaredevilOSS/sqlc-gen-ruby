@@ -568,7 +568,7 @@ class TestMysql2 < Minitest::Test
   def test_injection_and_unsupported_parameters_are_safe
     create_author('ordinary')
     assert_empty @query_sql.find_authors_by_exact_name(name: "x' OR '1'='1")
-    [Hash.new, :symbol, Object.new].each do |value|
+    [Hash.new, Object.new].each do |value|
       assert_raises(TypeError) { @query_sql.find_authors_by_exact_name(name: value) }
     end
     assert_equal ['ordinary'], @query_sql.list_authors.map(&:name)
@@ -895,5 +895,48 @@ class TestMysql2 < Minitest::Test
     end
     threads.each(&:value)
     assert_equal expected, @query_sql.list_authors.map(&:name).sort
+  end
+  # ---- result column names -------------------------------------------------------------------------------------
+
+  def test_unnamed_result_columns_are_read_by_position
+    row = @query_sql.get_unnamed_columns
+    assert_equal({ column_1: 1, column_2: 'two' }, row.to_h)
+  end
+
+  def test_alias_with_a_quote_is_read
+    assert_equal({ it_s: 1 }, @query_sql.get_quoted_alias.to_h)
+  end
+
+  def test_not_in_an_empty_slice_matches_everything
+    ids = %w[a b].map { |name| create_author(name) }
+    assert_equal ids.sort, @query_sql.get_authors_not_in_ids(ids: []).map(&:id)
+    assert_equal [ids.last], @query_sql.get_authors_not_in_ids(ids: [ids.first]).map(&:id)
+  end
+
+  def test_symbol_enum_value_is_bound_as_its_name
+    @query_sql.create_extended_bio(author_name: 'a', name: 'n', bio_type: :Memoir, author_type: nil)
+    assert_equal 'Memoir', @query_sql.get_first_extended_bio_by_type(bio_type: :Memoir).bio_type
+  end
+
+  def test_deadlock_in_a_nested_transaction_raises_the_deadlock_error
+    ids = %w[a b].map { |name| create_author(name) }
+    queries = QuerySql.connect(mysql2_params, size: 2)
+    locked = Queue.new
+    threads = [ids, ids.reverse].map do |first, second|
+      Thread.new do
+        queries.transaction do |tx|
+          tx.delete_author(id: first)
+          locked << first
+          sleep 0.01 until locked.size == 2
+          tx.transaction { |inner| inner.delete_author(id: second) }
+        end
+        nil
+      rescue Mysql2::Error => e
+        e
+      end
+    end
+    errors = threads.map(&:value).compact
+    assert_equal [1213], errors.map(&:error_number), errors.map(&:message).inspect
+    assert_empty @query_sql.list_authors
   end
 end

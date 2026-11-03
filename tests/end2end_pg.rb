@@ -997,4 +997,38 @@ class TestPg < Minitest::Test
     threads.each(&:value)
     assert_equal expected, @query_sql.list_authors.map(&:name).sort
   end
+  # ---- result column names -------------------------------------------------------------------------------------
+
+  def test_unnamed_result_columns_are_read_by_position
+    row = @query_sql.get_unnamed_columns
+    assert_equal({ column_1: 1, column_2: 'two' }, row.to_h)
+  end
+
+  def test_alias_with_a_quote_is_read
+    assert_equal({ it_s: 1 }, @query_sql.get_quoted_alias.to_h)
+  end
+
+  def test_top_level_float_json_parameters_round_trip_exactly
+    [0.3304, 0.1 + 0.2, 1.0e-7, -2.5].each_with_index do |value, id|
+      @query_sql.set_json_round_trip(id: id, json_value: value, jsonb_value: value)
+      row = @query_sql.get_json_round_trip(id: id)
+      assert_equal [value, value], [row.json_value, row.jsonb_value]
+    end
+  end
+
+  # ---- queries abandoned by a timeout ----------------------------------------------------------------------------
+
+  def test_query_abandoned_by_a_timeout_is_cancelled
+    queries = QuerySql.connect(pg_params, size: 1)
+    [false, true].each do |in_transaction|
+      assert_raises(Timeout::Error) do
+        Timeout.timeout(0.1) do
+          in_transaction ? queries.transaction { |tx| tx.pause_query(seconds: 3) } : queries.pause_query(seconds: 3)
+        end
+      end
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      queries.list_authors
+      assert_operator Process.clock_gettime(Process::CLOCK_MONOTONIC) - started, :<, 1
+    end
+  end
 end

@@ -702,6 +702,23 @@ module PgCodegen
 
   TRUNCATE_NAME_CASES_SQL: String
 
+  GET_UNNAMED_COLUMNS_SQL: String
+
+  class GetUnnamedColumnsRow < ::Struct[untyped]
+    attr_accessor column_1: Integer
+    attr_accessor column_2: String
+    def initialize: (  column_1: Integer, column_2: String) -> void
+    def self.new: (  column_1: Integer, column_2: String) -> GetUnnamedColumnsRow
+  end
+
+  GET_QUOTED_ALIAS_SQL: String
+
+  class GetQuotedAliasRow < ::Struct[untyped]
+    attr_accessor it_s: Integer
+    def initialize: (  it_s: Integer) -> void
+    def self.new: (  it_s: Integer) -> GetQuotedAliasRow
+  end
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow < ::Struct[untyped]
@@ -910,6 +927,14 @@ module PgCodegen
     def get_http_server!: (id: Integer) -> GetHTTPServerRow
 
     def truncate_name_cases: -> void
+
+    def get_unnamed_columns: -> GetUnnamedColumnsRow?
+
+    def get_unnamed_columns!: -> GetUnnamedColumnsRow
+
+    def get_quoted_alias: -> GetQuotedAliasRow?
+
+    def get_quoted_alias!: -> GetQuotedAliasRow
 
     def many_params: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow?
 

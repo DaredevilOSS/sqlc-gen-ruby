@@ -8,7 +8,7 @@ module SqlcGenRuby
   #   queries.get_author(id: 1)  queries.create_author(name: 'x', bio: nil)  queries.get_authors_by_ids(ids: [1, 2])
   class MethodGen
     SLICE_HELPER = [
-      "def slice_placeholders(values)\n  values.empty? ? 'NULL' : Array.new(values.size, '?').join(', ')\nend",
+      "def slice_placeholders(values)\n  values.empty? ? 'SELECT NULL WHERE FALSE' : Array.new(values.size, '?').join(', ')\nend",
       'def slice_placeholders: (Array[untyped] values) -> String'
     ].freeze
 
@@ -24,12 +24,13 @@ module SqlcGenRuby
     # Locals of the generated query methods; parameters with these names get a trailing underscore.
     GENERATED_LOCALS = %w[client query_params sql stmt result row].freeze
 
-    # layout: RowLayout, types: TypeResolver, class_name: the generated query class (prefixes statement names)
+    # layout: RowLayout, types: TypeResolver, class_name: the generated query class with its module (prefixes
+    # statement names, which must differ between modules that share a connection)
     def initialize(driver, layout, types, class_name)
       @driver = driver
       @layout = layout
       @types = types
-      @statement_prefix = Code.snake_case(class_name)
+      @statement_prefix = class_name.split('::').map { |part| Code.snake_case(part) }.join('_')
     end
 
     # `created_at > $1 AND created_at < $2` -> created_at:, created_at_2:
@@ -292,7 +293,7 @@ module SqlcGenRuby
                   entry.optional ? "#{missing_row_check(entry.table, values)} ? nil : #{model}" : model
                 else
                   index += 1
-                  array ? "row[#{index - 1}]" : "row['#{entry.column.name}']"
+                  array ? "row[#{index - 1}]" : "row[#{Code.string_literal(entry.column.name)}]"
                 end
         [entry.attr, value]
       end

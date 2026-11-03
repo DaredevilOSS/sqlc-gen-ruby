@@ -697,4 +697,35 @@ class TestSqlite3 < Minitest::Test
     threads.each(&:value)
     assert_equal expected, @query_sql.list_authors.map(&:name).sort
   end
+  # ---- result column names -------------------------------------------------------------------------------------
+
+  def test_unnamed_result_columns_are_read_by_position
+    row = @query_sql.get_unnamed_columns
+    assert_equal({ column_1: 1, column_2: 'two' }, row.to_h)
+  end
+
+  def test_alias_with_a_quote_is_read
+    assert_equal({ it_s: 1 }, @query_sql.get_quoted_alias.to_h)
+  end
+
+  def test_not_in_an_empty_slice_matches_everything
+    ids = %w[a b].map { |name| create_author(name) }
+    assert_equal ids.sort, @query_sql.get_authors_not_in_ids(ids: []).map(&:id)
+    assert_equal [ids.last], @query_sql.get_authors_not_in_ids(ids: [ids.first]).map(&:id)
+  end
+
+  def test_conflict_that_ends_the_transaction_raises_the_constraint_error
+    id = create_author('a')
+    assert_raises(SQLite3::ConstraintException) do
+      @query_sql.transaction { |tx| tx.create_author_or_rollback(id: id, name: 'dup') }
+    end
+    assert_raises(SQLite3::ConstraintException) do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'outer', bio: nil)
+        tx.transaction { |inner| inner.create_author_or_rollback(id: id, name: 'dup') }
+      end
+    end
+    refute_predicate @db, :transaction_active?
+    assert_equal ['a'], @query_sql.list_authors.map(&:name)
+  end
 end

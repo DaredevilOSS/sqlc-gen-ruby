@@ -585,4 +585,12 @@ name_casesbtextz
 httpserver*3/
 id0ÿÿÿÿÿÿÿÿÿ8R
 name_casesbbigintzid:	query.sql@
-TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sqlb
+SELECT 1, 'two'GetUnnamedColumns:one"0ÿÿÿÿÿÿÿÿÿbint"0ÿÿÿÿÿÿÿÿÿbtext:	query.sqlQ
+SELECT 1 AS `it's`GetQuotedAlias:one"
+it's0ÿÿÿÿÿÿÿÿÿbint:	query.sql¯
+NSELECT id, name, bio FROM authors WHERE id NOT IN (/*SLICE:ids*/?) ORDER BY idGetAuthorsNotInIds:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*3/
+ids0ÿÿÿÿÿÿÿÿÿ8R	authorsbbiginthzid:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

@@ -75,7 +75,7 @@ module SqlcGenRuby
           raise ArgumentError, "#{query.name}: :execlastid on PostgreSQL needs a RETURNING clause"
         end
 
-        ["result = #{exec}", 'row = result.first', "row && row['#{query.columns.first.name}']"]
+        ["result = #{exec}", 'row = result.first', "row && row[#{Code.string_literal(query.columns.first.name)}]"]
       end
 
       # COPY ... FROM STDIN, one row at a time through the pg gem's CopyRow encoder.
@@ -115,11 +115,12 @@ module SqlcGenRuby
           end
         RUBY
         'encode_json' => [<<~'RUBY'.chomp, 'def encode_json: (untyped value) -> untyped'],
-          # json / jsonb parameters: booleans and Arrays need JSON encoding, not PostgreSQL's boolean / array encoding.
-          # Hashes and JSON text pass through; nil stays nil.
+          # json / jsonb parameters: booleans and Arrays need JSON encoding, not PostgreSQL's boolean / array encoding,
+          # and Floats their shortest exact text. Hashes and JSON text pass through; nil stays nil.
           def encode_json(value)
             case value
             when Array, TrueClass, FalseClass then PG::TextEncoder::JSON.new.encode(value)
+            when Float then value.to_s
             else value
             end
           end
@@ -224,6 +225,7 @@ module SqlcGenRuby
               yield self
             rescue Exception # rubocop:disable Lint/RescueException
               failed = true
+              client.cancel if client.transaction_status == PG::PQTRANS_ACTIVE
               client.exec(rollback)
               raise
             ensure
@@ -246,7 +248,13 @@ module SqlcGenRuby
             @db.with do |client|
               client.reset if client.status == PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
               configure(client) unless client.is_a?(ConnectionState)
-              yield client
+              begin
+                yield client
+              rescue Exception # rubocop:disable Lint/RescueException
+                # a query left by Timeout / Thread#raise keeps running: cancel it before the connection is reused
+                client.cancel if client.transaction_status == PG::PQTRANS_ACTIVE
+                raise
+              end
             end
           end
         end

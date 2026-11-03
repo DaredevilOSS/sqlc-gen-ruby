@@ -108,6 +108,7 @@ per table, one module of constants per enum), `connection.rb` (shared helpers) a
 * **Style:** SQL lives in frozen heredoc constants (`GET_AUTHOR_SQL`), comments above a query become its doc comment,
   table / column / enum comments of the schema become doc comments of the models. The code is RuboCop-clean; where a
   name from your schema breaks a RuboCop naming rule (`"UserId"`, `naïve`), that class or method gets a `rubocop:disable`.
+  A result column without a usable name (`SELECT 1, now()`) is named by its position: `column_1`, `column_2`, ...
 
 ### Transactions
 ```ruby
@@ -160,7 +161,7 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 |---|:---:|:---:|:---:|---|
 | `sqlc.arg` | ✅ | ✅ | ✅ | names a parameter (unnamed ones such as `ANY($1::BIGINT[])` become `param1`, ...) |
 | `sqlc.narg` | ✅ | ✅ | ✅ | a nullable parameter (`T?`, defaults to `nil`) |
-| `sqlc.slice` | 🚫 | ✅ | ✅ | `IN (sqlc.slice(ids))` takes an `Array` (an empty one matches nothing). PostgreSQL: use `= ANY($1::bigint[])` with an array |
+| `sqlc.slice` | 🚫 | ✅ | ✅ | `IN (sqlc.slice(ids))` takes an `Array` (an empty one: `IN` matches nothing, `NOT IN` everything). PostgreSQL: use `= ANY($1::bigint[])` with an array |
 | `sqlc.embed` | ✅ | ✅ | ✅ | the row gets an attribute holding the table's model (`author`, `author2` for the same table twice); `nil` when an outer join found no row |
 
 🚫 = not offered by sqlc for that database.

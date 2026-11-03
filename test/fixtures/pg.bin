@@ -644,4 +644,7 @@ name_casesbtextz
 HTTPServer*<8
 id0ÿÿÿÿÿÿÿÿÿ8R
 name_casesbpg_catalog.int8zid:	query.sql@
-TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sqlb
+SELECT 1, 'two'GetUnnamedColumns:one"0ÿÿÿÿÿÿÿÿÿbint"0ÿÿÿÿÿÿÿÿÿbtext:	query.sqlQ
+SELECT 1 AS "it's"GetQuotedAlias:one"
+it's0ÿÿÿÿÿÿÿÿÿbint:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

@@ -233,9 +233,11 @@ class FeaturesTest < Minitest::Test
     assert_includes rb, "    # Returns the author with the given id, or nil when there is none.\n    def get_author(id:)"
   end
 
-  def test_statements_are_named_after_the_query_class
+  def test_statements_are_named_after_the_module_and_query_class
     rb = generate(load_request('pg')).fetch('query_sql.rb')
-    assert_includes rb, "client.exec_prepared('query_sql_get_author', query_params)"
+    assert_includes rb, "client.exec_prepared('pg_codegen_query_sql_get_author', query_params)"
+    rb = generate(load_request('pg', moduleName: 'Shop::DB')).fetch('query_sql.rb')
+    assert_includes rb, "client.exec_prepared('shop_db_query_sql_get_author', query_params)"
   end
 
   def test_pg_can_skip_prepared_statements

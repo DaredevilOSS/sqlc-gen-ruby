@@ -202,7 +202,7 @@ module SqlcGenRuby
                 yield self
               rescue Exception # rubocop:disable Lint/RescueException
                 failed = true
-                @db.execute(rollback)
+                @db.execute(rollback) if @db.transaction_active? # ON CONFLICT ROLLBACK already ended it
                 raise
               ensure
                 unless failed

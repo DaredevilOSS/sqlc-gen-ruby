@@ -52,6 +52,7 @@ module PgCodegen
           result
         rescue Exception # rubocop:disable Lint/RescueException
           failed = true
+          client.cancel if client.transaction_status == PG::PQTRANS_ACTIVE
           client.exec(rollback)
           raise
         ensure
@@ -70,11 +71,11 @@ module PgCodegen
     def with_numbers2_go(c0:)
       with_client('with_numbers2_go') do |client|
         query_params = [c0]
-        unless client.prepared_statements.include?('my_queries_sql_with_numbers2_go')
-          client.prepare('my_queries_sql_with_numbers2_go', WITH_NUMBERS2_GO_SQL)
-          client.prepared_statements.add('my_queries_sql_with_numbers2_go')
+        unless client.prepared_statements.include?('pg_codegen_my_queries_sql_with_numbers2_go')
+          client.prepare('pg_codegen_my_queries_sql_with_numbers2_go', WITH_NUMBERS2_GO_SQL)
+          client.prepared_statements.add('pg_codegen_my_queries_sql_with_numbers2_go')
         end
-        client.exec_prepared('my_queries_sql_with_numbers2_go', query_params)
+        client.exec_prepared('pg_codegen_my_queries_sql_with_numbers2_go', query_params)
         nil
       end
     end
@@ -98,7 +99,13 @@ module PgCodegen
         @db.with do |client|
           client.reset if client.status == PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
           configure(client) unless client.is_a?(ConnectionState)
-          yield client
+          begin
+            yield client
+          rescue Exception # rubocop:disable Lint/RescueException
+            # a query left by Timeout / Thread#raise keeps running: cancel it before the connection is reused
+            client.cancel if client.transaction_status == PG::PQTRANS_ACTIVE
+            raise
+          end
         end
       end
     end
