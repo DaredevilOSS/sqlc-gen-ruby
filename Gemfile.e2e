@@ -6,6 +6,8 @@ examples_dir = ENV.fetch('EXAMPLES_DIR') { raise 'EXAMPLES_DIR must point at gen
 driver = ENV.fetch('EXAMPLES_DRIVER') { raise 'EXAMPLES_DRIVER must be set for E2E bundling' }
 eval_gemfile File.join(examples_dir, driver, 'Gemfile')
 
+gem 'bigdecimal' # tests/; bundled (not default) gems since Ruby 3.4 / 4.0
+gem 'logger'
 gem 'async', RUBY_VERSION.start_with?('3.1') ? '< 2.7' : '>= 2.7'
 gem 'minitest'
 gem 'rake'

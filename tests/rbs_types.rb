@@ -8,9 +8,14 @@ require 'time'
 module RbsTypes
   module_function
 
+  SOURCES = {} # rubocop:disable Style/MutableConstant
+
+  # Read once, before any query runs: File.read inside a fiber scheduler raises EBADF on Windows (Ruby 3.1 + async)
+  def source(path) = SOURCES[path] ||= File.read(path)
+
   # { 'c_date' => 'Date?', ... } for `class <class_name>` in an .rbs file
   def attributes(rbs_path, class_name)
-    body = File.read(rbs_path)[/^( *)class #{Regexp.escape(class_name)}(?: < [^\n]+)?\n(.*?)^\1end$/m, 2] or
+    body = source(rbs_path)[/^( *)class #{Regexp.escape(class_name)}(?: < [^\n]+)?\n(.*?)^\1end$/m, 2] or
       raise "#{class_name} not in #{rbs_path}"
     body.scan(/attr_(?:reader|accessor) (\w+): (.+)$/).to_h { |name, type| [name, top_level(type)] }
   end
@@ -34,7 +39,9 @@ module RbsTypes
     return unless File.file?(rbs_path)
 
     module_name = query_class.name.sub(/::QuerySql\z/, '')
-    signatures = File.read(rbs_path).scan(/^\s+def ([\w!?]+):.*?-> (.+)$/).to_h { |name, type| [name, top_level(type)] }
+    models_path = File.join(File.dirname(rbs_path), 'models.rbs')
+    source(models_path) if File.file?(models_path)
+    signatures = source(rbs_path).scan(/^\s+def ([\w!?]+):.*?-> (.+)$/).to_h { |name, type| [name, top_level(type)] }
     methods = query_class.public_instance_methods(false).filter_map do |name|
       type = signatures[name.to_s]
       [name, type] if type && type != 'T' && name != :transaction
@@ -105,7 +112,7 @@ module RbsTypes
   end
 
   def rbs_has_class?(rbs_path, class_name)
-    File.read(rbs_path).match?(/^\s*class #{Regexp.escape(class_name)}(?: < [^\n]+)?$/)
+    source(rbs_path).match?(/^\s*class #{Regexp.escape(class_name)}(?: < [^\n]+)?$/)
   end
 
   def matches?(value, type)

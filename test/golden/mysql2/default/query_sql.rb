@@ -1454,7 +1454,7 @@ module Mysql2Codegen
         when true then '1'
         when false then '0'
         when ::Time then value.strftime('%Y-%m-%d %H:%M:%S.%6N')
-        else %("#{value.to_s.b.gsub('\\') { '\\\\' }.gsub('"', '""')}")
+        else %("#{value.to_s.b.gsub('\\') { '\\\\' }.gsub('"', '""').gsub("\x1A") { '\Z' }}")
         end
       end
       "#{fields.join(',')}\n"

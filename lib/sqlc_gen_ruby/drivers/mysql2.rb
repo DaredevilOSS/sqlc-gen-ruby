@@ -235,7 +235,8 @@ module SqlcGenRuby
       RUBY
 
       # \N is LOAD DATA's NULL; every other value is enclosed in quotes (an unquoted NULL would also be read as
-      # NULL), backslashes are doubled because the statement uses ESCAPED BY '\'.
+      # NULL), backslashes are doubled because the statement uses ESCAPED BY '\'. Ctrl-Z is written as \Z: the client
+      # library reads the file in text mode on Windows, where a raw Ctrl-Z ends it.
       CSV_LINE = <<~'RUBY'.chomp
         # Formats one row for LOAD DATA ... FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'.
         def csv_line(values)
@@ -245,7 +246,7 @@ module SqlcGenRuby
             when true then '1'
             when false then '0'
             when ::Time then value.strftime('%Y-%m-%d %H:%M:%S.%6N')
-            else %("#{value.to_s.b.gsub('\\') { '\\\\' }.gsub('"', '""')}")
+            else %("#{value.to_s.b.gsub('\\') { '\\\\' }.gsub('"', '""').gsub("\x1A") { '\Z' }}")
             end
           end
           "#{fields.join(',')}\n"

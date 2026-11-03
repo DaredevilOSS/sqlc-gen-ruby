@@ -73,6 +73,12 @@ class TestSqlite3 < Minitest::Test
     @query_sql = QuerySql.new(@db)
   end
 
+  # Close on the test's own thread: a database left to the GC can be finalized on another thread while a timed-out
+  # `sleep` function still holds its SQLite mutex, which deadlocks the process (seen on Ruby 3.1 / sqlite3 2.8).
+  def teardown
+    @db.close
+  end
+
   def create_author(name, bio = nil)
     @query_sql.create_author_return_id(name: name, bio: bio)
   end

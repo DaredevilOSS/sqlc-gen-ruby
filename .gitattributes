@@ -1,0 +1,6 @@
+# Generated code, golden files and sqlc configs are compared byte for byte (sqlc diff, golden tests):
+# keep LF on every OS, also on Windows checkouts with core.autocrlf.
+* text=auto eol=lf
+*.bin binary
+*.wasm binary
+*.cmd text eol=crlf
