@@ -2,5 +2,8 @@
 
 source 'https://rubygems.org'
 
+gem 'bigdecimal'
 gem 'connection_pool'
+gem 'date'
 gem 'mysql2'
+gem 'timeout', '>= 0.4'

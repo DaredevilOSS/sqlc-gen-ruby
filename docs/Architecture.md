@@ -27,7 +27,7 @@ stdout ◄─ Proto (encode) ◄─ GenerateResponse (query_sql.rb, query_sql.rb
 | `type_resolver.rb` | RBS type of a column / parameter: driver type table, arrays, nullability (`T?`), `overrides:` (a `db_type` override types array elements too) |
 | `catalog.rb` | the schema's tables and enums, and their Ruby names |
 | `drivers/base.rb` | the driver interface and what all drivers share: `instrument` logging, `NotFound`, transaction RBS |
-| `drivers/{pg,mysql2,sqlite3}.rb` | the per-library parts: type mapping, connecting / pooling, preparing and executing statements, transactions, `:copyfrom` |
+| `drivers/{pg,mysql2,sqlite3}.rb` | the per-library parts: type mapping, connecting / pooling, executing statements, transactions, `:copyfrom` |
 | `code.rb` | text helpers: indentation, `snake_case`, `camelize`, Ruby-keyword-safe parameter names, `rubocop:disable` pairs for schema names that break a naming cop |
 
 **Rule of thumb:** `MethodGen` / `Generator` decide *what* is generated and are the same for every database; a driver only
@@ -62,11 +62,13 @@ Look at [`examples/pg/query_sql.rb`](../examples/pg/query_sql.rb) for a complete
 
 Design decisions worth knowing (the *why* is in the comments of `drivers/base.rb` and `drivers/pg.rb`):
 
-* **Prepared statements are per connection.** A pooled query object is shared by many connections, and a prepared
-  statement exists only on the connection that prepared it, so each connection remembers its own (`ConnectionState`).
+* **PostgreSQL prepared statements are per connection.** A pooled query object is shared by many connections, and a
+  prepared statement exists only on the connection that prepared it, so each connection remembers its own
+  (`ConnectionState`). MySQL quotes values client-side and uses `Mysql2::Client#query` so queries cooperate with the
+  Fiber scheduler.
 * **Pool injection.** `QuerySql.new(pool)` accepts anything that responds to `#with`, so an app can share its pool
   and tests can pass a fake. `connect(...)` is only a convenience that builds a `connection_pool`.
-* **Statements are closed.** SQLite/MySQL statements are closed in `ensure` (an open SQLite statement blocks `COMMIT`).
+* **SQLite statements are closed.** They are closed in `ensure` because an open statement blocks `COMMIT`.
 * **Parameters are encoded by the driver.** `Driver#encode_param` (e.g. `bytea`, `json` and arrays on `pg`) is used by
   every command, batches included; add a type's encoding there, not in `MethodGen`.
 * **`:copyfrom` is all or nothing** on every driver (a savepoint / transaction around the load), and MySQL's

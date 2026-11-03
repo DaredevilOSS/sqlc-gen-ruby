@@ -20,9 +20,23 @@ module Sqlite3Codegen
   )
   end
 
-  class Regression < Data.define(:id, :order, :price)
+  class Regression < Data.define(:id, :order, :price, :payload)
   end
 
   class Tag < Data.define(:name, :uses)
   end
+
+  # rubocop:disable Naming/MethodName
+  class NameCase < Data.define(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count,
+    :camelCase,
+    :HTTPServer
+  )
+  end
+  # rubocop:enable Naming/MethodName
 end

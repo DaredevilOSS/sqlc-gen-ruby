@@ -158,12 +158,12 @@ module SqlcGenRuby
 
     # constructor / connect / transaction, one method per query, then the private helpers
     def class_members(queries, method_gen)
-      members = @driver.class_methods.dup
+      members = @driver.class_methods(@options.ruby_version).dup
       if queries.any? { |q| q.cmd == ':execresult' }
         # last_insert_id is nil on PostgreSQL (use RETURNING)
         members << dataclass('ExecResult', [%w[rows_affected Integer], ['last_insert_id', 'Integer?']])
       end
-      helpers = @driver.private_methods + method_gen.helper_methods(queries)
+      helpers = @driver.private_methods(@options.ruby_version) + method_gen.helper_methods(queries)
       check_method_names(queries, (members + helpers).flat_map { |code, _| code.scan(/^def (?:self\.)?([\w?!]+)/) }.flatten +
                                   Code::OBJECT_METHODS)
       members.concat(queries.map { |q| [method_gen.code(q), method_gen.type(q)] })
@@ -175,6 +175,7 @@ module SqlcGenRuby
 
     def check_method_names(queries, generated)
       taken = generated.to_h { |name| [name, 'a method of the generated class'] }
+      Code::KERNEL_METHODS.each { |name| taken[name] = 'a Kernel method used by the generated class' }
       queries.each do |q|
         func = Code.snake_case(q.name)
         [func, *("#{func}!" if q.cmd == ':one')].each do |name|
@@ -290,7 +291,10 @@ module SqlcGenRuby
     end
 
     def gemfile(queries)
-      gems = (@driver.required_gems + @driver.extra_gems(queries)).uniq.sort.map { |g| "gem '#{g}'" }.join("\n")
+      gems = (@driver.required_gems + @driver.extra_gems(queries)).uniq.sort.map { |g| "gem '#{g}'" }
+      gems << "gem 'timeout', '>= 0.4'" if @options.ruby_version < RubyVersion.new(3, 3)
+      gems.sort!
+      gems = gems.join("\n")
       Plugin::File.new(name: 'Gemfile', contents: "# frozen_string_literal: true\n\nsource 'https://rubygems.org'\n\n#{gems}\n")
     end
   end

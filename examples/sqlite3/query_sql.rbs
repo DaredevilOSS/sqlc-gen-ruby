@@ -40,6 +40,15 @@ module Sqlite3Codegen
     def initialize: (  Integer id, String name, String? bio) -> void
   end
 
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL: String
+
+  class GetAuthorsByOptionalNameRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
   CREATE_AUTHOR_RETURN_ID_SQL: String
 
   class CreateAuthorReturnIdRow
@@ -67,7 +76,47 @@ module Sqlite3Codegen
     def initialize: (  Integer id, String name, String? bio) -> void
   end
 
+  GET_AUTHORS_BY_MIXED_PLACEHOLDERS_SQL: String
+
+  class GetAuthorsByMixedPlaceholdersRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
+  GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_SQL: String
+
+  class GetAuthorsByRepeatedNamedAndPositionalRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
+  GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_BATCH_SQL: String
+
+  class GetAuthorsByRepeatedNamedAndPositionalBatchRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
+  class GetAuthorsByRepeatedNamedAndPositionalBatchArgs
+    attr_reader n: String
+    attr_reader other: String
+    attr_reader id: Integer
+    def initialize: (  String n, String other, Integer id) -> void
+  end
+
   class CopyAuthorsArgs
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  String name, String? bio) -> void
+  end
+
+  class CopyAuthorsNamedArgs
     attr_reader name: String
     attr_reader bio: String?
     def initialize: (  String name, String? bio) -> void
@@ -209,6 +258,33 @@ module Sqlite3Codegen
 
   TRUNCATE_REGRESSIONS_SQL: String
 
+  class CopyRegressionRowsArgs
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader price: Float?
+    attr_reader payload: String?
+    def initialize: (  Integer id, String order, Float? price, String? payload) -> void
+  end
+
+  LIST_REGRESSION_ROWS_SQL: String
+
+  class ListRegressionRowsRow
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader price: Float?
+    attr_reader payload: String?
+    def initialize: (  Integer id, String order, Float? price, String? payload) -> void
+  end
+
+  TRUNCATE_REGRESSION_ROWS_SQL: String
+
+  PAUSE_QUERY_SQL: String
+
+  class PauseQueryRow
+    attr_reader sleep: untyped
+    def initialize: (  untyped sleep) -> void
+  end
+
   class CopyTagsOrReplaceArgs
     attr_reader name: String
     attr_reader uses: Integer
@@ -236,6 +312,64 @@ module Sqlite3Codegen
   end
 
   TRUNCATE_TAGS_SQL: String
+
+  LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL: String
+
+  class ListAuthorsWithOptionalBookRow
+    attr_reader author: Author?
+    attr_reader book: Book?
+    def initialize: (  Author? author, Book? book) -> void
+  end
+
+  INSERT_NAME_CASE_SQL: String
+
+  GET_NAME_CASE_SQL: String
+
+  class GetNameCaseRow
+    attr_reader id: Integer
+    attr_reader class_: String
+    attr_reader end: String
+    attr_reader hash_: String
+    attr_reader method_: String
+    attr_reader count: Integer
+    attr_reader camelCase: String
+    attr_reader HTTPServer: String
+    def initialize: (
+        Integer id,
+        String class_,
+        String end,
+        String hash_,
+        String method_,
+        Integer count,
+        String camelCase,
+        String HTTPServer
+    ) -> void
+  end
+
+  GET_HTTP_SERVER_SQL: String
+
+  class GetHTTPServerRow
+    attr_reader id: Integer
+    attr_reader class_: String
+    attr_reader end: String
+    attr_reader hash_: String
+    attr_reader method_: String
+    attr_reader count: Integer
+    attr_reader camelCase: String
+    attr_reader HTTPServer: String
+    def initialize: (
+        Integer id,
+        String class_,
+        String end,
+        String hash_,
+        String method_,
+        Integer count,
+        String camelCase,
+        String HTTPServer
+    ) -> void
+  end
+
+  TRUNCATE_NAME_CASES_SQL: String
 
   class QuerySql
     class NotFound < StandardError
@@ -265,7 +399,9 @@ module Sqlite3Codegen
 
     def get_author_by_name_pattern: (?name_pattern: String?) -> Array[GetAuthorByNamePatternRow]
 
-    def create_author_return_id: (name: String, bio: String?) -> Integer
+    def get_authors_by_optional_name: (lim: Integer, ?name_filter: untyped) -> Array[GetAuthorsByOptionalNameRow]
+
+    def create_author_return_id: (name: String, bio: String?) -> Integer?
 
     def update_author_bios: (bio: String?) -> Integer
 
@@ -273,11 +409,19 @@ module Sqlite3Codegen
 
     def get_authors_by_ids_and_names: (ids: Array[Integer], names: Array[String]) -> Array[GetAuthorsByIdsAndNamesRow]
 
+    def get_authors_by_mixed_placeholders: (n: String, ids: Array[Integer], id: Integer, more: Array[Integer]) -> Array[GetAuthorsByMixedPlaceholdersRow]
+
+    def get_authors_by_repeated_named_and_positional: (n: String, other: String, id: Integer) -> Array[GetAuthorsByRepeatedNamedAndPositionalRow]
+
+    def get_authors_by_repeated_named_and_positional_batch: (Array[GetAuthorsByRepeatedNamedAndPositionalBatchArgs] rows) -> Array[GetAuthorsByRepeatedNamedAndPositionalBatchRow?]
+
     def copy_authors: (Array[CopyAuthorsArgs] rows) -> void
+
+    def copy_authors_named: (Array[CopyAuthorsNamedArgs] rows) -> void
 
     def truncate_authors: -> void
 
-    def create_book: (name: String, author_id: Integer) -> Integer
+    def create_book: (name: String, author_id: Integer) -> Integer?
 
     def list_all_authors_books: -> Array[ListAllAuthorsBooksRow]
 
@@ -315,6 +459,14 @@ module Sqlite3Codegen
 
     def truncate_regressions: -> void
 
+    def copy_regression_rows: (Array[CopyRegressionRowsArgs] rows) -> void
+
+    def list_regression_rows: -> Array[ListRegressionRowsRow]
+
+    def truncate_regression_rows: -> void
+
+    def pause_query: (sleep: untyped) -> void
+
     def copy_tags_or_replace: (Array[CopyTagsOrReplaceArgs] rows) -> void
 
     def copy_tags_or_ignore: (Array[CopyTagsOrIgnoreArgs] rows) -> void
@@ -324,6 +476,20 @@ module Sqlite3Codegen
     def list_tags: -> Array[ListTagsRow]
 
     def truncate_tags: -> void
+
+    def list_authors_with_optional_book: -> Array[ListAuthorsWithOptionalBookRow]
+
+    def insert_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, camel_case: String, http_server: String) -> void
+
+    def get_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow?
+
+    def get_name_case!: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow
+
+    def get_http_server: (id: Integer) -> GetHTTPServerRow?
+
+    def get_http_server!: (id: Integer) -> GetHTTPServerRow
+
+    def truncate_name_cases: -> void
 
     private
 

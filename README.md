@@ -93,7 +93,8 @@ per table, one module of constants per enum), `connection.rb` (shared helpers) a
 * **Arguments** are keywords named after the parameters (`get_author(id:)`); `sqlc.arg(name)` names them yourself.
   Missing or unknown ones raise `ArgumentError`. Nullable parameters named with `sqlc.arg` / `sqlc.narg` default
   to `nil`; other nullable parameters (`VALUES ($1, $2)`) must be passed, even as `nil`.
-* **Rows** are frozen `Data` objects (keyword `Struct`s below Ruby 3.2), so pattern matching works: `case row in { id:, name: }`.
+* **Rows** are frozen `Data` objects from Ruby 3.2 (with `with` and `to_h`) or mutable keyword `Struct`s below Ruby 3.2;
+  both support pattern matching: `case row in { id:, name: }`.
 * **Bang finders:** every `:one` query also gets a `get_author!` that raises `QuerySql::NotFound` instead of returning `nil`.
 * **Connections:** `QuerySql.connect(params, **pool_options)` builds a [`connection_pool`](https://github.com/mperham/connection_pool).
   To use a pool you already have (or a fake in tests) pass it to `QuerySql.new(pool)`; anything with `#with` works.
@@ -101,7 +102,9 @@ per table, one module of constants per enum), `connection.rb` (shared helpers) a
 * **Logging:** `connect(params, logger: Rails.logger)` / `new(pool, logger:)` logs `QuerySql#get_author (0.4ms)` at
   debug level for each query and transaction. Parameter values are never logged.
 * **Async / fibers:** it is plain synchronous Ruby and works with the Fiber scheduler ([`async`](https://github.com/socketry/async)):
-  inside `Sync { ... }`, pooled `pg` and `mysql2` queries run concurrently. SQLite queries run one at a time.
+  inside `Sync { ... }`, pooled `pg` and `mysql2` queries run concurrently. MySQL parameters are quoted client-side
+  with `Mysql2::Client#escape` and sent with `Client#query`, not server-side prepared statements. SQLite queries run
+  one at a time.
 * **Style:** SQL lives in frozen heredoc constants (`GET_AUTHOR_SQL`), comments above a query become its doc comment,
   table / column / enum comments of the schema become doc comments of the models. The code is RuboCop-clean; where a
   name from your schema breaks a RuboCop naming rule (`"UserId"`, `naïve`), that class or method gets a `rubocop:disable`.
@@ -115,7 +118,11 @@ queries.transaction(isolation: :serializable) do |tx|
 end
 ```
 * Everything in the block runs on one connection. It commits when the block ends (also on `break`, `return`, `throw`)
-  and rolls back when it raises or the thread is killed. A nested `transaction` rolls back only its own part.
+  and rolls back when it raises or the thread is killed. On Ruby <3.3 with timeout <0.4, `break`, `return`, and
+  `throw` also roll back because Timeout cannot be told apart; add `gem 'timeout', '>= 0.4'` to the generated Gemfile
+  to keep those exits committing. A nested `transaction` rolls back only its own part. With `connection_pool` or
+  SQLite, parent-object calls from the same thread reuse the transaction connection; injected `#with` objects must do
+  the same.
 * `isolation:` (`pg`, `mysql2`) takes `:read_uncommitted`, `:read_committed`, `:repeatable_read`, `:serializable`;
   `mode:` (`sqlite3`) takes `:deferred`, `:immediate`, `:exclusive`. Other values raise before anything runs, and so
   do `isolation:` / `mode:` on a nested `transaction` (a savepoint cannot change them).
@@ -170,7 +177,11 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   The generated SQLite code uses `Monitor`: if you run Steep, add `library "monitor"` to your `Steepfile`.
 
 ### Names
-* Names are snake_cased, acronyms kept together (`MIN_ID` → `min_id`, `HTTPServer` → `http_server`). Ruby keywords and names a row or method already uses get a trailing `_` (`class_`, `hash_`).
+* Query methods and keyword arguments are snake_cased, with acronyms kept together (`MIN_ID` → `min_id`,
+  `HTTPServer` → `http_server`); Ruby keywords get a trailing `_` (`end_:`). Row members use the column spelling
+  reported by sqlc for the engine, except names that conflict with generated row methods (`class_`, `hash_`):
+  PostgreSQL and SQLite keep `"camelCase"` as `:camelCase`, while MySQL reports it as `:camelcase`. A column named
+  `end` is the row member `:end` but the argument `end_:`.
 * A parameter used twice is one keyword when named with `sqlc.arg`; repeated `?` / `$n` of one column become `id:`, `id_2:`.
 * A table `authors` next to a table `author` keeps its plural model name (`Authors`). Query names that would replace
   a generated method (`Transaction`, `Initialize`, ...) are errors.
@@ -179,8 +190,8 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 * Two result columns with the same name (e.g. `a.id, b.id`) are an error: alias one (`b.id AS book_id`) or use `sqlc.embed`.
 * SQLite's `NUMERIC` affinity can return an `Integer` where `Float` is declared.
 * `:batchexec` / `:batchone` / `:batchmany` are not atomic on their own: wrap them in `transaction` for all-or-nothing.
-* SQLite: a transaction belongs to the thread that opened it; a Fiber / `Enumerator#next` inside it that uses the same
-  database waits for it (with `async`, run the work in the transaction's own fiber).
+* SQLite transactions belong to the thread that opened them; fibers sharing the same database take turns, and a
+  transaction holds it until it ends.
 * Not applicable to Ruby (they exist in the C# plugin): `withAsyncSuffix` / `withCancellationToken` (use the Fiber
   scheduler), `useDapper`, target framework / csproj options (`moduleName` replaces the namespace).
 

@@ -1,7 +1,7 @@
 
 
 
-2mysql£public"˜public€
+2mysql»!public"°!public€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
@@ -87,7 +87,55 @@ copy_typesbjson
 flags0R
 copy_typesbbit+
 amount0ÿÿÿÿÿÿÿÿÿR
-copy_typesbint€":
+copy_typesbint€Ÿ
+mysql_binding_values3
+id0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigint;
+
+text_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
+longtext;
+
+blob_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
+longblob;
+signed_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigint@
+unsigned_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigint€4
+decimal_value0ARmysql_binding_valuesb	decimal:
+float_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdouble7
+
+date_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdate6
+datetime_value0Rmysql_binding_valuesb
+datetime2
+
+datetime_20Rmysql_binding_valuesb
+datetime1
+
+bool_value0Rmysql_binding_valuesb	tinyint;
+nullable_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbtext,
+	bit_value0Rmysql_binding_valuesbbit7
+
+year_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbyear.
+
+time_value0
+Rmysql_binding_valuesbtime9
+json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjsonó
+
+name_cases)
+id0ÿÿÿÿÿÿÿÿÿR
+name_casesbbigint*
+class0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext(
+end0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext)
+hash0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext+
+method0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext)
+count0ÿÿÿÿÿÿÿÿÿR
+name_casesbint.
+	camelcase0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext/
+
+httpserver0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext":
 extended_bios_bio_typeAutobiography	BiographyMemoir"7
 extended_bios_author_typeAuthorEditor
 TranslatorË
@@ -199,7 +247,21 @@ WHERE name LIKE COALESCE(?, '%')GetAuthorByNamePattern:many"*
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
 bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*84
-name_pattern0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sqlá
+name_pattern0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sqlŠ
+SSELECT id, name, bio FROM authors
+WHERE (? IS NULL OR name = ?)
+ORDER BY id
+LIMIT ?GetAuthorsByOptionalName:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*%!
+name_filter0ÿÿÿÿÿÿÿÿÿ8bany*73
+name_filter0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname*#
+limit0ÿÿÿÿÿÿÿÿÿb	integer:	query.sqls
+SELECT SLEEP(?)
+PauseQuery:exec"
+sleep0ÿÿÿÿÿÿÿÿÿ@bint*#
+seconds0ÿÿÿÿÿÿÿÿÿ8bint:	query.sqlá
 0UPDATE authors
 SET bio = ?
 WHERE bio IS NOT NULLUpdateAuthorBios	:execrows*62
@@ -292,7 +354,18 @@ HINSERT INTO regressions (id, `order`, note, payload) VALUES (?, ?, ?, ?)CopyR
 payload0Rpublicregressionsb	varbinaryzpayload:	query.sqlBregressions½
 /SELECT id, payload FROM regressions ORDER BY idListRegressionPayloads:many".
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid"0
-payload0Rregressionsb	varbinaryzpayload:	query.sqlC
+payload0Rregressionsb	varbinaryzpayload:	query.sql§
+>SELECT id, `order`, note, payload FROM regressions ORDER BY idListRegressionRows:many".
+id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid"-
+order0ÿRregressionsb	varcharzorder".
+note0ÿÿÿÿÿÿÿÿÿRregressionsbtextznote"0
+payload0Rregressionsb	varbinaryzpayload:	query.sql«
+·SELECT authors.id, authors.name, authors.bio, books.id, books.name, books.author_id, books.description
+FROM authors
+LEFT JOIN books ON authors.id = books.author_id
+ORDER BY authors.idListAuthorsWithOptionalBook:many"!
+authors0ÿÿÿÿÿÿÿÿÿb r	authors"
+books0ÿÿÿÿÿÿÿÿÿb rbooks:	query.sqlC
 TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sql 
 LINSERT INTO copy_types (id, code, doc, flags, amount) VALUES (?, ?, ?, ?, ?)CopyCopyTypes	:copyfrom*95
 id0ÿÿÿÿÿÿÿÿÿRpublic
@@ -346,4 +419,170 @@ copy_typesbjsonzdoc"%
 copy_typesbbitzflags"3
 amount0ÿÿÿÿÿÿÿÿÿR
 copy_typesbintzamount€:	query.sql@
-TRUNCATE TABLE copy_typesTruncateCopyTypes:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+TRUNCATE TABLE copy_typesTruncateCopyTypes:exec:	query.sql±
+%SELECT id FROM authors WHERE name = ?FindAuthorsByExactName:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid*2.
+name0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sqlî
+\SELECT id FROM authors AS `?`
+WHERE name = ? AND '?' = '?' AND "?" = "?" /* ? */
+ORDER BY idGetAuthorWithQuestionMarks:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid*0,
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname2 ?:	query.sql³
+
+õINSERT INTO mysql_binding_values (
+  id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value,
+  datetime_value, datetime_2, bool_value, nullable_value
+) VALUES (
+  ?, ?, ?, ?, ?,
+  ?, ?, ?, ?,
+  ?, ?, ?
+)InsertMysqlBindingValues:exec*EA
+id0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbbigintzid*UQ
+
+text_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesb
+longtextz
+text_value*UQ
+
+blob_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesb
+longblobz
+blob_value*WS
+signed_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbbigintzsigned_value*^Z
+unsigned_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbbigintzunsigned_value€*QM
+decimal_value0A8Rpublicmysql_binding_valuesb	decimalzdecimal_value*UQ
+float_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbdoublezfloat_value*QM
+
+date_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbdatez
+date_value*T	P
+datetime_value08Rpublicmysql_binding_valuesb
+datetimezdatetime_value*L
+H
+
+datetime_208Rpublicmysql_binding_valuesb
+datetimez
+datetime_2*KG
+
+bool_value08Rpublicmysql_binding_valuesb	tinyintz
+bool_value*YU
+nullable_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbtextznullable_value:	query.sqlBmysql_binding_values³
+÷SELECT id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value, datetime_value, datetime_2, bool_value, nullable_value, bit_value, year_value, time_value, json_unicode FROM mysql_binding_values WHERE id = ?GetMysqlBindingValues:one"7
+id0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigintzid"G
+
+text_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
+longtextz
+text_value"G
+
+blob_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
+longblobz
+blob_value"I
+signed_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigintzsigned_value"P
+unsigned_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigintzunsigned_value€"C
+decimal_value0ARmysql_binding_valuesb	decimalzdecimal_value"G
+float_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdoublezfloat_value"C
+
+date_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdatez
+date_value"F
+datetime_value0Rmysql_binding_valuesb
+datetimezdatetime_value">
+
+datetime_20Rmysql_binding_valuesb
+datetimez
+datetime_2"=
+
+bool_value0Rmysql_binding_valuesb	tinyintz
+bool_value"K
+nullable_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbtextznullable_value"7
+	bit_value0Rmysql_binding_valuesbbitz	bit_value"C
+
+year_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbyearz
+year_value":
+
+time_value0
+Rmysql_binding_valuesbtimez
+time_value"G
+json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjsonzjson_unicode*=9
+id0ÿÿÿÿÿÿÿÿÿ8Rmysql_binding_valuesbbigintzid:	query.sqlS
+#TRUNCATE TABLE mysql_binding_valuesTruncateMysqlBindingValues:exec:	query.sqlÐ
+‰INSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`)
+VALUES (?, ?, ?, ?, ?, ?,
+        ?, ?)InsertNameCase:exec*;7
+id0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbbigintzid*?;
+class0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzclass*<8
+end_0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzend*=9
+hash0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzhash*A=
+method0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzmethod*>:
+count0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbintzcount*HD
+
+camel_case0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextz	camelcase*JF
+http_server0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextz
+httpserver:	query.sqlB
+name_casesï
+ÙSELECT id, class, end, hash, method, count, camelcase, httpserver FROM name_cases
+WHERE id = ? AND `class` = ? AND `end` = ? AND `hash` = ?
+  AND `method` = ? AND `count` = ?
+  AND `HTTPServer` = ? AND `camelCase` = ?GetNameCase:one"-
+id0ÿÿÿÿÿÿÿÿÿR
+name_casesbbigintzid"1
+class0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzclass"-
+end0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzend"/
+hash0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzhash"3
+method0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzmethod"0
+count0ÿÿÿÿÿÿÿÿÿR
+name_casesbintzcount"9
+	camelcase0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz	camelcase";
+
+httpserver0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz
+httpserver*3/
+id0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbbigintzid*73
+class0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzclass*40
+end_0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzend*51
+hash0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzhash*95
+method0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzmethod*62
+count0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbintzcount*B>
+http_server0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextz
+httpserver*@<
+
+camel_case0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextz	camelcase:	query.sqlÖ
+^SELECT id, class, end, hash, method, count, camelcase, httpserver FROM name_cases WHERE id = ?GetHTTPServer:one"-
+id0ÿÿÿÿÿÿÿÿÿR
+name_casesbbigintzid"1
+class0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzclass"-
+end0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzend"/
+hash0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzhash"3
+method0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzmethod"0
+count0ÿÿÿÿÿÿÿÿÿR
+name_casesbintzcount"9
+	camelcase0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz	camelcase";
+
+httpserver0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz
+httpserver*3/
+id0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbbigintzid:	query.sql@
+TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

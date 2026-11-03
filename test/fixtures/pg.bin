@@ -1,7 +1,7 @@
 
 
 2
-postgresqlËpublic"‰publicÍ
+postgresql›+public"Ù(publicÍ
 	authors)
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserial&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextH
@@ -44,7 +44,11 @@ pg_catalogvarchar4
 name0ÿÿÿÿÿÿÿÿÿRbooksbtext5
 	author_id0ÿÿÿÿÿÿÿÿÿRbooksb
 pg_catalogint8)
-description0ÿÿÿÿÿÿÿÿÿRbooksbtext‰
+description0ÿÿÿÿÿÿÿÿÿRbooksbtext„
+deferred_books0
+id0ÿÿÿÿÿÿÿÿÿRdeferred_booksb	bigserial>
+	author_id0ÿÿÿÿÿÿÿÿÿRdeferred_booksb
+pg_catalogint8‰
 postgres_extra_types3
 c_uuid0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbuuid5
 c_jsonb0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbjsonb>
@@ -56,7 +60,34 @@ pg_catalogtimestamptz3
 c_inet0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbinet5
 c_money0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbmoney9
 
-c_not_null0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbtextú
+c_not_null0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbtextû
+postgres_remaining_types;
+c_hstore0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbhstore9
+c_ltree0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbltree?
+
+c_regclass0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb
+regclass7
+c_cidr0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbcidr=
+	c_macaddr0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb	macaddrK
+
+c_interval0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb
+pg_cataloginterval;
+c_varbit0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbvarbit5
+c_xml0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbxmlI
+	c_numeric0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb
+pg_catalognumericE
+c_bigint0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb
+pg_catalogint8M
+c_timestamp0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb
+pg_catalog	timestampE
+c_timestamptz0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbtimestamptzC
+c_text_matrix 0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbtextˆ»
+json_round_trips9
+id0ÿÿÿÿÿÿÿÿÿRjson_round_tripsb
+pg_catalogint43
+
+json_value0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbjson5
+jsonb_value0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbjsonbú
 postgres_array_types>
 c_uuid_array 0ÿÿÿÿÿÿÿÿÿRpostgres_array_typesbuuidˆP
 c_bio_type_array 0ÿÿÿÿÿÿÿÿÿRpostgres_array_typesbextendedbio_typeˆN
@@ -94,7 +125,28 @@ pg_catalogbool+
 pg_catalogint4ˆ?
 amounts 0ÿÿÿÿÿÿÿÿÿRbatch_typesb
 pg_catalognumericˆ6
-stamps 0ÿÿÿÿÿÿÿÿÿRbatch_typesbtimestamptzˆ"´extendedÔ
+stamps 0ÿÿÿÿÿÿÿÿÿRbatch_typesbtimestamptzˆŠ
+
+name_cases3
+id0ÿÿÿÿÿÿÿÿÿR
+name_casesb
+pg_catalogint8*
+class0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext(
+end0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext)
+hash0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext+
+method0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext6
+count0ÿÿÿÿÿÿÿÿÿR
+name_casesb
+pg_catalogint4.
+	camelCase0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext/
+
+HTTPServer0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext"´extendedÔ
 extendedbiosC
 author_name0ÿÿÿÿÿÿÿÿÿRextendedbiosb
 pg_catalogvarchar<
@@ -163,7 +215,29 @@ pg_catalogbpcharzc_char"O
 pg_catalogvarcharz	c_varchar"=
 c_bytea0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbbyteazc_bytea":
 c_text0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbtextzc_text":
-c_json0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbjsonzc_json:	query.sql¾
+c_json0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbjsonzc_json:	query.sqlï
+NINSERT INTO json_round_trips (id, json_value, jsonb_value) VALUES ($1, $2, $3)SetJSONRoundTrip:exec*HD
+id0ÿÿÿÿÿÿÿÿÿRpublicjson_round_tripsbpg_catalog.int4zid*KG
+
+json_value0ÿÿÿÿÿÿÿÿÿRpublicjson_round_tripsbjsonz
+json_value*NJ
+jsonb_value0ÿÿÿÿÿÿÿÿÿRpublicjson_round_tripsbjsonbzjsonb_value:	query.sqlBjson_round_trips®
+BSELECT json_value, jsonb_value FROM json_round_trips WHERE id = $1GetJSONRoundTrip:one"?
+
+json_value0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbjsonz
+json_value"B
+jsonb_value0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbjsonbzjsonb_value*@<
+id0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbpg_catalog.int4zid:	query.sqlÑ
+eUPDATE json_round_trips
+SET jsonb_value = to_jsonb(NOT (jsonb_value #>> '{}')::boolean)
+WHERE id = $1ToggleJSONBRoundTrip:exec*@<
+id0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbpg_catalog.int4zid:	query.sqlK
+TRUNCATE TABLE json_round_tripsTruncateJSONRoundTrips:exec:	query.sqlš
+%SELECT pg_sleep($1::double precision)
+PauseQuery:exec"!
+pg_sleep0ÿÿÿÿÿÿÿÿÿ@bvoid*0,
+seconds0ÿÿÿÿÿÿÿÿÿb
+pg_catalogfloat8:	query.sql¾
 BSELECT id, name, bio FROM authors
 ORDER BY name
 LIMIT $2
@@ -178,7 +252,16 @@ WHERE name LIKE COALESCE($1, '%')GetAuthorByNamePattern:many"-
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
 bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*84
-name_pattern0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sql–
+name_pattern0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sqlâ
+bSELECT id, name, bio FROM authors
+WHERE ($1::text IS NULL OR name = $1::text)
+ORDER BY id
+LIMIT $2GetAuthorsByOptionalName:many"-
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*$ 
+name_filter0ÿÿÿÿÿÿÿÿÿbtext*#
+lim0ÿÿÿÿÿÿÿÿÿ8b	integer:	query.sql–
 <INSERT INTO authors (name, bio) VALUES ($1, $2) RETURNING idCreateAuthorReturnId:execlastid"-
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid*84
 name0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzname*40
@@ -207,7 +290,10 @@ pg_catalogint8ˆ* 0ÿÿÿÿÿÿÿÿÿbtextˆ:	query.sql€
 CreateBook:execlastid"&
 id0ÿÿÿÿÿÿÿÿÿRbooksbuuidzid*62
 name0ÿÿÿÿÿÿÿÿÿRpublicbooksbtextzname*KG
-	author_id0ÿÿÿÿÿÿÿÿÿRpublicbooksbpg_catalog.int8z	author_id:	query.sqlBbooks®
+	author_id0ÿÿÿÿÿÿÿÿÿRpublicbooksbpg_catalog.int8z	author_id:	query.sqlBbooksÂ
+2INSERT INTO deferred_books (author_id) VALUES ($1)CreateDeferredBook:exec*TP
+	author_id0ÿÿÿÿÿÿÿÿÿRpublicdeferred_booksbpg_catalog.int8z	author_id:	query.sqlBdeferred_booksH
+TRUNCATE TABLE deferred_booksTruncateDeferredBooks:exec:	query.sql®
 ÂSELECT
     authors.id, authors.name, authors.bio,
     books.id, books.name, books.author_id, books.description
@@ -271,7 +357,56 @@ pg_catalogtimestamptzzc_timestamptz";
 
 c_not_null0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbtextz
 c_not_null:	query.sqlK
-#TRUNCATE TABLE postgres_extra_typesTruncateExtraTypes:exec:	query.sqlÛ
+#TRUNCATE TABLE postgres_extra_typesTruncateExtraTypes:exec:	query.sqlË
+þINSERT INTO postgres_remaining_types (
+  c_hstore, c_ltree, c_regclass, c_cidr, c_macaddr, c_interval, c_varbit, c_xml,
+  c_numeric, c_bigint, c_timestamp, c_timestamptz, c_text_matrix
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+)InsertRemainingTypes:exec*QM
+c_hstore0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesbhstorezc_hstore*NJ
+c_ltree0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesbltreezc_ltree*WS
+
+c_regclass0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesb
+regclassz
+c_regclass*KG
+c_cidr0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesbcidrzc_cidr*TP
+	c_macaddr0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesb	macaddrz	c_macaddr*b^
+
+c_interval0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesbpg_catalog.intervalz
+c_interval*QM
+c_varbit0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesbvarbitzc_varbit*HD
+c_xml0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesbxmlzc_xml*_	[
+	c_numeric0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesbpg_catalog.numericz	c_numeric*Z
+V
+c_bigint0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesbpg_catalog.int8zc_bigint*ea
+c_timestamp0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesbpg_catalog.timestampzc_timestamp*`\
+c_timestamptz0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesbtimestamptzzc_timestamptz*^Z
+c_text_matrix 0ÿÿÿÿÿÿÿÿÿR"publicpostgres_remaining_typesbtextzc_text_matrixˆ:	query.sqlBpostgres_remaining_typesÏ	
+ºSELECT c_hstore, c_ltree, c_regclass, c_cidr, c_macaddr, c_interval, c_varbit, c_xml, c_numeric, c_bigint, c_timestamp, c_timestamptz, c_text_matrix FROM postgres_remaining_types LIMIT 1GetRemainingTypes:one"E
+c_hstore0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbhstorezc_hstore"B
+c_ltree0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbltreezc_ltree"K
+
+c_regclass0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb
+regclassz
+c_regclass"?
+c_cidr0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbcidrzc_cidr"H
+	c_macaddr0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb	macaddrz	c_macaddr"W
+
+c_interval0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb
+pg_catalogintervalz
+c_interval"E
+c_varbit0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbvarbitzc_varbit"<
+c_xml0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbxmlzc_xml"T
+	c_numeric0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb
+pg_catalognumericz	c_numeric"O
+c_bigint0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb
+pg_catalogint8zc_bigint"Z
+c_timestamp0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesb
+pg_catalog	timestampzc_timestamp"T
+c_timestamptz0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbtimestamptzzc_timestamptz"R
+c_text_matrix 0ÿÿÿÿÿÿÿÿÿRpostgres_remaining_typesbtextzc_text_matrixˆ:	query.sqlS
+'TRUNCATE TABLE postgres_remaining_typesTruncateRemainingTypes:exec:	query.sqlÛ
 gINSERT INTO postgres_array_types (c_uuid_array, c_bio_type_array, c_integer_matrix) VALUES ($1, $2, $3)InsertArrayTypes:exec*XT
 c_uuid_array 0ÿÿÿÿÿÿÿÿÿRpublicpostgres_array_typesbuuidzc_uuid_arrayˆ*mi
 c_bio_type_array 0ÿÿÿÿÿÿÿÿÿRpublicpostgres_array_typesbextended.bio_typezc_bio_type_arrayˆ*kg
@@ -421,4 +556,92 @@ pg_catalognumericzamountsˆ">
 .SELECT count(*) FROM batch_types WHERE id > $1CountBatchTypesAbove:one" 
 count0ÿÿÿÿÿÿÿÿÿ@bbigint*A=
 min_id0ÿÿÿÿÿÿÿÿÿ8Rbatch_typesbpg_catalog.int8zid:	query.sqlB
-TRUNCATE TABLE batch_typesTruncateBatchTypes:exec:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+TRUNCATE TABLE batch_typesTruncateBatchTypes:exec:	query.sqlí
+‘INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer")
+VALUES ($1, $2, $3, $4, $5, $6,
+        $7, $8)InsertNameCase:exec*D@
+id0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbpg_catalog.int8zid*?;
+class0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzclass*<8
+end_0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzend*=9
+hash0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzhash*A=
+method0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextzmethod*JF
+count0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbpg_catalog.int4zcount*HD
+
+camel_case0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextz	camelCase*JF
+http_server0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextz
+HTTPServer:	query.sqlB
+name_cases©	
+çSELECT id, class, "end", hash, method, count, "camelCase", "HTTPServer" FROM name_cases
+WHERE id = $1 AND "class" = $2 AND "end" = $3 AND "hash" = $4
+  AND "method" = $5 AND "count" = $6
+  AND "HTTPServer" = $7 AND "camelCase" = $8GetNameCase:one"7
+id0ÿÿÿÿÿÿÿÿÿR
+name_casesb
+pg_catalogint8zid"1
+class0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzclass"-
+end0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzend"/
+hash0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzhash"3
+method0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzmethod"=
+count0ÿÿÿÿÿÿÿÿÿR
+name_casesb
+pg_catalogint4zcount"9
+	camelCase0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz	camelCase";
+
+HTTPServer0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz
+HTTPServer*<8
+id0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbpg_catalog.int8zid*73
+class0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzclass*40
+end_0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzend*51
+hash0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzhash*95
+method0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextzmethod*B>
+count0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbpg_catalog.int4zcount*B>
+http_server0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextz
+HTTPServer*@<
+
+camel_case0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextz	camelCase:	query.sqlý
+eSELECT id, class, "end", hash, method, count, "camelCase", "HTTPServer" FROM name_cases WHERE id = $1GetHTTPServer:one"7
+id0ÿÿÿÿÿÿÿÿÿR
+name_casesb
+pg_catalogint8zid"1
+class0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzclass"-
+end0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzend"/
+hash0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzhash"3
+method0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextzmethod"=
+count0ÿÿÿÿÿÿÿÿÿR
+name_casesb
+pg_catalogint4zcount"9
+	camelCase0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz	camelCase";
+
+HTTPServer0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz
+HTTPServer*<8
+id0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbpg_catalog.int8zid:	query.sql@
+TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

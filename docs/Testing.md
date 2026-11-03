@@ -1,5 +1,10 @@
 # Testing and CI
 
+Every README claim and supported feature needs a real-database E2E test for each applicable engine, listed in
+[`Coverage.md`](Coverage.md). A bug fix starts with a real-database E2E regression that fails before the fix. Use unit
+tests only where E2E cannot reach the behavior, such as option validation or generation errors. CI runs the full E2E
+suites on every supported Ruby version plus full-suite option variants; generator-options E2E runs on Ruby 3.1 and 4.0.
+
 There are four layers. Each one answers a different question, and each runs in CI.
 
 | Layer | Command | Needs | Question it answers |
@@ -40,7 +45,7 @@ They `require` the generated code from `examples/` and run it against a real dat
 | Workflow | When | What |
 |---|---|---|
 | `build.yml` | push to `main`, pull requests (not for Markdown-only changes), release | build `plugin.wasm`; lint; `sqlc diff` with the WASM and the process plugin; Steep; generate with option combinations (Ruby 3.1/3.2/3.3/4.0 × types/Gemfile) and check the output with the matching Ruby |
-| `tests.yml` | same | unit tests; the plugin on Ruby 3.1 / 3.2 / 3.4 / 4.0; end-to-end against PostgreSQL 16 and MySQL 8.3 service containers and SQLite (Ruby 3.3 and 4.0) |
+| `tests.yml` | same | unit tests; plugin compatibility on Ruby 3.1 / 3.2 / 3.4 / 4.0; full E2E matrix on Ruby 3.1 / 3.2 / 3.3 / 3.4 / 4.0; Ruby 4.0 module-name variants for MySQL and SQLite and module-name + no-prepared-statements variant for PostgreSQL; PostgreSQL 16.2, MySQL 8.3.0, and SQLite; generator-options E2E on Ruby 3.1 / 4.0 |
 | `docs.yml` | `examples/` change on `main`, manual | regenerates `docs/Examples.md` and opens a PR |
 | `release.yml` | manual only | see [Releasing](Releasing.md) |
 
@@ -49,6 +54,10 @@ Tool versions (sqlc, ruby.wasm) live in `scripts/tool-versions.env`; dependabot 
 ## Before you push
 ```
 bundle exec rake test rubocop steep
-rake sqlc_generate_process && git status --short examples   # must show no changes (or commit them)
-rake end2end_sqlite3                                         # plus pg / mysql2 when the generated code changed
+sqlc -f sqlc.local.yaml diff                                 # committed examples must be current
+scripts/tests/run_codegen.rb sqlc.local.yaml 3.1 true true
+rake end2end_sqlite3 end2end_pg end2end_mysql2               # full Ruby 3.1–4.0 matrix, plus Ruby 4.0 variants
+BUNDLE_GEMFILE=Gemfile.options.e2e bundle exec ruby tests/end2end_options.rb # Ruby 3.1 and 4.0
 ```
+CI also runs the unit suite without Bundler on Ruby 3.1 and 4.0. For Ruby 3.1/3.2 E2E, generate scratch examples
+with their matching `rubyVersion` and install the generated Gemfile before running the suite.

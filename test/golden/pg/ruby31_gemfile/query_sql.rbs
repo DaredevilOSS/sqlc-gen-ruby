@@ -95,6 +95,29 @@ module PgCodegen
     ) -> TestRow
   end
 
+  SET_JSON_ROUND_TRIP_SQL: String
+
+  GET_JSON_ROUND_TRIP_SQL: String
+
+  class GetJSONRoundTripRow < ::Struct[untyped]
+    attr_accessor json_value: untyped
+    attr_accessor jsonb_value: untyped
+    def initialize: (  json_value: untyped, jsonb_value: untyped) -> void
+    def self.new: (  json_value: untyped, jsonb_value: untyped) -> GetJSONRoundTripRow
+  end
+
+  TOGGLE_JSONB_ROUND_TRIP_SQL: String
+
+  TRUNCATE_JSON_ROUND_TRIPS_SQL: String
+
+  PAUSE_QUERY_SQL: String
+
+  class PauseQueryRow < ::Struct[untyped]
+    attr_accessor pg_sleep: untyped
+    def initialize: (  pg_sleep: untyped) -> void
+    def self.new: (  pg_sleep: untyped) -> PauseQueryRow
+  end
+
   LIST_AUTHORS_PAGED_SQL: String
 
   class ListAuthorsPagedRow < ::Struct[untyped]
@@ -113,6 +136,16 @@ module PgCodegen
     attr_accessor bio: String?
     def initialize: (  id: Integer, name: String, bio: String?) -> void
     def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorByNamePatternRow
+  end
+
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL: String
+
+  class GetAuthorsByOptionalNameRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByOptionalNameRow
   end
 
   CREATE_AUTHOR_RETURN_ID_SQL: String
@@ -161,6 +194,10 @@ module PgCodegen
     def initialize: (  id: String) -> void
     def self.new: (  id: String) -> CreateBookRow
   end
+
+  CREATE_DEFERRED_BOOK_SQL: String
+
+  TRUNCATE_DEFERRED_BOOKS_SQL: String
 
   LIST_ALL_AUTHORS_BOOKS_SQL: String
 
@@ -241,6 +278,58 @@ module PgCodegen
   end
 
   TRUNCATE_EXTRA_TYPES_SQL: String
+
+  INSERT_REMAINING_TYPES_SQL: String
+
+  GET_REMAINING_TYPES_SQL: String
+
+  class GetRemainingTypesRow < ::Struct[untyped]
+    attr_accessor c_hstore: String?
+    attr_accessor c_ltree: String?
+    attr_accessor c_regclass: String?
+    attr_accessor c_cidr: IPAddr?
+    attr_accessor c_macaddr: String?
+    attr_accessor c_interval: String?
+    attr_accessor c_varbit: String?
+    attr_accessor c_xml: String?
+    attr_accessor c_numeric: BigDecimal?
+    attr_accessor c_bigint: Integer?
+    attr_accessor c_timestamp: Time?
+    attr_accessor c_timestamptz: Time?
+    attr_accessor c_text_matrix: Array[Array[String]]?
+    def initialize: (
+        c_hstore: String?,
+        c_ltree: String?,
+        c_regclass: String?,
+        c_cidr: IPAddr?,
+        c_macaddr: String?,
+        c_interval: String?,
+        c_varbit: String?,
+        c_xml: String?,
+        c_numeric: BigDecimal?,
+        c_bigint: Integer?,
+        c_timestamp: Time?,
+        c_timestamptz: Time?,
+        c_text_matrix: Array[Array[String]]?
+    ) -> void
+    def self.new: (
+        c_hstore: String?,
+        c_ltree: String?,
+        c_regclass: String?,
+        c_cidr: IPAddr?,
+        c_macaddr: String?,
+        c_interval: String?,
+        c_varbit: String?,
+        c_xml: String?,
+        c_numeric: BigDecimal?,
+        c_bigint: Integer?,
+        c_timestamp: Time?,
+        c_timestamptz: Time?,
+        c_text_matrix: Array[Array[String]]?
+    ) -> GetRemainingTypesRow
+  end
+
+  TRUNCATE_REMAINING_TYPES_SQL: String
 
   INSERT_ARRAY_TYPES_SQL: String
 
@@ -543,6 +632,76 @@ module PgCodegen
 
   TRUNCATE_BATCH_TYPES_SQL: String
 
+  INSERT_NAME_CASE_SQL: String
+
+  GET_NAME_CASE_SQL: String
+
+  class GetNameCaseRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor class_: String
+    attr_accessor end: String
+    attr_accessor hash_: String
+    attr_accessor method_: String
+    attr_accessor count_: Integer
+    attr_accessor camelCase: String
+    attr_accessor HTTPServer: String
+    def initialize: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelCase: String,
+        HTTPServer: String
+    ) -> void
+    def self.new: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelCase: String,
+        HTTPServer: String
+    ) -> GetNameCaseRow
+  end
+
+  GET_HTTP_SERVER_SQL: String
+
+  class GetHTTPServerRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor class_: String
+    attr_accessor end: String
+    attr_accessor hash_: String
+    attr_accessor method_: String
+    attr_accessor count_: Integer
+    attr_accessor camelCase: String
+    attr_accessor HTTPServer: String
+    def initialize: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelCase: String,
+        HTTPServer: String
+    ) -> void
+    def self.new: (
+        id: Integer,
+        class_: String,
+        end: String,
+        hash_: String,
+        method_: String,
+        count_: Integer,
+        camelCase: String,
+        HTTPServer: String
+    ) -> GetHTTPServerRow
+  end
+
+  TRUNCATE_NAME_CASES_SQL: String
+
   MANY_PARAMS_SQL: String
 
   class ManyParamsRow < ::Struct[untyped]
@@ -620,11 +779,25 @@ module PgCodegen
 
     def test!: -> TestRow
 
+    def set_json_round_trip: (id: Integer, json_value: untyped, jsonb_value: untyped) -> void
+
+    def get_json_round_trip: (id: Integer) -> GetJSONRoundTripRow?
+
+    def get_json_round_trip!: (id: Integer) -> GetJSONRoundTripRow
+
+    def toggle_jsonb_round_trip: (id: Integer) -> void
+
+    def truncate_json_round_trips: -> void
+
+    def pause_query: (seconds: Float) -> void
+
     def list_authors_paged: (offset: Integer, limit: Integer) -> Array[ListAuthorsPagedRow]
 
     def get_author_by_name_pattern: (?name_pattern: String?) -> Array[GetAuthorByNamePatternRow]
 
-    def create_author_return_id: (name: String, bio: String?) -> Integer
+    def get_authors_by_optional_name: (lim: Integer, ?name_filter: String?) -> Array[GetAuthorsByOptionalNameRow]
+
+    def create_author_return_id: (name: String, bio: String?) -> Integer?
 
     def update_author_bios: (bio: String?) -> Integer
 
@@ -636,7 +809,11 @@ module PgCodegen
 
     def truncate_authors: -> void
 
-    def create_book: (name: String, author_id: Integer) -> String
+    def create_book: (name: String, author_id: Integer) -> String?
+
+    def create_deferred_book: (author_id: Integer) -> void
+
+    def truncate_deferred_books: -> void
 
     def list_all_authors_books: -> Array[ListAllAuthorsBooksRow]
 
@@ -659,6 +836,14 @@ module PgCodegen
     def get_extra_types!: -> GetExtraTypesRow
 
     def truncate_extra_types: -> void
+
+    def insert_remaining_types: (c_hstore: String?, c_ltree: String?, c_regclass: String?, c_cidr: IPAddr?, c_macaddr: String?, c_interval: String?, c_varbit: String?, c_xml: String?, c_numeric: BigDecimal?, c_bigint: Integer?, c_timestamp: Time?, c_timestamptz: Time?, c_text_matrix: Array[Array[String]]?) -> void
+
+    def get_remaining_types: -> GetRemainingTypesRow?
+
+    def get_remaining_types!: -> GetRemainingTypesRow
+
+    def truncate_remaining_types: -> void
 
     def insert_array_types: (c_uuid_array: Array[String]?, c_bio_type_array: Array[String]?, c_integer_matrix: Array[Array[Integer]]?) -> void
 
@@ -692,7 +877,7 @@ module PgCodegen
 
     def create_regression!: (id: Integer, order: String, payload: String?, doc: untyped, bio_types: Array[String]?, uids: Array[String]?) -> CreateRegressionRow
 
-    def create_regression_if_new: (id: Integer, order: String) -> Integer
+    def create_regression_if_new: (id: Integer, order: String) -> Integer?
 
     def copy_regressions: (Array[CopyRegressionsArgs] rows) -> void
 
@@ -714,6 +899,18 @@ module PgCodegen
 
     def truncate_batch_types: -> void
 
+    def insert_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, camel_case: String, http_server: String) -> void
+
+    def get_name_case: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow?
+
+    def get_name_case!: (id: Integer, class_: String, end_: String, hash: String, method: String, count: Integer, http_server: String, camel_case: String) -> GetNameCaseRow
+
+    def get_http_server: (id: Integer) -> GetHTTPServerRow?
+
+    def get_http_server!: (id: Integer) -> GetHTTPServerRow
+
+    def truncate_name_cases: -> void
+
     def many_params: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow?
 
     def many_params!: (c0: bool, c1: Integer, c2: String, c3: Float, c4: String) -> ManyParamsRow
@@ -731,6 +928,8 @@ module PgCodegen
     def configure: (untyped client) -> void
 
     def string_arrays: (untyped client) -> untyped
+
+    def timeout_exits_with_throw?: () -> bool
 
     def encode_bytea: (String? value) -> String?
 

@@ -40,7 +40,7 @@ module Sqlite3Codegen
   LIST_AUTHORS_PAGED_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     ORDER BY name
-    LIMIT ?2 OFFSET ?1
+    LIMIT ? OFFSET ?
   SQL
 
   class ListAuthorsPagedRow < Data.define(:id, :name, :bio)
@@ -48,10 +48,20 @@ module Sqlite3Codegen
 
   GET_AUTHOR_BY_NAME_PATTERN_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
-    WHERE name LIKE COALESCE(?1, '%')
+    WHERE name LIKE COALESCE(?, '%')
   SQL
 
   class GetAuthorByNamePatternRow < Data.define(:id, :name, :bio)
+  end
+
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE (? IS NULL OR name = ?)
+    ORDER BY id
+    LIMIT ?
+  SQL
+
+  class GetAuthorsByOptionalNameRow < Data.define(:id, :name, :bio)
   end
 
   CREATE_AUTHOR_RETURN_ID_SQL = <<~'SQL'
@@ -81,7 +91,52 @@ module Sqlite3Codegen
   class GetAuthorsByIdsAndNamesRow < Data.define(:id, :name, :bio)
   end
 
+  GET_AUTHORS_BY_MIXED_PLACEHOLDERS_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE name = ?
+      AND id IN (/*SLICE:ids*/?)
+      AND name = ?
+      AND id > ?
+      AND id IN (/*SLICE:more*/?)
+      AND 'x?' != '?3'
+    ORDER BY id
+  SQL
+
+  class GetAuthorsByMixedPlaceholdersRow < Data.define(:id, :name, :bio)
+  end
+
+  GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE name = ?
+      AND name != ?
+      AND id > ?
+      AND name = ?
+    ORDER BY id
+  SQL
+
+  class GetAuthorsByRepeatedNamedAndPositionalRow < Data.define(:id, :name, :bio)
+  end
+
+  GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_BATCH_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE name = ?
+      AND name != ?
+      AND id > ?
+      AND name = ?
+    ORDER BY id
+    LIMIT 1
+  SQL
+
+  class GetAuthorsByRepeatedNamedAndPositionalBatchRow < Data.define(:id, :name, :bio)
+  end
+
+  class GetAuthorsByRepeatedNamedAndPositionalBatchArgs < Data.define(:n, :other, :id)
+  end
+
   class CopyAuthorsArgs < Data.define(:name, :bio)
+  end
+
+  class CopyAuthorsNamedArgs < Data.define(:name, :bio)
   end
 
   TRUNCATE_AUTHORS_SQL = <<~'SQL'
@@ -218,6 +273,27 @@ module Sqlite3Codegen
     DELETE FROM regressions
   SQL
 
+  class CopyRegressionRowsArgs < Data.define(:id, :order, :price, :payload)
+  end
+
+  LIST_REGRESSION_ROWS_SQL = <<~'SQL'
+    SELECT id, "order", price, payload FROM regressions ORDER BY id
+  SQL
+
+  class ListRegressionRowsRow < Data.define(:id, :order, :price, :payload)
+  end
+
+  TRUNCATE_REGRESSION_ROWS_SQL = <<~'SQL'
+    DELETE FROM regressions
+  SQL
+
+  PAUSE_QUERY_SQL = <<~'SQL'
+    SELECT sleep(?)
+  SQL
+
+  class PauseQueryRow < Data.define(:sleep)
+  end
+
   class CopyTagsOrReplaceArgs < Data.define(:name, :uses)
   end
 
@@ -236,6 +312,65 @@ module Sqlite3Codegen
 
   TRUNCATE_TAGS_SQL = <<~'SQL'
     DELETE FROM tags
+  SQL
+
+  LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL = <<~'SQL'
+    SELECT authors.id, authors.name, authors.bio, books.id, books.name, books.author_id, books.description
+    FROM authors
+    LEFT JOIN books ON authors.id = books.author_id
+    ORDER BY authors.id
+  SQL
+
+  class ListAuthorsWithOptionalBookRow < Data.define(:author, :book)
+  end
+
+  INSERT_NAME_CASE_SQL = <<~'SQL'
+    INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer")
+    VALUES (?, ?, ?, ?, ?, ?,
+            ?, ?)
+  SQL
+
+  GET_NAME_CASE_SQL = <<~'SQL'
+    SELECT id, class, "end", hash, method, count, camelCase, HTTPServer FROM name_cases
+    WHERE id = ? AND "class" = ? AND "end" = ? AND "hash" = ?
+      AND "method" = ? AND "count" = ?
+      AND "HTTPServer" = ? AND "camelCase" = ?
+  SQL
+
+  # rubocop:disable Naming/MethodName
+  class GetNameCaseRow < Data.define(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count,
+    :camelCase,
+    :HTTPServer
+  )
+  end
+  # rubocop:enable Naming/MethodName
+
+  GET_HTTP_SERVER_SQL = <<~'SQL'
+    SELECT id, class, "end", hash, method, count, camelCase, HTTPServer FROM name_cases WHERE id = ?
+  SQL
+
+  # rubocop:disable Naming/MethodName
+  class GetHTTPServerRow < Data.define(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count,
+    :camelCase,
+    :HTTPServer
+  )
+  end
+  # rubocop:enable Naming/MethodName
+
+  TRUNCATE_NAME_CASES_SQL = <<~'SQL'
+    DELETE FROM name_cases
   SQL
 
   class QuerySql
@@ -347,7 +482,7 @@ module Sqlite3Codegen
 
     def list_authors_paged(offset:, limit:)
       with_client('list_authors_paged') do |client|
-        query_params = [offset, limit]
+        query_params = [limit, offset]
         stmt = client.prepare(LIST_AUTHORS_PAGED_SQL)
         begin
           result = stmt.execute(*query_params)
@@ -368,6 +503,21 @@ module Sqlite3Codegen
           result = stmt.execute(*query_params)
           result.map do |row|
             GetAuthorByNamePatternRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def get_authors_by_optional_name(lim:, name_filter: nil)
+      with_client('get_authors_by_optional_name') do |client|
+        query_params = [name_filter, name_filter, lim]
+        stmt = client.prepare(GET_AUTHORS_BY_OPTIONAL_NAME_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            GetAuthorsByOptionalNameRow.new(row[0], row[1], row[2])
           end
         ensure
           stmt.close
@@ -436,9 +586,79 @@ module Sqlite3Codegen
       end
     end
 
+    # rubocop:disable Naming/MethodParameterName
+    def get_authors_by_mixed_placeholders(n:, ids:, id:, more:)
+      with_client('get_authors_by_mixed_placeholders') do |client|
+        query_params = [
+          n,
+          *ids,
+          n,
+          id,
+          *more
+        ]
+        sql = GET_AUTHORS_BY_MIXED_PLACEHOLDERS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
+        sql = sql.gsub('/*SLICE:more*/?', slice_placeholders(more))
+        stmt = client.prepare(sql)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            GetAuthorsByMixedPlaceholdersRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+    # rubocop:enable Naming/MethodParameterName
+
+    # rubocop:disable Naming/MethodParameterName
+    def get_authors_by_repeated_named_and_positional(n:, other:, id:)
+      with_client('get_authors_by_repeated_named_and_positional') do |client|
+        query_params = [n, other, id, n]
+        stmt = client.prepare(GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            GetAuthorsByRepeatedNamedAndPositionalRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+    # rubocop:enable Naming/MethodParameterName
+
+    def get_authors_by_repeated_named_and_positional_batch(rows)
+      with_client('get_authors_by_repeated_named_and_positional_batch') do |client|
+        stmt = client.prepare(GET_AUTHORS_BY_REPEATED_NAMED_AND_POSITIONAL_BATCH_SQL)
+        begin
+          rows.map do |args|
+            query_params = [args.n, args.other, args.id, args.n]
+            result = stmt.execute(*query_params)
+            row = result.first
+            row && GetAuthorsByRepeatedNamedAndPositionalBatchRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
     # Bulk insert: pass an Array of CopyAuthorsArgs.
     def copy_authors(rows)
       with_client('copy_authors') do |client|
+        atomically(client) do
+          rows.each_slice(499) do |batch|
+            sql = %(INSERT INTO "authors" ("name", "bio") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
+            client.execute(sql, batch.flat_map { |row| [row.name, row.bio] })
+          end
+        end
+        nil
+      end
+    end
+
+    def copy_authors_named(rows)
+      with_client('copy_authors_named') do |client|
         atomically(client) do
           rows.each_slice(499) do |batch|
             sql = %(INSERT INTO "authors" ("name", "bio") VALUES #{Array.new(batch.size, '(?, ?)').join(', ')})
@@ -723,6 +943,57 @@ module Sqlite3Codegen
       end
     end
 
+    def copy_regression_rows(rows)
+      with_client('copy_regression_rows') do |client|
+        atomically(client) do
+          rows.each_slice(249) do |batch|
+            sql = %(INSERT INTO "regressions" ("id", "order", "price", "payload") VALUES #{Array.new(batch.size, '(?, ?, ?, ?)').join(', ')})
+            client.execute(sql, batch.flat_map { |row| [row.id, row.order, row.price, row.payload] })
+          end
+        end
+        nil
+      end
+    end
+
+    def list_regression_rows
+      with_client('list_regression_rows') do |client|
+        stmt = client.prepare(LIST_REGRESSION_ROWS_SQL)
+        begin
+          result = stmt.execute
+          result.map do |row|
+            ListRegressionRowsRow.new(row[0], row[1], row[2], row[3])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def truncate_regression_rows
+      with_client('truncate_regression_rows') do |client|
+        stmt = client.prepare(TRUNCATE_REGRESSION_ROWS_SQL)
+        begin
+          stmt.execute
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def pause_query(sleep:)
+      with_client('pause_query') do |client|
+        query_params = [sleep]
+        stmt = client.prepare(PAUSE_QUERY_SQL)
+        begin
+          stmt.execute(*query_params).to_a
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
     def copy_tags_or_replace(rows)
       with_client('copy_tags_or_replace') do |client|
         atomically(client) do
@@ -776,6 +1047,122 @@ module Sqlite3Codegen
     def truncate_tags
       with_client('truncate_tags') do |client|
         stmt = client.prepare(TRUNCATE_TAGS_SQL)
+        begin
+          stmt.execute
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def list_authors_with_optional_book
+      with_client('list_authors_with_optional_book') do |client|
+        stmt = client.prepare(LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL)
+        begin
+          result = stmt.execute
+          result.map do |row|
+            ListAuthorsWithOptionalBookRow.new(
+              row[0].nil? && row[1].nil? ? nil : Author.new(row[0], row[1], row[2]),
+              row[3].nil? && row[4].nil? && row[5].nil? ? nil : Book.new(row[3], row[4], row[5], row[6])
+            )
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def insert_name_case(id:, class_:, end_:, hash:, method:, count:, camel_case:, http_server:)
+      with_client('insert_name_case') do |client|
+        query_params = [
+          id,
+          class_,
+          end_,
+          hash,
+          method,
+          count,
+          camel_case,
+          http_server
+        ]
+        stmt = client.prepare(INSERT_NAME_CASE_SQL)
+        begin
+          stmt.execute(*query_params)
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def get_name_case(id:, class_:, end_:, hash:, method:, count:, http_server:, camel_case:)
+      with_client('get_name_case') do |client|
+        query_params = [
+          id,
+          class_,
+          end_,
+          hash,
+          method,
+          count,
+          http_server,
+          camel_case
+        ]
+        stmt = client.prepare(GET_NAME_CASE_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          row = result.first
+          row && GetNameCaseRow.new(
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4],
+            row[5],
+            row[6],
+            row[7]
+          )
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    # Like #get_name_case, but raises NotFound when there is no row.
+    def get_name_case!(...)
+      get_name_case(...) || raise(NotFound, 'GetNameCase returned no row')
+    end
+
+    def get_http_server(id:)
+      with_client('get_http_server') do |client|
+        query_params = [id]
+        stmt = client.prepare(GET_HTTP_SERVER_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          row = result.first
+          row && GetHTTPServerRow.new(
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4],
+            row[5],
+            row[6],
+            row[7]
+          )
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    # Like #get_http_server, but raises NotFound when there is no row.
+    def get_http_server!(...)
+      get_http_server(...) || raise(NotFound, 'GetHTTPServer returned no row')
+    end
+
+    def truncate_name_cases
+      with_client('truncate_name_cases') do |client|
+        stmt = client.prepare(TRUNCATE_NAME_CASES_SQL)
         begin
           stmt.execute
           nil

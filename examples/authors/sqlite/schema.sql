@@ -26,10 +26,22 @@ CREATE TABLE declared_types (
 CREATE TABLE regressions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     "order" VARCHAR(255) NOT NULL,
-    price DECIMAL(10,2)
+    price DECIMAL(10,2),
+    payload BLOB
 );
 
 CREATE TABLE tags (
     name TEXT NOT NULL PRIMARY KEY,
     uses INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE name_cases (
+  id INTEGER PRIMARY KEY,
+  "class" TEXT NOT NULL,
+  "end" TEXT NOT NULL,
+  "hash" TEXT NOT NULL,
+  "method" TEXT NOT NULL,
+  "count" INTEGER NOT NULL,
+  "camelCase" TEXT NOT NULL,
+  "HTTPServer" TEXT NOT NULL
 );

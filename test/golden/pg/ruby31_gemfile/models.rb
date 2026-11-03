@@ -44,6 +44,8 @@ module PgCodegen
     keyword_init: true
   )
 
+  DeferredBook = Struct.new(:id, :author_id, keyword_init: true)
+
   PostgresExtraType = Struct.new(
     :c_uuid,
     :c_jsonb,
@@ -55,6 +57,25 @@ module PgCodegen
     :c_not_null,
     keyword_init: true
   )
+
+  PostgresRemainingType = Struct.new(
+    :c_hstore,
+    :c_ltree,
+    :c_regclass,
+    :c_cidr,
+    :c_macaddr,
+    :c_interval,
+    :c_varbit,
+    :c_xml,
+    :c_numeric,
+    :c_bigint,
+    :c_timestamp,
+    :c_timestamptz,
+    :c_text_matrix,
+    keyword_init: true
+  )
+
+  JsonRoundTrip = Struct.new(:id, :json_value, :jsonb_value, keyword_init: true)
 
   PostgresArrayType = Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix, keyword_init: true)
 
@@ -90,6 +111,20 @@ module PgCodegen
     :stamps,
     keyword_init: true
   )
+
+  # rubocop:disable Naming/MethodName
+  NameCase = Struct.new(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count_,
+    :camelCase,
+    :HTTPServer,
+    keyword_init: true
+  )
+  # rubocop:enable Naming/MethodName
 
   ExtendedBio = Struct.new(:author_name, :name, :bio_type, keyword_init: true)
 end

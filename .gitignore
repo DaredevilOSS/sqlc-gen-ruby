@@ -144,3 +144,4 @@ plugin.wasm
 plugins
 # scratch output of scripts/tests/run_codegen.rb
 .codegen-test*
+.examples-ruby-*

@@ -1,0 +1,11 @@
+# frozen_string_literal: true
+
+source 'https://rubygems.org'
+
+examples_dir = ENV.fetch('EXAMPLES_DIR') { raise 'EXAMPLES_DIR must point at generated scratch examples' }
+driver = ENV.fetch('EXAMPLES_DRIVER') { raise 'EXAMPLES_DRIVER must be set for E2E bundling' }
+eval_gemfile File.join(examples_dir, driver, 'Gemfile')
+
+gem 'async', RUBY_VERSION.start_with?('3.1') ? '< 2.7' : '>= 2.7'
+gem 'minitest'
+gem 'rake'

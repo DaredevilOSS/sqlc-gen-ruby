@@ -4,15 +4,71 @@ require 'minitest/autorun'
 require 'logger'
 require 'stringio'
 require 'json'
+require 'bigdecimal'
+require 'date'
 require 'async'
 require 'async/barrier'
+require 'timeout'
+EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../examples', __dir__))).freeze
 require_relative 'consts'
 require_relative 'rbs_types'
-require_relative '../examples/mysql2/query_sql'
+require File.join(EXAMPLES_DIR, 'mysql2/query_sql')
+RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'Mysql2Codegen')}::QuerySql"),
+                 File.join(EXAMPLES_DIR, 'mysql2/query_sql.rbs'))
 
 # End-to-end tests of the code generated for examples/authors/mysql, against a real MySQL / MariaDB server.
 class TestMysql2 < Minitest::Test
-  include Mysql2Codegen
+  include Object.const_get(ENV.fetch('EXAMPLES_MODULE', 'Mysql2Codegen'))
+
+  TEXT_PARTS = ["é", '🙂', "\t", "\n", "\r", '\\', "'", '"', ',', '\N', 'NULL'].freeze
+
+  def row_for(klass, values)
+    klass.new(**klass.members.zip(values).to_h)
+  end
+
+  def assert_row_layout(row)
+    if defined?(Data) && row.is_a?(Data)
+      assert_predicate row, :frozen?
+      assert_equal row.to_h, row.with.to_h
+    else
+      assert_kind_of Struct, row
+      assert row.class.keyword_init?
+      refute_predicate row, :frozen?
+    end
+    case row
+    in { id:, name: }
+      assert_kind_of Integer, id
+      assert_equal row.name, name
+    else
+      flunk 'row did not support keyword pattern matching'
+    end
+  end
+
+  def row_value(row, member)
+    actual_member = row.class.members.find { |name| name == member.to_sym || name == :"#{member}_" }
+    row.public_send(actual_member)
+  end
+
+  def seeded_random
+    seed = Integer(ENV.fetch('SEED', '1793729686'))
+    warn "SEED=#{seed} #{self.class}"
+    Random.new(seed)
+  end
+
+  def random_text(random)
+    Array.new(random.rand(1..8)) { TEXT_PARTS.fetch(random.rand(TEXT_PARTS.length)) }.join
+  end
+
+  def old_timeout_version?
+    defined?(::Timeout::VERSION) && (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?
+  end
+
+  def return_from_transaction(name)
+    @query_sql.transaction do |tx|
+      tx.create_author_return_id(name: name, bio: nil)
+      return :returned
+    end
+  end
 
   def mysql2_params
     {
@@ -30,10 +86,20 @@ class TestMysql2 < Minitest::Test
     @query_sql.truncate_extended_bios
     @query_sql.truncate_regressions
     @query_sql.truncate_copy_types
+    @query_sql.truncate_mysql_binding_values
+    @query_sql.truncate_name_cases
   end
 
   def create_author(name, bio = nil)
     @query_sql.create_author_return_id(name: name, bio: bio)
+  end
+
+  def binding_values(id, float_value = nil)
+    {
+      id: id, text_value: nil, blob_value: nil, signed_value: nil, unsigned_value: nil, decimal_value: nil,
+      float_value: float_value, date_value: nil, datetime_value: nil, datetime_2: nil, bool_value: nil,
+      nullable_value: nil
+    }
   end
 
   # ---- :one / :many / :exec -------------------------------------------------------------------------------------
@@ -42,7 +108,7 @@ class TestMysql2 < Minitest::Test
     first = create_author(Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME)
     @query_sql.create_author(name: Consts::DR_SEUSS_AUTHOR, bio: Consts::DR_SEUSS_QUOTE)
 
-    assert_equal GetAuthorRow.new(first, Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME),
+    assert_equal row_for(GetAuthorRow, [first, Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME]),
                  @query_sql.get_author(id: first)
     assert_nil @query_sql.get_author(id: -1)
     assert_equal [Consts::BOJACK_AUTHOR, Consts::DR_SEUSS_AUTHOR].sort, @query_sql.list_authors.map(&:name).sort
@@ -54,6 +120,14 @@ class TestMysql2 < Minitest::Test
     assert_equal [Consts::DR_SEUSS_AUTHOR], @query_sql.list_authors.map(&:name)
   end
 
+  def test_rows_and_embedded_models_have_supported_layout_and_pattern_matching
+    first = create_author('pattern')
+    create_author('pattern')
+    assert_row_layout(@query_sql.get_author(id: first))
+    embedded = @query_sql.get_duplicate_authors.first.author
+    assert_row_layout(embedded)
+  end
+
   def test_nullable_columns_round_trip_nil
     id = create_author('no bio', nil)
     assert_nil @query_sql.get_author(id: id).bio
@@ -63,11 +137,18 @@ class TestMysql2 < Minitest::Test
     assert_nil @query_sql.test
   end
 
-  def test_prepared_statements_are_closed
-    id = create_author('a')
-    300.times { @query_sql.get_author(id: id) }
-    status = Mysql2::Client.new(mysql2_params).query("SHOW GLOBAL STATUS LIKE 'Prepared_stmt_count'").first
-    assert_equal '0', status['Value'].to_s, 'prepared statements leak on the server'
+  def test_generated_queries_do_not_create_server_side_prepared_statements
+    client = Mysql2::Client.new(mysql2_params)
+    database = Object.new
+    database.define_singleton_method(:with) { |&block| block.call(client) }
+    queries = QuerySql.new(database)
+    before = client.query("SHOW SESSION STATUS LIKE 'Com_stmt_prepare'").first.fetch('Value').to_i
+    id = queries.create_author_return_id(name: 'plain query', bio: nil)
+    20.times { queries.get_author(id: id) }
+    after = client.query("SHOW SESSION STATUS LIKE 'Com_stmt_prepare'").first.fetch('Value').to_i
+    assert_equal before, after
+  ensure
+    client&.close
   end
 
   # ---- :execlastid / :execrows -----------------------------------------------------------------------------------
@@ -87,14 +168,20 @@ class TestMysql2 < Minitest::Test
   end
 
   def test_batch_commands_run_once_per_args
-    @query_sql.create_authors_batch([CreateAuthorsBatchArgs.new('a', nil), CreateAuthorsBatchArgs.new('b', 'x'),
-                                     CreateAuthorsBatchArgs.new('b', 'y')])
+    @query_sql.create_authors_batch([CreateAuthorsBatchArgs.new(name: 'a', bio: nil), CreateAuthorsBatchArgs.new(name: 'b', bio: 'x'),
+                                     CreateAuthorsBatchArgs.new(name: 'b', bio: 'y')])
     ids = @query_sql.list_authors.to_h { |a| [a.bio, a.id] }
-    found = @query_sql.get_author_batch([GetAuthorBatchArgs.new(ids['x']), GetAuthorBatchArgs.new(-1)])
+    found = @query_sql.get_author_batch([GetAuthorBatchArgs.new(id: ids['x']), GetAuthorBatchArgs.new(id: -1)])
     assert_equal ['b', nil], found.map { |r| r&.name }
-    many = @query_sql.list_authors_by_name_batch(%w[b a c].map { |n| ListAuthorsByNameBatchArgs.new(n) })
+    many = @query_sql.list_authors_by_name_batch(%w[b a c].map { |n| ListAuthorsByNameBatchArgs.new(name: n) })
     assert_equal [%w[x y], [nil], []], many.map { |rows| rows.map(&:bio) }
     assert_nil @query_sql.create_authors_batch([])
+  end
+
+  def test_batches_are_not_atomic_without_a_transaction
+    rows = [CreateAuthorsBatchArgs.new(name: 'committed', bio: nil), CreateAuthorsBatchArgs.new(name: nil, bio: nil)]
+    assert_raises(Mysql2::Error) { @query_sql.create_authors_batch(rows) }
+    assert_equal ['committed'], @query_sql.list_authors.map(&:name)
   end
 
   def test_execrows_returns_affected_row_count
@@ -117,6 +204,12 @@ class TestMysql2 < Minitest::Test
     assert_equal 3, @query_sql.get_author_by_name_pattern(name_pattern: nil).size
     ab = @query_sql.get_author_by_name_pattern(name_pattern: 'ab%')
     assert_equal %w[abc abd], ab.map(&:name).sort
+  end
+
+  def test_required_argument_after_optional_named_argument
+    %w[alpha beta gamma].each { |name| create_author(name) }
+    assert_equal %w[alpha beta gamma], @query_sql.get_authors_by_optional_name(limit: 10).map(&:name).sort
+    assert_equal ['beta'], @query_sql.get_authors_by_optional_name(limit: 10, name_filter: 'beta').map(&:name)
   end
 
   # ---- sqlc.slice ------------------------------------------------------------------------------------------------
@@ -172,7 +265,7 @@ class TestMysql2 < Minitest::Test
     rows = @query_sql.list_all_authors_books
     assert_equal %w[a b], rows.map { |r| r.author.name }
     assert_equal ['book 1', 'book 2'], rows.map { |r| r.book.name }
-    assert_equal Author.new(first, 'a', 'bio a'), rows.first.author
+    assert_equal row_for(Author, [first, 'a', 'bio a']), rows.first.author
     assert_instance_of Book, rows.first.book
     assert_equal first, rows.first.book.author_id
   end
@@ -194,6 +287,16 @@ class TestMysql2 < Minitest::Test
     assert_equal [low, high], [rows.first.author.id, rows.first.author2.id]
   end
 
+  def test_outer_join_embed_is_nil_without_a_match
+    with_book = create_author('a')
+    create_author('b')
+    @query_sql.create_book(name: 'book', author_id: with_book)
+    rows = @query_sql.list_authors_with_optional_book
+    assert_equal 'book', rows.first.book.name
+    assert_equal 'b', rows.last.author.name
+    assert_nil rows.last.book
+  end
+
   # ---- enums / sets ----------------------------------------------------------------------------------------------
 
   def test_enum_and_set_columns
@@ -201,9 +304,18 @@ class TestMysql2 < Minitest::Test
                                                             author_type: 'Author,Editor')
     @query_sql.create_extended_bio(author_name: 'a', name: 'n2', bio_type: 'Biography', author_type: nil)
     row = @query_sql.get_first_extended_bio_by_type(bio_type: 'Memoir')
-    assert_equal GetFirstExtendedBioByTypeRow.new('a', 'n1', 'Memoir', 'Author,Editor'), row
+    assert_equal row_for(GetFirstExtendedBioByTypeRow, ['a', 'n1', 'Memoir', 'Author,Editor']), row
     assert_equal %w[Autobiography Biography Memoir], ExtendedBiosBioType::ALL
     assert_equal %w[Author Editor Translator], ExtendedBiosAuthorType::ALL
+    @query_sql.instance_variable_get(:@db).with do |client|
+      %w[bio_type author_type].zip([ExtendedBiosBioType::ALL, ExtendedBiosAuthorType::ALL]).each do |column, constants|
+        column_type = client.query(<<~SQL).first.values.first
+          SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'extended_bios' AND COLUMN_NAME = '#{column}'
+        SQL
+        assert_equal constants, column_type.scan(/'((?:''|[^'])*)'/).flatten
+      end
+    end
   end
 
   # ---- transactions ----------------------------------------------------------------------------------------------
@@ -246,7 +358,7 @@ class TestMysql2 < Minitest::Test
         'tb', 'tt', 'bl', 'te', 'mb', 'mt', 'lb', 'lt', '{"a": 1}')
     SQL
     row = @query_sql.test
-    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/mysql2/query_sql.rbs', __dir__), 'TestRow')
+    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'mysql2/query_sql.rbs'), 'TestRow')
     assert_equal Date.new(2024, 1, 2), row.c_date
     assert_equal BigDecimal('1.5'), row.c_decimal
     assert_equal 2024, row.c_year
@@ -259,7 +371,7 @@ class TestMysql2 < Minitest::Test
     client.query('DELETE FROM node_mysql_types')
     client.query('INSERT INTO node_mysql_types (c_int) VALUES (NULL)')
     row = @query_sql.test
-    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/mysql2/query_sql.rbs', __dir__), 'TestRow')
+    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'mysql2/query_sql.rbs'), 'TestRow')
   ensure
     client&.query('DELETE FROM node_mysql_types')
   end
@@ -302,9 +414,26 @@ class TestMysql2 < Minitest::Test
     assert_equal ['abc'], @query_sql.get_author_by_name_pattern.map(&:name)
   end
 
-  def test_transaction_isolation_level_is_accepted
-    assert_equal 1, @query_sql.transaction(isolation: :serializable) { 1 }
+  def test_transaction_isolation_level_is_applied
+    @query_sql.transaction(isolation: :serializable) do |tx|
+      row = tx.instance_variable_get(:@db).with do |client|
+        client.query(<<~SQL).first
+          SELECT ISOLATION_LEVEL, STATE
+          FROM performance_schema.events_transactions_current
+          WHERE THREAD_ID = PS_CURRENT_THREAD_ID()
+        SQL
+      end
+      assert_equal ['SERIALIZABLE', 'ACTIVE'], row.values
+    end
     assert_raises(KeyError) { @query_sql.transaction(isolation: :bogus) { nil } }
+    @query_sql.instance_variable_get(:@db).with do |client|
+      rows = client.query(<<~SQL)
+        SELECT STATE
+        FROM performance_schema.events_transactions_current
+        WHERE THREAD_ID = PS_CURRENT_THREAD_ID()
+      SQL
+      assert_equal 'COMMITTED', rows.first.fetch('STATE')
+    end
   end
 
   def test_queries_can_share_an_injected_pool
@@ -315,17 +444,12 @@ class TestMysql2 < Minitest::Test
     assert_equal 'shared', second.get_author(id: id).name
   end
 
-  # The generated classes are plain synchronous Ruby; under the Fiber scheduler (the `async` gem) the pooled
-  # queries overlap because mysql2 and connection_pool are fiber aware.
-  def test_queries_run_concurrently_under_the_fiber_scheduler
+  # Both query and transaction paths must use Mysql2::Client#query for Fiber scheduler cooperation.
+  def test_generated_queries_overlap_across_threads
     queries = QuerySql.connect(mysql2_params, size: 5)
-    pool = queries.instance_variable_get(:@db)
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    Sync do
-      barrier = Async::Barrier.new
-      5.times { barrier.async { pool.with { |client| client.query('select sleep(0.4)') } } }
-      barrier.wait
-    end
+    threads = Array.new(5) { Thread.new { queries.pause_query(seconds: 0.4) } }
+    threads.each(&:value)
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
     assert_operator elapsed, :<, 1.5, "5 x 0.4s queries took #{elapsed}s: they ran one after the other"
 
@@ -339,6 +463,117 @@ class TestMysql2 < Minitest::Test
     assert_equal 10, @query_sql.list_authors.size
   end
 
+  def test_generated_queries_overlap_under_sync_including_transactions
+    queries = QuerySql.connect(mysql2_params, size: 5)
+    count = 5
+    seconds = 0.3
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    count.times { queries.pause_query(seconds: seconds) }
+    serial = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    Sync do
+      barrier = Async::Barrier.new
+      tasks = Array.new(count) { barrier.async { queries.pause_query(seconds: seconds) } }
+      barrier.wait
+      tasks.each(&:wait)
+    end
+    concurrent = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    assert_operator concurrent, :<, serial * 0.6,
+                    "#{count} generated queries took #{concurrent}s vs #{serial}s serially"
+
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    count.times { queries.transaction { |tx| tx.pause_query(seconds: seconds) } }
+    serial = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    Sync do
+      barrier = Async::Barrier.new
+      tasks = Array.new(count) do
+        barrier.async { queries.transaction { |tx| tx.pause_query(seconds: seconds) } }
+      end
+      barrier.wait
+      tasks.each(&:wait)
+    end
+    concurrent = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    assert_operator concurrent, :<, serial * 0.6,
+                    "#{count} generated transactions took #{concurrent}s vs #{serial}s serially"
+  end
+
+  def test_sql_placeholders_inside_literals_identifiers_and_comments_are_ignored
+    id = create_author('quoted ? -- # /* value')
+    rows = @query_sql.get_author_with_question_marks(name: 'quoted ? -- # /* value')
+    assert_equal [id], rows.map(&:id)
+  end
+
+  def test_client_side_quoting_round_trips_supported_values
+    text = "quotes ' \" slash \\ question ? -- # /* NUL \0 emoji 🙂"
+    binary = "\x00\xFF\x80\x01".b
+    decimal = BigDecimal('123456789012345678901234567890.123456789012345678901234567890')
+    float = 1.0 / 3
+    time = Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
+    date_time = DateTime.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
+    @query_sql.insert_mysql_binding_values(
+      id: 42, text_value: text, blob_value: binary, signed_value: -9_223_372_036_854_775_808,
+      unsigned_value: 18_446_744_073_709_551_615, decimal_value: decimal, float_value: float,
+      date_value: Date.new(2024, 2, 3), datetime_value: time, datetime_2: date_time,
+      bool_value: true, nullable_value: nil
+    )
+    @query_sql.instance_variable_get(:@db).with do |client|
+      client.query(<<~SQL)
+        UPDATE mysql_binding_values
+        SET bit_value = b'1010101010101010', year_value = 2024, time_value = '12:34:56',
+            json_unicode = '{"greeting":"Grüße 🙂"}'
+        WHERE id = 42
+      SQL
+    end
+    row = @query_sql.get_mysql_binding_values(id: 42)
+    assert_equal text, row.text_value
+    assert_equal binary, row.blob_value
+    assert_equal(-9_223_372_036_854_775_808, row.signed_value)
+    assert_equal 18_446_744_073_709_551_615, row.unsigned_value
+    assert_equal decimal, row.decimal_value
+    assert_equal float, row.float_value
+    assert_equal Date.new(2024, 2, 3), row.date_value
+    assert_equal time.strftime('%Y-%m-%d %H:%M:%S.%6N'), row.datetime_value.strftime('%Y-%m-%d %H:%M:%S.%6N')
+    assert_equal date_time.strftime('%Y-%m-%d %H:%M:%S.%6N'), row.datetime_2.strftime('%Y-%m-%d %H:%M:%S.%6N')
+    assert_equal 1, row.bool_value
+    assert_nil row.nullable_value
+    assert_equal [0xAA, 0xAA].pack('C*'), row.bit_value
+    assert_equal 2024, row.year_value
+    assert_equal Time.utc(2000, 1, 1, 12, 34, 56), row.time_value
+    assert_equal 'Grüße 🙂', JSON.parse(row.json_unicode).fetch('greeting')
+
+    @query_sql.insert_mysql_binding_values(**binding_values(43).merge(bool_value: false))
+    assert_equal 0, @query_sql.get_mysql_binding_values(id: 43).bool_value
+    assert_raises(ArgumentError) do
+      @query_sql.insert_mysql_binding_values(**binding_values(44, Float::INFINITY))
+    end
+  end
+
+  def test_time_values_match_mysql2_prepared_statement_storage
+    client = Mysql2::Client.new(mysql2_params)
+    time = Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
+    date_time = DateTime.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
+    statement = client.prepare('INSERT INTO mysql_binding_values (id, datetime_value, datetime_2) VALUES (?, ?, ?)')
+    statement.execute(1, time, date_time)
+    statement.close
+    @query_sql.insert_mysql_binding_values(**binding_values(2).merge(datetime_value: time, datetime_2: date_time))
+    prepared = @query_sql.get_mysql_binding_values(id: 1)
+    quoted = @query_sql.get_mysql_binding_values(id: 2)
+    assert_equal prepared.datetime_value, quoted.datetime_value
+    assert_equal prepared.datetime_2, quoted.datetime_2
+  ensure
+    client&.close
+  end
+
+  def test_injection_and_unsupported_parameters_are_safe
+    create_author('ordinary')
+    assert_empty @query_sql.find_authors_by_exact_name(name: "x' OR '1'='1")
+    [Hash.new, :symbol, Object.new].each do |value|
+      assert_raises(TypeError) { @query_sql.find_authors_by_exact_name(name: value) }
+    end
+    assert_equal ['ordinary'], @query_sql.list_authors.map(&:name)
+  end
+
   # ---- Ruby conventions: bang finders, logger ----------------------------------------------------------------
 
   def test_bang_finder_raises_not_found
@@ -349,13 +584,20 @@ class TestMysql2 < Minitest::Test
     assert_nil @query_sql.get_author(id: -1) # the plain finder still returns nil
   end
 
+  def test_every_one_query_has_a_bang_method
+    methods = File.read(File.join(EXAMPLES_DIR, 'mysql2/query_sql.rbs')).scan(/^\s+def (\w+):.* -> \w+Row\?$/).flatten
+    refute_empty methods
+    methods.each { |name| assert_respond_to @query_sql, "#{name}!" }
+  end
+
   def test_logger_receives_query_names_and_durations
     io = StringIO.new
     logged = QuerySql.connect(mysql2_params, logger: Logger.new(io, level: Logger::DEBUG))
-    logged.list_authors
+    logged.get_author(id: -987654321)
     logged.transaction { |tx| tx.list_authors }
-    assert_match(/QuerySql#list_authors \(\d+\.\dms\)/, io.string)
-    assert_match(/QuerySql#transaction \(\d+\.\dms\)/, io.string)
+    assert_match(/DEBUG -- .*QuerySql#get_author \(\d+\.\dms\)/, io.string)
+    assert_match(/DEBUG -- .*QuerySql#transaction \(\d+\.\dms\)/, io.string)
+    refute_includes io.string, '-987654321'
     @query_sql.list_authors # no logger: nothing is logged, nothing breaks
   end
 
@@ -373,12 +615,26 @@ class TestMysql2 < Minitest::Test
     @query_sql.copy_regressions([CopyRegressionsArgs.new(order: 'x', note: 'y'),
                                  CopyRegressionsArgs.new(order: 'z', note: 'x'),
                                  CopyRegressionsArgs.new(order: 'z', note: 'z')])
-    assert_equal 2, @query_sql.count_regressions_by_text!(term: 'x').count
+    assert_equal 2, row_value(@query_sql.count_regressions_by_text!(term: 'x'), :count)
   end
 
   def test_repeated_positional_parameters_get_distinct_names
     @query_sql.copy_regressions(%w[a b c].map { |o| CopyRegressionsArgs.new(order: o, note: nil) })
     assert_equal [[1, 'a'], [3, 'c']], @query_sql.list_regressions_by_ids(id: 1, id_2: 3, id_3: 99).map { |r| [r.id, r.order] }
+  end
+
+  def test_keyword_and_method_names_keep_distinct_row_and_argument_names
+    args = { id: 1, class_: 'class', end_: 'end', hash: 'hash', method: 'method', count: 7,
+             camel_case: 'camel', http_server: 'server' }
+    @query_sql.insert_name_case(**args)
+    row = @query_sql.get_name_case(**args)
+    count_member = row.is_a?(Struct) ? :count_ : :count
+    assert_equal %i[id class_ end hash_ method_].concat([count_member, :camelcase, :httpserver]), row.class.members
+    assert_equal %w[class end hash method], %i[class_ end hash_ method_].map { |member| row.public_send(member) }
+    assert_equal 7, row.public_send(count_member)
+    assert_equal 'camel', row.public_send(:camelcase)
+    assert_equal 'server', row.public_send(:httpserver)
+    assert_equal 1, @query_sql.get_http_server(id: 1).id
   end
 
   def test_copyfrom_keeps_strings_that_look_like_null_and_special_characters
@@ -428,7 +684,84 @@ class TestMysql2 < Minitest::Test
       end
     end
     pooled.instance_variable_get(:@db).with { |client| refute client.in_transaction }
-    assert_equal ['break 0', 'break 1', 'throw'], @query_sql.list_authors.map(&:name).sort
+    expected = old_timeout_version? ? [] : ['break 0', 'break 1', 'throw']
+    assert_equal expected, @query_sql.list_authors.map(&:name).sort
+  end
+
+  def test_transaction_timeout_rolls_back_and_keeps_connection_usable
+    [:database, :ruby_sleep].each do |kind|
+      assert_raises(Timeout::Error) do
+        Timeout.timeout(0.05) do
+          @query_sql.transaction do |tx|
+            tx.create_author_return_id(name: kind.to_s, bio: nil)
+            kind == :database ? tx.pause_query(seconds: 0.2) : sleep(0.2)
+          end
+        end
+      end
+      assert_empty @query_sql.list_authors
+      @query_sql.create_author_return_id(name: 'usable', bio: nil)
+      assert_equal ['usable'], @query_sql.list_authors.map(&:name)
+      @query_sql.truncate_authors
+    end
+  end
+
+  def test_transaction_nonlocal_exit_semantics_follow_timeout_version
+    break_value = @query_sql.transaction do |tx|
+      tx.create_author_return_id(name: 'break', bio: nil)
+      break :break_value
+    end
+    assert_equal :break_value, break_value
+    assert_equal :returned, return_from_transaction('return')
+    thrown = catch(:transaction_exit) do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'throw', bio: nil)
+        throw :transaction_exit, :throw_value
+      end
+    end
+    assert_equal :throw_value, thrown
+    expected = old_timeout_version? ? [] : %w[break return throw]
+    assert_equal expected, @query_sql.list_authors.map(&:name).sort
+  end
+
+  def test_thread_kill_rolls_back_and_leaves_connection_outside_transaction
+    started = Queue.new
+    thread = Thread.new do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'killed', bio: nil)
+        started << true
+        sleep(5)
+      end
+    end
+    started.pop
+    thread.kill
+    thread.join
+    assert_empty @query_sql.list_authors
+    @query_sql.instance_variable_get(:@db).with { |client| refute client.in_transaction }
+  end
+
+  def test_nested_savepoint_rolls_back_while_outer_transaction_commits
+    @query_sql.transaction do |tx|
+      tx.create_author_return_id(name: 'outer before', bio: nil)
+      assert_raises(RuntimeError) do
+        tx.transaction do |inner|
+          inner.create_author_return_id(name: 'nested', bio: nil)
+          raise 'rollback savepoint'
+        end
+      end
+      tx.create_author_return_id(name: 'outer after', bio: nil)
+    end
+    assert_equal ['outer after', 'outer before'], @query_sql.list_authors.map(&:name).sort
+  end
+
+  def test_parent_query_object_calls_are_part_of_same_thread_transaction
+    assert_raises(RuntimeError) do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'tx', bio: nil)
+        @query_sql.create_author_return_id(name: 'parent', bio: nil)
+        raise 'rollback outer transaction'
+      end
+    end
+    assert_empty @query_sql.list_authors
   end
 
   # ---- final sweep fixes: :copyfrom into JSON, IGNORE / REPLACE, reused statements, dead connections ------------
@@ -470,5 +803,97 @@ class TestMysql2 < Minitest::Test
     admin.close
     assert_raises(Mysql2::Error) { pooled.list_authors }
     assert_equal [], pooled.list_authors
+  end
+
+  def test_killed_backend_inside_transaction_is_replaced
+    pooled = QuerySql.connect(mysql2_params, size: 1)
+    assert_raises(Mysql2::Error) do
+      pooled.transaction do |tx|
+        tx.create_author_return_id(name: 'rolled back', bio: nil)
+        id = pooled.instance_variable_get(:@db).with(&:thread_id)
+        admin = Mysql2::Client.new(**mysql2_params.transform_keys(&:to_sym))
+        admin.query("KILL #{id}")
+        admin.close
+        tx.list_authors
+      end
+    end
+    assert_empty pooled.list_authors
+  end
+
+  def test_seeded_random_copyfrom_round_trip_and_duplicate_is_atomic
+    random = seeded_random
+    rows = Array.new(300) do |i|
+      CopyRegressionRowsArgs.new(id: 5_000_000_000 + i, order: "#{i}#{random_text(random)}",
+                                 note: random.rand(3).zero? ? nil : random_text(random),
+                                 payload: random.bytes(random.rand(0..16)).b)
+    end
+    @query_sql.copy_regression_rows(rows)
+    expected = rows.map { |r| [r.id, r.order, r.note, r.payload] }.sort_by(&:first)
+    actual = @query_sql.list_regression_rows.map { |r| [r.id, r.order, r.note, r.payload] }
+    assert_equal expected, actual
+
+    duplicate = [CopyRegressionRowsArgs.new(id: 6_000_000_000, order: 'new', note: nil, payload: nil), rows.first]
+    assert_raises(Mysql2::Error) { @query_sql.copy_regression_rows(duplicate) }
+    assert_equal expected, @query_sql.list_regression_rows.map { |r| [r.id, r.order, r.note, r.payload] }
+  end
+
+  def test_seeded_random_batch_round_trip
+    random = seeded_random
+    rows = Array.new(300) do |i|
+      { name: "#{i}-#{random_text(random)}", bio: random.rand(3).zero? ? nil : random_text(random) }
+    end
+    @query_sql.create_authors_batch(rows.map { |row| CreateAuthorsBatchArgs.new(**row) })
+    stored = @query_sql.list_authors
+    assert_equal rows.sort_by { |row| row[:name] },
+                 stored.map { |row| { name: row.name, bio: row.bio } }.sort_by { |row| row[:name] }
+    one = @query_sql.get_author_batch(stored.map { |row| GetAuthorBatchArgs.new(id: row.id) })
+    assert_equal stored.map(&:name).sort, one.map(&:name).sort
+    many = @query_sql.list_authors_by_name_batch(stored.map { |row| ListAuthorsByNameBatchArgs.new(name: row.name) })
+    assert_equal stored.map(&:name).sort, many.flatten.map(&:name).sort
+  end
+
+  def test_seeded_concurrent_transactions_commit_the_exact_planned_set
+    random = seeded_random
+    plan = Array.new(4) { Array.new(8) { random.rand(4) } }
+    names = plan.each_with_index.map do |actions, thread_index|
+      actions.each_index.map { |index| "thread-#{thread_index}-#{index}" }
+    end
+    expected = plan.each_with_index.flat_map do |actions, thread_index|
+      actions.each_with_index.flat_map do |action, index|
+        name = names[thread_index][index]
+        action == 1 ? [] : (action == 3 ? [name, "#{name}-batch"] : [name])
+      end
+    end.sort
+    threads = plan.each_with_index.map do |actions, thread_index|
+      Thread.new do
+        actions.each_with_index do |action, index|
+          name = names[thread_index][index]
+          begin
+            @query_sql.transaction do |tx|
+              tx.create_author_return_id(name: name, bio: nil)
+              case action
+              when 1
+                raise "rollback #{name}"
+              when 2
+                begin
+                  tx.transaction do |inner|
+                    inner.create_author_return_id(name: "#{name}-nested", bio: nil)
+                    raise "savepoint #{name}"
+                  end
+                rescue RuntimeError
+                  nil
+                end
+              when 3
+                tx.create_authors_batch([CreateAuthorsBatchArgs.new(name: "#{name}-batch", bio: "batch #{name}")])
+              end
+            end
+          rescue RuntimeError => error
+            raise unless action == 1 && error.message == "rollback #{name}"
+          end
+        end
+      end
+    end
+    threads.each(&:value)
+    assert_equal expected, @query_sql.list_authors.map(&:name).sort
   end
 end

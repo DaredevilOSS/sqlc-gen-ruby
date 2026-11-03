@@ -23,6 +23,23 @@ WHERE id = $1;
 SELECT * FROM node_postgres_types
 LIMIT 1;
 
+-- name: SetJSONRoundTrip :exec
+INSERT INTO json_round_trips (id, json_value, jsonb_value) VALUES ($1, $2, $3);
+
+-- name: GetJSONRoundTrip :one
+SELECT json_value, jsonb_value FROM json_round_trips WHERE id = $1;
+
+-- name: ToggleJSONBRoundTrip :exec
+UPDATE json_round_trips
+SET jsonb_value = to_jsonb(NOT (jsonb_value #>> '{}')::boolean)
+WHERE id = $1;
+
+-- name: TruncateJSONRoundTrips :exec
+TRUNCATE TABLE json_round_trips;
+
+-- name: PauseQuery :exec
+SELECT pg_sleep(sqlc.arg(seconds)::double precision);
+
 -- name: ListAuthorsPaged :many
 SELECT * FROM authors
 ORDER BY name
@@ -32,6 +49,12 @@ OFFSET sqlc.arg('offset');
 -- name: GetAuthorByNamePattern :many
 SELECT * FROM authors
 WHERE name LIKE COALESCE(sqlc.narg('name_pattern'), '%');
+
+-- name: GetAuthorsByOptionalName :many
+SELECT * FROM authors
+WHERE (sqlc.narg(name_filter)::text IS NULL OR name = sqlc.narg(name_filter)::text)
+ORDER BY id
+LIMIT sqlc.arg(lim);
 
 -- name: CreateAuthorReturnId :execlastid
 INSERT INTO authors (name, bio) VALUES ($1, $2) RETURNING id;
@@ -59,6 +82,12 @@ TRUNCATE TABLE authors CASCADE;
 
 -- name: CreateBook :execlastid
 INSERT INTO books (name, author_id) VALUES ($1, $2) RETURNING id;
+
+-- name: CreateDeferredBook :exec
+INSERT INTO deferred_books (author_id) VALUES ($1);
+
+-- name: TruncateDeferredBooks :exec
+TRUNCATE TABLE deferred_books;
 
 -- name: ListAllAuthorsBooks :many
 SELECT
@@ -101,6 +130,20 @@ SELECT * FROM postgres_extra_types LIMIT 1;
 
 -- name: TruncateExtraTypes :exec
 TRUNCATE TABLE postgres_extra_types;
+
+-- name: InsertRemainingTypes :exec
+INSERT INTO postgres_remaining_types (
+  c_hstore, c_ltree, c_regclass, c_cidr, c_macaddr, c_interval, c_varbit, c_xml,
+  c_numeric, c_bigint, c_timestamp, c_timestamptz, c_text_matrix
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+);
+
+-- name: GetRemainingTypes :one
+SELECT * FROM postgres_remaining_types LIMIT 1;
+
+-- name: TruncateRemainingTypes :exec
+TRUNCATE TABLE postgres_remaining_types;
 
 -- name: InsertArrayTypes :exec
 INSERT INTO postgres_array_types (c_uuid_array, c_bio_type_array, c_integer_matrix) VALUES ($1, $2, $3);
@@ -178,3 +221,20 @@ SELECT count(*) FROM batch_types WHERE id > sqlc.arg(MIN_ID);
 
 -- name: TruncateBatchTypes :exec
 TRUNCATE TABLE batch_types;
+
+-- name: InsertNameCase :exec
+INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer")
+VALUES (sqlc.arg(id), sqlc.arg(class), sqlc.arg(end_), sqlc.arg(hash), sqlc.arg(method), sqlc.arg(count),
+        sqlc.arg(camel_case), sqlc.arg(http_server));
+
+-- name: GetNameCase :one
+SELECT * FROM name_cases
+WHERE id = sqlc.arg(id) AND "class" = sqlc.arg(class) AND "end" = sqlc.arg(end_) AND "hash" = sqlc.arg(hash)
+  AND "method" = sqlc.arg(method) AND "count" = sqlc.arg(count)
+  AND "HTTPServer" = sqlc.arg(http_server) AND "camelCase" = sqlc.arg(camel_case);
+
+-- name: GetHTTPServer :one
+SELECT * FROM name_cases WHERE id = sqlc.arg(id);
+
+-- name: TruncateNameCases :exec
+TRUNCATE TABLE name_cases;

@@ -27,6 +27,12 @@ LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 SELECT * FROM authors
 WHERE name LIKE COALESCE(sqlc.narg('name_pattern'), '%');
 
+-- name: GetAuthorsByOptionalName :many
+SELECT * FROM authors
+WHERE (sqlc.narg(name_filter) IS NULL OR name = sqlc.narg(name_filter))
+ORDER BY id
+LIMIT sqlc.arg(lim);
+
 -- name: CreateAuthorReturnId :execlastid
 INSERT INTO authors (name, bio) VALUES (?, ?) RETURNING id;
 
@@ -42,9 +48,39 @@ SELECT * FROM authors WHERE id IN (sqlc.slice('ids'));
 -- name: GetAuthorsByIdsAndNames :many
 SELECT * FROM authors WHERE id IN (sqlc.slice('ids')) AND name IN (sqlc.slice('names'));
 
+-- name: GetAuthorsByMixedPlaceholders :many
+SELECT * FROM authors
+WHERE name = sqlc.arg(n)
+  AND id IN (sqlc.slice(ids))
+  AND name = sqlc.arg(n)
+  AND id > ?
+  AND id IN (sqlc.slice(more))
+  AND 'x?' != '?3'
+ORDER BY id;
+
+-- name: GetAuthorsByRepeatedNamedAndPositional :many
+SELECT * FROM authors
+WHERE name = sqlc.arg(n)
+  AND name != sqlc.arg(other)
+  AND id > ?
+  AND name = sqlc.arg(n)
+ORDER BY id;
+
+-- name: GetAuthorsByRepeatedNamedAndPositionalBatch :batchone
+SELECT * FROM authors
+WHERE name = sqlc.arg(n)
+  AND name != sqlc.arg(other)
+  AND id > ?
+  AND name = sqlc.arg(n)
+ORDER BY id
+LIMIT 1;
+
 -- name: CopyAuthors :copyfrom
 -- Bulk insert: pass an Array of CopyAuthorsArgs.
 INSERT INTO authors (name, bio) VALUES (?, ?);
+
+-- name: CopyAuthorsNamed :copyfrom
+INSERT INTO authors (name, bio) VALUES (sqlc.arg(name), sqlc.arg(bio));
 
 -- name: TruncateAuthors :exec
 DELETE FROM authors;
@@ -113,6 +149,18 @@ SELECT coalesce(max(price), 0) AS max_price FROM regressions;
 -- name: TruncateRegressions :exec
 DELETE FROM regressions;
 
+-- name: CopyRegressionRows :copyfrom
+INSERT INTO regressions (id, "order", price, payload) VALUES (?, ?, ?, ?);
+
+-- name: ListRegressionRows :many
+SELECT id, "order", price, payload FROM regressions ORDER BY id;
+
+-- name: TruncateRegressionRows :exec
+DELETE FROM regressions;
+
+-- name: PauseQuery :exec
+SELECT sleep(?);
+
 -- name: CopyTagsOrReplace :copyfrom
 INSERT OR REPLACE INTO tags (name, uses) VALUES (?, ?);
 
@@ -127,3 +175,26 @@ SELECT name, uses FROM tags ORDER BY name;
 
 -- name: TruncateTags :exec
 DELETE FROM tags;
+
+-- name: ListAuthorsWithOptionalBook :many
+SELECT sqlc.embed(authors), sqlc.embed(books)
+FROM authors
+LEFT JOIN books ON authors.id = books.author_id
+ORDER BY authors.id;
+
+-- name: InsertNameCase :exec
+INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer")
+VALUES (sqlc.arg(id), sqlc.arg(class), sqlc.arg(end_), sqlc.arg(hash), sqlc.arg(method), sqlc.arg(count),
+        sqlc.arg(camel_case), sqlc.arg(http_server));
+
+-- name: GetNameCase :one
+SELECT * FROM name_cases
+WHERE id = sqlc.arg(id) AND "class" = sqlc.arg(class) AND "end" = sqlc.arg(end_) AND "hash" = sqlc.arg(hash)
+  AND "method" = sqlc.arg(method) AND "count" = sqlc.arg(count)
+  AND "HTTPServer" = sqlc.arg(http_server) AND "camelCase" = sqlc.arg(camel_case);
+
+-- name: GetHTTPServer :one
+SELECT * FROM name_cases WHERE id = sqlc.arg(id);
+
+-- name: TruncateNameCases :exec
+DELETE FROM name_cases;

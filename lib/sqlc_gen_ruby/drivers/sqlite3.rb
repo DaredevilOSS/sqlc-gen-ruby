@@ -22,19 +22,25 @@ module SqlcGenRuby
         [[ATOMICALLY, 'def atomically: (untyped client) { () -> void } -> void']]
       end
 
-      def class_methods
+      def class_methods(ruby_version)
+        transaction = legacy_transaction_template(
+          TRANSACTION, ruby_version,
+          "Thread.current.status == 'aborting' ? rollback : commit",
+          "Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit"
+        )
         [
           [NOT_FOUND, "class NotFound < StandardError\nend"],
           [INITIALIZE, 'def initialize: (untyped db, ?logger: untyped) -> void'],
-          [TRANSACTION, "def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (self) -> T } -> T"]
+          [transaction, "def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (self) -> T } -> T"]
         ]
       end
 
-      def private_methods
+      def private_methods(ruby_version)
         [
           [INSTRUMENT, INSTRUMENT_RBS],
           ["def with_client(name, &block)\n  instrument(name) { @lock.synchronize { block.call(@db) } }\nend",
-           'def with_client: [T] (String name) { (untyped) -> T } -> T']
+           'def with_client: [T] (String name) { (untyped) -> T } -> T'],
+          *timeout_exit_methods(ruby_version)
         ]
       end
 
@@ -49,6 +55,90 @@ module SqlcGenRuby
       def closes_statements? = true
 
       def supports_slice? = true
+
+      def query_text(query)
+        replacements = placeholder_occurrences(query.text).filter_map do |kind, number, first, last|
+          [first, last] if kind == :numbered
+        end
+        return query.text if replacements.empty?
+
+        replacements.reverse_each.reduce(query.text.dup) { |sql, (first, last)| sql[0...first] + '?' + sql[last..] }
+      end
+
+      def query_params(query, params, value_prefix: '')
+        occurrences = placeholder_occurrences(query.text)
+        unless occurrences.any? { |kind,| kind == :numbered || kind == :slice }
+          return super(query, params, value_prefix: value_prefix)
+        end
+
+        by_number = query.params.zip(params).to_h { |source, param| [source.number, param] }
+        referenced = occurrences.filter_map { |kind, number,| number if kind == :numbered }
+        slices = occurrences.filter_map { |kind, name,| name if kind == :slice }
+        positional = query.params.each_with_index.filter_map do |source, index|
+          by_number[source.number] unless referenced.include?(source.number) ||
+                                          (source.column.is_sqlc_slice && slices.include?(source.column.name))
+        end
+        positional_index = 0
+        ordered = occurrences.map do |kind, value,|
+          case kind
+          when :slice
+            query.params.each_with_index.find { |source, _| source.column.is_sqlc_slice && source.column.name == value }
+                       .then { |_, index| params[index] }
+          when :numbered then by_number.fetch(value)
+          when :positional
+            param = positional.fetch(positional_index)
+            positional_index += 1
+            param
+          end
+        end
+        expressions = ordered.map do |param|
+          value = "#{value_prefix}#{param.name}"
+          param.slice ? "*#{value}" : encode_param(value, param.column)
+        end
+        "query_params = [#{Code.comma_join(expressions)}]"
+      end
+
+      def placeholder_occurrences(sql)
+        occurrences = []
+        index = 0
+        while index < sql.length
+          if (slice = /\A\/\*SLICE:([A-Za-z_]\w*)\*\/\?/.match(sql[index..]))
+            occurrences << [:slice, slice[1], index, index + slice[0].length]
+            index += slice[0].length
+          elsif sql[index..].start_with?('--')
+            index = (sql.index("\n", index) || sql.length)
+          elsif sql[index..].start_with?('/*')
+            index = (sql.index('*/', index + 2) || sql.length - 2) + 2
+          elsif %w[' " `].include?(sql[index])
+            quote = sql[index]
+            index += 1
+            while index < sql.length
+              if sql[index] == quote
+                if sql[index + 1] == quote
+                  index += 2
+                else
+                  index += 1
+                  break
+                end
+              else
+                index += 1
+              end
+            end
+          elsif sql[index] == '['
+            index = (sql.index(']', index + 1) || sql.length - 1) + 1
+          elsif sql[index] == '?'
+            finish = index + 1
+            finish += 1 while finish < sql.length && sql[finish].match?(/\d/)
+            kind = finish == index + 1 ? :positional : :numbered
+            number = kind == :numbered ? sql[(index + 1)...finish].to_i : nil
+            occurrences << [kind, number, index, finish]
+            index = finish
+          else
+            index += 1
+          end
+        end
+        occurrences
+      end
 
       # sqlite3 only runs a statement eagerly when it has no result columns: one with RETURNING is stepped to the end.
       def exec_lines(exec, query) = [query.columns.empty? ? exec : "#{exec}.to_a", 'nil']

@@ -19,5 +19,9 @@ module Mysql2Codegen
     def instrument: [T] (String name) { () -> T } -> T
 
     def with_client: [T] (String name) { (untyped) -> T } -> T
+
+    def quote: (untyped client, untyped value) -> String
+
+    def bind_params: (untyped client, String sql, Array[untyped] params) -> String
   end
 end

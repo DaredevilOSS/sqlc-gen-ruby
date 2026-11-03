@@ -43,6 +43,15 @@ LIMIT ? OFFSET ?;
 SELECT * FROM authors
 WHERE name LIKE COALESCE(sqlc.narg('name_pattern'), '%');
 
+-- name: GetAuthorsByOptionalName :many
+SELECT * FROM authors
+WHERE (sqlc.narg(name_filter) IS NULL OR name = sqlc.narg(name_filter))
+ORDER BY id
+LIMIT ?;
+
+-- name: PauseQuery :exec
+SELECT SLEEP(sqlc.arg(seconds));
+
 -- name: UpdateAuthorBios :execrows
 -- Sets the bio of every author that has one and returns how many were changed.
 UPDATE authors
@@ -116,6 +125,15 @@ INSERT INTO regressions (id, `order`, note, payload) VALUES (?, ?, ?, ?);
 -- name: ListRegressionPayloads :many
 SELECT id, payload FROM regressions ORDER BY id;
 
+-- name: ListRegressionRows :many
+SELECT id, `order`, note, payload FROM regressions ORDER BY id;
+
+-- name: ListAuthorsWithOptionalBook :many
+SELECT sqlc.embed(authors), sqlc.embed(books)
+FROM authors
+LEFT JOIN books ON authors.id = books.author_id
+ORDER BY authors.id;
+
 -- name: TruncateRegressions :exec
 TRUNCATE TABLE regressions;
 
@@ -139,3 +157,45 @@ SELECT id, code, doc, flags, amount FROM copy_types ORDER BY id;
 
 -- name: TruncateCopyTypes :exec
 TRUNCATE TABLE copy_types;
+
+-- name: FindAuthorsByExactName :many
+SELECT id FROM authors WHERE name = sqlc.arg(name);
+
+-- name: GetAuthorWithQuestionMarks :many
+SELECT id FROM authors AS `?`
+WHERE name = ? AND '?' = '?' AND "?" = "?" /* ? */
+# ?
+ORDER BY id;
+
+-- name: InsertMysqlBindingValues :exec
+INSERT INTO mysql_binding_values (
+  id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value,
+  datetime_value, datetime_2, bool_value, nullable_value
+) VALUES (
+  sqlc.arg(id), sqlc.arg(text_value), sqlc.arg(blob_value), sqlc.arg(signed_value), sqlc.arg(unsigned_value),
+  sqlc.arg(decimal_value), sqlc.arg(float_value), sqlc.arg(date_value), sqlc.arg(datetime_value),
+  sqlc.arg(datetime_2), sqlc.arg(bool_value), sqlc.arg(nullable_value)
+);
+
+-- name: GetMysqlBindingValues :one
+SELECT * FROM mysql_binding_values WHERE id = sqlc.arg(id);
+
+-- name: TruncateMysqlBindingValues :exec
+TRUNCATE TABLE mysql_binding_values;
+
+-- name: InsertNameCase :exec
+INSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`)
+VALUES (sqlc.arg(id), sqlc.arg(class), sqlc.arg(end_), sqlc.arg(hash), sqlc.arg(method), sqlc.arg(count),
+        sqlc.arg(camel_case), sqlc.arg(http_server));
+
+-- name: GetNameCase :one
+SELECT * FROM name_cases
+WHERE id = sqlc.arg(id) AND `class` = sqlc.arg(class) AND `end` = sqlc.arg(end_) AND `hash` = sqlc.arg(hash)
+  AND `method` = sqlc.arg(method) AND `count` = sqlc.arg(count)
+  AND `HTTPServer` = sqlc.arg(http_server) AND `camelCase` = sqlc.arg(camel_case);
+
+-- name: GetHTTPServer :one
+SELECT * FROM name_cases WHERE id = sqlc.arg(id);
+
+-- name: TruncateNameCases :exec
+TRUNCATE TABLE name_cases;

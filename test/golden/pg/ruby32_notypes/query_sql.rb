@@ -67,6 +67,34 @@ module PgCodegen
   )
   end
 
+  SET_JSON_ROUND_TRIP_SQL = <<~'SQL'
+    INSERT INTO json_round_trips (id, json_value, jsonb_value) VALUES ($1, $2, $3)
+  SQL
+
+  GET_JSON_ROUND_TRIP_SQL = <<~'SQL'
+    SELECT json_value, jsonb_value FROM json_round_trips WHERE id = $1
+  SQL
+
+  class GetJSONRoundTripRow < Data.define(:json_value, :jsonb_value)
+  end
+
+  TOGGLE_JSONB_ROUND_TRIP_SQL = <<~'SQL'
+    UPDATE json_round_trips
+    SET jsonb_value = to_jsonb(NOT (jsonb_value #>> '{}')::boolean)
+    WHERE id = $1
+  SQL
+
+  TRUNCATE_JSON_ROUND_TRIPS_SQL = <<~'SQL'
+    TRUNCATE TABLE json_round_trips
+  SQL
+
+  PAUSE_QUERY_SQL = <<~'SQL'
+    SELECT pg_sleep($1::double precision)
+  SQL
+
+  class PauseQueryRow < Data.define(:pg_sleep)
+  end
+
   LIST_AUTHORS_PAGED_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     ORDER BY name
@@ -83,6 +111,16 @@ module PgCodegen
   SQL
 
   class GetAuthorByNamePatternRow < Data.define(:id, :name, :bio)
+  end
+
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE ($1::text IS NULL OR name = $1::text)
+    ORDER BY id
+    LIMIT $2
+  SQL
+
+  class GetAuthorsByOptionalNameRow < Data.define(:id, :name, :bio)
   end
 
   CREATE_AUTHOR_RETURN_ID_SQL = <<~'SQL'
@@ -127,6 +165,14 @@ module PgCodegen
 
   class CreateBookRow < Data.define(:id)
   end
+
+  CREATE_DEFERRED_BOOK_SQL = <<~'SQL'
+    INSERT INTO deferred_books (author_id) VALUES ($1)
+  SQL
+
+  TRUNCATE_DEFERRED_BOOKS_SQL = <<~'SQL'
+    TRUNCATE TABLE deferred_books
+  SQL
 
   LIST_ALL_AUTHORS_BOOKS_SQL = <<~'SQL'
     SELECT
@@ -201,6 +247,40 @@ module PgCodegen
 
   TRUNCATE_EXTRA_TYPES_SQL = <<~'SQL'
     TRUNCATE TABLE postgres_extra_types
+  SQL
+
+  INSERT_REMAINING_TYPES_SQL = <<~'SQL'
+    INSERT INTO postgres_remaining_types (
+      c_hstore, c_ltree, c_regclass, c_cidr, c_macaddr, c_interval, c_varbit, c_xml,
+      c_numeric, c_bigint, c_timestamp, c_timestamptz, c_text_matrix
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+    )
+  SQL
+
+  GET_REMAINING_TYPES_SQL = <<~'SQL'
+    SELECT c_hstore, c_ltree, c_regclass, c_cidr, c_macaddr, c_interval, c_varbit, c_xml, c_numeric, c_bigint, c_timestamp, c_timestamptz, c_text_matrix FROM postgres_remaining_types LIMIT 1
+  SQL
+
+  class GetRemainingTypesRow < Data.define(
+    :c_hstore,
+    :c_ltree,
+    :c_regclass,
+    :c_cidr,
+    :c_macaddr,
+    :c_interval,
+    :c_varbit,
+    :c_xml,
+    :c_numeric,
+    :c_bigint,
+    :c_timestamp,
+    :c_timestamptz,
+    :c_text_matrix
+  )
+  end
+
+  TRUNCATE_REMAINING_TYPES_SQL = <<~'SQL'
+    TRUNCATE TABLE postgres_remaining_types
   SQL
 
   INSERT_ARRAY_TYPES_SQL = <<~'SQL'
@@ -398,6 +478,55 @@ module PgCodegen
     TRUNCATE TABLE batch_types
   SQL
 
+  INSERT_NAME_CASE_SQL = <<~'SQL'
+    INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer")
+    VALUES ($1, $2, $3, $4, $5, $6,
+            $7, $8)
+  SQL
+
+  GET_NAME_CASE_SQL = <<~'SQL'
+    SELECT id, class, "end", hash, method, count, "camelCase", "HTTPServer" FROM name_cases
+    WHERE id = $1 AND "class" = $2 AND "end" = $3 AND "hash" = $4
+      AND "method" = $5 AND "count" = $6
+      AND "HTTPServer" = $7 AND "camelCase" = $8
+  SQL
+
+  # rubocop:disable Naming/MethodName
+  class GetNameCaseRow < Data.define(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count,
+    :camelCase,
+    :HTTPServer
+  )
+  end
+  # rubocop:enable Naming/MethodName
+
+  GET_HTTP_SERVER_SQL = <<~'SQL'
+    SELECT id, class, "end", hash, method, count, "camelCase", "HTTPServer" FROM name_cases WHERE id = $1
+  SQL
+
+  # rubocop:disable Naming/MethodName
+  class GetHTTPServerRow < Data.define(
+    :id,
+    :class_,
+    :end,
+    :hash_,
+    :method_,
+    :count,
+    :camelCase,
+    :HTTPServer
+  )
+  end
+  # rubocop:enable Naming/MethodName
+
+  TRUNCATE_NAME_CASES_SQL = <<~'SQL'
+    TRUNCATE TABLE name_cases
+  SQL
+
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
@@ -461,8 +590,11 @@ module PgCodegen
         end
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
         failed = false
+        completed = false
         begin
-          yield self
+          result = yield self
+          completed = true
+          result
         rescue Exception # rubocop:disable Lint/RescueException
           failed = true
           client.exec(rollback)
@@ -472,7 +604,7 @@ module PgCodegen
             # a statement failed and the block rescued the error: PostgreSQL can only roll back
             rescued = client.transaction_status == PG::PQTRANS_INERROR
             commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-            client.exec(rescued || Thread.current.status == 'aborting' ? rollback : commit)
+            client.exec(rescued || Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
             client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
             raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && Thread.current.status != 'aborting'
           end
@@ -581,6 +713,71 @@ module PgCodegen
       test(...) || raise(NotFound, 'Test returned no row')
     end
 
+    def set_json_round_trip(id:, json_value:, jsonb_value:)
+      with_client('set_json_round_trip') do |client|
+        query_params = [id, encode_json(json_value), encode_json(jsonb_value)]
+        unless client.prepared_statements.include?('query_sql_set_json_round_trip')
+          client.prepare('query_sql_set_json_round_trip', SET_JSON_ROUND_TRIP_SQL)
+          client.prepared_statements.add('query_sql_set_json_round_trip')
+        end
+        client.exec_prepared('query_sql_set_json_round_trip', query_params)
+        nil
+      end
+    end
+
+    def get_json_round_trip(id:)
+      with_client('get_json_round_trip') do |client|
+        query_params = [id]
+        unless client.prepared_statements.include?('query_sql_get_json_round_trip')
+          client.prepare('query_sql_get_json_round_trip', GET_JSON_ROUND_TRIP_SQL)
+          client.prepared_statements.add('query_sql_get_json_round_trip')
+        end
+        result = client.exec_prepared('query_sql_get_json_round_trip', query_params)
+        row = result.first
+        row && GetJSONRoundTripRow.new(row['json_value'], row['jsonb_value'])
+      end
+    end
+
+    # Like #get_json_round_trip, but raises NotFound when there is no row.
+    def get_json_round_trip!(...)
+      get_json_round_trip(...) || raise(NotFound, 'GetJSONRoundTrip returned no row')
+    end
+
+    def toggle_jsonb_round_trip(id:)
+      with_client('toggle_jsonb_round_trip') do |client|
+        query_params = [id]
+        unless client.prepared_statements.include?('query_sql_toggle_jsonb_round_trip')
+          client.prepare('query_sql_toggle_jsonb_round_trip', TOGGLE_JSONB_ROUND_TRIP_SQL)
+          client.prepared_statements.add('query_sql_toggle_jsonb_round_trip')
+        end
+        client.exec_prepared('query_sql_toggle_jsonb_round_trip', query_params)
+        nil
+      end
+    end
+
+    def truncate_json_round_trips
+      with_client('truncate_json_round_trips') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_json_round_trips')
+          client.prepare('query_sql_truncate_json_round_trips', TRUNCATE_JSON_ROUND_TRIPS_SQL)
+          client.prepared_statements.add('query_sql_truncate_json_round_trips')
+        end
+        client.exec_prepared('query_sql_truncate_json_round_trips')
+        nil
+      end
+    end
+
+    def pause_query(seconds:)
+      with_client('pause_query') do |client|
+        query_params = [encode_float(seconds)]
+        unless client.prepared_statements.include?('query_sql_pause_query')
+          client.prepare('query_sql_pause_query', PAUSE_QUERY_SQL)
+          client.prepared_statements.add('query_sql_pause_query')
+        end
+        client.exec_prepared('query_sql_pause_query', query_params)
+        nil
+      end
+    end
+
     def list_authors_paged(offset:, limit:)
       with_client('list_authors_paged') do |client|
         query_params = [offset, limit]
@@ -605,6 +802,20 @@ module PgCodegen
         result = client.exec_prepared('query_sql_get_author_by_name_pattern', query_params)
         result.map do |row|
           GetAuthorByNamePatternRow.new(row['id'], row['name'], row['bio'])
+        end
+      end
+    end
+
+    def get_authors_by_optional_name(lim:, name_filter: nil)
+      with_client('get_authors_by_optional_name') do |client|
+        query_params = [name_filter, lim]
+        unless client.prepared_statements.include?('query_sql_get_authors_by_optional_name')
+          client.prepare('query_sql_get_authors_by_optional_name', GET_AUTHORS_BY_OPTIONAL_NAME_SQL)
+          client.prepared_statements.add('query_sql_get_authors_by_optional_name')
+        end
+        result = client.exec_prepared('query_sql_get_authors_by_optional_name', query_params)
+        result.map do |row|
+          GetAuthorsByOptionalNameRow.new(row['id'], row['name'], row['bio'])
         end
       end
     end
@@ -697,6 +908,29 @@ module PgCodegen
         result = client.exec_prepared('query_sql_create_book', query_params)
         row = result.first
         row && row['id']
+      end
+    end
+
+    def create_deferred_book(author_id:)
+      with_client('create_deferred_book') do |client|
+        query_params = [author_id]
+        unless client.prepared_statements.include?('query_sql_create_deferred_book')
+          client.prepare('query_sql_create_deferred_book', CREATE_DEFERRED_BOOK_SQL)
+          client.prepared_statements.add('query_sql_create_deferred_book')
+        end
+        client.exec_prepared('query_sql_create_deferred_book', query_params)
+        nil
+      end
+    end
+
+    def truncate_deferred_books
+      with_client('truncate_deferred_books') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_deferred_books')
+          client.prepare('query_sql_truncate_deferred_books', TRUNCATE_DEFERRED_BOOKS_SQL)
+          client.prepared_statements.add('query_sql_truncate_deferred_books')
+        end
+        client.exec_prepared('query_sql_truncate_deferred_books')
+        nil
       end
     end
 
@@ -838,6 +1072,74 @@ module PgCodegen
           client.prepared_statements.add('query_sql_truncate_extra_types')
         end
         client.exec_prepared('query_sql_truncate_extra_types')
+        nil
+      end
+    end
+
+    def insert_remaining_types(c_hstore:, c_ltree:, c_regclass:, c_cidr:, c_macaddr:, c_interval:, c_varbit:, c_xml:, c_numeric:, c_bigint:, c_timestamp:, c_timestamptz:, c_text_matrix:)
+      with_client('insert_remaining_types') do |client|
+        query_params = [
+          c_hstore,
+          c_ltree,
+          c_regclass,
+          c_cidr,
+          c_macaddr,
+          c_interval,
+          c_varbit,
+          c_xml,
+          c_numeric,
+          c_bigint,
+          c_timestamp,
+          c_timestamptz,
+          encode_array(c_text_matrix)
+        ]
+        unless client.prepared_statements.include?('query_sql_insert_remaining_types')
+          client.prepare('query_sql_insert_remaining_types', INSERT_REMAINING_TYPES_SQL)
+          client.prepared_statements.add('query_sql_insert_remaining_types')
+        end
+        client.exec_prepared('query_sql_insert_remaining_types', query_params)
+        nil
+      end
+    end
+
+    def get_remaining_types
+      with_client('get_remaining_types') do |client|
+        unless client.prepared_statements.include?('query_sql_get_remaining_types')
+          client.prepare('query_sql_get_remaining_types', GET_REMAINING_TYPES_SQL)
+          client.prepared_statements.add('query_sql_get_remaining_types')
+        end
+        result = client.exec_prepared('query_sql_get_remaining_types')
+        row = result.first
+        row && GetRemainingTypesRow.new(
+          row['c_hstore'],
+          row['c_ltree'],
+          row['c_regclass'],
+          row['c_cidr'],
+          row['c_macaddr'],
+          row['c_interval'],
+          row['c_varbit'],
+          row['c_xml'],
+          row['c_numeric'],
+          row['c_bigint'],
+          row['c_timestamp'],
+          row['c_timestamptz'],
+          row['c_text_matrix']
+        )
+      end
+    end
+
+    # Like #get_remaining_types, but raises NotFound when there is no row.
+    def get_remaining_types!(...)
+      get_remaining_types(...) || raise(NotFound, 'GetRemainingTypes returned no row')
+    end
+
+    def truncate_remaining_types
+      with_client('truncate_remaining_types') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_remaining_types')
+          client.prepare('query_sql_truncate_remaining_types', TRUNCATE_REMAINING_TYPES_SQL)
+          client.prepared_statements.add('query_sql_truncate_remaining_types')
+        end
+        client.exec_prepared('query_sql_truncate_remaining_types')
         nil
       end
     end
@@ -1214,6 +1516,101 @@ module PgCodegen
       end
     end
 
+    def insert_name_case(id:, class_:, end_:, hash:, method:, count:, camel_case:, http_server:)
+      with_client('insert_name_case') do |client|
+        query_params = [
+          id,
+          class_,
+          end_,
+          hash,
+          method,
+          count,
+          camel_case,
+          http_server
+        ]
+        unless client.prepared_statements.include?('query_sql_insert_name_case')
+          client.prepare('query_sql_insert_name_case', INSERT_NAME_CASE_SQL)
+          client.prepared_statements.add('query_sql_insert_name_case')
+        end
+        client.exec_prepared('query_sql_insert_name_case', query_params)
+        nil
+      end
+    end
+
+    def get_name_case(id:, class_:, end_:, hash:, method:, count:, http_server:, camel_case:)
+      with_client('get_name_case') do |client|
+        query_params = [
+          id,
+          class_,
+          end_,
+          hash,
+          method,
+          count,
+          http_server,
+          camel_case
+        ]
+        unless client.prepared_statements.include?('query_sql_get_name_case')
+          client.prepare('query_sql_get_name_case', GET_NAME_CASE_SQL)
+          client.prepared_statements.add('query_sql_get_name_case')
+        end
+        result = client.exec_prepared('query_sql_get_name_case', query_params)
+        row = result.first
+        row && GetNameCaseRow.new(
+          row['id'],
+          row['class'],
+          row['end'],
+          row['hash'],
+          row['method'],
+          row['count'],
+          row['camelCase'],
+          row['HTTPServer']
+        )
+      end
+    end
+
+    # Like #get_name_case, but raises NotFound when there is no row.
+    def get_name_case!(...)
+      get_name_case(...) || raise(NotFound, 'GetNameCase returned no row')
+    end
+
+    def get_http_server(id:)
+      with_client('get_http_server') do |client|
+        query_params = [id]
+        unless client.prepared_statements.include?('query_sql_get_http_server')
+          client.prepare('query_sql_get_http_server', GET_HTTP_SERVER_SQL)
+          client.prepared_statements.add('query_sql_get_http_server')
+        end
+        result = client.exec_prepared('query_sql_get_http_server', query_params)
+        row = result.first
+        row && GetHTTPServerRow.new(
+          row['id'],
+          row['class'],
+          row['end'],
+          row['hash'],
+          row['method'],
+          row['count'],
+          row['camelCase'],
+          row['HTTPServer']
+        )
+      end
+    end
+
+    # Like #get_http_server, but raises NotFound when there is no row.
+    def get_http_server!(...)
+      get_http_server(...) || raise(NotFound, 'GetHTTPServer returned no row')
+    end
+
+    def truncate_name_cases
+      with_client('truncate_name_cases') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_name_cases')
+          client.prepare('query_sql_truncate_name_cases', TRUNCATE_NAME_CASES_SQL)
+          client.prepared_statements.add('query_sql_truncate_name_cases')
+        end
+        client.exec_prepared('query_sql_truncate_name_cases')
+        nil
+      end
+    end
+
     def many_params(c0:, c1:, c2:, c3:, c4:)
       with_client('many_params') do |client|
         query_params = [
@@ -1319,14 +1716,23 @@ module PgCodegen
       arrays
     end
 
+    def timeout_exits_with_throw?
+      !!(defined?(::Timeout::VERSION) &&
+         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?)
+    end
+
     # bytea parameters are sent escaped: binary Strings (NUL bytes, invalid UTF-8) are not valid text.
     def encode_bytea(value)
       value && PG::TextEncoder::Bytea.new.encode(value)
     end
 
-    # json / jsonb parameters: an Array is a JSON array, not a PG array (Hashes and JSON text pass through).
+    # json / jsonb parameters: booleans and Arrays need JSON encoding, not PostgreSQL's boolean / array encoding.
+    # Hashes and JSON text pass through; nil stays nil.
     def encode_json(value)
-      value.is_a?(Array) ? PG::TextEncoder::JSON.new.encode(value) : value
+      case value
+      when Array, TrueClass, FalseClass then PG::TextEncoder::JSON.new.encode(value)
+      else value
+      end
     end
 
     # Float#to_s is the shortest text that reads back as the same Float (the pg gem's encoder drops digits).

@@ -33,8 +33,9 @@ against real databases) is described in [Testing.md](Testing.md); how it works i
 Generated code follows what Ruby code usually looks like rather than mirroring the C# plugin: keyword arguments instead of
 parameter objects, `Data` rows, implicit returns, `result.map { ... }`, 2-space indentation, a frozen-string-literal
 header, SQL in raw heredocs, `connection_pool` for pooling with an injectable pool, nested transactions via savepoints.
-Prepared statements are named per query class and remembered per *connection* (a module mixed into each connection),
-so several query objects can share a pool.
+PostgreSQL prepared statements are named per query class and remembered per *connection* (a module mixed into each
+connection), so several query objects can share a pool. MySQL quotes parameters client-side and sends queries through
+`Mysql2::Client#query` rather than server-side prepared statements.
 
 ## History
 The plugin started as a port of the C# `sqlc-gen-csharp` plugin and reproduced its output byte for byte (verified

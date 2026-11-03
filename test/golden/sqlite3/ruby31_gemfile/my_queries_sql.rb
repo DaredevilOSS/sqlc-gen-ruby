@@ -41,8 +41,11 @@ module Sqlite3Codegen
           @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
           rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
           failed = false
+          completed = false
           begin
-            yield self
+            result = yield self
+            completed = true
+            result
           rescue Exception # rubocop:disable Lint/RescueException
             failed = true
             @db.execute(rollback)
@@ -50,7 +53,7 @@ module Sqlite3Codegen
           ensure
             unless failed
               commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-              @db.execute(Thread.current.status == 'aborting' ? rollback : commit)
+              @db.execute(Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
             end
           end
         end
@@ -86,6 +89,11 @@ module Sqlite3Codegen
 
     def with_client(name, &block)
       instrument(name) { @lock.synchronize { block.call(@db) } }
+    end
+
+    def timeout_exits_with_throw?
+      !!(defined?(::Timeout::VERSION) &&
+         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?)
     end
   end
 end

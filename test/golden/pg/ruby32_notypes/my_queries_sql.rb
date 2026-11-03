@@ -45,8 +45,11 @@ module PgCodegen
         end
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
         failed = false
+        completed = false
         begin
-          yield self
+          result = yield self
+          completed = true
+          result
         rescue Exception # rubocop:disable Lint/RescueException
           failed = true
           client.exec(rollback)
@@ -56,7 +59,7 @@ module PgCodegen
             # a statement failed and the block rescued the error: PostgreSQL can only roll back
             rescued = client.transaction_status == PG::PQTRANS_INERROR
             commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-            client.exec(rescued || Thread.current.status == 'aborting' ? rollback : commit)
+            client.exec(rescued || Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
             client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
             raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && Thread.current.status != 'aborting'
           end
@@ -122,6 +125,11 @@ module PgCodegen
       end
       arrays.default_type_map = strings
       arrays
+    end
+
+    def timeout_exits_with_throw?
+      !!(defined?(::Timeout::VERSION) &&
+         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?)
     end
   end
 end
