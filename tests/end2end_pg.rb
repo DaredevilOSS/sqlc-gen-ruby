@@ -31,6 +31,7 @@ class TestPg < Minitest::Test
     @query_sql.truncate_authors # cascades to books
     @query_sql.truncate_extended_bios
     @query_sql.truncate_extra_types
+    @query_sql.truncate_array_types
     @query_sql.truncate_regressions
   end
 
@@ -168,6 +169,21 @@ class TestPg < Minitest::Test
     assert_equal [low, high], [rows.first.author.id, rows.first.author2.id]
   end
 
+  def test_embed_on_the_outer_side_of_a_join_is_nil_without_a_match
+    with_book = create_author('a')
+    create_author('b')
+    @query_sql.create_book(name: 'book', author_id: with_book)
+    rows = @query_sql.list_authors_with_optional_book
+    assert_equal 'book', rows.first.book.name
+    assert_equal 'b', rows.last.author.name
+    assert_nil rows.last.book
+  end
+
+  def test_repeated_column_parameters_get_distinct_names
+    ids = %w[a b c].map { |name| create_author(name) }
+    assert_equal [ids[1]], @query_sql.list_authors_between_ids(id: ids[0], id_2: ids[2]).map(&:id)
+  end
+
   # ---- enums -----------------------------------------------------------------------------------------------------
 
   def test_enum_column
@@ -258,6 +274,17 @@ class TestPg < Minitest::Test
     assert_equal IPAddr.new('10.1.2.3'), row.c_inet
     assert_includes row.c_money, '12.50'
     assert_equal 'nn', row.c_not_null
+  end
+
+  def test_arrays_of_types_without_a_decoder_are_arrays
+    uuids = [SecureRandom.uuid, SecureRandom.uuid]
+    @query_sql.insert_array_types(c_uuid_array: uuids, c_bio_type_array: %w[Memoir Biography],
+                                  c_integer_matrix: [[1, 2], [3, 4]])
+    row = @query_sql.get_array_types
+    assert_equal uuids, row.c_uuid_array
+    assert_equal %w[Memoir Biography], row.c_bio_type_array
+    assert_equal [[1, 2], [3, 4]], row.c_integer_matrix
+    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/pg/query_sql.rbs', __dir__), 'GetArrayTypesRow')
   end
 
   def test_extra_types_nulls

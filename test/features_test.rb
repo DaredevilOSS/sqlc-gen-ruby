@@ -243,6 +243,60 @@ class FeaturesTest < Minitest::Test
     assert_includes generate(load_request('pg')).fetch('query_sql.rb'), 'def self.connect(pg_params, logger: nil, **pool_options)'
   end
 
+  def test_query_names_cannot_replace_generated_methods
+    %w[Transaction Initialize Connect WithClient Hash].each do |name|
+      request = load_request('pg')
+      query(request, 'DeleteAuthor').name = name
+      error = assert_raises(RuntimeError) { generate(request) }
+      assert_includes error.message, "query #{name}: method"
+    end
+  end
+
+  def test_query_file_names_become_valid_constants
+    request = load_request('sqlite3')
+    request.queries.each { |q| q.filename = 'user-queries.sql' }
+    files = generate(request)
+    assert_includes files.fetch('user_queries_sql.rb'), 'class UserQueriesSql'
+    assert_equal 0, ruby_syntax_check(files.fetch('user_queries_sql.rb'))
+  end
+
+  def test_query_files_writing_the_same_file_are_rejected
+    request = load_request('sqlite3')
+    request.queries.first.filename = 'user-queries.sql'
+    request.queries.last.filename = 'user_queries.sql'
+    assert_raises(RuntimeError) { generate(request) }
+  end
+
+
+  def test_tables_with_the_same_singular_get_distinct_models
+    request = load_request('pg')
+    tables = request.catalog.schemas.find { |s| s.name == 'public' }.tables
+    author = tables.find { |t| t.rel.name == 'authors' }
+    tables << Plugin::Table.new(rel: Plugin::Identifier.new(name: 'author'), columns: author.columns)
+    models = generate(request).fetch('models.rb')
+    assert_includes models, 'class Authors < Data.define(:id, :name, :bio)'
+    assert_includes models, 'class Author < Data.define(:id, :name, :bio)'
+    assert_equal 0, ruby_syntax_check(models)
+  end
+
+  def test_repeated_parameter_names_get_a_suffix
+    files = generate(load_request('pg'))
+    assert_includes files.fetch('query_sql.rb'), 'def list_authors_between_ids(id:, id_2:)'
+    assert_includes files.fetch('query_sql.rbs'), 'def list_authors_between_ids: (id: Integer, id_2: Integer) -> Array[ListAuthorsBetweenIdsRow]'
+  end
+
+  def test_outer_join_embeds_are_optional
+    files = generate(load_request('pg'))
+    assert_includes files.fetch('query_sql.rbs'), "attr_reader author: Author?\n    attr_reader book: Book?"
+    assert_includes files.fetch('query_sql.rb'), 'row[3].nil? && row[4].nil? && row[5].nil? ? nil : Book.new('
+    assert_includes files.fetch('query_sql.rbs'), "class ListAllAuthorsBooksRow\n    attr_reader author: Author\n"
+  end
+
+  def test_multi_dimensional_arrays
+    assert_includes generate(load_request('pg')).fetch('query_sql.rbs'),
+                    'attr_reader c_integer_matrix: Array[Array[Integer]]?'
+  end
+
   # ---- regressions (examples/authors/*: the `regressions` table) -----------------------------------------------
 
   def test_reused_and_repeated_parameters_get_one_keyword_each

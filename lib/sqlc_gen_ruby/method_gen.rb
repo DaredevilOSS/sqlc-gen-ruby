@@ -27,6 +27,7 @@ module SqlcGenRuby
       @statement_prefix = Code.snake_case(class_name)
     end
 
+    # `created_at > $1 AND created_at < $2` -> created_at:, created_at_2:
     def params(query)
       copy = query.cmd == ':copyfrom'
       by_name = {}
@@ -207,7 +208,8 @@ module SqlcGenRuby
                   values = entry.table.columns.each_index.map { |i| "row[#{index + i}]" }
                   index += values.size
                   names = entry.table.columns.map { |c| @types.member_name(c.name) }
-                  "#{entry.table.model_name}.new(#{constructor_args(names, values).join(', ')})"
+                  model = "#{entry.table.model_name}.new(#{constructor_args(names, values).join(', ')})"
+                  entry.optional ? "#{missing_row_check(entry.table, values)} ? nil : #{model}" : model
                 else
                   index += 1
                   array ? "row[#{index - 1}]" : "row['#{entry.column.name}']"
@@ -223,6 +225,13 @@ module SqlcGenRuby
     # Struct rows (Ruby < 3.2) are built with keywords (keyword_init: true), Data rows positionally.
     def constructor_args(names, values)
       @types.keyword_rows? ? names.zip(values).map { |n, v| "#{n}: #{v}" } : values
+    end
+
+    # The outer side of a join is missing when its NOT NULL columns (all columns if it has none) are NULL.
+    def missing_row_check(table, values)
+      required = table.columns.each_index.select { |i| table.columns[i].not_null }
+      required = table.columns.each_index.to_a if required.empty?
+      required.map { |i| "#{values[i]}.nil?" }.join(' && ')
     end
   end
 end

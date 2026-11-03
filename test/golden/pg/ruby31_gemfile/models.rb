@@ -54,6 +54,8 @@ module PgCodegen
     keyword_init: true
   )
 
+  PostgresArrayType = Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix, keyword_init: true)
+
   Regression = Struct.new(
     :id,
     :order,

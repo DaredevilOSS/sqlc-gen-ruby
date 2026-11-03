@@ -102,6 +102,28 @@ SELECT * FROM postgres_extra_types LIMIT 1;
 -- name: TruncateExtraTypes :exec
 TRUNCATE TABLE postgres_extra_types;
 
+-- name: InsertArrayTypes :exec
+INSERT INTO postgres_array_types (c_uuid_array, c_bio_type_array, c_integer_matrix) VALUES ($1, $2, $3);
+
+-- name: GetArrayTypes :one
+SELECT * FROM postgres_array_types LIMIT 1;
+
+-- name: TruncateArrayTypes :exec
+TRUNCATE TABLE postgres_array_types;
+
+-- name: ListAuthorsWithOptionalBook :many
+SELECT
+    sqlc.embed(authors),
+    sqlc.embed(books)
+FROM authors
+LEFT JOIN books ON authors.id = books.author_id
+ORDER BY authors.name;
+
+-- name: ListAuthorsBetweenIds :many
+SELECT * FROM authors
+WHERE id > $1 AND id < $2
+ORDER BY id;
+
 -- name: CreateRegression :one
 INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;
 

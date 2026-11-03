@@ -98,6 +98,16 @@ module SqlcGenRuby
       name.match?(/\A\p{Digit}/) ? "_#{name}" : name
     end
 
+    # 'user-queries' => User_queries is invalid; runs of characters that are not valid in a constant start a new word:
+    # 'user-queries' => UserQueries, 'my_queries' => My_queries (unchanged), '2024' => Q2024
+    def constant_part(str)
+      words = str.split(/[^A-Za-z0-9_]+/).reject(&:empty?)
+      raise ArgumentError, "#{str.inspect} has no characters usable in a Ruby constant" if words.empty?
+
+      name = words.map { |w| upcase_first(w) }.join
+      name.match?(/\A[0-9_]/) ? "Q#{name}" : name
+    end
+
     # GetAuthor => GET_AUTHOR_SQL
     def sql_constant(query_name) = "#{snake_case(query_name).upcase}_SQL"
 

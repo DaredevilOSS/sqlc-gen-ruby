@@ -116,6 +116,14 @@ module PgCodegen
     ) -> PostgresExtraType
   end
 
+  class PostgresArrayType < ::Struct[untyped]
+    attr_accessor c_uuid_array: Array[String]?
+    attr_accessor c_bio_type_array: Array[String]?
+    attr_accessor c_integer_matrix: Array[Array[Integer]]?
+    def initialize: (  c_uuid_array: Array[String]?, c_bio_type_array: Array[String]?, c_integer_matrix: Array[Array[Integer]]?) -> void
+    def self.new: (  c_uuid_array: Array[String]?, c_bio_type_array: Array[String]?, c_integer_matrix: Array[Array[Integer]]?) -> PostgresArrayType
+  end
+
   class Regression < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor order: String

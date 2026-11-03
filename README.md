@@ -131,13 +131,14 @@ end
 | `sqlc.arg`    | ✅ | ✅ | ✅ | names the attribute of the `<Query>Args` class (anonymous parameters such as `ANY($1::BIGINT[])` are called `param1`, `param2`, ...) |
 | `sqlc.narg`   | ✅ | ✅ | ✅ | nullable parameter, typed `T?` |
 | `sqlc.slice`  | 🚫 | ✅ | ✅ | the `IN (...)` list is expanded at runtime (an empty list matches nothing). PostgreSQL: pass an array to `= ANY($1::T[])` instead |
-| `sqlc.embed`  | ✅ | ✅ | ✅ | the row gets an attribute holding the table's model (`author`, `author2` for the same table twice) |
+| `sqlc.embed`  | ✅ | ✅ | ✅ | the row gets an attribute holding the table's model (`author`, `author2` for the same table twice). In a query with a `LEFT` / `RIGHT` / `FULL JOIN` the embedded models are optional (`Book?`) and `nil` when the join found no row |
 
 ### Other
 * **Models:** a `models.rb` / `models.rbs` with one `Data` (`Struct` below Ruby 3.2) class per table, and one module with constants per enum (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`). Enum columns are `String`s.
 * **Transactions:** `queries.transaction { |tx| tx.create_author(...) }` runs everything in the block on one connection in a transaction (commit when the block returns, also through `break` / `return` / `throw`; rollback when it raises or the thread is killed) and returns the block's value. Nested calls become savepoints; `isolation:` (`pg`, `mysql2`) / `mode:` (`sqlite3`) choose the isolation level / locking mode.
 * **Nullability:** nullable columns / parameters are typed `T?` in the `.rbs`.
-* **Arrays (PostgreSQL):** `Array[T]` for columns and parameters.
+* **Arrays (PostgreSQL):** `Array[T]` for columns and parameters (`Array[Array[T]]` for `T[][]`); arrays of types without a decoder (`uuid[]`, enum arrays, ...) are `Array[String]`.
+* **Names:** a parameter repeated in a query gets a suffix (`id:`, `id_2:`); result columns named like a keyword or a method every row has (`class`, `hash`, `end`, ...) get a trailing `_` (`class_`); a table `authors` next to a table `author` keeps its plural model name (`Authors`). Query names that would replace a generated method (`Transaction`, `Initialize`, ...) are rejected.
 * Types follow the Ruby classes the drivers actually return (e.g. `BigDecimal` for `numeric`/`decimal`, `Date`, `Time`, `IPAddr`; `json`/`jsonb` are parsed, so `untyped`).
 
 Not applicable to the Ruby plugin (they exist in the C# plugin because of its runtime): `withAsyncSuffix` / `withCancellationToken` (Ruby has no async/await: use the Fiber scheduler, see above), `useDapper`, target framework / csproj / namespace options (`moduleName` is the equivalent of the namespace).

@@ -59,6 +59,12 @@ CREATE TABLE postgres_extra_types (
     c_not_null TEXT NOT NULL DEFAULT 'x'
 );
 
+CREATE TABLE postgres_array_types (
+    c_uuid_array UUID [],
+    c_bio_type_array extended.bio_type [],
+    c_integer_matrix INTEGER [][]
+);
+
 CREATE TABLE regressions (
   id        bigint PRIMARY KEY,
   "order"   text NOT NULL,

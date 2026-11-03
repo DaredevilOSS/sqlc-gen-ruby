@@ -31,7 +31,9 @@ module SqlcGenRuby
       check_constants(request.queries)
       models = models_files
       connection = connection_files
-      files = request.queries.group_by { |q| class_name_for(q.filename) }.flat_map do |class_name, queries|
+      by_class = request.queries.group_by { |q| class_name_for(q.filename) }
+      reject_colliding_files(by_class.keys)
+      files = by_class.flat_map do |class_name, queries|
         generate_files(queries, class_name, with_models: !models.empty?, with_connection: !connection.empty?)
       end
       files.concat(models).concat(connection)
@@ -87,7 +89,14 @@ module SqlcGenRuby
       ext = File.extname(filename)
       raise ArgumentError, "query file #{filename} has no extension" if ext.empty?
 
-      Code.upcase_first(File.basename(filename, ext)) + Code.upcase_first(ext[1..])
+      Code.constant_part(File.basename(filename, ext)) + Code.constant_part(ext[1..])
+    end
+
+    # user-queries.sql and user_queries.sql would both write user_queries_sql.rb
+    def reject_colliding_files(class_names)
+      class_names.group_by { |c| Code.snake_case(c) }.each do |base, names|
+        raise ArgumentError, "query files #{names.join(' and ')} would both generate #{base}.rb" if names.size > 1
+      end
     end
 
     def generate_files(queries, class_name, with_models:, with_connection:)
@@ -141,7 +150,8 @@ module SqlcGenRuby
     def class_members(queries, method_gen)
       members = @driver.class_methods.dup
       helpers = @driver.private_methods + method_gen.helper_methods(queries)
-      check_method_names(queries, (members + helpers).flat_map { |code, _| code.scan(/^def (?:self\.)?([\w?!]+)/) }.flatten)
+      check_method_names(queries, (members + helpers).flat_map { |code, _| code.scan(/^def (?:self\.)?([\w?!]+)/) }.flatten +
+                                  Code::OBJECT_METHODS)
       members.concat(queries.map { |q| [method_gen.code(q), method_gen.type(q)] })
       unless helpers.empty?
         members << ["private\n\n#{helpers.map(&:first).join("\n\n")}", "private\n\n#{helpers.map(&:last).join("\n\n")}"]

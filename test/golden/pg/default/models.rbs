@@ -84,6 +84,13 @@ module PgCodegen
     ) -> void
   end
 
+  class PostgresArrayType
+    attr_reader c_uuid_array: Array[String]?
+    attr_reader c_bio_type_array: Array[String]?
+    attr_reader c_integer_matrix: Array[Array[Integer]]?
+    def initialize: (  Array[String]? c_uuid_array, Array[String]? c_bio_type_array, Array[Array[Integer]]? c_integer_matrix) -> void
+  end
+
   class Regression
     attr_reader id: Integer
     attr_reader order: String

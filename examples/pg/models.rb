@@ -50,6 +50,9 @@ module PgCodegen
   )
   end
 
+  class PostgresArrayType < Data.define(:c_uuid_array, :c_bio_type_array, :c_integer_matrix)
+  end
+
   class Regression < Data.define(
     :id,
     :order,

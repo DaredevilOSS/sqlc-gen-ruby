@@ -196,6 +196,39 @@ module PgCodegen
     TRUNCATE TABLE postgres_extra_types
   SQL
 
+  INSERT_ARRAY_TYPES_SQL = <<~'SQL'
+    INSERT INTO postgres_array_types (c_uuid_array, c_bio_type_array, c_integer_matrix) VALUES ($1, $2, $3)
+  SQL
+
+  GET_ARRAY_TYPES_SQL = <<~'SQL'
+    SELECT c_uuid_array, c_bio_type_array, c_integer_matrix FROM postgres_array_types LIMIT 1
+  SQL
+
+  GetArrayTypesRow = Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix, keyword_init: true)
+
+  TRUNCATE_ARRAY_TYPES_SQL = <<~'SQL'
+    TRUNCATE TABLE postgres_array_types
+  SQL
+
+  LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL = <<~'SQL'
+    SELECT
+        authors.id, authors.name, authors.bio,
+        books.id, books.name, books.author_id, books.description
+    FROM authors
+    LEFT JOIN books ON authors.id = books.author_id
+    ORDER BY authors.name
+  SQL
+
+  ListAuthorsWithOptionalBookRow = Struct.new(:author, :book, keyword_init: true)
+
+  LIST_AUTHORS_BETWEEN_IDS_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE id > $1 AND id < $2
+    ORDER BY id
+  SQL
+
+  ListAuthorsBetweenIdsRow = Struct.new(:id, :name, :bio, keyword_init: true)
+
   CREATE_REGRESSION_SQL = <<~'SQL'
     INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, "order", payload, doc, bio_types, uids
   SQL
@@ -690,6 +723,80 @@ module PgCodegen
         end
         client.exec_prepared('query_sql_truncate_extra_types')
         nil
+      end
+    end
+
+    def insert_array_types(c_uuid_array:, c_bio_type_array:, c_integer_matrix:)
+      with_client('insert_array_types') do |client|
+        query_params = [c_uuid_array, c_bio_type_array, c_integer_matrix]
+        unless client.prepared_statements.include?('query_sql_insert_array_types')
+          client.prepare('query_sql_insert_array_types', INSERT_ARRAY_TYPES_SQL)
+          client.prepared_statements.add('query_sql_insert_array_types')
+        end
+        client.exec_prepared('query_sql_insert_array_types', query_params)
+        nil
+      end
+    end
+
+    def get_array_types
+      with_client('get_array_types') do |client|
+        unless client.prepared_statements.include?('query_sql_get_array_types')
+          client.prepare('query_sql_get_array_types', GET_ARRAY_TYPES_SQL)
+          client.prepared_statements.add('query_sql_get_array_types')
+        end
+        result = client.exec_prepared('query_sql_get_array_types')
+        row = result.first
+        row && GetArrayTypesRow.new(
+          c_uuid_array: row['c_uuid_array'],
+          c_bio_type_array: row['c_bio_type_array'],
+          c_integer_matrix: row['c_integer_matrix']
+        )
+      end
+    end
+
+    # Like #get_array_types, but raises NotFound when there is no row.
+    def get_array_types!(...)
+      get_array_types(...) || raise(NotFound, 'GetArrayTypes returned no row')
+    end
+
+    def truncate_array_types
+      with_client('truncate_array_types') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_array_types')
+          client.prepare('query_sql_truncate_array_types', TRUNCATE_ARRAY_TYPES_SQL)
+          client.prepared_statements.add('query_sql_truncate_array_types')
+        end
+        client.exec_prepared('query_sql_truncate_array_types')
+        nil
+      end
+    end
+
+    def list_authors_with_optional_book
+      with_client('list_authors_with_optional_book') do |client|
+        unless client.prepared_statements.include?('query_sql_list_authors_with_optional_book')
+          client.prepare('query_sql_list_authors_with_optional_book', LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL)
+          client.prepared_statements.add('query_sql_list_authors_with_optional_book')
+        end
+        result = client.exec_prepared('query_sql_list_authors_with_optional_book').values
+        result.map do |row|
+          ListAuthorsWithOptionalBookRow.new(
+            author: row[0].nil? && row[1].nil? ? nil : Author.new(id: row[0], name: row[1], bio: row[2]),
+            book: row[3].nil? && row[4].nil? && row[5].nil? ? nil : Book.new(id: row[3], name: row[4], author_id: row[5], description: row[6])
+          )
+        end
+      end
+    end
+
+    def list_authors_between_ids(id:, id_2:)
+      with_client('list_authors_between_ids') do |client|
+        query_params = [id, id_2]
+        unless client.prepared_statements.include?('query_sql_list_authors_between_ids')
+          client.prepare('query_sql_list_authors_between_ids', LIST_AUTHORS_BETWEEN_IDS_SQL)
+          client.prepared_statements.add('query_sql_list_authors_between_ids')
+        end
+        result = client.exec_prepared('query_sql_list_authors_between_ids', query_params)
+        result.map do |row|
+          ListAuthorsBetweenIdsRow.new(id: row['id'], name: row['name'], bio: row['bio'])
+        end
       end
     end
 

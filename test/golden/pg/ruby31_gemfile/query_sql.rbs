@@ -242,6 +242,39 @@ module PgCodegen
 
   TRUNCATE_EXTRA_TYPES_SQL: String
 
+  INSERT_ARRAY_TYPES_SQL: String
+
+  GET_ARRAY_TYPES_SQL: String
+
+  class GetArrayTypesRow < ::Struct[untyped]
+    attr_accessor c_uuid_array: Array[String]?
+    attr_accessor c_bio_type_array: Array[String]?
+    attr_accessor c_integer_matrix: Array[Array[Integer]]?
+    def initialize: (  c_uuid_array: Array[String]?, c_bio_type_array: Array[String]?, c_integer_matrix: Array[Array[Integer]]?) -> void
+    def self.new: (  c_uuid_array: Array[String]?, c_bio_type_array: Array[String]?, c_integer_matrix: Array[Array[Integer]]?) -> GetArrayTypesRow
+  end
+
+  TRUNCATE_ARRAY_TYPES_SQL: String
+
+  LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL: String
+
+  class ListAuthorsWithOptionalBookRow < ::Struct[untyped]
+    attr_accessor author: Author?
+    attr_accessor book: Book?
+    def initialize: (  author: Author?, book: Book?) -> void
+    def self.new: (  author: Author?, book: Book?) -> ListAuthorsWithOptionalBookRow
+  end
+
+  LIST_AUTHORS_BETWEEN_IDS_SQL: String
+
+  class ListAuthorsBetweenIdsRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> ListAuthorsBetweenIdsRow
+  end
+
   CREATE_REGRESSION_SQL: String
 
   class CreateRegressionRow < ::Struct[untyped]
@@ -424,6 +457,18 @@ module PgCodegen
     def get_extra_types!: -> GetExtraTypesRow
 
     def truncate_extra_types: -> void
+
+    def insert_array_types: (c_uuid_array: Array[String]?, c_bio_type_array: Array[String]?, c_integer_matrix: Array[Array[Integer]]?) -> void
+
+    def get_array_types: -> GetArrayTypesRow?
+
+    def get_array_types!: -> GetArrayTypesRow
+
+    def truncate_array_types: -> void
+
+    def list_authors_with_optional_book: -> Array[ListAuthorsWithOptionalBookRow]
+
+    def list_authors_between_ids: (id: Integer, id_2: Integer) -> Array[ListAuthorsBetweenIdsRow]
 
     def create_regression: (id: Integer, order: String, payload: String?, doc: untyped, bio_types: Array[String]?, uids: Array[String]?) -> CreateRegressionRow?
 
