@@ -275,6 +275,83 @@ module PgCodegen
     def self.new: (  id: Integer, name: String, bio: String?) -> ListAuthorsBetweenIdsRow
   end
 
+  INSERT_SPECIAL_TYPES_SQL: String
+
+  GET_SPECIAL_TYPES_SQL: String
+
+  class GetSpecialTypesRow < ::Struct[untyped]
+    attr_accessor c_timetz: String?
+    attr_accessor c_tsvector: String?
+    attr_accessor c_point: String?
+    attr_accessor c_int4range: String?
+    attr_accessor c_oid: Integer?
+    attr_accessor c_dimensions: String?
+    attr_accessor c_positive: untyped
+    def initialize: (
+        c_timetz: String?,
+        c_tsvector: String?,
+        c_point: String?,
+        c_int4range: String?,
+        c_oid: Integer?,
+        c_dimensions: String?,
+        c_positive: untyped
+    ) -> void
+    def self.new: (
+        c_timetz: String?,
+        c_tsvector: String?,
+        c_point: String?,
+        c_int4range: String?,
+        c_oid: Integer?,
+        c_dimensions: String?,
+        c_positive: untyped
+    ) -> GetSpecialTypesRow
+  end
+
+  TRUNCATE_SPECIAL_TYPES_SQL: String
+
+  CREATE_AUTHOR_RESULT_SQL: String
+
+  CREATE_AUTHORS_BATCH_SQL: String
+
+  class CreateAuthorsBatchArgs < ::Struct[untyped]
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  name: String, bio: String?) -> void
+    def self.new: (  name: String, bio: String?) -> CreateAuthorsBatchArgs
+  end
+
+  GET_AUTHOR_BATCH_SQL: String
+
+  class GetAuthorBatchRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorBatchRow
+  end
+
+  class GetAuthorBatchArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    def initialize: (  id: Integer) -> void
+    def self.new: (  id: Integer) -> GetAuthorBatchArgs
+  end
+
+  LIST_AUTHORS_BY_NAME_BATCH_SQL: String
+
+  class ListAuthorsByNameBatchRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> ListAuthorsByNameBatchRow
+  end
+
+  class ListAuthorsByNameBatchArgs < ::Struct[untyped]
+    attr_accessor name: String
+    def initialize: (  name: String) -> void
+    def self.new: (  name: String) -> ListAuthorsByNameBatchArgs
+  end
+
   CREATE_REGRESSION_SQL: String
 
   class CreateRegressionRow < ::Struct[untyped]
@@ -402,6 +479,13 @@ module PgCodegen
 
     def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | :serializable)?) { (self) -> T } -> T
 
+    class ExecResult < ::Struct[untyped]
+      attr_accessor rows_affected: Integer
+      attr_accessor last_insert_id: Integer?
+      def initialize: (  rows_affected: Integer, last_insert_id: Integer?) -> void
+      def self.new: (  rows_affected: Integer, last_insert_id: Integer?) -> ExecResult
+    end
+
     def get_author: (id: Integer) -> GetAuthorRow?
 
     def get_author!: (id: Integer) -> GetAuthorRow
@@ -469,6 +553,22 @@ module PgCodegen
     def list_authors_with_optional_book: -> Array[ListAuthorsWithOptionalBookRow]
 
     def list_authors_between_ids: (id: Integer, id_2: Integer) -> Array[ListAuthorsBetweenIdsRow]
+
+    def insert_special_types: (c_timetz: String?, c_tsvector: String?, c_point: String?, c_int4range: String?, c_oid: Integer?, c_dimensions: String?, c_positive: untyped) -> void
+
+    def get_special_types: -> GetSpecialTypesRow?
+
+    def get_special_types!: -> GetSpecialTypesRow
+
+    def truncate_special_types: -> void
+
+    def create_author_result: (name: String, bio: String?) -> ExecResult
+
+    def create_authors_batch: (Array[CreateAuthorsBatchArgs] rows) -> void
+
+    def get_author_batch: (Array[GetAuthorBatchArgs] rows) -> Array[GetAuthorBatchRow?]
+
+    def list_authors_by_name_batch: (Array[ListAuthorsByNameBatchArgs] rows) -> Array[Array[ListAuthorsByNameBatchRow]]
 
     def create_regression: (id: Integer, order: String, payload: String?, doc: untyped, bio_types: Array[String]?, uids: Array[String]?) -> CreateRegressionRow?
 

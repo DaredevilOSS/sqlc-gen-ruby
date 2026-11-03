@@ -55,10 +55,52 @@ class FeaturesTest < Minitest::Test
     assert_includes generate(request).fetch('models.rbs'), 'attr_reader id: untyped'
   end
 
-  def test_unknown_types_in_queries_fail
+  def test_unknown_types_in_queries_fall_back_to_untyped
     request = load_request('pg')
     query(request, 'GetAuthor').columns.first.type.name = 'geometry'
-    assert_raises(RuntimeError) { generate(request) }
+    query(request, 'GetAuthor').params.first.column.type.name = 'geometry'
+    rbs = generate(request).fetch('query_sql.rbs')
+    assert_includes rbs, "class GetAuthorRow\n    attr_reader id: untyped\n"
+    assert_includes rbs, 'def get_author: (id: untyped) -> GetAuthorRow?'
+  end
+
+  def test_more_postgres_types_composites_and_domains
+    rbs = generate(load_request('pg')).fetch('query_sql.rbs')
+    %w[c_timetz c_tsvector c_point c_int4range c_dimensions].each { |c| assert_includes rbs, "attr_reader #{c}: String?" }
+    assert_includes rbs, 'attr_reader c_oid: Integer?'
+    assert_includes rbs, 'attr_reader c_positive: untyped' # sqlc does not send the base type of a domain
+  end
+
+  def test_sqlite_declared_types_follow_type_affinity
+    rbs = generate(load_request('sqlite3')).fetch('query_sql.rbs')
+    assert_match(/attr_reader c_varchar: String\?\n\s+attr_reader c_decimal: Float\?\n\s+attr_reader c_unsigned_big_int: Integer\?/, rbs)
+    request = load_request('sqlite3')
+    query(request, 'GetAuthor').columns.first.type.name = 'MEDIUMINT(4)'
+    query(request, 'GetAuthor').columns[1].type.name = 'STRING'
+    assert_match(/class GetAuthorRow\n\s+attr_reader id: Integer\n\s+attr_reader name: Float\n/, generate(request).fetch('query_sql.rbs'))
+  end
+
+  def test_execresult_returns_rows_affected_and_last_insert_id
+    { 'pg' => 'ExecResult.new(result.cmd_tuples, nil)', 'mysql2' => 'ExecResult.new(stmt.affected_rows, client.last_id)',
+      'sqlite3' => 'ExecResult.new(client.changes, client.last_insert_row_id)' }.each do |driver, line|
+      files = generate(load_request(driver))
+      assert_includes files.fetch('query_sql.rb'), line
+      assert_includes files.fetch('query_sql.rb'), 'class ExecResult < Data.define(:rows_affected, :last_insert_id)'
+      assert_includes files.fetch('query_sql.rbs'), 'def create_author_result: (name: String, bio: String?) -> ExecResult'
+    end
+  end
+
+  def test_batch_commands_take_an_array_of_args
+    %w[pg mysql2 sqlite3].each do |driver|
+      files = generate(load_request(driver))
+      rbs = files.fetch('query_sql.rbs')
+      assert_includes rbs, 'def create_authors_batch: (Array[CreateAuthorsBatchArgs] rows) -> void'
+      assert_includes rbs, 'def get_author_batch: (Array[GetAuthorBatchArgs] rows) -> Array[GetAuthorBatchRow?]'
+      assert_includes rbs, 'def list_authors_by_name_batch: (Array[ListAuthorsByNameBatchArgs] rows) -> ' \
+                           'Array[Array[ListAuthorsByNameBatchRow]]'
+      assert_includes files.fetch('query_sql.rb'), 'class CreateAuthorsBatchArgs < Data.define(:name, :bio)'
+      assert_includes files.fetch('query_sql.rb'), "rows.map do |args|\n"
+    end
   end
 
   def test_embedded_tables_become_model_attributes
@@ -295,6 +337,54 @@ class FeaturesTest < Minitest::Test
   def test_multi_dimensional_arrays
     assert_includes generate(load_request('pg')).fetch('query_sql.rbs'),
                     'attr_reader c_integer_matrix: Array[Array[Integer]]?'
+  end
+
+  def test_table_column_and_db_type_overrides_apply_to_models_and_rows
+    overrides = [{ column: 'authors.bio', ruby_type: { type: 'Symbol' } },
+                 { column: '*:c_uuid', ruby_type: { type: 'Pathname', notNull: true } },
+                 { db_type: 'jsonb', ruby_type: { type: 'Hash[String, untyped]' } }]
+    files = generate(load_request('pg', overrides: overrides))
+    assert_includes files.fetch('models.rbs'), "attr_reader bio: Symbol?\n"
+    assert_includes files.fetch('models.rbs'), 'attr_reader c_uuid: Pathname'
+    assert_includes files.fetch('models.rbs'), 'attr_reader c_jsonb: Hash[String, untyped]?'
+    assert_match(/class GetAuthorRow\n.*\n.*\n\s+attr_reader bio: Symbol\?/, files.fetch('query_sql.rbs'))
+    assert_includes files.fetch('query_sql.rbs'), 'attr_reader c_uuid: Pathname'
+  end
+
+  def test_rename_and_exact_table_names
+    files = generate(load_request('pg', rename: { 'authors' => 'Writer', 'bio' => 'biography' }))
+    assert_includes files.fetch('models.rb'), 'class Writer < Data.define(:id, :name, :biography)'
+    assert_includes files.fetch('query_sql.rb'), 'class GetAuthorRow < Data.define(:id, :name, :biography)'
+    assert_includes files.fetch('query_sql.rb'), "GetAuthorRow.new(row['id'], row['name'], row['bio'])"
+    assert_includes files.fetch('query_sql.rb'), 'Writer.new(row[0], row[1], row[2])'
+    assert_includes generate(load_request('pg', exactTableNames: true)).fetch('models.rb'), 'class Authors < Data.define'
+    assert_raises(RuntimeError) { generate(load_request('pg', rename: { 'authors' => 'writer' })) }
+  end
+
+  def test_global_options_are_merged_under_plugin_options
+    request = load_request('pg')
+    request.global_options = JSON.generate(moduleName: 'Global::Db', generateTypes: false,
+                                           overrides: [{ column: '*:bio', ruby_type: { type: 'Symbol' } }])
+    files = generate(request)
+    assert_includes files.fetch('query_sql.rb'), "module Global\n  module Db\n"
+    assert_includes files.keys, 'query_sql.rbs' # generateTypes: true in the plugin options wins
+    assert_match(/class GetAuthorRow\n.*\n.*\n\s+attr_reader bio: Symbol\?/, files.fetch('query_sql.rbs'))
+  end
+
+  def test_engine_must_match_the_driver
+    request = load_request('pg')
+    request.settings = Plugin::Settings.new(engine: 'mysql')
+    error = assert_raises(RuntimeError) { generate(request) }
+    assert_includes error.message, 'driver pg needs engine: postgresql (this sql block uses mysql)'
+    request.settings.engine = 'postgresql'
+    generate(request)
+  end
+
+  def test_table_column_and_enum_comments_become_doc_comments
+    files = generate(load_request('pg'))
+    assert_includes files.fetch('models.rb'), "  # People who wrote at least one book.\n  class Author < Data.define"
+    assert_includes files.fetch('models.rbs'), "    # Short biography, NULL when unknown.\n    attr_reader bio: String?"
+    assert_includes files.fetch('models.rb'), "  # Kinds of biographies.\n  module ExtendedBioType"
   end
 
   # ---- regressions (examples/authors/*: the `regressions` table) -----------------------------------------------

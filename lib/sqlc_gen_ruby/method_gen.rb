@@ -12,6 +12,11 @@ module SqlcGenRuby
       'def slice_placeholders: (Array[untyped] values) -> String'
     ].freeze
 
+    # :batch* run the query once per element of an Array of <Query>Args, on one connection
+    BATCH_COMMANDS = { ':batchexec' => ':exec', ':batchone' => ':one', ':batchmany' => ':many' }.freeze
+    # commands whose method takes `rows` (an Array of <Query>Args) instead of keyword arguments
+    ROWS_COMMANDS = [':copyfrom', *BATCH_COMMANDS.keys].freeze
+
     # optional: nullable and named by the user (sqlc.arg / sqlc.narg) -> keyword argument defaulting to nil
     # reused: a later occurrence of a named parameter (MySQL sends one parameter per `?`): bound, not a keyword
     Param = Struct.new(:name, :column, :slice, :optional, :type, :reused)
@@ -29,7 +34,7 @@ module SqlcGenRuby
 
     # `created_at > $1 AND created_at < $2` -> created_at:, created_at_2:
     def params(query)
-      copy = query.cmd == ':copyfrom'
+      copy = ROWS_COMMANDS.include?(query.cmd)
       by_name = {}
       query.params.map do |p|
         column = p.column
@@ -54,6 +59,9 @@ module SqlcGenRuby
       if query.cmd == ':copyfrom'
         statements = copy_statements(query, params)
         signature = '(rows)'
+      elsif BATCH_COMMANDS.key?(query.cmd)
+        statements = batch_statements(query, func, params)
+        signature = '(rows)'
       else
         statements = query_statements(query, func, params)
         keywords = params.reject(&:reused).map { |p| p.optional ? "#{p.name}: nil" : "#{p.name}:" }
@@ -73,7 +81,7 @@ module SqlcGenRuby
 
     def type(query)
       func = Code.snake_case(query.name)
-      if query.cmd == ':copyfrom'
+      if ROWS_COMMANDS.include?(query.cmd)
         signature = "(Array[#{query.name}Args] rows)"
       else
         list = params(query).reject(&:reused).map { |p| "#{p.optional ? '?' : ''}#{p.name}: #{p.type}" }
@@ -123,6 +131,9 @@ module SqlcGenRuby
       when ':many' then "Array[#{Code.upcase_first(query.name)}Row]"
       when ':execrows' then 'Integer'
       when ':execlastid' then last_id_type(query)
+      when ':execresult' then 'ExecResult'
+      when ':batchone' then "Array[#{query.name}Row?]"
+      when ':batchmany' then "Array[Array[#{query.name}Row]]"
       else 'void'
       end
     end
@@ -169,6 +180,29 @@ module SqlcGenRuby
       statements
     end
 
+    # Prepared once, executed for every element of rows.
+    def batch_statements(query, func, params)
+      raise ArgumentError, "#{query.name}: sqlc.slice cannot be used in #{query.cmd}" if slice?(query)
+
+      const = Code.sql_constant(query.name)
+      stmt_name = "#{@statement_prefix}_#{func}"
+      statements = [@driver.prepare_stmt(stmt_name, const)].compact
+      cmd = BATCH_COMMANDS.fetch(query.cmd)
+      body = []
+      body << "query_params = [#{Code.comma_join(params.map { |p| "args.#{p.name}" })}]" unless params.empty?
+      body.concat(command_statements(query, stmt_name, const, !params.empty?, cmd: cmd))
+      body.pop if cmd == ':exec' # the trailing nil
+      block_arg = params.empty? ? '_args' : 'args'
+      loop = Code.block("rows.#{cmd == ':exec' ? 'each' : 'map'} do |#{block_arg}|", body.join("\n"))
+      commands = cmd == ':exec' ? [loop, 'nil'] : [loop]
+      if @driver.closes_statements?
+        statements << Code.block('begin', commands.join("\n")).sub(/\nend\z/, "\nensure\n  stmt.close\nend")
+      else
+        statements.concat(commands)
+      end
+      statements
+    end
+
     def query_params(params)
       list = params.map { |p| p.slice ? "*#{p.name}" : @driver.encode_param(p.name, p.column) }
       "query_params = [#{Code.comma_join(list)}]"
@@ -182,9 +216,9 @@ module SqlcGenRuby
     end
 
     # The value of the last expression is the return value of the method (no explicit `return`).
-    def command_statements(query, stmt_name, const, has_params)
+    def command_statements(query, stmt_name, const, has_params, cmd: query.cmd)
       exec = @driver.execute_stmt(stmt_name, const, has_params, array_rows: !query.columns.empty? && @layout.array_rows?(query))
-      case query.cmd
+      case cmd
       when ':one'
         ["result = #{exec}", 'row = result.first', "row && #{new_row(query)}"]
       when ':many'
@@ -192,6 +226,7 @@ module SqlcGenRuby
       when ':exec' then @driver.exec_lines(exec, query)
       when ':execrows' then @driver.exec_rows_lines(exec, query)
       when ':execlastid' then @driver.exec_last_id_lines(exec, query)
+      when ':execresult' then exec_result_lines(exec)
       else raise ArgumentError, "unsupported query command: #{query.cmd}"
       end
     end
@@ -223,6 +258,11 @@ module SqlcGenRuby
     end
 
     # Struct rows (Ruby < 3.2) are built with keywords (keyword_init: true), Data rows positionally.
+    def exec_result_lines(exec)
+      *lines, rows_affected, last_insert_id = @driver.exec_result_lines(exec)
+      lines << "ExecResult.new(#{constructor_args(%w[rows_affected last_insert_id], [rows_affected, last_insert_id]).join(', ')})"
+    end
+
     def constructor_args(names, values)
       @types.keyword_rows? ? names.zip(values).map { |n, v| "#{n}: #{v}" } : values
     end

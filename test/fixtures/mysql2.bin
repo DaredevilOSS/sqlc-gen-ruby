@@ -1,4 +1,7 @@
-¤public"™public€
+
+
+
+2mysql¤public"™public€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
@@ -236,7 +239,25 @@ XINSERT INTO extended_bios (author_name, name, bio_type, author_type) VALUES (?,
 bio_type0Rextended_biosbextended_bios_bio_typezbio_type"J
 author_type0Rextended_biosbextended_bios_author_typezauthor_type*EA
 bio_type0Rextended_biosbextended_bios_bio_typezbio_type:	query.sqlC
-DELETE FROM extended_biosTruncateExtendedBios:exec:	query.sqlõ
+DELETE FROM extended_biosTruncateExtendedBios:exec:	query.sqlÖ
+-INSERT INTO authors (name, bio) VALUES (?, ?)CreateAuthorResult:execresult*84
+name0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzname*40
+bio0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzbio:	query.sqlB	authorsÕ
+-INSERT INTO authors (name, bio) VALUES (?, ?)CreateAuthorsBatch
+:batchexec*84
+name0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzname*40
+bio0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzbio:	query.sqlB	authorsŠ
+.SELECT id, name, bio FROM authors WHERE id = ?GetAuthorBatch	:batchone"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*.*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid:	query.sql£
+<SELECT id, name, bio FROM authors WHERE name = ? ORDER BY idListAuthorsByNameBatch
+:batchmany"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*0,
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname:	query.sqlõ
 >SELECT count(*) FROM regressions WHERE `order` = ? OR note = ?CountRegressionsByText:one" 
 count0ÿÿÿÿÿÿÿÿÿ@bbigint*2.
 term0ÿ8Rregressionsb	varcharzorder*40

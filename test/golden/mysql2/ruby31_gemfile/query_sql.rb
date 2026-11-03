@@ -188,6 +188,32 @@ module Mysql2Codegen
     DELETE FROM extended_bios
   SQL
 
+  CREATE_AUTHOR_RESULT_SQL = <<~'SQL'
+    INSERT INTO authors (name, bio) VALUES (?, ?)
+  SQL
+
+  CREATE_AUTHORS_BATCH_SQL = <<~'SQL'
+    INSERT INTO authors (name, bio) VALUES (?, ?)
+  SQL
+
+  CreateAuthorsBatchArgs = Struct.new(:name, :bio, keyword_init: true)
+
+  GET_AUTHOR_BATCH_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors WHERE id = ?
+  SQL
+
+  GetAuthorBatchRow = Struct.new(:id, :name, :bio, keyword_init: true)
+
+  GetAuthorBatchArgs = Struct.new(:id, keyword_init: true)
+
+  LIST_AUTHORS_BY_NAME_BATCH_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors WHERE name = ? ORDER BY id
+  SQL
+
+  ListAuthorsByNameBatchRow = Struct.new(:id, :name, :bio, keyword_init: true)
+
+  ListAuthorsByNameBatchArgs = Struct.new(:name, keyword_init: true)
+
   COUNT_REGRESSIONS_BY_TEXT_SQL = <<~'SQL'
     SELECT count(*) FROM regressions WHERE `order` = ? OR note = ?
   SQL
@@ -291,6 +317,8 @@ module Mysql2Codegen
         end
       end
     end
+
+    ExecResult = Struct.new(:rows_affected, :last_insert_id, keyword_init: true)
 
     # Returns the author with the given id, or nil when there is none.
     def get_author(id:)
@@ -649,6 +677,67 @@ module Mysql2Codegen
         begin
           stmt.execute
           nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def create_author_result(name:, bio:)
+      with_client('create_author_result') do |client|
+        query_params = [name, bio]
+        stmt = client.prepare(CREATE_AUTHOR_RESULT_SQL)
+        begin
+          stmt.execute(*query_params)
+          ExecResult.new(rows_affected: stmt.affected_rows, last_insert_id: client.last_id)
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def create_authors_batch(rows)
+      with_client('create_authors_batch') do |client|
+        stmt = client.prepare(CREATE_AUTHORS_BATCH_SQL)
+        begin
+          rows.each do |args|
+            query_params = [args.name, args.bio]
+            stmt.execute(*query_params)
+          end
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def get_author_batch(rows)
+      with_client('get_author_batch') do |client|
+        stmt = client.prepare(GET_AUTHOR_BATCH_SQL)
+        begin
+          rows.map do |args|
+            query_params = [args.id]
+            result = stmt.execute(*query_params, as: :array)
+            row = result.first
+            row && GetAuthorBatchRow.new(id: row[0], name: row[1], bio: row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def list_authors_by_name_batch(rows)
+      with_client('list_authors_by_name_batch') do |client|
+        stmt = client.prepare(LIST_AUTHORS_BY_NAME_BATCH_SQL)
+        begin
+          rows.map do |args|
+            query_params = [args.name]
+            result = stmt.execute(*query_params, as: :array)
+            result.map do |row|
+              ListAuthorsByNameBatchRow.new(id: row[0], name: row[1], bio: row[2])
+            end
+          end
         ensure
           stmt.close
         end

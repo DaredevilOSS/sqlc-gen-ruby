@@ -9,6 +9,15 @@ module Sqlite3Codegen
   class Book < Data.define(:id, :name, :author_id, :description)
   end
 
+  class DeclaredType < Data.define(
+    :c_varchar,
+    :c_decimal,
+    :c_unsigned_big_int,
+    :c_native,
+    :c_double
+  )
+  end
+
   class Regression < Data.define(:id, :order, :price)
   end
 end

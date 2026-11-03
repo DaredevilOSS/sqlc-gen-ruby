@@ -32,6 +32,7 @@ class TestPg < Minitest::Test
     @query_sql.truncate_extended_bios
     @query_sql.truncate_extra_types
     @query_sql.truncate_array_types
+    @query_sql.truncate_special_types
     @query_sql.truncate_regressions
   end
 
@@ -78,6 +79,23 @@ class TestPg < Minitest::Test
     author_id = create_author('a')
     book_id = @query_sql.create_book(name: 'book', author_id: author_id)
     assert_match(/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/, book_id)
+  end
+
+  def test_execresult_returns_rows_affected
+    result = @query_sql.create_author_result(name: 'a', bio: nil)
+    assert_equal 1, result.rows_affected
+    assert_nil result.last_insert_id
+  end
+
+  def test_batch_commands_run_once_per_args
+    @query_sql.create_authors_batch([CreateAuthorsBatchArgs.new('a', nil), CreateAuthorsBatchArgs.new('b', 'x'),
+                                     CreateAuthorsBatchArgs.new('b', 'y')])
+    ids = @query_sql.list_authors.to_h { |a| [a.bio, a.id] }
+    found = @query_sql.get_author_batch([GetAuthorBatchArgs.new(ids['x']), GetAuthorBatchArgs.new(-1)])
+    assert_equal ['b', nil], found.map { |r| r&.name }
+    many = @query_sql.list_authors_by_name_batch(%w[b a c].map { |n| ListAuthorsByNameBatchArgs.new(n) })
+    assert_equal [%w[x y], [nil], []], many.map { |rows| rows.map(&:bio) }
+    assert_nil @query_sql.create_authors_batch([])
   end
 
   def test_execrows_returns_affected_row_count
@@ -285,6 +303,15 @@ class TestPg < Minitest::Test
     assert_equal %w[Memoir Biography], row.c_bio_type_array
     assert_equal [[1, 2], [3, 4]], row.c_integer_matrix
     assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/pg/query_sql.rbs', __dir__), 'GetArrayTypesRow')
+  end
+
+  def test_special_types_composites_and_domains
+    @query_sql.insert_special_types(c_timetz: '12:00:00+02', c_tsvector: 'a:1 b:2', c_point: '(1,2)', c_int4range: '[1,3]',
+                                    c_oid: 42, c_dimensions: '(3,4)', c_positive: 5)
+    row = @query_sql.get_special_types
+    assert_equal ['12:00:00+02', "'a':1 'b':2", '(1,2)', '[1,4)', 42, '(3,4)', 5],
+                 [row.c_timetz, row.c_tsvector, row.c_point, row.c_int4range, row.c_oid, row.c_dimensions, row.c_positive]
+    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/pg/query_sql.rbs', __dir__), 'GetSpecialTypesRow')
   end
 
   def test_extra_types_nulls

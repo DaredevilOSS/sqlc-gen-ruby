@@ -120,6 +120,77 @@ module Sqlite3Codegen
     def self.new: (  id: Integer, name: String, bio: String?, book: Book) -> GetAuthorsByBookNameRow
   end
 
+  CREATE_AUTHOR_RESULT_SQL: String
+
+  CREATE_AUTHORS_BATCH_SQL: String
+
+  class CreateAuthorsBatchArgs < ::Struct[untyped]
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  name: String, bio: String?) -> void
+    def self.new: (  name: String, bio: String?) -> CreateAuthorsBatchArgs
+  end
+
+  GET_AUTHOR_BATCH_SQL: String
+
+  class GetAuthorBatchRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorBatchRow
+  end
+
+  class GetAuthorBatchArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    def initialize: (  id: Integer) -> void
+    def self.new: (  id: Integer) -> GetAuthorBatchArgs
+  end
+
+  LIST_AUTHORS_BY_NAME_BATCH_SQL: String
+
+  class ListAuthorsByNameBatchRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> ListAuthorsByNameBatchRow
+  end
+
+  class ListAuthorsByNameBatchArgs < ::Struct[untyped]
+    attr_accessor name: String
+    def initialize: (  name: String) -> void
+    def self.new: (  name: String) -> ListAuthorsByNameBatchArgs
+  end
+
+  INSERT_DECLARED_TYPES_SQL: String
+
+  GET_DECLARED_TYPES_SQL: String
+
+  class GetDeclaredTypesRow < ::Struct[untyped]
+    attr_accessor c_varchar: String?
+    attr_accessor c_decimal: Float?
+    attr_accessor c_unsigned_big_int: Integer?
+    attr_accessor c_native: String?
+    attr_accessor c_double: Float?
+    def initialize: (
+        c_varchar: String?,
+        c_decimal: Float?,
+        c_unsigned_big_int: Integer?,
+        c_native: String?,
+        c_double: Float?
+    ) -> void
+    def self.new: (
+        c_varchar: String?,
+        c_decimal: Float?,
+        c_unsigned_big_int: Integer?,
+        c_native: String?,
+        c_double: Float?
+    ) -> GetDeclaredTypesRow
+  end
+
+  TRUNCATE_DECLARED_TYPES_SQL: String
+
   CREATE_REGRESSION_SQL: String
 
   class CreateRegressionRow < ::Struct[untyped]
@@ -215,6 +286,13 @@ module Sqlite3Codegen
 
     def transaction: [T] (?mode: (:deferred | :immediate | :exclusive)?) { (self) -> T } -> T
 
+    class ExecResult < ::Struct[untyped]
+      attr_accessor rows_affected: Integer
+      attr_accessor last_insert_id: Integer?
+      def initialize: (  rows_affected: Integer, last_insert_id: Integer?) -> void
+      def self.new: (  rows_affected: Integer, last_insert_id: Integer?) -> ExecResult
+    end
+
     def get_author: (id: Integer) -> GetAuthorRow?
 
     def get_author!: (id: Integer) -> GetAuthorRow
@@ -248,6 +326,22 @@ module Sqlite3Codegen
     def get_duplicate_authors: -> Array[GetDuplicateAuthorsRow]
 
     def get_authors_by_book_name: (name: String) -> Array[GetAuthorsByBookNameRow]
+
+    def create_author_result: (name: String, bio: String?) -> ExecResult
+
+    def create_authors_batch: (Array[CreateAuthorsBatchArgs] rows) -> void
+
+    def get_author_batch: (Array[GetAuthorBatchArgs] rows) -> Array[GetAuthorBatchRow?]
+
+    def list_authors_by_name_batch: (Array[ListAuthorsByNameBatchArgs] rows) -> Array[Array[ListAuthorsByNameBatchRow]]
+
+    def insert_declared_types: (c_varchar: String?, c_decimal: Float?, c_unsigned_big_int: Integer?, c_native: String?, c_double: Float?) -> void
+
+    def get_declared_types: -> GetDeclaredTypesRow?
+
+    def get_declared_types!: -> GetDeclaredTypesRow
+
+    def truncate_declared_types: -> void
 
     def create_regression: (order: String, price: Float?) -> void
 

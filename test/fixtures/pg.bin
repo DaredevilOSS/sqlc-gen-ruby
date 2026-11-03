@@ -1,8 +1,11 @@
-Æpublic"©publicƒ
+
+
+2
+postgresql‹public"ÉpublicÍ
 	authors)
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserial&
-name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
-bio0ÿÿÿÿÿÿÿÿÿR	authorsbtext™	
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextH
+bio*#Short biography, NULL when unknown.0ÿÿÿÿÿÿÿÿÿR	authorsbtext#People who wrote at least one book.™	
 node_postgres_types<
 c_bit0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesb
 pg_catalogbitB
@@ -58,7 +61,19 @@ c_not_null0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbtextú
 c_uuid_array 0ÿÿÿÿÿÿÿÿÿRpostgres_array_typesbuuidˆP
 c_bio_type_array 0ÿÿÿÿÿÿÿÿÿRpostgres_array_typesbextendedbio_typeˆN
 c_integer_matrix 0ÿÿÿÿÿÿÿÿÿRpostgres_array_typesb
-pg_catalogint4ˆ»
+pg_catalogint4ˆÓ
+postgres_special_types9
+c_timetz0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbtimetz=
+
+c_tsvector0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesb
+tsvector7
+c_point0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbpoint?
+c_int4range0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesb	int4range3
+c_oid0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesboidK
+c_dimensions0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbextended
+dimensionsA
+
+c_positive0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbpositive_int»
 regressions4
 id0ÿÿÿÿÿÿÿÿÿRregressionsb
 pg_catalogint8+
@@ -66,14 +81,16 @@ pg_catalogint8+
 payload0ÿÿÿÿÿÿÿÿÿRregressionsbbytea(
 doc0ÿÿÿÿÿÿÿÿÿRregressionsbjsonb@
 	bio_types 0ÿÿÿÿÿÿÿÿÿRregressionsbextendedbio_typeˆ-
-uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidˆ"extendedÔ
+uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidˆ"´extendedÔ
 extendedbiosC
 author_name0ÿÿÿÿÿÿÿÿÿRextendedbiosb
 pg_catalogvarchar<
 name0ÿÿÿÿÿÿÿÿÿRextendedbiosb
 pg_catalogvarchar=
-bio_type0ÿÿÿÿÿÿÿÿÿRextendedbiosbextendedbio_type",
-bio_typeAutobiography	BiographyMemoirÒ
+bio_type0ÿÿÿÿÿÿÿÿÿRextendedbiosbextendedbio_type"C
+bio_typeAutobiography	BiographyMemoirKinds of biographies.*
+
+dimensionsÒ
 7SELECT id, name, bio FROM authors
 WHERE id = $1 LIMIT 1	GetAuthor:one"-
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
@@ -267,7 +284,54 @@ ORDER BY idListAuthorsBetweenIds:many"-
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
 bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*1-
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid*1-
-id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid:	query.sqlÀ
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid:	query.sql°
+”INSERT INTO postgres_special_types (c_timetz, c_tsvector, c_point, c_int4range, c_oid, c_dimensions, c_positive)
+VALUES ($1, $2, $3, $4, $5, $6, $7)InsertSpecialTypes:exec*OK
+c_timetz0ÿÿÿÿÿÿÿÿÿR publicpostgres_special_typesbtimetzzc_timetz*UQ
+
+c_tsvector0ÿÿÿÿÿÿÿÿÿR publicpostgres_special_typesb
+tsvectorz
+c_tsvector*LH
+c_point0ÿÿÿÿÿÿÿÿÿR publicpostgres_special_typesbpointzc_point*XT
+c_int4range0ÿÿÿÿÿÿÿÿÿR publicpostgres_special_typesb	int4rangezc_int4range*FB
+c_oid0ÿÿÿÿÿÿÿÿÿR publicpostgres_special_typesboidzc_oid*d`
+c_dimensions0ÿÿÿÿÿÿÿÿÿR publicpostgres_special_typesbextended.dimensionszc_dimensions*YU
+
+c_positive0ÿÿÿÿÿÿÿÿÿR publicpostgres_special_typesbpositive_intz
+c_positive:	query.sqlBpostgres_special_types 
+vSELECT c_timetz, c_tsvector, c_point, c_int4range, c_oid, c_dimensions, c_positive FROM postgres_special_types LIMIT 1GetSpecialTypes:one"C
+c_timetz0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbtimetzzc_timetz"I
+
+c_tsvector0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesb
+tsvectorz
+c_tsvector"@
+c_point0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbpointzc_point"L
+c_int4range0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesb	int4rangezc_int4range":
+c_oid0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesboidzc_oid"Y
+c_dimensions0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbextended
+dimensionszc_dimensions"M
+
+c_positive0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbpositive_intz
+c_positive:	query.sqlO
+%TRUNCATE TABLE postgres_special_typesTruncateSpecialTypes:exec:	query.sqlØ
+/INSERT INTO authors (name, bio) VALUES ($1, $2)CreateAuthorResult:execresult*84
+name0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzname*40
+bio0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzbio:	query.sqlB	authors×
+/INSERT INTO authors (name, bio) VALUES ($1, $2)CreateAuthorsBatch
+:batchexec*84
+name0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzname*40
+bio0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzbio:	query.sqlB	authors‘
+/SELECT id, name, bio FROM authors WHERE id = $1GetAuthorBatch	:batchone"-
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*1-
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid:	query.sql§
+=SELECT id, name, bio FROM authors WHERE name = $1 ORDER BY idListAuthorsByNameBatch
+:batchmany"-
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*0,
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname:	query.sqlÀ
 ™INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, "order", payload, doc, bio_types, uidsCreateRegression:one"8
 id0ÿÿÿÿÿÿÿÿÿRregressionsb
 pg_catalogint8zid"2

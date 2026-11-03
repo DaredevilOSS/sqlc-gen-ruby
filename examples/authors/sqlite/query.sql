@@ -74,6 +74,27 @@ SELECT
 FROM authors INNER JOIN books ON authors.id = books.author_id
 WHERE books.name = ?;
 
+-- name: CreateAuthorResult :execresult
+INSERT INTO authors (name, bio) VALUES (?, ?);
+
+-- name: CreateAuthorsBatch :batchexec
+INSERT INTO authors (name, bio) VALUES (?, ?);
+
+-- name: GetAuthorBatch :batchone
+SELECT * FROM authors WHERE id = ?;
+
+-- name: ListAuthorsByNameBatch :batchmany
+SELECT * FROM authors WHERE name = ? ORDER BY id;
+
+-- name: InsertDeclaredTypes :exec
+INSERT INTO declared_types (c_varchar, c_decimal, c_unsigned_big_int, c_native, c_double) VALUES (?, ?, ?, ?, ?);
+
+-- name: GetDeclaredTypes :one
+SELECT * FROM declared_types LIMIT 1;
+
+-- name: TruncateDeclaredTypes :exec
+DELETE FROM declared_types;
+
 -- name: CreateRegression :exec
 INSERT INTO regressions ("order", price) VALUES (?, ?) RETURNING id;
 

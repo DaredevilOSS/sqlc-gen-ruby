@@ -65,6 +65,24 @@ CREATE TABLE postgres_array_types (
     c_integer_matrix INTEGER [][]
 );
 
+CREATE TYPE extended.dimensions AS (width INTEGER, height INTEGER);
+
+CREATE DOMAIN positive_int AS INTEGER CHECK (VALUE > 0);
+
+CREATE TABLE postgres_special_types (
+    c_timetz TIMETZ,
+    c_tsvector TSVECTOR,
+    c_point POINT,
+    c_int4range INT4RANGE,
+    c_oid OID,
+    c_dimensions extended.dimensions,
+    c_positive positive_int
+);
+
+COMMENT ON TABLE authors IS 'People who wrote at least one book.';
+COMMENT ON COLUMN authors.bio IS 'Short biography, NULL when unknown.';
+COMMENT ON TYPE extended.bio_type IS 'Kinds of biographies.';
+
 CREATE TABLE regressions (
   id        bigint PRIMARY KEY,
   "order"   text NOT NULL,

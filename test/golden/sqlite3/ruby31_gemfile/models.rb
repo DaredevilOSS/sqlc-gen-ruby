@@ -13,5 +13,14 @@ module Sqlite3Codegen
     keyword_init: true
   )
 
+  DeclaredType = Struct.new(
+    :c_varchar,
+    :c_decimal,
+    :c_unsigned_big_int,
+    :c_native,
+    :c_double,
+    keyword_init: true
+  )
+
   Regression = Struct.new(:id, :order, :price, keyword_init: true)
 end

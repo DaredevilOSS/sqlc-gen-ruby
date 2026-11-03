@@ -66,12 +66,17 @@ module SqlcGenRuby
       field :comment, 3, :string
     end
 
+    class CompositeType < P
+      field :name, 1, :string
+      field :comment, 2, :string
+    end
+
     class Schema < P
-      # composite_types(5) is skipped
       field :comment, 1, :string
       field :name, 2, :string
       field :tables, 3, :message, repeated: true, klass: Table
       field :enums, 4, :message, repeated: true, klass: Enum
+      field :composite_types, 5, :message, repeated: true, klass: CompositeType
     end
 
     class Catalog < P
@@ -81,8 +86,13 @@ module SqlcGenRuby
       field :schemas, 4, :message, repeated: true, klass: Schema
     end
 
+    class Settings < P
+      field :version, 1, :string
+      field :engine, 2, :string
+    end
+
     class GenerateRequest < P
-      # settings(1) is skipped: the generator does not need it.
+      field :settings, 1, :message, klass: Settings
       field :catalog, 2, :message, klass: Catalog
       field :queries, 3, :message, repeated: true, klass: Query
       field :sqlc_version, 4, :string

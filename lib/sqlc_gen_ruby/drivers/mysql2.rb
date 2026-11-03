@@ -50,6 +50,8 @@ module SqlcGenRuby
 
       def exec_last_id_lines(exec, _query) = [exec, 'client.last_id']
 
+      def exec_result_lines(exec) = [exec, 'stmt.affected_rows', 'client.last_id']
+
       # LOAD DATA LOCAL INFILE from a temporary CSV (the client needs `local_infile: true`, the server
       # `local_infile=1`).
       def copy_from_lines(rows_var, table, columns, values, label)

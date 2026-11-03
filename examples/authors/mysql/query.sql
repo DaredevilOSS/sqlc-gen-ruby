@@ -89,6 +89,18 @@ SELECT * FROM extended_bios WHERE bio_type = ? LIMIT 1;
 -- name: TruncateExtendedBios :exec
 DELETE FROM extended_bios;
 
+-- name: CreateAuthorResult :execresult
+INSERT INTO authors (name, bio) VALUES (?, ?);
+
+-- name: CreateAuthorsBatch :batchexec
+INSERT INTO authors (name, bio) VALUES (?, ?);
+
+-- name: GetAuthorBatch :batchone
+SELECT * FROM authors WHERE id = ?;
+
+-- name: ListAuthorsByNameBatch :batchmany
+SELECT * FROM authors WHERE name = ? ORDER BY id;
+
 -- name: CountRegressionsByText :one
 SELECT count(*) FROM regressions WHERE `order` = sqlc.arg(term) OR note = sqlc.arg(term);
 

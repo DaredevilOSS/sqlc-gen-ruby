@@ -245,6 +245,49 @@ module Mysql2Codegen
 
   TRUNCATE_EXTENDED_BIOS_SQL: String
 
+  CREATE_AUTHOR_RESULT_SQL: String
+
+  CREATE_AUTHORS_BATCH_SQL: String
+
+  class CreateAuthorsBatchArgs < ::Struct[untyped]
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  name: String, bio: String?) -> void
+    def self.new: (  name: String, bio: String?) -> CreateAuthorsBatchArgs
+  end
+
+  GET_AUTHOR_BATCH_SQL: String
+
+  class GetAuthorBatchRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorBatchRow
+  end
+
+  class GetAuthorBatchArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    def initialize: (  id: Integer) -> void
+    def self.new: (  id: Integer) -> GetAuthorBatchArgs
+  end
+
+  LIST_AUTHORS_BY_NAME_BATCH_SQL: String
+
+  class ListAuthorsByNameBatchRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> ListAuthorsByNameBatchRow
+  end
+
+  class ListAuthorsByNameBatchArgs < ::Struct[untyped]
+    attr_accessor name: String
+    def initialize: (  name: String) -> void
+    def self.new: (  name: String) -> ListAuthorsByNameBatchArgs
+  end
+
   COUNT_REGRESSIONS_BY_TEXT_SQL: String
 
   class CountRegressionsByTextRow < ::Struct[untyped]
@@ -326,6 +369,13 @@ module Mysql2Codegen
 
     def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | :serializable)?) { (self) -> T } -> T
 
+    class ExecResult < ::Struct[untyped]
+      attr_accessor rows_affected: Integer
+      attr_accessor last_insert_id: Integer?
+      def initialize: (  rows_affected: Integer, last_insert_id: Integer?) -> void
+      def self.new: (  rows_affected: Integer, last_insert_id: Integer?) -> ExecResult
+    end
+
     def get_author: (id: Integer) -> GetAuthorRow?
 
     def get_author!: (id: Integer) -> GetAuthorRow
@@ -373,6 +423,14 @@ module Mysql2Codegen
     def get_first_extended_bio_by_type!: (bio_type: String?) -> GetFirstExtendedBioByTypeRow
 
     def truncate_extended_bios: -> void
+
+    def create_author_result: (name: String, bio: String?) -> ExecResult
+
+    def create_authors_batch: (Array[CreateAuthorsBatchArgs] rows) -> void
+
+    def get_author_batch: (Array[GetAuthorBatchArgs] rows) -> Array[GetAuthorBatchRow?]
+
+    def list_authors_by_name_batch: (Array[ListAuthorsByNameBatchArgs] rows) -> Array[Array[ListAuthorsByNameBatchRow]]
 
     def count_regressions_by_text: (term: String) -> CountRegressionsByTextRow?
 

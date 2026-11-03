@@ -7,24 +7,35 @@ module SqlcGenRuby
   class Catalog
     INTERNAL_SCHEMAS = %w[pg_catalog information_schema pg_temp].freeze
 
-    Table = Struct.new(:schema, :name, :columns, :model_name)
+    Table = Struct.new(:schema, :name, :columns, :model_name, :comment)
 
     attr_reader :tables, :enums
 
-    def initialize(proto_catalog)
+    # rename: { db name => Ruby name } (tables -> model classes, columns -> attributes)
+    # exact_table_names: authors => Authors instead of Author
+    def initialize(proto_catalog, rename: {}, exact_table_names: false)
+      @rename = rename
+      @exact_table_names = exact_table_names
       @default_schema = proto_catalog&.default_schema.to_s
       schemas = (proto_catalog&.schemas || []).reject { |s| INTERNAL_SCHEMAS.include?(s.name) }
       @tables = schemas.flat_map do |schema|
         schema.tables.map do |t|
-          Table.new(schema.name, t.rel.name, t.columns, nil)
+          Table.new(schema.name, t.rel.name, t.columns, nil, t.comment)
         end
       end
       assign_model_names
       # qualified enum name => values; default-schema enums are reachable both bare and qualified
       @enums = {}
+      @enum_comments = {}
+      @composites = schemas.flat_map do |schema|
+        schema.composite_types.flat_map do |c|
+          default_schema?(schema.name) ? [c.name, "#{schema.name}.#{c.name}"] : ["#{schema.name}.#{c.name}"]
+        end
+      end
       schemas.each do |schema|
         schema.enums.each do |e|
           @enums["#{schema.name}.#{e.name}"] = e.vals.to_a
+          @enum_comments[e.name] = @enum_comments["#{schema.name}.#{e.name}"] = e.comment
           @enums[e.name] = e.vals.to_a if default_schema?(schema.name)
         end
       end
@@ -32,13 +43,19 @@ module SqlcGenRuby
 
     def enum?(type) = @enums.key?(qualified_name(type))
 
+    # CREATE TYPE ... AS (...): the pg gem returns the record text, e.g. "(1,abc)"
+    def composite?(type) = @composites.include?(qualified_name(type))
+
     def enum_values(type) = @enums[qualified_name(type)]
 
     # Enums with their Ruby module names, one entry per distinct enum.
     def enum_modules
       @enums.reject { |name, _| name.include?('.') && default_schema?(name.split('.').first) }
-            .map { |name, vals| [Code.camelize(name), vals] }
+            .map { |name, vals| [Code.camelize(name), vals, @enum_comments[name]] }
     end
+
+    # Column name after `rename:` (rows and models).
+    def column_name(name) = @rename.fetch(name, name)
 
     # embed_table: Identifier(schema, name) as sqlc sends it for sqlc.embed
     def table_for(identifier)
@@ -62,16 +79,26 @@ module SqlcGenRuby
 
     # authors => Author; when two tables would share a model (author and authors) the plural one keeps its plural name.
     def assign_model_names
-      @tables.each { |t| t.model_name = model_name(t, Code.singularize(t.name)) }
+      @tables.each { |t| t.model_name = model_name(t, @exact_table_names ? t.name : Code.singularize(t.name)) }
       @tables.group_by(&:model_name).each_value do |same|
         same.each { |t| t.model_name = model_name(t, t.name) } if same.size > 1
       end
+      @tables.each { |t| t.model_name = renamed_model(t) if renamed_model(t) }
       @tables.group_by(&:model_name).each do |name, same|
         next if same.size == 1
 
         tables = same.map { |t| "#{t.schema}.#{t.name}" }.join(', ')
         raise ArgumentError, "tables #{tables} would all generate the model class #{name}"
       end
+    end
+
+    # rename: { "authors": "Writer" } or { "extended.bios": "Bio" }
+    def renamed_model(table)
+      name = @rename["#{table.schema}.#{table.name}"] || (default_schema?(table.schema) && @rename[table.name])
+      return nil unless name
+      raise ArgumentError, "rename #{table.name}: #{name.inspect} is not a Ruby class name" unless name.match?(/\A[A-Z]\w*\z/)
+
+      name
     end
 
     def model_name(table, base)

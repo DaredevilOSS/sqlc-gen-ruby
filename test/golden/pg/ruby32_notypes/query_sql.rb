@@ -239,6 +239,61 @@ module PgCodegen
   class ListAuthorsBetweenIdsRow < Data.define(:id, :name, :bio)
   end
 
+  INSERT_SPECIAL_TYPES_SQL = <<~'SQL'
+    INSERT INTO postgres_special_types (c_timetz, c_tsvector, c_point, c_int4range, c_oid, c_dimensions, c_positive)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+  SQL
+
+  GET_SPECIAL_TYPES_SQL = <<~'SQL'
+    SELECT c_timetz, c_tsvector, c_point, c_int4range, c_oid, c_dimensions, c_positive FROM postgres_special_types LIMIT 1
+  SQL
+
+  class GetSpecialTypesRow < Data.define(
+    :c_timetz,
+    :c_tsvector,
+    :c_point,
+    :c_int4range,
+    :c_oid,
+    :c_dimensions,
+    :c_positive
+  )
+  end
+
+  TRUNCATE_SPECIAL_TYPES_SQL = <<~'SQL'
+    TRUNCATE TABLE postgres_special_types
+  SQL
+
+  CREATE_AUTHOR_RESULT_SQL = <<~'SQL'
+    INSERT INTO authors (name, bio) VALUES ($1, $2)
+  SQL
+
+  CREATE_AUTHORS_BATCH_SQL = <<~'SQL'
+    INSERT INTO authors (name, bio) VALUES ($1, $2)
+  SQL
+
+  class CreateAuthorsBatchArgs < Data.define(:name, :bio)
+  end
+
+  GET_AUTHOR_BATCH_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors WHERE id = $1
+  SQL
+
+  class GetAuthorBatchRow < Data.define(:id, :name, :bio)
+  end
+
+  class GetAuthorBatchArgs < Data.define(:id)
+  end
+
+  LIST_AUTHORS_BY_NAME_BATCH_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors WHERE name = $1 ORDER BY id
+  SQL
+
+  class ListAuthorsByNameBatchRow < Data.define(:id, :name, :bio)
+  end
+
+  class ListAuthorsByNameBatchArgs < Data.define(:name)
+  end
+
   CREATE_REGRESSION_SQL = <<~'SQL'
     INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, "order", payload, doc, bio_types, uids
   SQL
@@ -355,6 +410,9 @@ module PgCodegen
           end
         end
       end
+    end
+
+    class ExecResult < Data.define(:rows_affected, :last_insert_id)
     end
 
     # Returns the author with the given id, or nil when there is none.
@@ -782,6 +840,119 @@ module PgCodegen
         result = client.exec_prepared('query_sql_list_authors_between_ids', query_params)
         result.map do |row|
           ListAuthorsBetweenIdsRow.new(row['id'], row['name'], row['bio'])
+        end
+      end
+    end
+
+    def insert_special_types(c_timetz:, c_tsvector:, c_point:, c_int4range:, c_oid:, c_dimensions:, c_positive:)
+      with_client('insert_special_types') do |client|
+        query_params = [
+          c_timetz,
+          c_tsvector,
+          c_point,
+          c_int4range,
+          c_oid,
+          c_dimensions,
+          c_positive
+        ]
+        unless client.prepared_statements.include?('query_sql_insert_special_types')
+          client.prepare('query_sql_insert_special_types', INSERT_SPECIAL_TYPES_SQL)
+          client.prepared_statements.add('query_sql_insert_special_types')
+        end
+        client.exec_prepared('query_sql_insert_special_types', query_params)
+        nil
+      end
+    end
+
+    def get_special_types
+      with_client('get_special_types') do |client|
+        unless client.prepared_statements.include?('query_sql_get_special_types')
+          client.prepare('query_sql_get_special_types', GET_SPECIAL_TYPES_SQL)
+          client.prepared_statements.add('query_sql_get_special_types')
+        end
+        result = client.exec_prepared('query_sql_get_special_types')
+        row = result.first
+        row && GetSpecialTypesRow.new(
+          row['c_timetz'],
+          row['c_tsvector'],
+          row['c_point'],
+          row['c_int4range'],
+          row['c_oid'],
+          row['c_dimensions'],
+          row['c_positive']
+        )
+      end
+    end
+
+    # Like #get_special_types, but raises NotFound when there is no row.
+    def get_special_types!(...)
+      get_special_types(...) || raise(NotFound, 'GetSpecialTypes returned no row')
+    end
+
+    def truncate_special_types
+      with_client('truncate_special_types') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_special_types')
+          client.prepare('query_sql_truncate_special_types', TRUNCATE_SPECIAL_TYPES_SQL)
+          client.prepared_statements.add('query_sql_truncate_special_types')
+        end
+        client.exec_prepared('query_sql_truncate_special_types')
+        nil
+      end
+    end
+
+    def create_author_result(name:, bio:)
+      with_client('create_author_result') do |client|
+        query_params = [name, bio]
+        unless client.prepared_statements.include?('query_sql_create_author_result')
+          client.prepare('query_sql_create_author_result', CREATE_AUTHOR_RESULT_SQL)
+          client.prepared_statements.add('query_sql_create_author_result')
+        end
+        result = client.exec_prepared('query_sql_create_author_result', query_params)
+        ExecResult.new(result.cmd_tuples, nil)
+      end
+    end
+
+    def create_authors_batch(rows)
+      with_client('create_authors_batch') do |client|
+        unless client.prepared_statements.include?('query_sql_create_authors_batch')
+          client.prepare('query_sql_create_authors_batch', CREATE_AUTHORS_BATCH_SQL)
+          client.prepared_statements.add('query_sql_create_authors_batch')
+        end
+        rows.each do |args|
+          query_params = [args.name, args.bio]
+          client.exec_prepared('query_sql_create_authors_batch', query_params)
+        end
+        nil
+      end
+    end
+
+    def get_author_batch(rows)
+      with_client('get_author_batch') do |client|
+        unless client.prepared_statements.include?('query_sql_get_author_batch')
+          client.prepare('query_sql_get_author_batch', GET_AUTHOR_BATCH_SQL)
+          client.prepared_statements.add('query_sql_get_author_batch')
+        end
+        rows.map do |args|
+          query_params = [args.id]
+          result = client.exec_prepared('query_sql_get_author_batch', query_params)
+          row = result.first
+          row && GetAuthorBatchRow.new(row['id'], row['name'], row['bio'])
+        end
+      end
+    end
+
+    def list_authors_by_name_batch(rows)
+      with_client('list_authors_by_name_batch') do |client|
+        unless client.prepared_statements.include?('query_sql_list_authors_by_name_batch')
+          client.prepare('query_sql_list_authors_by_name_batch', LIST_AUTHORS_BY_NAME_BATCH_SQL)
+          client.prepared_statements.add('query_sql_list_authors_by_name_batch')
+        end
+        rows.map do |args|
+          query_params = [args.name]
+          result = client.exec_prepared('query_sql_list_authors_by_name_batch', query_params)
+          result.map do |row|
+            ListAuthorsByNameBatchRow.new(row['id'], row['name'], row['bio'])
+          end
         end
       end
     end

@@ -78,6 +78,23 @@ class TestMysql2 < Minitest::Test
     assert_kind_of Integer, @query_sql.create_book(name: 'book', author_id: first)
   end
 
+  def test_execresult_returns_rows_affected_and_last_id
+    result = @query_sql.create_author_result(name: 'a', bio: nil)
+    assert_equal 1, result.rows_affected
+    assert_equal result.last_insert_id, @query_sql.list_authors.first.id
+  end
+
+  def test_batch_commands_run_once_per_args
+    @query_sql.create_authors_batch([CreateAuthorsBatchArgs.new('a', nil), CreateAuthorsBatchArgs.new('b', 'x'),
+                                     CreateAuthorsBatchArgs.new('b', 'y')])
+    ids = @query_sql.list_authors.to_h { |a| [a.bio, a.id] }
+    found = @query_sql.get_author_batch([GetAuthorBatchArgs.new(ids['x']), GetAuthorBatchArgs.new(-1)])
+    assert_equal ['b', nil], found.map { |r| r&.name }
+    many = @query_sql.list_authors_by_name_batch(%w[b a c].map { |n| ListAuthorsByNameBatchArgs.new(n) })
+    assert_equal [%w[x y], [nil], []], many.map { |rows| rows.map(&:bio) }
+    assert_nil @query_sql.create_authors_batch([])
+  end
+
   def test_execrows_returns_affected_row_count
     create_author('with bio', 'bio')
     create_author('with bio 2', 'bio')
