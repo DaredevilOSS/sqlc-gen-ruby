@@ -438,6 +438,24 @@ class TestSqlite3 < Minitest::Test
     assert_equal 8, @query_sql.list_authors.size
   end
 
+  def test_a_database_returning_hash_rows_still_builds_rows
+    db = SQLite3::Database.new(':memory:', results_as_hash: true)
+    db.execute_batch(SCHEMA)
+    queries = QuerySql.new(db)
+    id = queries.create_author_return_id(name: 'hash', bio: 'rows')
+    assert_kind_of Integer, id
+    assert_equal row_for(GetAuthorRow, [id, 'hash', 'rows']), queries.get_author(id: id)
+    queries.create_book(name: 'book', author_id: id)
+    row = queries.list_all_authors_books.first
+    assert_equal %w[hash book], [row.author.name, row.book.name]
+    assert_equal [id], queries.get_authors_by_repeated_named_and_positional_batch(
+      [GetAuthorsByRepeatedNamedAndPositionalBatchArgs.new(n: 'hash', other: 'x', id: 0)]
+    ).map { |r| r&.id }
+    assert_equal [{ 'id' => id, 'name' => 'hash' }], db.execute('SELECT id, name FROM authors') # setting left alone
+  ensure
+    db&.close
+  end
+
   # ---- Ruby conventions: bang finders, logger ----------------------------------------------------------------
 
   def test_bang_finder_raises_not_found

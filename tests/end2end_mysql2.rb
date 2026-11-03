@@ -820,6 +820,21 @@ class TestMysql2 < Minitest::Test
     assert_empty pooled.list_authors
   end
 
+  def test_a_stopped_async_task_does_not_leave_a_closed_connection_in_the_pool
+    pooled = QuerySql.connect(mysql2_params, size: 1)
+    [false, true].each do |in_transaction|
+      assert_empty pooled.list_authors
+      Sync do |task|
+        query = task.async do
+          in_transaction ? pooled.transaction { |tx| tx.pause_query(seconds: 2) } : pooled.pause_query(seconds: 2)
+        end
+        sleep 0.2
+        query.stop
+      end
+      assert_empty pooled.list_authors, "next call after stopping a query (in_transaction: #{in_transaction})"
+    end
+  end
+
   def test_seeded_random_copyfrom_round_trip_and_duplicate_is_atomic
     random = seeded_random
     rows = Array.new(300) do |i|
