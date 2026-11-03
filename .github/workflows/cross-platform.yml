@@ -24,7 +24,7 @@ jobs:
   cross-platform:
     name: ${{ matrix.os-name }}, Ruby ${{ matrix.ruby-version }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
@@ -60,10 +60,25 @@ jobs:
           user: ${{ env.DB_USER }}
 
       - uses: ankane/setup-mysql@4aa1b08412d4c8bf537fea5bc412e4e831d839d7 # v1
+        if: runner.os != 'Windows'
         with:
           mysql-version: '8.4'
           database: ${{ env.DB_NAME }}
           user: ${{ env.DB_USER }}
+
+      # windows-2025 ships MySQL 8.4 (on PATH); setup-mysql only treats 8.0 as preinstalled there and fails to
+      # reinstall 8.4 over it, so start the image's server the same way the action does
+      - name: Start the preinstalled MySQL 8.4 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $bin = 'C:\Program Files\MySQL\MySQL Server 8.4\bin'
+          & "$bin\mysqld" --initialize-insecure
+          & "$bin\mysqld" --install
+          net start MySQL
+          & "$bin\mysqladmin" -u $env:DB_USER create $env:DB_NAME
 
       - uses: actions/download-artifact@v8
         with:
@@ -136,3 +151,7 @@ jobs:
         env:
           BUNDLE_GEMFILE: ${{ github.workspace }}/Gemfile.options.e2e
         run: bundle install && bundle exec ruby tests/end2end_options.rb
+
+      - name: Native extension build logs
+        if: failure()
+        run: find "$(ruby -e 'print Gem.dir')" -name mkmf.log -exec sh -c 'echo "== $1"; tail -n 60 "$1"' _ {} \;

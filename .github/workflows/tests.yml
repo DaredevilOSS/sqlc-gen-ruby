@@ -29,6 +29,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -45,6 +46,7 @@ jobs:
   compatibility:
     name: Plugin on Ruby ${{ matrix.ruby-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
@@ -65,6 +67,7 @@ jobs:
   end2end-pg:
     name: End-to-End (PostgreSQL, Ruby ${{ matrix.ruby-version }}, ${{ matrix.variant }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
@@ -141,6 +144,7 @@ jobs:
   end2end-mysql:
     name: End-to-End (MySQL, Ruby ${{ matrix.ruby-version }}, ${{ matrix.variant }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
@@ -215,6 +219,7 @@ jobs:
   end2end-sqlite:
     name: End-to-End (SQLite, Ruby ${{ matrix.ruby-version }}, ${{ matrix.variant }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
@@ -269,6 +274,7 @@ jobs:
   end2end-options:
     name: Generator options E2E (Ruby ${{ matrix.ruby-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false

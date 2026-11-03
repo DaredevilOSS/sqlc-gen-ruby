@@ -6,6 +6,7 @@ examples_dir = ENV.fetch('EXAMPLES_DIR') { raise 'EXAMPLES_DIR must point at gen
 driver = ENV.fetch('EXAMPLES_DRIVER') { raise 'EXAMPLES_DRIVER must be set for E2E bundling' }
 eval_gemfile File.join(examples_dir, driver, 'Gemfile')
 
+gem 'logger' # tests/end2end_*.rb; not a default gem since Ruby 4.0
 gem 'async', RUBY_VERSION.start_with?('3.1') ? '< 2.7' : '>= 2.7'
 gem 'minitest'
 gem 'rake'

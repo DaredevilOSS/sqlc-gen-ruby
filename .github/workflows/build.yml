@@ -24,6 +24,7 @@ jobs:
   build-wasm:
     name: Build (WASM)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -46,6 +47,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -70,6 +72,7 @@ jobs:
     name: Codegen Tests
     needs: [build-wasm]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -108,6 +111,7 @@ jobs:
     name: Codegen Options (ruby ${{ matrix.ruby-version }}, types=${{ matrix.generate-types }}, gemfile=${{ matrix.generate-gemfile }})
     needs: [build-wasm]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
