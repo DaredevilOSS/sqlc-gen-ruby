@@ -37,6 +37,11 @@ CREATE TABLE books (
     FOREIGN KEY (author_id) REFERENCES authors (id) ON DELETE CASCADE
 );
 
+CREATE TABLE deferred_books (
+    id BIGSERIAL PRIMARY KEY,
+    author_id BIGINT NOT NULL REFERENCES authors (id) DEFERRABLE INITIALLY DEFERRED
+);
+
 CREATE SCHEMA extended;
 
 CREATE TYPE extended.bio_type AS ENUM ('Autobiography', 'Biography', 'Memoir');
@@ -57,6 +62,12 @@ CREATE TABLE postgres_extra_types (
     c_inet INET,
     c_money MONEY,
     c_not_null TEXT NOT NULL DEFAULT 'x'
+);
+
+CREATE TABLE json_round_trips (
+    id INTEGER PRIMARY KEY,
+    json_value JSON,
+    jsonb_value JSONB
 );
 
 CREATE TABLE postgres_array_types (

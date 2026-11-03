@@ -74,6 +74,7 @@ module SqlcGenRuby
                         instance_variable_get instance_variable_set instance_variables is_a? itself kind_of? members
                         method methods nil? object_id public_method public_send respond_to? send singleton_class
                         singleton_method singleton_methods tap then to_enum to_h to_s with yield_self].freeze
+    KERNEL_METHODS = %w[format raise rand].freeze
 
     # Struct (rows on Ruby < 3.2) also has Enumerable and accessors such as #size / #values.
     STRUCT_METHODS = (OBJECT_METHODS + %w[all? any? chain chunk chunk_while collect collect_concat compact count cycle

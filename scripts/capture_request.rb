@@ -16,6 +16,6 @@ require 'sqlc_gen_ruby/plugin_pb'
 
 request = SqlcGenRuby::Plugin::GenerateRequest.decode($stdin.binmode.read)
 request.catalog.schemas.reject! { |s| SqlcGenRuby::Catalog::INTERNAL_SCHEMAS.include?(s.name) }
-File.binwrite(ARGV.fetch(0), request.encode)
+File.binwrite(ENV.fetch('FIXTURE_PATH') { ARGV.fetch(0) }, request.encode)
 # sqlc expects a (possibly empty) GenerateResponse back
 $stdout.binmode.write('')

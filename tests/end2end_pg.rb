@@ -8,13 +8,47 @@ require 'async/barrier'
 require 'bigdecimal'
 require 'ipaddr'
 require 'securerandom'
+require 'timeout'
+EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../examples', __dir__))).freeze
 require_relative 'consts'
 require_relative 'rbs_types'
-require_relative '../examples/pg/query_sql'
+require File.join(EXAMPLES_DIR, 'pg/query_sql')
 
 # End-to-end tests of the code generated for examples/authors/postgresql, against a real PostgreSQL server.
 class TestPg < Minitest::Test
   include PgCodegen
+
+  TEXT_PARTS = ["é", '🙂', "\t", "\n", "\r", '\\', "'", '"', ',', '\N', 'NULL'].freeze
+
+  def row_for(klass, values)
+    klass.new(**klass.members.zip(values).to_h)
+  end
+
+  def row_value(row, member)
+    actual_member = row.class.members.find { |name| name == member.to_sym || name == :"#{member}_" }
+    row.public_send(actual_member)
+  end
+
+  def seeded_random
+    seed = Integer(ENV.fetch('SEED', '1793729686'))
+    warn "SEED=#{seed} #{self.class}"
+    Random.new(seed)
+  end
+
+  def random_text(random)
+    Array.new(random.rand(1..8)) { TEXT_PARTS.fetch(random.rand(TEXT_PARTS.length)) }.join
+  end
+
+  def old_timeout_version?
+    defined?(::Timeout::VERSION) && (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?
+  end
+
+  def return_from_transaction(name)
+    @query_sql.transaction do |tx|
+      tx.create_author_return_id(name: name, bio: nil)
+      return :returned
+    end
+  end
 
   def pg_params
     {
@@ -35,6 +69,8 @@ class TestPg < Minitest::Test
     @query_sql.truncate_special_types
     @query_sql.truncate_regressions
     @query_sql.truncate_batch_types
+    @query_sql.truncate_json_round_trips
+    @query_sql.truncate_deferred_books
   end
 
   def create_author(name, bio = nil)
@@ -45,16 +81,16 @@ class TestPg < Minitest::Test
 
   def test_flow
     first = @query_sql.create_author(name: Consts::BOJACK_AUTHOR, bio: Consts::BOJACK_THEME)
-    assert_equal CreateAuthorRow.new(first.id, Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME), first
+    assert_equal row_for(CreateAuthorRow, [first.id, Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME]), first
     second = @query_sql.create_author(name: Consts::DR_SEUSS_AUTHOR, bio: Consts::DR_SEUSS_QUOTE)
 
-    assert_equal GetAuthorRow.new(first.id, Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME),
+    assert_equal row_for(GetAuthorRow, [first.id, Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME]),
                  @query_sql.get_author(id: first.id)
     assert_nil @query_sql.get_author(id: -1)
     assert_equal [second.name, first.name].sort, @query_sql.list_authors.map(&:name).sort
 
     @query_sql.delete_author(id: first.id)
-    assert_equal [ListAuthorsRow.new(second.id, Consts::DR_SEUSS_AUTHOR, Consts::DR_SEUSS_QUOTE)],
+    assert_equal [row_for(ListAuthorsRow, [second.id, Consts::DR_SEUSS_AUTHOR, Consts::DR_SEUSS_QUOTE])],
                  @query_sql.list_authors
   end
 
@@ -89,12 +125,12 @@ class TestPg < Minitest::Test
   end
 
   def test_batch_commands_run_once_per_args
-    @query_sql.create_authors_batch([CreateAuthorsBatchArgs.new('a', nil), CreateAuthorsBatchArgs.new('b', 'x'),
-                                     CreateAuthorsBatchArgs.new('b', 'y')])
+    @query_sql.create_authors_batch([CreateAuthorsBatchArgs.new(name: 'a', bio: nil), CreateAuthorsBatchArgs.new(name: 'b', bio: 'x'),
+                                     CreateAuthorsBatchArgs.new(name: 'b', bio: 'y')])
     ids = @query_sql.list_authors.to_h { |a| [a.bio, a.id] }
-    found = @query_sql.get_author_batch([GetAuthorBatchArgs.new(ids['x']), GetAuthorBatchArgs.new(-1)])
+    found = @query_sql.get_author_batch([GetAuthorBatchArgs.new(id: ids['x']), GetAuthorBatchArgs.new(id: -1)])
     assert_equal ['b', nil], found.map { |r| r&.name }
-    many = @query_sql.list_authors_by_name_batch(%w[b a c].map { |n| ListAuthorsByNameBatchArgs.new(n) })
+    many = @query_sql.list_authors_by_name_batch(%w[b a c].map { |n| ListAuthorsByNameBatchArgs.new(name: n) })
     assert_equal [%w[x y], [nil], []], many.map { |rows| rows.map(&:bio) }
     assert_nil @query_sql.create_authors_batch([])
   end
@@ -121,6 +157,12 @@ class TestPg < Minitest::Test
     assert_equal 3, all.size
     ab = @query_sql.get_author_by_name_pattern(name_pattern: 'ab%')
     assert_equal %w[abc abd], ab.map(&:name).sort
+  end
+
+  def test_required_argument_after_optional_named_argument
+    %w[alpha beta gamma].each { |name| create_author(name) }
+    assert_equal %w[alpha beta gamma], @query_sql.get_authors_by_optional_name(lim: 10).map(&:name).sort
+    assert_equal ['beta'], @query_sql.get_authors_by_optional_name(lim: 10, name_filter: 'beta').map(&:name)
   end
 
   # ---- array parameters (PostgreSQL has no sqlc.slice) -----------------------------------------------------------
@@ -167,7 +209,7 @@ class TestPg < Minitest::Test
     assert_equal ['book 1', 'book 2'], rows.map { |r| r.book.name }
     assert_instance_of Author, rows.first.author
     assert_instance_of Book, rows.first.book
-    assert_equal Author.new(first, 'a', 'bio a'), rows.first.author
+    assert_equal row_for(Author, [first, 'a', 'bio a']), rows.first.author
     assert_equal first, rows.first.book.author_id
   end
 
@@ -209,7 +251,7 @@ class TestPg < Minitest::Test
     @query_sql.create_extended_bio(author_name: 'a', name: 'n1', bio_type: ExtendedBioType::MEMOIR)
     @query_sql.create_extended_bio(author_name: 'a', name: 'n2', bio_type: ExtendedBioType::BIOGRAPHY)
     row = @query_sql.get_first_extended_bio_by_type(bio_type: 'Biography')
-    assert_equal GetFirstExtendedBioByTypeRow.new('a', 'n2', 'Biography'), row
+    assert_equal row_for(GetFirstExtendedBioByTypeRow, %w[a n2 Biography]), row
     assert_equal %w[Autobiography Biography Memoir], ExtendedBioType::ALL
   end
 
@@ -295,6 +337,29 @@ class TestPg < Minitest::Test
     assert_equal 'nn', row.c_not_null
   end
 
+  def test_json_and_jsonb_parameters_round_trip_all_json_value_types
+    cases = [
+      [true, true], [false, false], [7, 7], [1.25, 1.25],
+      [{ 'nested' => [1, { 'nil' => nil }] }, { 'nested' => [1, { 'nil' => nil }] }],
+      [[1, false, { 'a' => 'b' }], [1, false, { 'a' => 'b' }]],
+      ['{"from":"json text"}', { 'from' => 'json text' }], [nil, nil]
+    ]
+    cases.each_with_index do |(value, expected), id|
+      @query_sql.set_json_round_trip(id: id, json_value: value, jsonb_value: value)
+      row = @query_sql.get_json_round_trip(id: id)
+      if expected.nil?
+        assert_nil row.json_value
+        assert_nil row.jsonb_value
+      else
+        assert_equal expected, row.json_value
+        assert_equal expected, row.jsonb_value
+      end
+    end
+    @query_sql.set_json_round_trip(id: 10, json_value: true, jsonb_value: true)
+    @query_sql.toggle_jsonb_round_trip(id: 10)
+    assert_equal false, @query_sql.get_json_round_trip(id: 10).jsonb_value
+  end
+
   def test_arrays_of_types_without_a_decoder_are_arrays
     uuids = [SecureRandom.uuid, SecureRandom.uuid]
     @query_sql.insert_array_types(c_uuid_array: uuids, c_bio_type_array: %w[Memoir Biography],
@@ -303,7 +368,7 @@ class TestPg < Minitest::Test
     assert_equal uuids, row.c_uuid_array
     assert_equal %w[Memoir Biography], row.c_bio_type_array
     assert_equal [[1, 2], [3, 4]], row.c_integer_matrix
-    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/pg/query_sql.rbs', __dir__), 'GetArrayTypesRow')
+    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), 'GetArrayTypesRow')
   end
 
   def test_special_types_composites_and_domains
@@ -312,7 +377,7 @@ class TestPg < Minitest::Test
     row = @query_sql.get_special_types
     assert_equal ['12:00:00+02', "'a':1 'b':2", '(1,2)', '[1,4)', 42, '(3,4)', 5],
                  [row.c_timetz, row.c_tsvector, row.c_point, row.c_int4range, row.c_oid, row.c_dimensions, row.c_positive]
-    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/pg/query_sql.rbs', __dir__), 'GetSpecialTypesRow')
+    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), 'GetSpecialTypesRow')
   end
 
   def test_extra_types_nulls
@@ -337,7 +402,7 @@ class TestPg < Minitest::Test
         '2024-01-02 03:04:05', 'a', 'b', '\\x0102', 'c', '{"a": 1}')
     SQL
     row = @query_sql.test
-    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/pg/query_sql.rbs', __dir__), 'TestRow')
+    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), 'TestRow')
     assert_equal Date.new(2024, 1, 2), row.c_date
     assert_equal BigDecimal('1.5'), row.c_decimal
     assert_equal({ 'a' => 1 }, row.c_json)
@@ -351,7 +416,7 @@ class TestPg < Minitest::Test
     client.exec('DELETE FROM node_postgres_types')
     client.exec('INSERT INTO node_postgres_types (c_integer) VALUES (NULL)')
     row = @query_sql.test
-    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/pg/query_sql.rbs', __dir__), 'TestRow')
+    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), 'TestRow')
     assert_equal [nil], row.to_h.except(:c_serial).values.uniq # c_serial is filled by its default
   ensure
     client&.exec('DELETE FROM node_postgres_types')
@@ -362,7 +427,7 @@ class TestPg < Minitest::Test
       c_uuid: SecureRandom.uuid, c_jsonb: '[1]', c_text_array: %w[a], c_integer_array: [1], c_timestamptz: Time.now,
       c_inet: '::1', c_money: '1', c_not_null: 'x'
     )
-    assert_empty RbsTypes.mismatches(@query_sql.get_extra_types, File.expand_path('../examples/pg/query_sql.rbs', __dir__),
+    assert_empty RbsTypes.mismatches(@query_sql.get_extra_types, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'),
                                      'GetExtraTypesRow')
   end
 
@@ -426,11 +491,10 @@ class TestPg < Minitest::Test
   # queries overlap because pg and connection_pool are fiber aware.
   def test_queries_run_concurrently_under_the_fiber_scheduler
     queries = QuerySql.connect(pg_params, size: 5)
-    pool = queries.instance_variable_get(:@db)
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     Sync do
       barrier = Async::Barrier.new
-      5.times { barrier.async { pool.with { |client| client.exec('select pg_sleep(0.4)') } } }
+      5.times { barrier.async { queries.pause_query(seconds: 0.4) } }
       barrier.wait
     end
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
@@ -493,8 +557,10 @@ class TestPg < Minitest::Test
   def test_copyfrom_quotes_identifiers_and_encodes_bytea_and_json
     binary = "\x00\x01\xFE".b
     @query_sql.copy_regressions([CopyRegressionsArgs.new(id: 1, order: 'a', payload: binary, doc: [1, 2]),
-                                 CopyRegressionsArgs.new(id: 2, order: 'b', payload: nil, doc: nil)])
-    assert_equal [[1, 'a', binary, [1, 2]], [2, 'b', nil, nil]],
+                                 CopyRegressionsArgs.new(id: 2, order: 'b', payload: nil, doc: nil),
+                                 CopyRegressionsArgs.new(id: 3, order: 'true', payload: nil, doc: true),
+                                 CopyRegressionsArgs.new(id: 4, order: 'false', payload: nil, doc: false)])
+    assert_equal [[1, 'a', binary, [1, 2]], [2, 'b', nil, nil], [3, 'true', nil, true], [4, 'false', nil, false]],
                  @query_sql.list_regressions.map { |r| [r.id, r.order, r.payload, r.doc] }
   end
 
@@ -518,8 +584,11 @@ class TestPg < Minitest::Test
   def test_batch_parameters_encode_bytea_and_json
     binary = "\x00\xFFb".b
     @query_sql.create_regressions_batch([CreateRegressionsBatchArgs.new(id: 1, order: 'a', payload: binary, doc: [1, { 'k' => 'é' }]),
-                                         CreateRegressionsBatchArgs.new(id: 2, order: 'b', payload: nil, doc: nil)])
-    assert_equal [[1, binary, [1, { 'k' => 'é' }]], [2, nil, nil]], @query_sql.list_regressions.map { |r| [r.id, r.payload, r.doc] }
+                                         CreateRegressionsBatchArgs.new(id: 2, order: 'b', payload: nil, doc: nil),
+                                         CreateRegressionsBatchArgs.new(id: 3, order: 'c', payload: nil, doc: true),
+                                         CreateRegressionsBatchArgs.new(id: 4, order: 'd', payload: nil, doc: false)])
+    assert_equal [[1, binary, [1, { 'k' => 'é' }]], [2, nil, nil], [3, nil, true], [4, nil, false]],
+                 @query_sql.list_regressions.map { |r| [r.id, r.payload, r.doc] }
   end
 
   def test_transaction_whose_failed_statement_was_rescued_raises_instead_of_committing
@@ -553,7 +622,86 @@ class TestPg < Minitest::Test
       end
     end
     pooled.instance_variable_get(:@db).with { |client| assert_equal PG::PQTRANS_IDLE, client.transaction_status }
-    assert_equal ['break 0', 'break 1', 'throw'], @query_sql.list_authors.map(&:name).sort
+    expected = old_timeout_version? ? [] : ['break 0', 'break 1', 'throw']
+    assert_equal expected, @query_sql.list_authors.map(&:name).sort
+  end
+
+  def test_transaction_timeout_rolls_back_and_keeps_connection_usable
+    [:database, :ruby_sleep].each do |kind|
+      assert_raises(Timeout::Error) do
+        Timeout.timeout(0.05) do
+          @query_sql.transaction do |tx|
+            tx.create_author_return_id(name: kind.to_s, bio: nil)
+            kind == :database ? tx.pause_query(seconds: 0.2) : sleep(0.2)
+          end
+        end
+      end
+      assert_empty @query_sql.list_authors
+      @query_sql.create_author_return_id(name: 'usable', bio: nil)
+      assert_equal ['usable'], @query_sql.list_authors.map(&:name)
+      @query_sql.truncate_authors
+    end
+  end
+
+  def test_transaction_nonlocal_exit_semantics_follow_timeout_version
+    break_value = @query_sql.transaction do |tx|
+      tx.create_author_return_id(name: 'break', bio: nil)
+      break :break_value
+    end
+    assert_equal :break_value, break_value
+    assert_equal :returned, return_from_transaction('return')
+    thrown = catch(:transaction_exit) do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'throw', bio: nil)
+        throw :transaction_exit, :throw_value
+      end
+    end
+    assert_equal :throw_value, thrown
+    expected = old_timeout_version? ? [] : %w[break return throw]
+    assert_equal expected, @query_sql.list_authors.map(&:name).sort
+  end
+
+  def test_thread_kill_rolls_back_and_leaves_connection_idle
+    started = Queue.new
+    thread = Thread.new do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'killed', bio: nil)
+        started << true
+        sleep(5)
+      end
+    end
+    started.pop
+    thread.kill
+    thread.join
+    assert_empty @query_sql.list_authors
+    @query_sql.instance_variable_get(:@db).with do |client|
+      assert_equal PG::PQTRANS_IDLE, client.transaction_status
+    end
+  end
+
+  def test_nested_savepoint_rolls_back_while_outer_transaction_commits
+    @query_sql.transaction do |tx|
+      tx.create_author_return_id(name: 'outer before', bio: nil)
+      assert_raises(RuntimeError) do
+        tx.transaction do |inner|
+          inner.create_author_return_id(name: 'nested', bio: nil)
+          raise 'rollback savepoint'
+        end
+      end
+      tx.create_author_return_id(name: 'outer after', bio: nil)
+    end
+    assert_equal ['outer after', 'outer before'], @query_sql.list_authors.map(&:name).sort
+  end
+
+  def test_parent_query_object_calls_are_part_of_same_thread_transaction
+    assert_raises(RuntimeError) do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'tx', bio: nil)
+        @query_sql.create_author_return_id(name: 'parent', bio: nil)
+        raise 'rollback outer transaction'
+      end
+    end
+    assert_empty @query_sql.list_authors
   end
 
   # ---- final sweep fixes: :batch* / :copyfrom parameter encoding, nested rescued errors, dead connections ---------
@@ -602,7 +750,7 @@ class TestPg < Minitest::Test
   end
 
   def test_all_caps_parameter_names_are_snake_cased
-    assert_equal 0, @query_sql.count_batch_types_above!(min_id: 0).count
+    assert_equal 0, row_value(@query_sql.count_batch_types_above!(min_id: 0), :count)
   end
 
   def test_nested_transaction_rescuing_a_failed_statement_rolls_back_only_itself
@@ -632,5 +780,116 @@ class TestPg < Minitest::Test
     PG.connect(**pg_params.transform_keys(&:to_sym)) { |admin| admin.exec_params('SELECT pg_terminate_backend($1)', [pid]) }
     assert_raises(PG::Error) { pooled.list_authors }
     assert_equal [], pooled.list_authors
+  end
+
+  def test_deferred_foreign_key_failure_at_commit_leaves_connection_idle
+    assert_raises(PG::ForeignKeyViolation) do
+      @query_sql.transaction do |tx|
+        tx.create_deferred_book(author_id: -1)
+      end
+    end
+    @query_sql.instance_variable_get(:@db).with do |client|
+      assert_equal PG::PQTRANS_IDLE, client.transaction_status
+    end
+    assert_kind_of Integer, @query_sql.create_author_return_id(name: 'usable', bio: nil)
+  end
+
+  def test_terminated_backend_inside_transaction_is_replaced
+    pooled = QuerySql.connect(pg_params, size: 1)
+    assert_raises(PG::Error) do
+      pooled.transaction do |tx|
+        tx.create_author_return_id(name: 'rolled back', bio: nil)
+        pid = pooled.instance_variable_get(:@db).with(&:backend_pid)
+        PG.connect(**pg_params.transform_keys(&:to_sym)) do |admin|
+          admin.exec_params('SELECT pg_terminate_backend($1)', [pid])
+        end
+        tx.list_authors
+      end
+    end
+    assert_empty pooled.list_authors
+  end
+
+  def test_seeded_random_copyfrom_round_trip_and_duplicate_is_atomic
+    random = seeded_random
+    rows = Array.new(300) do |i|
+      doc = case random.rand(6)
+            when 0 then nil
+            when 1 then true
+            when 2 then false
+            when 3 then random.rand(-2**60..2**60)
+            when 4 then random.rand(1..100) / 4.0
+            else { 'text' => random_text(random), 'items' => [random.rand(100), nil] }
+            end
+      CopyRegressionsArgs.new(id: 5_000_000_000 + i, order: "#{i}#{random_text(random)}",
+                             payload: random.bytes(random.rand(0..16)).b, doc: doc)
+    end
+    @query_sql.copy_regressions(rows)
+    expected = rows.map { |r| [r.id, r.order, r.payload, r.doc] }.sort_by(&:first)
+    actual = @query_sql.list_regressions.map { |r| [r.id, r.order, r.payload, r.doc] }
+    assert_equal expected, actual
+
+    duplicate = [CopyRegressionsArgs.new(id: 6_000_000_000, order: 'new', payload: nil, doc: nil), rows.first]
+    assert_raises(PG::UniqueViolation) { @query_sql.copy_regressions(duplicate) }
+    assert_equal expected, @query_sql.list_regressions.map { |r| [r.id, r.order, r.payload, r.doc] }
+  end
+
+  def test_seeded_random_batch_round_trip
+    random = seeded_random
+    rows = Array.new(300) do |i|
+      { name: "#{i}-#{random_text(random)}", bio: random.rand(3).zero? ? nil : random_text(random) }
+    end
+    @query_sql.create_authors_batch(rows.map { |row| CreateAuthorsBatchArgs.new(**row) })
+    stored = @query_sql.list_authors
+    assert_equal rows.sort_by { |row| row[:name] },
+                 stored.map { |row| { name: row.name, bio: row.bio } }.sort_by { |row| row[:name] }
+    one = @query_sql.get_author_batch(stored.map { |row| GetAuthorBatchArgs.new(id: row.id) })
+    assert_equal stored.map(&:name).sort, one.map(&:name).sort
+    many = @query_sql.list_authors_by_name_batch(stored.map { |row| ListAuthorsByNameBatchArgs.new(name: row.name) })
+    assert_equal stored.map(&:name).sort, many.flatten.map(&:name).sort
+  end
+
+  def test_seeded_concurrent_transactions_commit_the_exact_planned_set
+    random = seeded_random
+    plan = Array.new(4) { Array.new(8) { random.rand(4) } }
+    names = plan.each_with_index.map do |actions, thread_index|
+      actions.each_index.map { |index| "thread-#{thread_index}-#{index}" }
+    end
+    expected = plan.each_with_index.flat_map do |actions, thread_index|
+      actions.each_with_index.flat_map do |action, index|
+        name = names[thread_index][index]
+        action == 1 ? [] : (action == 3 ? [name, "#{name}-batch"] : [name])
+      end
+    end.sort
+    threads = plan.each_with_index.map do |actions, thread_index|
+      Thread.new do
+        actions.each_with_index do |action, index|
+          name = names[thread_index][index]
+          begin
+            @query_sql.transaction do |tx|
+              tx.create_author_return_id(name: name, bio: nil)
+              case action
+              when 1
+                raise "rollback #{name}"
+              when 2
+                begin
+                  tx.transaction do |inner|
+                    inner.create_author_return_id(name: "#{name}-nested", bio: nil)
+                    raise "savepoint #{name}"
+                  end
+                rescue RuntimeError
+                  nil
+                end
+              when 3
+                tx.create_authors_batch([CreateAuthorsBatchArgs.new(name: "#{name}-batch", bio: random_text(random))])
+              end
+            end
+          rescue RuntimeError => error
+            raise unless action == 1 && error.message == "rollback #{name}"
+          end
+        end
+      end
+    end
+    threads.each(&:value)
+    assert_equal expected, @query_sql.list_authors.map(&:name).sort
   end
 end

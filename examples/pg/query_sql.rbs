@@ -72,6 +72,27 @@ module PgCodegen
     ) -> void
   end
 
+  SET_JSON_ROUND_TRIP_SQL: String
+
+  GET_JSON_ROUND_TRIP_SQL: String
+
+  class GetJSONRoundTripRow
+    attr_reader json_value: untyped
+    attr_reader jsonb_value: untyped
+    def initialize: (  untyped json_value, untyped jsonb_value) -> void
+  end
+
+  TOGGLE_JSONB_ROUND_TRIP_SQL: String
+
+  TRUNCATE_JSON_ROUND_TRIPS_SQL: String
+
+  PAUSE_QUERY_SQL: String
+
+  class PauseQueryRow
+    attr_reader pg_sleep: untyped
+    def initialize: (  untyped pg_sleep) -> void
+  end
+
   LIST_AUTHORS_PAGED_SQL: String
 
   class ListAuthorsPagedRow
@@ -84,6 +105,15 @@ module PgCodegen
   GET_AUTHOR_BY_NAME_PATTERN_SQL: String
 
   class GetAuthorByNamePatternRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL: String
+
+  class GetAuthorsByOptionalNameRow
     attr_reader id: Integer
     attr_reader name: String
     attr_reader bio: String?
@@ -131,6 +161,10 @@ module PgCodegen
     attr_reader id: String
     def initialize: (  String id) -> void
   end
+
+  CREATE_DEFERRED_BOOK_SQL: String
+
+  TRUNCATE_DEFERRED_BOOKS_SQL: String
 
   LIST_ALL_AUTHORS_BOOKS_SQL: String
 
@@ -464,9 +498,23 @@ module PgCodegen
 
     def test!: -> TestRow
 
+    def set_json_round_trip: (id: Integer, json_value: untyped, jsonb_value: untyped) -> void
+
+    def get_json_round_trip: (id: Integer) -> GetJSONRoundTripRow?
+
+    def get_json_round_trip!: (id: Integer) -> GetJSONRoundTripRow
+
+    def toggle_jsonb_round_trip: (id: Integer) -> void
+
+    def truncate_json_round_trips: -> void
+
+    def pause_query: (seconds: Float) -> void
+
     def list_authors_paged: (offset: Integer, limit: Integer) -> Array[ListAuthorsPagedRow]
 
     def get_author_by_name_pattern: (?name_pattern: String?) -> Array[GetAuthorByNamePatternRow]
+
+    def get_authors_by_optional_name: (lim: Integer, ?name_filter: String?) -> Array[GetAuthorsByOptionalNameRow]
 
     def create_author_return_id: (name: String, bio: String?) -> Integer
 
@@ -481,6 +529,10 @@ module PgCodegen
     def truncate_authors: -> void
 
     def create_book: (name: String, author_id: Integer) -> String
+
+    def create_deferred_book: (author_id: Integer) -> void
+
+    def truncate_deferred_books: -> void
 
     def list_all_authors_books: -> Array[ListAllAuthorsBooksRow]
 

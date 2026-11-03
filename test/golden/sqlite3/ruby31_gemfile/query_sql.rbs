@@ -44,6 +44,16 @@ module Sqlite3Codegen
     def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorByNamePatternRow
   end
 
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL: String
+
+  class GetAuthorsByOptionalNameRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByOptionalNameRow
+  end
+
   CREATE_AUTHOR_RETURN_ID_SQL: String
 
   class CreateAuthorReturnIdRow < ::Struct[untyped]
@@ -72,6 +82,16 @@ module Sqlite3Codegen
     attr_accessor bio: String?
     def initialize: (  id: Integer, name: String, bio: String?) -> void
     def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByIdsAndNamesRow
+  end
+
+  GET_AUTHORS_BY_MIXED_PLACEHOLDERS_SQL: String
+
+  class GetAuthorsByMixedPlaceholdersRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByMixedPlaceholdersRow
   end
 
   class CopyAuthorsArgs < ::Struct[untyped]
@@ -240,6 +260,36 @@ module Sqlite3Codegen
 
   TRUNCATE_REGRESSIONS_SQL: String
 
+  class CopyRegressionRowsArgs < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor order: String
+    attr_accessor price: Float?
+    attr_accessor payload: String?
+    def initialize: (  id: Integer, order: String, price: Float?, payload: String?) -> void
+    def self.new: (  id: Integer, order: String, price: Float?, payload: String?) -> CopyRegressionRowsArgs
+  end
+
+  LIST_REGRESSION_ROWS_SQL: String
+
+  class ListRegressionRowsRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor order: String
+    attr_accessor price: Float?
+    attr_accessor payload: String?
+    def initialize: (  id: Integer, order: String, price: Float?, payload: String?) -> void
+    def self.new: (  id: Integer, order: String, price: Float?, payload: String?) -> ListRegressionRowsRow
+  end
+
+  TRUNCATE_REGRESSION_ROWS_SQL: String
+
+  PAUSE_QUERY_SQL: String
+
+  class PauseQueryRow < ::Struct[untyped]
+    attr_accessor sleep: untyped
+    def initialize: (  sleep: untyped) -> void
+    def self.new: (  sleep: untyped) -> PauseQueryRow
+  end
+
   class CopyTagsOrReplaceArgs < ::Struct[untyped]
     attr_accessor name: String
     attr_accessor uses: Integer
@@ -345,6 +395,8 @@ module Sqlite3Codegen
 
     def get_author_by_name_pattern: (?name_pattern: String?) -> Array[GetAuthorByNamePatternRow]
 
+    def get_authors_by_optional_name: (lim: Integer, ?name_filter: untyped) -> Array[GetAuthorsByOptionalNameRow]
+
     def create_author_return_id: (name: String, bio: String?) -> Integer
 
     def update_author_bios: (bio: String?) -> Integer
@@ -352,6 +404,8 @@ module Sqlite3Codegen
     def get_authors_by_ids: (ids: Array[Integer]) -> Array[GetAuthorsByIdsRow]
 
     def get_authors_by_ids_and_names: (ids: Array[Integer], names: Array[String]) -> Array[GetAuthorsByIdsAndNamesRow]
+
+    def get_authors_by_mixed_placeholders: (n: String, ids: Array[Integer], id: Integer, more: Array[Integer]) -> Array[GetAuthorsByMixedPlaceholdersRow]
 
     def copy_authors: (Array[CopyAuthorsArgs] rows) -> void
 
@@ -395,6 +449,14 @@ module Sqlite3Codegen
 
     def truncate_regressions: -> void
 
+    def copy_regression_rows: (Array[CopyRegressionRowsArgs] rows) -> void
+
+    def list_regression_rows: -> Array[ListRegressionRowsRow]
+
+    def truncate_regression_rows: -> void
+
+    def pause_query: (sleep: untyped) -> void
+
     def copy_tags_or_replace: (Array[CopyTagsOrReplaceArgs] rows) -> void
 
     def copy_tags_or_ignore: (Array[CopyTagsOrIgnoreArgs] rows) -> void
@@ -418,6 +480,8 @@ module Sqlite3Codegen
     def instrument: [T] (String name) { () -> T } -> T
 
     def with_client: [T] (String name) { (untyped) -> T } -> T
+
+    def timeout_exits_with_throw?: () -> bool
 
     def atomically: (untyped client) { () -> void } -> void
 

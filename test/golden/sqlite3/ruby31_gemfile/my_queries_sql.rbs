@@ -17,5 +17,7 @@ module Sqlite3Codegen
     def instrument: [T] (String name) { () -> T } -> T
 
     def with_client: [T] (String name) { (untyped) -> T } -> T
+
+    def timeout_exits_with_throw?: () -> bool
   end
 end

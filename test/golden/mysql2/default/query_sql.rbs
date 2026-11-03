@@ -125,6 +125,22 @@ module Mysql2Codegen
     def initialize: (  Integer id, String name, String? bio) -> void
   end
 
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL: String
+
+  class GetAuthorsByOptionalNameRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
+  PAUSE_QUERY_SQL: String
+
+  class PauseQueryRow
+    attr_reader sleep: Integer
+    def initialize: (  Integer sleep) -> void
+  end
+
   UPDATE_AUTHOR_BIOS_SQL: String
 
   GET_AUTHORS_BY_IDS_SQL: String
@@ -271,6 +287,16 @@ module Mysql2Codegen
     def initialize: (  Integer id, String? payload) -> void
   end
 
+  LIST_REGRESSION_ROWS_SQL: String
+
+  class ListRegressionRowsRow
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader note: String?
+    attr_reader payload: String?
+    def initialize: (  Integer id, String order, String? note, String? payload) -> void
+  end
+
   TRUNCATE_REGRESSIONS_SQL: String
 
   class CopyCopyTypesArgs
@@ -415,6 +441,10 @@ module Mysql2Codegen
 
     def get_author_by_name_pattern: (?name_pattern: String?) -> Array[GetAuthorByNamePatternRow]
 
+    def get_authors_by_optional_name: (limit: Integer, ?name_filter: untyped) -> Array[GetAuthorsByOptionalNameRow]
+
+    def pause_query: (seconds: Integer) -> void
+
     def update_author_bios: (?bio: String?) -> Integer
 
     def get_authors_by_ids: (ids: Array[Integer]) -> Array[GetAuthorsByIdsRow]
@@ -460,6 +490,8 @@ module Mysql2Codegen
     def copy_regression_rows: (Array[CopyRegressionRowsArgs] rows) -> void
 
     def list_regression_payloads: -> Array[ListRegressionPayloadsRow]
+
+    def list_regression_rows: -> Array[ListRegressionRowsRow]
 
     def truncate_regressions: -> void
 

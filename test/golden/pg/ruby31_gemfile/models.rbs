@@ -88,6 +88,13 @@ module PgCodegen
     def self.new: (  id: String, name: String, author_id: Integer, description: String?) -> Book
   end
 
+  class DeferredBook < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor author_id: Integer
+    def initialize: (  id: Integer, author_id: Integer) -> void
+    def self.new: (  id: Integer, author_id: Integer) -> DeferredBook
+  end
+
   class PostgresExtraType < ::Struct[untyped]
     attr_accessor c_uuid: String?
     attr_accessor c_jsonb: untyped
@@ -117,6 +124,14 @@ module PgCodegen
         c_money: String?,
         c_not_null: String
     ) -> PostgresExtraType
+  end
+
+  class JsonRoundTrip < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor json_value: untyped
+    attr_accessor jsonb_value: untyped
+    def initialize: (  id: Integer, json_value: untyped, jsonb_value: untyped) -> void
+    def self.new: (  id: Integer, json_value: untyped, jsonb_value: untyped) -> JsonRoundTrip
   end
 
   class PostgresArrayType < ::Struct[untyped]

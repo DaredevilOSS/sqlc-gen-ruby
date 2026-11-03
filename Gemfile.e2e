@@ -1,0 +1,14 @@
+# frozen_string_literal: true
+
+source 'https://rubygems.org'
+
+gem 'async', RUBY_VERSION.start_with?('3.1') ? '< 2.7' : '>= 2.7'
+gem 'bigdecimal'
+gem 'connection_pool'
+gem 'csv'
+gem 'logger'
+gem 'minitest'
+gem 'mysql2'
+gem 'pg', '1.7.0'
+gem 'rake'
+gem 'sqlite3'

@@ -38,7 +38,8 @@ module Sqlite3Codegen
     attr_reader id: Integer
     attr_reader order: String
     attr_reader price: Float?
-    def initialize: (  Integer id, String order, Float? price) -> void
+    attr_reader payload: String?
+    def initialize: (  Integer id, String order, Float? price, String? payload) -> void
   end
 
   class Tag

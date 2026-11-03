@@ -54,6 +54,16 @@ module Sqlite3Codegen
   class GetAuthorByNamePatternRow < Data.define(:id, :name, :bio)
   end
 
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE (?1 IS NULL OR name = ?1)
+    ORDER BY id
+    LIMIT ?2
+  SQL
+
+  class GetAuthorsByOptionalNameRow < Data.define(:id, :name, :bio)
+  end
+
   CREATE_AUTHOR_RETURN_ID_SQL = <<~'SQL'
     INSERT INTO authors (name, bio) VALUES (?, ?) RETURNING id
   SQL
@@ -79,6 +89,20 @@ module Sqlite3Codegen
   SQL
 
   class GetAuthorsByIdsAndNamesRow < Data.define(:id, :name, :bio)
+  end
+
+  GET_AUTHORS_BY_MIXED_PLACEHOLDERS_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE name = ?
+      AND id IN (/*SLICE:ids*/?)
+      AND name = ?
+      AND id > ?
+      AND id IN (/*SLICE:more*/?)
+      AND 'x?' != '?3'
+    ORDER BY id
+  SQL
+
+  class GetAuthorsByMixedPlaceholdersRow < Data.define(:id, :name, :bio)
   end
 
   class CopyAuthorsArgs < Data.define(:name, :bio)
@@ -217,6 +241,27 @@ module Sqlite3Codegen
   TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
     DELETE FROM regressions
   SQL
+
+  class CopyRegressionRowsArgs < Data.define(:id, :order, :price, :payload)
+  end
+
+  LIST_REGRESSION_ROWS_SQL = <<~'SQL'
+    SELECT id, "order", price, payload FROM regressions ORDER BY id
+  SQL
+
+  class ListRegressionRowsRow < Data.define(:id, :order, :price, :payload)
+  end
+
+  TRUNCATE_REGRESSION_ROWS_SQL = <<~'SQL'
+    DELETE FROM regressions
+  SQL
+
+  PAUSE_QUERY_SQL = <<~'SQL'
+    SELECT sleep(?)
+  SQL
+
+  class PauseQueryRow < Data.define(:sleep)
+  end
 
   class CopyTagsOrReplaceArgs < Data.define(:name, :uses)
   end
@@ -405,6 +450,21 @@ module Sqlite3Codegen
       end
     end
 
+    def get_authors_by_optional_name(lim:, name_filter: nil)
+      with_client('get_authors_by_optional_name') do |client|
+        query_params = [name_filter, lim]
+        stmt = client.prepare(GET_AUTHORS_BY_OPTIONAL_NAME_SQL)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            GetAuthorsByOptionalNameRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
     def create_author_return_id(name:, bio:)
       with_client('create_author_return_id') do |client|
         query_params = [name, bio]
@@ -465,6 +525,31 @@ module Sqlite3Codegen
         end
       end
     end
+
+    # rubocop:disable Naming/MethodParameterName
+    def get_authors_by_mixed_placeholders(n:, ids:, id:, more:)
+      with_client('get_authors_by_mixed_placeholders') do |client|
+        query_params = [
+          n,
+          *ids,
+          n,
+          id,
+          *more
+        ]
+        sql = GET_AUTHORS_BY_MIXED_PLACEHOLDERS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
+        sql = sql.gsub('/*SLICE:more*/?', slice_placeholders(more))
+        stmt = client.prepare(sql)
+        begin
+          result = stmt.execute(*query_params)
+          result.map do |row|
+            GetAuthorsByMixedPlaceholdersRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+    # rubocop:enable Naming/MethodParameterName
 
     # Bulk insert: pass an Array of CopyAuthorsArgs.
     def copy_authors(rows)
@@ -746,6 +831,57 @@ module Sqlite3Codegen
         stmt = client.prepare(TRUNCATE_REGRESSIONS_SQL)
         begin
           stmt.execute
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def copy_regression_rows(rows)
+      with_client('copy_regression_rows') do |client|
+        atomically(client) do
+          rows.each_slice(249) do |batch|
+            sql = %(INSERT INTO "regressions" ("id", "order", "price", "payload") VALUES #{Array.new(batch.size, '(?, ?, ?, ?)').join(', ')})
+            client.execute(sql, batch.flat_map { |row| [row.id, row.order, row.price, row.payload] })
+          end
+        end
+        nil
+      end
+    end
+
+    def list_regression_rows
+      with_client('list_regression_rows') do |client|
+        stmt = client.prepare(LIST_REGRESSION_ROWS_SQL)
+        begin
+          result = stmt.execute
+          result.map do |row|
+            ListRegressionRowsRow.new(row[0], row[1], row[2], row[3])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def truncate_regression_rows
+      with_client('truncate_regression_rows') do |client|
+        stmt = client.prepare(TRUNCATE_REGRESSION_ROWS_SQL)
+        begin
+          stmt.execute
+          nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def pause_query(sleep:)
+      with_client('pause_query') do |client|
+        query_params = [sleep]
+        stmt = client.prepare(PAUSE_QUERY_SQL)
+        begin
+          stmt.execute(*query_params).to_a
           nil
         ensure
           stmt.close

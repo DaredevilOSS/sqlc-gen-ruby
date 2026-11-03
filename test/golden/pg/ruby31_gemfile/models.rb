@@ -44,6 +44,8 @@ module PgCodegen
     keyword_init: true
   )
 
+  DeferredBook = Struct.new(:id, :author_id, keyword_init: true)
+
   PostgresExtraType = Struct.new(
     :c_uuid,
     :c_jsonb,
@@ -55,6 +57,8 @@ module PgCodegen
     :c_not_null,
     keyword_init: true
   )
+
+  JsonRoundTrip = Struct.new(:id, :json_value, :jsonb_value, keyword_init: true)
 
   PostgresArrayType = Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix, keyword_init: true)
 

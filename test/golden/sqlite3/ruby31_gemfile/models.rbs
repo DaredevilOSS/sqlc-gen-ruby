@@ -49,8 +49,9 @@ module Sqlite3Codegen
     attr_accessor id: Integer
     attr_accessor order: String
     attr_accessor price: Float?
-    def initialize: (  id: Integer, order: String, price: Float?) -> void
-    def self.new: (  id: Integer, order: String, price: Float?) -> Regression
+    attr_accessor payload: String?
+    def initialize: (  id: Integer, order: String, price: Float?, payload: String?) -> void
+    def self.new: (  id: Integer, order: String, price: Float?, payload: String?) -> Regression
   end
 
   class Tag < ::Struct[untyped]

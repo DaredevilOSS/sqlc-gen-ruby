@@ -1,7 +1,7 @@
 
 
 2
-postgresqlËpublic"‰publicÍ
+postgresql!public"ÎpublicÍ
 	authors)
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserial&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextH
@@ -44,7 +44,11 @@ pg_catalogvarchar4
 name0ÿÿÿÿÿÿÿÿÿRbooksbtext5
 	author_id0ÿÿÿÿÿÿÿÿÿRbooksb
 pg_catalogint8)
-description0ÿÿÿÿÿÿÿÿÿRbooksbtext‰
+description0ÿÿÿÿÿÿÿÿÿRbooksbtext„
+deferred_books0
+id0ÿÿÿÿÿÿÿÿÿRdeferred_booksb	bigserial>
+	author_id0ÿÿÿÿÿÿÿÿÿRdeferred_booksb
+pg_catalogint8‰
 postgres_extra_types3
 c_uuid0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbuuid5
 c_jsonb0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbjsonb>
@@ -56,7 +60,13 @@ pg_catalogtimestamptz3
 c_inet0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbinet5
 c_money0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbmoney9
 
-c_not_null0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbtextú
+c_not_null0ÿÿÿÿÿÿÿÿÿRpostgres_extra_typesbtext»
+json_round_trips9
+id0ÿÿÿÿÿÿÿÿÿRjson_round_tripsb
+pg_catalogint43
+
+json_value0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbjson5
+jsonb_value0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbjsonbú
 postgres_array_types>
 c_uuid_array 0ÿÿÿÿÿÿÿÿÿRpostgres_array_typesbuuidˆP
 c_bio_type_array 0ÿÿÿÿÿÿÿÿÿRpostgres_array_typesbextendedbio_typeˆN
@@ -163,7 +173,29 @@ pg_catalogbpcharzc_char"O
 pg_catalogvarcharz	c_varchar"=
 c_bytea0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbbyteazc_bytea":
 c_text0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbtextzc_text":
-c_json0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbjsonzc_json:	query.sql¾
+c_json0ÿÿÿÿÿÿÿÿÿRnode_postgres_typesbjsonzc_json:	query.sqlï
+NINSERT INTO json_round_trips (id, json_value, jsonb_value) VALUES ($1, $2, $3)SetJSONRoundTrip:exec*HD
+id0ÿÿÿÿÿÿÿÿÿRpublicjson_round_tripsbpg_catalog.int4zid*KG
+
+json_value0ÿÿÿÿÿÿÿÿÿRpublicjson_round_tripsbjsonz
+json_value*NJ
+jsonb_value0ÿÿÿÿÿÿÿÿÿRpublicjson_round_tripsbjsonbzjsonb_value:	query.sqlBjson_round_trips®
+BSELECT json_value, jsonb_value FROM json_round_trips WHERE id = $1GetJSONRoundTrip:one"?
+
+json_value0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbjsonz
+json_value"B
+jsonb_value0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbjsonbzjsonb_value*@<
+id0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbpg_catalog.int4zid:	query.sqlÑ
+eUPDATE json_round_trips
+SET jsonb_value = to_jsonb(NOT (jsonb_value #>> '{}')::boolean)
+WHERE id = $1ToggleJSONBRoundTrip:exec*@<
+id0ÿÿÿÿÿÿÿÿÿRjson_round_tripsbpg_catalog.int4zid:	query.sqlK
+TRUNCATE TABLE json_round_tripsTruncateJSONRoundTrips:exec:	query.sqlš
+%SELECT pg_sleep($1::double precision)
+PauseQuery:exec"!
+pg_sleep0ÿÿÿÿÿÿÿÿÿ@bvoid*0,
+seconds0ÿÿÿÿÿÿÿÿÿb
+pg_catalogfloat8:	query.sql¾
 BSELECT id, name, bio FROM authors
 ORDER BY name
 LIMIT $2
@@ -178,7 +210,16 @@ WHERE name LIKE COALESCE($1, '%')GetAuthorByNamePattern:many"-
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
 bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*84
-name_pattern0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sql–
+name_pattern0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sqlâ
+bSELECT id, name, bio FROM authors
+WHERE ($1::text IS NULL OR name = $1::text)
+ORDER BY id
+LIMIT $2GetAuthorsByOptionalName:many"-
+id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*$ 
+name_filter0ÿÿÿÿÿÿÿÿÿbtext*#
+lim0ÿÿÿÿÿÿÿÿÿ8b	integer:	query.sql–
 <INSERT INTO authors (name, bio) VALUES ($1, $2) RETURNING idCreateAuthorReturnId:execlastid"-
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid*84
 name0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzname*40
@@ -207,7 +248,10 @@ pg_catalogint8ˆ* 0ÿÿÿÿÿÿÿÿÿbtextˆ:	query.sql€
 CreateBook:execlastid"&
 id0ÿÿÿÿÿÿÿÿÿRbooksbuuidzid*62
 name0ÿÿÿÿÿÿÿÿÿRpublicbooksbtextzname*KG
-	author_id0ÿÿÿÿÿÿÿÿÿRpublicbooksbpg_catalog.int8z	author_id:	query.sqlBbooks®
+	author_id0ÿÿÿÿÿÿÿÿÿRpublicbooksbpg_catalog.int8z	author_id:	query.sqlBbooksÂ
+2INSERT INTO deferred_books (author_id) VALUES ($1)CreateDeferredBook:exec*TP
+	author_id0ÿÿÿÿÿÿÿÿÿRpublicdeferred_booksbpg_catalog.int8z	author_id:	query.sqlBdeferred_booksH
+TRUNCATE TABLE deferred_booksTruncateDeferredBooks:exec:	query.sql®
 ÂSELECT
     authors.id, authors.name, authors.bio,
     books.id, books.name, books.author_id, books.description

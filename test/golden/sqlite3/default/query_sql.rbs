@@ -40,6 +40,15 @@ module Sqlite3Codegen
     def initialize: (  Integer id, String name, String? bio) -> void
   end
 
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL: String
+
+  class GetAuthorsByOptionalNameRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
   CREATE_AUTHOR_RETURN_ID_SQL: String
 
   class CreateAuthorReturnIdRow
@@ -61,6 +70,15 @@ module Sqlite3Codegen
   GET_AUTHORS_BY_IDS_AND_NAMES_SQL: String
 
   class GetAuthorsByIdsAndNamesRow
+    attr_reader id: Integer
+    attr_reader name: String
+    attr_reader bio: String?
+    def initialize: (  Integer id, String name, String? bio) -> void
+  end
+
+  GET_AUTHORS_BY_MIXED_PLACEHOLDERS_SQL: String
+
+  class GetAuthorsByMixedPlaceholdersRow
     attr_reader id: Integer
     attr_reader name: String
     attr_reader bio: String?
@@ -209,6 +227,33 @@ module Sqlite3Codegen
 
   TRUNCATE_REGRESSIONS_SQL: String
 
+  class CopyRegressionRowsArgs
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader price: Float?
+    attr_reader payload: String?
+    def initialize: (  Integer id, String order, Float? price, String? payload) -> void
+  end
+
+  LIST_REGRESSION_ROWS_SQL: String
+
+  class ListRegressionRowsRow
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader price: Float?
+    attr_reader payload: String?
+    def initialize: (  Integer id, String order, Float? price, String? payload) -> void
+  end
+
+  TRUNCATE_REGRESSION_ROWS_SQL: String
+
+  PAUSE_QUERY_SQL: String
+
+  class PauseQueryRow
+    attr_reader sleep: untyped
+    def initialize: (  untyped sleep) -> void
+  end
+
   class CopyTagsOrReplaceArgs
     attr_reader name: String
     attr_reader uses: Integer
@@ -300,6 +345,8 @@ module Sqlite3Codegen
 
     def get_author_by_name_pattern: (?name_pattern: String?) -> Array[GetAuthorByNamePatternRow]
 
+    def get_authors_by_optional_name: (lim: Integer, ?name_filter: untyped) -> Array[GetAuthorsByOptionalNameRow]
+
     def create_author_return_id: (name: String, bio: String?) -> Integer
 
     def update_author_bios: (bio: String?) -> Integer
@@ -307,6 +354,8 @@ module Sqlite3Codegen
     def get_authors_by_ids: (ids: Array[Integer]) -> Array[GetAuthorsByIdsRow]
 
     def get_authors_by_ids_and_names: (ids: Array[Integer], names: Array[String]) -> Array[GetAuthorsByIdsAndNamesRow]
+
+    def get_authors_by_mixed_placeholders: (n: String, ids: Array[Integer], id: Integer, more: Array[Integer]) -> Array[GetAuthorsByMixedPlaceholdersRow]
 
     def copy_authors: (Array[CopyAuthorsArgs] rows) -> void
 
@@ -349,6 +398,14 @@ module Sqlite3Codegen
     def get_max_regression_price!: -> GetMaxRegressionPriceRow
 
     def truncate_regressions: -> void
+
+    def copy_regression_rows: (Array[CopyRegressionRowsArgs] rows) -> void
+
+    def list_regression_rows: -> Array[ListRegressionRowsRow]
+
+    def truncate_regression_rows: -> void
+
+    def pause_query: (sleep: untyped) -> void
 
     def copy_tags_or_replace: (Array[CopyTagsOrReplaceArgs] rows) -> void
 

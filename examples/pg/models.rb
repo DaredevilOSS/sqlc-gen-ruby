@@ -40,6 +40,9 @@ module PgCodegen
   class Book < Data.define(:id, :name, :author_id, :description)
   end
 
+  class DeferredBook < Data.define(:id, :author_id)
+  end
+
   class PostgresExtraType < Data.define(
     :c_uuid,
     :c_jsonb,
@@ -50,6 +53,9 @@ module PgCodegen
     :c_money,
     :c_not_null
   )
+  end
+
+  class JsonRoundTrip < Data.define(:id, :json_value, :jsonb_value)
   end
 
   class PostgresArrayType < Data.define(:c_uuid_array, :c_bio_type_array, :c_integer_matrix)

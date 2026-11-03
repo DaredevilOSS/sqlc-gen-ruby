@@ -4,19 +4,49 @@ require 'minitest/autorun'
 require 'logger'
 require 'stringio'
 require 'sqlite3'
+require 'timeout'
+EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../examples', __dir__))).freeze
 require_relative 'consts'
 require_relative 'rbs_types'
-require_relative '../examples/sqlite3/query_sql'
+require File.join(EXAMPLES_DIR, 'sqlite3/query_sql')
 
 # End-to-end tests of the code generated for examples/authors/sqlite, against a real (in-memory) SQLite database.
 class TestSqlite3 < Minitest::Test
   include Sqlite3Codegen
+
+  TEXT_PARTS = ["é", '🙂', "\t", "\n", "\r", '\\', "'", '"', ',', '\N', 'NULL'].freeze
+
+  def row_for(klass, values)
+    klass.new(**klass.members.zip(values).to_h)
+  end
+
+  def seeded_random
+    seed = Integer(ENV.fetch('SEED', '1793729686'))
+    warn "SEED=#{seed} #{self.class}"
+    Random.new(seed)
+  end
+
+  def random_text(random)
+    Array.new(random.rand(1..8)) { TEXT_PARTS.fetch(random.rand(TEXT_PARTS.length)) }.join
+  end
+
+  def old_timeout_version?
+    defined?(::Timeout::VERSION) && (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?
+  end
+
+  def return_from_transaction(name)
+    @query_sql.transaction do |tx|
+      tx.create_author_return_id(name: name, bio: nil)
+      return :returned
+    end
+  end
 
   SCHEMA = File.read(File.expand_path('../examples/authors/sqlite/schema.sql', __dir__))
 
   def setup
     @db = SQLite3::Database.new(':memory:')
     @db.execute_batch(SCHEMA)
+    @db.create_function('sleep', 1) { |_func, seconds| Kernel.sleep(seconds) }
     @query_sql = QuerySql.new(@db)
   end
 
@@ -30,7 +60,7 @@ class TestSqlite3 < Minitest::Test
     first = create_author(Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME)
     @query_sql.create_author(name: Consts::DR_SEUSS_AUTHOR, bio: Consts::DR_SEUSS_QUOTE)
 
-    assert_equal GetAuthorRow.new(first, Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME),
+    assert_equal row_for(GetAuthorRow, [first, Consts::BOJACK_AUTHOR, Consts::BOJACK_THEME]),
                  @query_sql.get_author(id: first)
     assert_nil @query_sql.get_author(id: -1)
     assert_equal [Consts::BOJACK_AUTHOR, Consts::DR_SEUSS_AUTHOR].sort, @query_sql.list_authors.map(&:name).sort
@@ -61,12 +91,12 @@ class TestSqlite3 < Minitest::Test
   end
 
   def test_batch_commands_run_once_per_args
-    @query_sql.create_authors_batch([CreateAuthorsBatchArgs.new('a', nil), CreateAuthorsBatchArgs.new('b', 'x'),
-                                     CreateAuthorsBatchArgs.new('b', 'y')])
+    @query_sql.create_authors_batch([CreateAuthorsBatchArgs.new(name: 'a', bio: nil), CreateAuthorsBatchArgs.new(name: 'b', bio: 'x'),
+                                     CreateAuthorsBatchArgs.new(name: 'b', bio: 'y')])
     ids = @query_sql.list_authors.to_h { |a| [a.bio, a.id] }
-    found = @query_sql.get_author_batch([GetAuthorBatchArgs.new(ids['x']), GetAuthorBatchArgs.new(-1)])
+    found = @query_sql.get_author_batch([GetAuthorBatchArgs.new(id: ids['x']), GetAuthorBatchArgs.new(id: -1)])
     assert_equal ['b', nil], found.map { |r| r&.name }
-    many = @query_sql.list_authors_by_name_batch(%w[b a c].map { |n| ListAuthorsByNameBatchArgs.new(n) })
+    many = @query_sql.list_authors_by_name_batch(%w[b a c].map { |n| ListAuthorsByNameBatchArgs.new(name: n) })
     assert_equal [%w[x y], [nil], []], many.map { |rows| rows.map(&:bio) }
     assert_nil @query_sql.create_authors_batch([])
   end
@@ -77,7 +107,7 @@ class TestSqlite3 < Minitest::Test
                                      c_json: '{"a":[1]}', c_uuid: uid)
     row = @query_sql.get_declared_types
     assert_equal ['v', 1.5, 7, 'n', 2.5, '{"a":[1]}', uid], row.to_h.values
-    assert_empty RbsTypes.mismatches(row, File.expand_path('../examples/sqlite3/query_sql.rbs', __dir__), 'GetDeclaredTypesRow')
+    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'sqlite3/query_sql.rbs'), 'GetDeclaredTypesRow')
   end
 
   def test_execrows_returns_affected_row_count
@@ -102,6 +132,12 @@ class TestSqlite3 < Minitest::Test
     assert_equal %w[abc abd], ab.map(&:name).sort
   end
 
+  def test_required_argument_after_optional_named_argument
+    %w[alpha beta gamma].each { |name| create_author(name) }
+    assert_equal %w[alpha beta gamma], @query_sql.get_authors_by_optional_name(lim: 10).map(&:name).sort
+    assert_equal ['beta'], @query_sql.get_authors_by_optional_name(lim: 10, name_filter: 'beta').map(&:name)
+  end
+
   # ---- sqlc.slice ------------------------------------------------------------------------------------------------
 
   def test_slice
@@ -119,6 +155,23 @@ class TestSqlite3 < Minitest::Test
     ids = %w[a b c].map { |name| create_author(name) }
     got = @query_sql.get_authors_by_ids_and_names(ids: ids, names: %w[b c x])
     assert_equal %w[b c], got.map(&:name).sort
+  end
+
+  def test_numbered_placeholders_keep_their_bindings_after_slice_expansion
+    ids = %w[slice-a slice-b slice-c slice-d slice-e].map { |name| create_author(name) }
+    ids.each do |count|
+      selected = ids.first(count)
+      more = ids.reverse
+      query = @query_sql.get_authors_by_mixed_placeholders(n: 'slice-a', ids: selected, id: 0, more: more)
+      sql_ids = selected.empty? ? 'NULL' : Array.new(selected.size, '?').join(', ')
+      more_sql_ids = Array.new(more.size, '?').join(', ')
+      expected = @db.execute(
+        "SELECT id, name, bio FROM authors WHERE name = ? AND id IN (#{sql_ids}) AND name = ? " \
+        "AND id > ? AND id IN (#{more_sql_ids}) AND 'x?' != '?3' ORDER BY id",
+        ['slice-a', *selected, 'slice-a', 0, *more]
+      ).map { |row| row_for(GetAuthorsByMixedPlaceholdersRow, row) }
+      assert_equal expected, query, "slice count #{count}"
+    end
   end
 
   # ---- :copyfrom -------------------------------------------------------------------------------------------------
@@ -151,7 +204,7 @@ class TestSqlite3 < Minitest::Test
     rows = @query_sql.list_all_authors_books
     assert_equal %w[a b], rows.map { |r| r.author.name }
     assert_equal ['book 1', 'book 2'], rows.map { |r| r.book.name }
-    assert_equal Author.new(first, 'a', 'bio a'), rows.first.author
+    assert_equal row_for(Author, [first, 'a', 'bio a']), rows.first.author
     assert_instance_of Book, rows.first.book
   end
 
@@ -197,7 +250,7 @@ class TestSqlite3 < Minitest::Test
   def test_declared_types_match_runtime_values
     @db.execute('INSERT INTO authors (id, name, bio) VALUES (1, ?, ?)', ['a', 'b'])
     @db.execute('INSERT INTO authors (id, name, bio) VALUES (2, ?, NULL)', ['c'])
-    rbs = File.expand_path('../examples/sqlite3/query_sql.rbs', __dir__)
+    rbs = File.join(EXAMPLES_DIR, 'sqlite3/query_sql.rbs')
     @query_sql.list_authors.each { |row| assert_empty RbsTypes.mismatches(row, rbs, 'ListAuthorsRow') }
   end
 
@@ -336,17 +389,80 @@ class TestSqlite3 < Minitest::Test
       end
     end
     refute @db.transaction_active?
-    assert_equal ['break 0', 'break 1', 'throw'], @query_sql.list_authors.map(&:name).sort
+    expected = old_timeout_version? ? [] : ['break 0', 'break 1', 'throw']
+    assert_equal expected, @query_sql.list_authors.map(&:name).sort
+  end
+
+  def test_transaction_timeout_rolls_back_and_keeps_connection_usable
+    [:database, :ruby_sleep].each do |kind|
+      assert_raises(Timeout::Error) do
+        Timeout.timeout(0.05) do
+          @query_sql.transaction do |tx|
+            tx.create_author_return_id(name: kind.to_s, bio: nil)
+            kind == :database ? tx.pause_query(sleep: 0.2) : sleep(0.2)
+          end
+        end
+      end
+      assert_empty @query_sql.list_authors
+      @query_sql.create_author_return_id(name: 'usable', bio: nil)
+      assert_equal ['usable'], @query_sql.list_authors.map(&:name)
+      @query_sql.truncate_authors
+    end
+  end
+
+  def test_transaction_nonlocal_exit_semantics_follow_timeout_version
+    break_value = @query_sql.transaction do |tx|
+      tx.create_author_return_id(name: 'break', bio: nil)
+      break :break_value
+    end
+    assert_equal :break_value, break_value
+    assert_equal :returned, return_from_transaction('return')
+    thrown = catch(:transaction_exit) do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'throw', bio: nil)
+        throw :transaction_exit, :throw_value
+      end
+    end
+    assert_equal :throw_value, thrown
+    expected = old_timeout_version? ? [] : %w[break return throw]
+    assert_equal expected, @query_sql.list_authors.map(&:name).sort
+  end
+
+  def test_thread_kill_rolls_back_and_leaves_connection_inactive
+    started = Queue.new
+    thread = Thread.new do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'killed', bio: nil)
+        started << true
+        sleep(5)
+      end
+    end
+    started.pop
+    thread.kill
+    thread.join
+    assert_empty @query_sql.list_authors
+    refute @db.transaction_active?
+  end
+
+  def test_parent_query_object_calls_are_part_of_same_thread_transaction
+    assert_raises(RuntimeError) do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'tx', bio: nil)
+        @query_sql.create_author_return_id(name: 'parent', bio: nil)
+        raise 'rollback outer transaction'
+      end
+    end
+    assert_empty @query_sql.list_authors
   end
 
   # ---- final sweep fixes: :copyfrom conflict clauses, nested modes ------------------------------------------------
 
   def test_copyfrom_keeps_conflict_clauses
-    @query_sql.copy_tags_or_ignore([CopyTagsOrIgnoreArgs.new('a', 1), CopyTagsOrIgnoreArgs.new('a', 2)])
+    @query_sql.copy_tags_or_ignore([CopyTagsOrIgnoreArgs.new(name: 'a', uses: 1), CopyTagsOrIgnoreArgs.new(name: 'a', uses: 2)])
     assert_equal [['a', 1]], @query_sql.list_tags.map { |t| [t.name, t.uses] }
-    @query_sql.copy_tags_or_replace([CopyTagsOrReplaceArgs.new('a', 5), CopyTagsOrReplaceArgs.new('b', 1)])
+    @query_sql.copy_tags_or_replace([CopyTagsOrReplaceArgs.new(name: 'a', uses: 5), CopyTagsOrReplaceArgs.new(name: 'b', uses: 1)])
     assert_equal [['a', 5], ['b', 1]], @query_sql.list_tags.map { |t| [t.name, t.uses] }
-    @query_sql.copy_tags_adding_uses([CopyTagsAddingUsesArgs.new('a', 1), CopyTagsAddingUsesArgs.new('c', 1)])
+    @query_sql.copy_tags_adding_uses([CopyTagsAddingUsesArgs.new(name: 'a', uses: 1), CopyTagsAddingUsesArgs.new(name: 'c', uses: 1)])
     assert_equal [['a', 6], ['b', 1], ['c', 1]], @query_sql.list_tags.map { |t| [t.name, t.uses] }
   end
 
@@ -354,5 +470,82 @@ class TestSqlite3 < Minitest::Test
     @query_sql.transaction do |tx|
       assert_raises(ArgumentError) { tx.transaction(mode: :immediate) { nil } }
     end
+  end
+
+  def test_seeded_random_copyfrom_round_trip_and_duplicate_is_atomic
+    random = seeded_random
+    rows = Array.new(300) do |i|
+      CopyRegressionRowsArgs.new(id: 5_000_000_000 + i, order: "#{i}#{random_text(random)}",
+                                 price: random.rand(3).zero? ? nil : random.rand(1..100),
+                                 payload: random.bytes(random.rand(0..64)).b)
+    end
+    @query_sql.copy_regression_rows(rows)
+    expected = rows.map { |r| [r.id, r.order, r.price, r.payload] }.sort_by(&:first)
+    actual = @query_sql.list_regression_rows.map { |r| [r.id, r.order, r.price, r.payload] }
+    assert_equal expected, actual
+
+    duplicate = [CopyRegressionRowsArgs.new(id: 6_000_000_000, order: 'new', price: nil, payload: nil), rows.first]
+    assert_raises(SQLite3::ConstraintException) { @query_sql.copy_regression_rows(duplicate) }
+    assert_equal expected, @query_sql.list_regression_rows.map { |r| [r.id, r.order, r.price, r.payload] }
+  end
+
+  def test_seeded_random_batch_round_trip
+    random = seeded_random
+    rows = Array.new(300) do |i|
+      { name: "#{i}-#{random_text(random)}", bio: random.rand(3).zero? ? nil : random_text(random) }
+    end
+    @query_sql.create_authors_batch(rows.map { |row| CreateAuthorsBatchArgs.new(**row) })
+    stored = @query_sql.list_authors
+    assert_equal rows.sort_by { |row| row[:name] },
+                 stored.map { |row| { name: row.name, bio: row.bio } }.sort_by { |row| row[:name] }
+    one = @query_sql.get_author_batch(stored.map { |row| GetAuthorBatchArgs.new(id: row.id) })
+    assert_equal stored.map(&:name).sort, one.map(&:name).sort
+    many = @query_sql.list_authors_by_name_batch(stored.map { |row| ListAuthorsByNameBatchArgs.new(name: row.name) })
+    assert_equal stored.map(&:name).sort, many.flatten.map(&:name).sort
+  end
+
+  def test_seeded_concurrent_transactions_commit_the_exact_planned_set
+    random = seeded_random
+    plan = Array.new(4) { Array.new(8) { random.rand(4) } }
+    names = plan.each_with_index.map do |actions, thread_index|
+      actions.each_index.map { |index| "thread-#{thread_index}-#{index}" }
+    end
+    expected = plan.each_with_index.flat_map do |actions, thread_index|
+      actions.each_with_index.flat_map do |action, index|
+        name = names[thread_index][index]
+        action == 1 ? [] : (action == 3 ? [name, "#{name}-batch"] : [name])
+      end
+    end.sort
+    threads = plan.each_with_index.map do |actions, thread_index|
+      Thread.new do
+        actions.each_with_index do |action, index|
+          name = names[thread_index][index]
+          begin
+            @query_sql.transaction do |tx|
+              tx.create_author_return_id(name: name, bio: nil)
+              case action
+              when 1
+                raise "rollback #{name}"
+              when 2
+                begin
+                  tx.transaction do |inner|
+                    inner.create_author_return_id(name: "#{name}-nested", bio: nil)
+                    raise "savepoint #{name}"
+                  end
+                rescue RuntimeError
+                  nil
+                end
+              when 3
+                tx.create_authors_batch([CreateAuthorsBatchArgs.new(name: "#{name}-batch", bio: "batch #{name}")])
+              end
+            end
+          rescue RuntimeError => error
+            raise unless action == 1 && error.message == "rollback #{name}"
+          end
+        end
+      end
+    end
+    threads.each(&:value)
+    assert_equal expected, @query_sql.list_authors.map(&:name).sort
   end
 end

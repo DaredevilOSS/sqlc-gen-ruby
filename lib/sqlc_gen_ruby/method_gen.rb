@@ -64,7 +64,9 @@ module SqlcGenRuby
         signature = '(rows)'
       else
         statements = query_statements(query, func, params)
-        keywords = params.reject(&:reused).map { |p| p.optional ? "#{p.name}: nil" : "#{p.name}:" }
+        keywords = params.reject(&:reused).partition(&:optional).then do |optional, required|
+          (required + optional).map { |p| p.optional ? "#{p.name}: nil" : "#{p.name}:" }
+        end
         signature = keywords.empty? ? '' : "(#{keywords.join(', ')})"
       end
       doc = query.comments.map { |c| "# #{c.strip}".rstrip }.join("\n")
@@ -87,7 +89,8 @@ module SqlcGenRuby
       if ROWS_COMMANDS.include?(query.cmd)
         signature = "(Array[#{query.name}Args] rows)"
       else
-        list = params(query).reject(&:reused).map { |p| "#{p.optional ? '?' : ''}#{p.name}: #{p.type}" }
+        optional, required = params(query).reject(&:reused).partition(&:optional)
+        list = (required + optional).map { |p| "#{p.optional ? '?' : ''}#{p.name}: #{p.type}" }
         signature = list.empty? ? '' : "(#{list.join(', ')})"
       end
       rbs = "def #{func}: #{signature}#{signature.empty? ? '' : ' '}-> #{return_type(query)}"
@@ -195,7 +198,7 @@ module SqlcGenRuby
       end
 
       statements = []
-      statements << query_params(params) unless params.empty?
+      statements << query_params(params, query) unless params.empty?
       const = Code.sql_constant(query.name)
       if slice?(query)
         statements << slice_sql(const, params)
@@ -245,9 +248,8 @@ module SqlcGenRuby
       statements
     end
 
-    def query_params(params)
-      list = params.map { |p| p.slice ? "*#{p.name}" : @driver.encode_param(p.name, p.column) }
-      "query_params = [#{Code.comma_join(list)}]"
+    def query_params(params, query)
+      @driver.query_params(query, params)
     end
 
     # sql = FOO_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids)) - once per slice

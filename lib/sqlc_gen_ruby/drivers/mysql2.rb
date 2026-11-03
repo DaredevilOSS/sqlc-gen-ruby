@@ -15,17 +15,26 @@ module SqlcGenRuby
         ]
       end
 
-      def class_methods
+      def class_methods(ruby_version)
+        transaction = legacy_transaction_template(
+          TRANSACTION, ruby_version,
+          "Thread.current.status == 'aborting' ? rollback : commit",
+          "Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit"
+        )
         [
           [NOT_FOUND, "class NotFound < StandardError\nend"],
           [CONNECT, 'def self.connect: (Hash[untyped, untyped] mysql2_params, ?logger: untyped, **untyped pool_options) -> instance'],
           [INITIALIZE, 'def initialize: (untyped db, ?logger: untyped) -> void'],
-          [TRANSACTION, TRANSACTION_RBS]
+          [transaction, TRANSACTION_RBS]
         ]
       end
 
-      def private_methods
-        [[INSTRUMENT, INSTRUMENT_RBS], [WITH_CLIENT, 'def with_client: [T] (String name) { (untyped) -> T } -> T']]
+      def private_methods(ruby_version)
+        [
+          [INSTRUMENT, INSTRUMENT_RBS],
+          [WITH_CLIENT, 'def with_client: [T] (String name) { (untyped) -> T } -> T'],
+          *timeout_exit_methods(ruby_version)
+        ]
       end
 
       def prepare_stmt(_stmt_name, const) = "stmt = client.prepare(#{const})"

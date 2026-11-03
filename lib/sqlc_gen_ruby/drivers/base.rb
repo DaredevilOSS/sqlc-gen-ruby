@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../code'
+require_relative '../ruby_version'
 
 module SqlcGenRuby
   module Drivers
@@ -33,16 +34,22 @@ module SqlcGenRuby
 
       # Public methods of the generated query class that are not queries: constructor, `connect`, `transaction`.
       # [[code, rbs], ...]
-      def class_methods = raise(NotImplementedError)
+      def class_methods(_ruby_version = nil) = raise(NotImplementedError)
 
       # Private helpers of the query class. [[code, rbs], ...]
-      def private_methods = []
+      def private_methods(_ruby_version = nil) = []
 
       # How a query method acquires the database connection (yielding `client`).
       def client_block(func) = "with_client('#{func}') do |client|"
 
       # RHS of the generated `<Query>Sql` constant (without the constant name).
       def query_text(query) = query.text
+
+      # Ruby expressions for the parameters passed to one generated query method.
+      def query_params(_query, params)
+        list = params.map { |p| p.slice ? "*#{p.name}" : encode_param(p.name, p.column) }
+        "query_params = [#{Code.comma_join(list)}]"
+      end
 
       # stmt_name: unique per query (e.g. query_sql_get_author), only meaningful for named server-side statements.
       def prepare_stmt(_stmt_name, _const) = raise(NotImplementedError)
@@ -158,6 +165,29 @@ module SqlcGenRuby
 
       private
 
+      def legacy_transaction_template(template, ruby_version, old_condition, guarded_condition)
+        return template unless ruby_version < RubyVersion.new(3, 3)
+
+        template = template.sub(/^( +)def transaction\b/) do
+          indent = Regexp.last_match(1)
+          "#{indent}# On Ruby <3.3 with timeout <0.4, break / return / throw roll back because Timeout cannot be told apart.\n" \
+            "#{indent}# Add gem 'timeout', '>= 0.4' to keep these exits committing.\n#{indent}def transaction"
+        end
+        template = template.sub(/^( +)failed = false\n\1begin\n( +)yield self\n/) do
+          indent = Regexp.last_match(1)
+          yield_indent = Regexp.last_match(2)
+          "#{indent}failed = false\n#{indent}completed = false\n#{indent}begin\n" \
+            "#{yield_indent}result = yield self\n#{yield_indent}completed = true\n#{yield_indent}result\n"
+        end
+        template.sub(old_condition, guarded_condition)
+      end
+
+      def timeout_exit_methods(ruby_version)
+        return [] unless ruby_version < RubyVersion.new(3, 3)
+
+        [[TIMEOUT_EXIT_HELPER, TIMEOUT_EXIT_HELPER_RBS]]
+      end
+
       # from sqlc - char(5), int4, pg_catalog.int8, BLOB, VARCHAR(255), ... => char, int4, int8, blob, varchar
       def normalize_type(type_name) = type_name.downcase.delete_prefix('pg_catalog.').sub(/\s*\(.*\)\z/, '')
 
@@ -176,6 +206,14 @@ module SqlcGenRuby
       def table_name(identifier)
         identifier.schema.to_s.empty? ? identifier.name : "#{identifier.schema}.#{identifier.name}"
       end
+
+      TIMEOUT_EXIT_HELPER = <<~'RUBY'.chomp
+        def timeout_exits_with_throw?
+          !!(defined?(::Timeout::VERSION) &&
+             (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?)
+        end
+      RUBY
+      TIMEOUT_EXIT_HELPER_RBS = 'def timeout_exits_with_throw?: () -> bool'
     end
   end
 end

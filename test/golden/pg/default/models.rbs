@@ -66,6 +66,12 @@ module PgCodegen
     def initialize: (  String id, String name, Integer author_id, String? description) -> void
   end
 
+  class DeferredBook
+    attr_reader id: Integer
+    attr_reader author_id: Integer
+    def initialize: (  Integer id, Integer author_id) -> void
+  end
+
   class PostgresExtraType
     attr_reader c_uuid: String?
     attr_reader c_jsonb: untyped
@@ -85,6 +91,13 @@ module PgCodegen
         String? c_money,
         String c_not_null
     ) -> void
+  end
+
+  class JsonRoundTrip
+    attr_reader id: Integer
+    attr_reader json_value: untyped
+    attr_reader jsonb_value: untyped
+    def initialize: (  Integer id, untyped json_value, untyped jsonb_value) -> void
   end
 
   class PostgresArrayType

@@ -27,6 +27,12 @@ LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 SELECT * FROM authors
 WHERE name LIKE COALESCE(sqlc.narg('name_pattern'), '%');
 
+-- name: GetAuthorsByOptionalName :many
+SELECT * FROM authors
+WHERE (sqlc.narg(name_filter) IS NULL OR name = sqlc.narg(name_filter))
+ORDER BY id
+LIMIT sqlc.arg(lim);
+
 -- name: CreateAuthorReturnId :execlastid
 INSERT INTO authors (name, bio) VALUES (?, ?) RETURNING id;
 
@@ -41,6 +47,16 @@ SELECT * FROM authors WHERE id IN (sqlc.slice('ids'));
 
 -- name: GetAuthorsByIdsAndNames :many
 SELECT * FROM authors WHERE id IN (sqlc.slice('ids')) AND name IN (sqlc.slice('names'));
+
+-- name: GetAuthorsByMixedPlaceholders :many
+SELECT * FROM authors
+WHERE name = sqlc.arg(n)
+  AND id IN (sqlc.slice(ids))
+  AND name = sqlc.arg(n)
+  AND id > ?
+  AND id IN (sqlc.slice(more))
+  AND 'x?' != '?3'
+ORDER BY id;
 
 -- name: CopyAuthors :copyfrom
 -- Bulk insert: pass an Array of CopyAuthorsArgs.
@@ -112,6 +128,18 @@ SELECT coalesce(max(price), 0) AS max_price FROM regressions;
 
 -- name: TruncateRegressions :exec
 DELETE FROM regressions;
+
+-- name: CopyRegressionRows :copyfrom
+INSERT INTO regressions (id, "order", price, payload) VALUES (?, ?, ?, ?);
+
+-- name: ListRegressionRows :many
+SELECT id, "order", price, payload FROM regressions ORDER BY id;
+
+-- name: TruncateRegressionRows :exec
+DELETE FROM regressions;
+
+-- name: PauseQuery :exec
+SELECT sleep(?);
 
 -- name: CopyTagsOrReplace :copyfrom
 INSERT OR REPLACE INTO tags (name, uses) VALUES (?, ?);

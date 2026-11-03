@@ -20,7 +20,7 @@ module Sqlite3Codegen
   )
   end
 
-  class Regression < Data.define(:id, :order, :price)
+  class Regression < Data.define(:id, :order, :price, :payload)
   end
 
   class Tag < Data.define(:name, :uses)

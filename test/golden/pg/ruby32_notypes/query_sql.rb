@@ -67,6 +67,34 @@ module PgCodegen
   )
   end
 
+  SET_JSON_ROUND_TRIP_SQL = <<~'SQL'
+    INSERT INTO json_round_trips (id, json_value, jsonb_value) VALUES ($1, $2, $3)
+  SQL
+
+  GET_JSON_ROUND_TRIP_SQL = <<~'SQL'
+    SELECT json_value, jsonb_value FROM json_round_trips WHERE id = $1
+  SQL
+
+  class GetJSONRoundTripRow < Data.define(:json_value, :jsonb_value)
+  end
+
+  TOGGLE_JSONB_ROUND_TRIP_SQL = <<~'SQL'
+    UPDATE json_round_trips
+    SET jsonb_value = to_jsonb(NOT (jsonb_value #>> '{}')::boolean)
+    WHERE id = $1
+  SQL
+
+  TRUNCATE_JSON_ROUND_TRIPS_SQL = <<~'SQL'
+    TRUNCATE TABLE json_round_trips
+  SQL
+
+  PAUSE_QUERY_SQL = <<~'SQL'
+    SELECT pg_sleep($1::double precision)
+  SQL
+
+  class PauseQueryRow < Data.define(:pg_sleep)
+  end
+
   LIST_AUTHORS_PAGED_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
     ORDER BY name
@@ -83,6 +111,16 @@ module PgCodegen
   SQL
 
   class GetAuthorByNamePatternRow < Data.define(:id, :name, :bio)
+  end
+
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE ($1::text IS NULL OR name = $1::text)
+    ORDER BY id
+    LIMIT $2
+  SQL
+
+  class GetAuthorsByOptionalNameRow < Data.define(:id, :name, :bio)
   end
 
   CREATE_AUTHOR_RETURN_ID_SQL = <<~'SQL'
@@ -127,6 +165,14 @@ module PgCodegen
 
   class CreateBookRow < Data.define(:id)
   end
+
+  CREATE_DEFERRED_BOOK_SQL = <<~'SQL'
+    INSERT INTO deferred_books (author_id) VALUES ($1)
+  SQL
+
+  TRUNCATE_DEFERRED_BOOKS_SQL = <<~'SQL'
+    TRUNCATE TABLE deferred_books
+  SQL
 
   LIST_ALL_AUTHORS_BOOKS_SQL = <<~'SQL'
     SELECT
@@ -461,8 +507,11 @@ module PgCodegen
         end
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
         failed = false
+        completed = false
         begin
-          yield self
+          result = yield self
+          completed = true
+          result
         rescue Exception # rubocop:disable Lint/RescueException
           failed = true
           client.exec(rollback)
@@ -472,7 +521,7 @@ module PgCodegen
             # a statement failed and the block rescued the error: PostgreSQL can only roll back
             rescued = client.transaction_status == PG::PQTRANS_INERROR
             commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-            client.exec(rescued || Thread.current.status == 'aborting' ? rollback : commit)
+            client.exec(rescued || Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
             client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
             raise PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && Thread.current.status != 'aborting'
           end
@@ -581,6 +630,71 @@ module PgCodegen
       test(...) || raise(NotFound, 'Test returned no row')
     end
 
+    def set_json_round_trip(id:, json_value:, jsonb_value:)
+      with_client('set_json_round_trip') do |client|
+        query_params = [id, encode_json(json_value), encode_json(jsonb_value)]
+        unless client.prepared_statements.include?('query_sql_set_json_round_trip')
+          client.prepare('query_sql_set_json_round_trip', SET_JSON_ROUND_TRIP_SQL)
+          client.prepared_statements.add('query_sql_set_json_round_trip')
+        end
+        client.exec_prepared('query_sql_set_json_round_trip', query_params)
+        nil
+      end
+    end
+
+    def get_json_round_trip(id:)
+      with_client('get_json_round_trip') do |client|
+        query_params = [id]
+        unless client.prepared_statements.include?('query_sql_get_json_round_trip')
+          client.prepare('query_sql_get_json_round_trip', GET_JSON_ROUND_TRIP_SQL)
+          client.prepared_statements.add('query_sql_get_json_round_trip')
+        end
+        result = client.exec_prepared('query_sql_get_json_round_trip', query_params)
+        row = result.first
+        row && GetJSONRoundTripRow.new(row['json_value'], row['jsonb_value'])
+      end
+    end
+
+    # Like #get_json_round_trip, but raises NotFound when there is no row.
+    def get_json_round_trip!(...)
+      get_json_round_trip(...) || raise(NotFound, 'GetJSONRoundTrip returned no row')
+    end
+
+    def toggle_jsonb_round_trip(id:)
+      with_client('toggle_jsonb_round_trip') do |client|
+        query_params = [id]
+        unless client.prepared_statements.include?('query_sql_toggle_jsonb_round_trip')
+          client.prepare('query_sql_toggle_jsonb_round_trip', TOGGLE_JSONB_ROUND_TRIP_SQL)
+          client.prepared_statements.add('query_sql_toggle_jsonb_round_trip')
+        end
+        client.exec_prepared('query_sql_toggle_jsonb_round_trip', query_params)
+        nil
+      end
+    end
+
+    def truncate_json_round_trips
+      with_client('truncate_json_round_trips') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_json_round_trips')
+          client.prepare('query_sql_truncate_json_round_trips', TRUNCATE_JSON_ROUND_TRIPS_SQL)
+          client.prepared_statements.add('query_sql_truncate_json_round_trips')
+        end
+        client.exec_prepared('query_sql_truncate_json_round_trips')
+        nil
+      end
+    end
+
+    def pause_query(seconds:)
+      with_client('pause_query') do |client|
+        query_params = [encode_float(seconds)]
+        unless client.prepared_statements.include?('query_sql_pause_query')
+          client.prepare('query_sql_pause_query', PAUSE_QUERY_SQL)
+          client.prepared_statements.add('query_sql_pause_query')
+        end
+        client.exec_prepared('query_sql_pause_query', query_params)
+        nil
+      end
+    end
+
     def list_authors_paged(offset:, limit:)
       with_client('list_authors_paged') do |client|
         query_params = [offset, limit]
@@ -605,6 +719,20 @@ module PgCodegen
         result = client.exec_prepared('query_sql_get_author_by_name_pattern', query_params)
         result.map do |row|
           GetAuthorByNamePatternRow.new(row['id'], row['name'], row['bio'])
+        end
+      end
+    end
+
+    def get_authors_by_optional_name(lim:, name_filter: nil)
+      with_client('get_authors_by_optional_name') do |client|
+        query_params = [name_filter, lim]
+        unless client.prepared_statements.include?('query_sql_get_authors_by_optional_name')
+          client.prepare('query_sql_get_authors_by_optional_name', GET_AUTHORS_BY_OPTIONAL_NAME_SQL)
+          client.prepared_statements.add('query_sql_get_authors_by_optional_name')
+        end
+        result = client.exec_prepared('query_sql_get_authors_by_optional_name', query_params)
+        result.map do |row|
+          GetAuthorsByOptionalNameRow.new(row['id'], row['name'], row['bio'])
         end
       end
     end
@@ -697,6 +825,29 @@ module PgCodegen
         result = client.exec_prepared('query_sql_create_book', query_params)
         row = result.first
         row && row['id']
+      end
+    end
+
+    def create_deferred_book(author_id:)
+      with_client('create_deferred_book') do |client|
+        query_params = [author_id]
+        unless client.prepared_statements.include?('query_sql_create_deferred_book')
+          client.prepare('query_sql_create_deferred_book', CREATE_DEFERRED_BOOK_SQL)
+          client.prepared_statements.add('query_sql_create_deferred_book')
+        end
+        client.exec_prepared('query_sql_create_deferred_book', query_params)
+        nil
+      end
+    end
+
+    def truncate_deferred_books
+      with_client('truncate_deferred_books') do |client|
+        unless client.prepared_statements.include?('query_sql_truncate_deferred_books')
+          client.prepare('query_sql_truncate_deferred_books', TRUNCATE_DEFERRED_BOOKS_SQL)
+          client.prepared_statements.add('query_sql_truncate_deferred_books')
+        end
+        client.exec_prepared('query_sql_truncate_deferred_books')
+        nil
       end
     end
 
@@ -1319,14 +1470,23 @@ module PgCodegen
       arrays
     end
 
+    def timeout_exits_with_throw?
+      !!(defined?(::Timeout::VERSION) &&
+         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?)
+    end
+
     # bytea parameters are sent escaped: binary Strings (NUL bytes, invalid UTF-8) are not valid text.
     def encode_bytea(value)
       value && PG::TextEncoder::Bytea.new.encode(value)
     end
 
-    # json / jsonb parameters: an Array is a JSON array, not a PG array (Hashes and JSON text pass through).
+    # json / jsonb parameters: booleans and Arrays need JSON encoding, not PostgreSQL's boolean / array encoding.
+    # Hashes and JSON text pass through; nil stays nil.
     def encode_json(value)
-      value.is_a?(Array) ? PG::TextEncoder::JSON.new.encode(value) : value
+      case value
+      when Array, TrueClass, FalseClass then PG::TextEncoder::JSON.new.encode(value)
+      else value
+      end
     end
 
     # Float#to_s is the shortest text that reads back as the same Float (the pg gem's encoder drops digits).

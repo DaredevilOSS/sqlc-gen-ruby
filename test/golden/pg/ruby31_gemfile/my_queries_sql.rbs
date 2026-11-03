@@ -23,5 +23,7 @@ module PgCodegen
     def configure: (untyped client) -> void
 
     def string_arrays: (untyped client) -> untyped
+
+    def timeout_exits_with_throw?: () -> bool
   end
 end

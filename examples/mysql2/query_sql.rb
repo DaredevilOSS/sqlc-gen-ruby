@@ -114,6 +114,23 @@ module Mysql2Codegen
   class GetAuthorByNamePatternRow < Data.define(:id, :name, :bio)
   end
 
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE (? IS NULL OR name = ?)
+    ORDER BY id
+    LIMIT ?
+  SQL
+
+  class GetAuthorsByOptionalNameRow < Data.define(:id, :name, :bio)
+  end
+
+  PAUSE_QUERY_SQL = <<~'SQL'
+    SELECT SLEEP(?)
+  SQL
+
+  class PauseQueryRow < Data.define(:sleep)
+  end
+
   UPDATE_AUTHOR_BIOS_SQL = <<~'SQL'
     UPDATE authors
     SET bio = ?
@@ -243,6 +260,13 @@ module Mysql2Codegen
   SQL
 
   class ListRegressionPayloadsRow < Data.define(:id, :payload)
+  end
+
+  LIST_REGRESSION_ROWS_SQL = <<~'SQL'
+    SELECT id, `order`, note, payload FROM regressions ORDER BY id
+  SQL
+
+  class ListRegressionRowsRow < Data.define(:id, :order, :note, :payload)
   end
 
   TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
@@ -523,6 +547,34 @@ module Mysql2Codegen
           result.map do |row|
             GetAuthorByNamePatternRow.new(row[0], row[1], row[2])
           end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def get_authors_by_optional_name(limit:, name_filter: nil)
+      with_client('get_authors_by_optional_name') do |client|
+        query_params = [name_filter, name_filter, limit]
+        stmt = client.prepare(GET_AUTHORS_BY_OPTIONAL_NAME_SQL)
+        begin
+          result = stmt.execute(*query_params, as: :array)
+          result.map do |row|
+            GetAuthorsByOptionalNameRow.new(row[0], row[1], row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def pause_query(seconds:)
+      with_client('pause_query') do |client|
+        query_params = [seconds]
+        stmt = client.prepare(PAUSE_QUERY_SQL)
+        begin
+          stmt.execute(*query_params, as: :array)
+          nil
         ensure
           stmt.close
         end
@@ -839,6 +891,20 @@ module Mysql2Codegen
           result = stmt.execute(as: :array)
           result.map do |row|
             ListRegressionPayloadsRow.new(row[0], row[1])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def list_regression_rows
+      with_client('list_regression_rows') do |client|
+        stmt = client.prepare(LIST_REGRESSION_ROWS_SQL)
+        begin
+          result = stmt.execute(as: :array)
+          result.map do |row|
+            ListRegressionRowsRow.new(row[0], row[1], row[2], row[3])
           end
         ensure
           stmt.close

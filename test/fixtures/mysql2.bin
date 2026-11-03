@@ -199,7 +199,21 @@ WHERE name LIKE COALESCE(?, '%')GetAuthorByNamePattern:many"*
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
 bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*84
-name_pattern0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sqlá
+name_pattern0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sqlŠ
+SSELECT id, name, bio FROM authors
+WHERE (? IS NULL OR name = ?)
+ORDER BY id
+LIMIT ?GetAuthorsByOptionalName:many"*
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*%!
+name_filter0ÿÿÿÿÿÿÿÿÿ8bany*73
+name_filter0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname*#
+limit0ÿÿÿÿÿÿÿÿÿb	integer:	query.sqls
+SELECT SLEEP(?)
+PauseQuery:exec"
+sleep0ÿÿÿÿÿÿÿÿÿ@bint*#
+seconds0ÿÿÿÿÿÿÿÿÿ8bint:	query.sqlá
 0UPDATE authors
 SET bio = ?
 WHERE bio IS NOT NULLUpdateAuthorBios	:execrows*62
@@ -292,6 +306,11 @@ HINSERT INTO regressions (id, `order`, note, payload) VALUES (?, ?, ?, ?)CopyR
 payload0Rpublicregressionsb	varbinaryzpayload:	query.sqlBregressions½
 /SELECT id, payload FROM regressions ORDER BY idListRegressionPayloads:many".
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid"0
+payload0Rregressionsb	varbinaryzpayload:	query.sql§
+>SELECT id, `order`, note, payload FROM regressions ORDER BY idListRegressionRows:many".
+id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid"-
+order0ÿRregressionsb	varcharzorder".
+note0ÿÿÿÿÿÿÿÿÿRregressionsbtextznote"0
 payload0Rregressionsb	varbinaryzpayload:	query.sqlC
 TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sql 
 LINSERT INTO copy_types (id, code, doc, flags, amount) VALUES (?, ?, ?, ?, ?)CopyCopyTypes	:copyfrom*95

@@ -425,16 +425,44 @@ class FeaturesTest < Minitest::Test
     rb = generate(load_request('pg')).fetch('query_sql.rb')
     assert_includes rb, 'encode_bytea(payload),'
     assert_includes rb, 'encode_json(doc),'
+    assert_includes rb, 'when Array, TrueClass, FalseClass then PG::TextEncoder::JSON.new.encode(value)'
     assert_includes rb, 'encode_array(bio_types)'
     assert_includes rb, 'def encode_array(value, kind = :value)'
     noprep = generate(load_request('pg', preparedStatements: false)).fetch('query_sql.rb')
     assert_includes noprep, 'encode_array(bio_types)'
+    assert_includes noprep, 'encode_json(doc)'
   end
 
   def test_transactions_finish_on_non_local_exits
     %w[pg mysql2 sqlite3].each do |driver|
       assert_includes generate(load_request(driver)).fetch('query_sql.rb'), "Thread.current.status == 'aborting'", driver
     end
+  end
+
+  def test_legacy_timeout_guard_is_emitted_only_for_pre_33_targets
+    %w[pg mysql2 sqlite3].each do |driver|
+      legacy = generate(load_request(driver, rubyVersion: '3.1', generateGemfile: true))
+      rb = legacy.fetch('query_sql.rb')
+      assert_includes rb, 'completed = false'
+      assert_includes rb, '!completed && timeout_exits_with_throw?'
+      assert_includes rb, 'def timeout_exits_with_throw?'
+      assert_includes legacy.fetch('query_sql.rbs'), 'def timeout_exits_with_throw?: () -> bool'
+      assert_includes legacy.fetch('Gemfile'), "gem 'timeout', '>= 0.4'"
+
+      modern = generate(load_request(driver, rubyVersion: '3.3')).fetch('query_sql.rb')
+      refute_includes modern, 'completed = false'
+      refute_includes modern, 'timeout_exits_with_throw?'
+      refute_includes modern, 'On Ruby <3.3 with timeout <0.4'
+    end
+  end
+
+  def test_legacy_timeout_helper_name_is_reserved
+    request = load_request('pg', rubyVersion: '3.1')
+    request.queries << SqlcGenRuby::Plugin::Query.new(
+      name: 'TimeoutExitsWithThrow?', cmd: ':exec', text: 'SELECT 1', filename: 'query.sql'
+    )
+    error = assert_raises(RuntimeError) { generate(request) }
+    assert_match(/method timeout_exits_with_throw\? is already/, error.message)
   end
 
   def test_parameters_named_like_generated_locals_are_renamed
@@ -543,6 +571,51 @@ class FeaturesTest < Minitest::Test
     request = load_request('pg')
     query(request, 'GetAuthor').name = 'Transaction'
     assert_raises(RuntimeError) { generate(request) }
+  end
+
+  def test_required_keywords_precede_optional_keywords
+    %w[pg mysql2 sqlite3].each do |driver|
+      request = load_request(driver)
+      optional = query(request, 'GetAuthorByNamePattern').params.first.dup
+      required = query(request, 'GetAuthor').params.first.dup
+      optional.number = 1
+      required.number = 2
+      request.queries << SqlcGenRuby::Plugin::Query.new(
+        name: 'MixedKeywordOrder', cmd: ':exec', text: 'SELECT 1 WHERE ? AND ?',
+        filename: 'query.sql', params: [optional, required]
+      )
+
+      files = generate(request)
+      assert_includes files.fetch('query_sql.rb'), 'def mixed_keyword_order(id:, name_pattern: nil)'
+      assert_match(/def mixed_keyword_order: \(id: Integer, \?name_pattern: String\??\) -> void/,
+                   files.fetch('query_sql.rbs'))
+    end
+  end
+
+  def test_kernel_methods_used_by_generated_code_are_reserved
+    %w[pg mysql2 sqlite3].each do |driver|
+      %w[Raise Rand Format].each do |name|
+        request = load_request(driver)
+        request.queries << SqlcGenRuby::Plugin::Query.new(
+          name: name, cmd: ':exec', text: 'SELECT 1', filename: 'query.sql'
+        )
+        error = assert_raises(RuntimeError) { generate(request) }
+        assert_match(/query #{name}: method #{name.downcase} is already a Kernel method/, error.message)
+      end
+    end
+  end
+
+  def test_bare_kernel_calls_in_generated_code_are_reserved
+    paths = Dir.glob(File.join(PluginHelper::ROOT, 'examples/*/query_sql.rb')) +
+            Dir.glob(File.join(PluginHelper::ROOT, 'test/golden/**/query_sql.rb'))
+    calls = paths.flat_map do |path|
+      source = File.read(path).gsub(/<<~'SQL'\n.*?^[ \t]*SQL[ \t]*$/m, '')
+      source = source.lines.reject { |line| line.lstrip.start_with?('#') }.join
+      methods = source.scan(/^\s*def (?:self\.)?([\w?!]+)/).flatten
+      source.scan(/(?<![.\w:])(\w+[?!]?)\s*\(|(?<![.\w:])(raise)\s+/).flatten.compact - methods
+    end
+    kernel_calls = calls.uniq.select { |name| Kernel.private_method_defined?(name.to_sym) }
+    assert_empty kernel_calls - SqlcGenRuby::Code::KERNEL_METHODS, "unreserved bare Kernel calls: #{kernel_calls.inspect}"
   end
 
   def test_constant_defined_twice_is_an_error

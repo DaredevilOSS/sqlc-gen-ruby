@@ -168,6 +168,24 @@ module Mysql2Codegen
     def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorByNamePatternRow
   end
 
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL: String
+
+  class GetAuthorsByOptionalNameRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByOptionalNameRow
+  end
+
+  PAUSE_QUERY_SQL: String
+
+  class PauseQueryRow < ::Struct[untyped]
+    attr_accessor sleep: Integer
+    def initialize: (  sleep: Integer) -> void
+    def self.new: (  sleep: Integer) -> PauseQueryRow
+  end
+
   UPDATE_AUTHOR_BIOS_SQL: String
 
   GET_AUTHORS_BY_IDS_SQL: String
@@ -329,6 +347,17 @@ module Mysql2Codegen
     attr_accessor payload: String?
     def initialize: (  id: Integer, payload: String?) -> void
     def self.new: (  id: Integer, payload: String?) -> ListRegressionPayloadsRow
+  end
+
+  LIST_REGRESSION_ROWS_SQL: String
+
+  class ListRegressionRowsRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor order: String
+    attr_accessor note: String?
+    attr_accessor payload: String?
+    def initialize: (  id: Integer, order: String, note: String?, payload: String?) -> void
+    def self.new: (  id: Integer, order: String, note: String?, payload: String?) -> ListRegressionRowsRow
   end
 
   TRUNCATE_REGRESSIONS_SQL: String
@@ -504,6 +533,10 @@ module Mysql2Codegen
 
     def get_author_by_name_pattern: (?name_pattern: String?) -> Array[GetAuthorByNamePatternRow]
 
+    def get_authors_by_optional_name: (limit: Integer, ?name_filter: untyped) -> Array[GetAuthorsByOptionalNameRow]
+
+    def pause_query: (seconds: Integer) -> void
+
     def update_author_bios: (?bio: String?) -> Integer
 
     def get_authors_by_ids: (ids: Array[Integer]) -> Array[GetAuthorsByIdsRow]
@@ -550,6 +583,8 @@ module Mysql2Codegen
 
     def list_regression_payloads: -> Array[ListRegressionPayloadsRow]
 
+    def list_regression_rows: -> Array[ListRegressionRowsRow]
+
     def truncate_regressions: -> void
 
     def copy_copy_types: (Array[CopyCopyTypesArgs] rows) -> void
@@ -579,6 +614,8 @@ module Mysql2Codegen
     def instrument: [T] (String name) { () -> T } -> T
 
     def with_client: [T] (String name) { (untyped) -> T } -> T
+
+    def timeout_exits_with_throw?: () -> bool
 
     def csv_line: (Array[untyped] values) -> String
 

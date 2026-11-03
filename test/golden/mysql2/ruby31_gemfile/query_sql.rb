@@ -110,6 +110,21 @@ module Mysql2Codegen
 
   GetAuthorByNamePatternRow = Struct.new(:id, :name, :bio, keyword_init: true)
 
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL = <<~'SQL'
+    SELECT id, name, bio FROM authors
+    WHERE (? IS NULL OR name = ?)
+    ORDER BY id
+    LIMIT ?
+  SQL
+
+  GetAuthorsByOptionalNameRow = Struct.new(:id, :name, :bio, keyword_init: true)
+
+  PAUSE_QUERY_SQL = <<~'SQL'
+    SELECT SLEEP(?)
+  SQL
+
+  PauseQueryRow = Struct.new(:sleep, keyword_init: true)
+
   UPDATE_AUTHOR_BIOS_SQL = <<~'SQL'
     UPDATE authors
     SET bio = ?
@@ -242,6 +257,18 @@ module Mysql2Codegen
 
   ListRegressionPayloadsRow = Struct.new(:id, :payload, keyword_init: true)
 
+  LIST_REGRESSION_ROWS_SQL = <<~'SQL'
+    SELECT id, `order`, note, payload FROM regressions ORDER BY id
+  SQL
+
+  ListRegressionRowsRow = Struct.new(
+    :id,
+    :order,
+    :note,
+    :payload,
+    keyword_init: true
+  )
+
   TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
     TRUNCATE TABLE regressions
   SQL
@@ -367,8 +394,11 @@ module Mysql2Codegen
         end
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
         failed = false
+        completed = false
         begin
-          yield self
+          result = yield self
+          completed = true
+          result
         rescue Exception # rubocop:disable Lint/RescueException
           failed = true
           client.query(rollback)
@@ -377,7 +407,7 @@ module Mysql2Codegen
           begin
             unless failed
               commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-              client.query(Thread.current.status == 'aborting' ? rollback : commit)
+              client.query(Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
             end
           ensure
             client.in_transaction = false if outermost
@@ -554,6 +584,34 @@ module Mysql2Codegen
           result.map do |row|
             GetAuthorByNamePatternRow.new(id: row[0], name: row[1], bio: row[2])
           end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def get_authors_by_optional_name(limit:, name_filter: nil)
+      with_client('get_authors_by_optional_name') do |client|
+        query_params = [name_filter, name_filter, limit]
+        stmt = client.prepare(GET_AUTHORS_BY_OPTIONAL_NAME_SQL)
+        begin
+          result = stmt.execute(*query_params, as: :array)
+          result.map do |row|
+            GetAuthorsByOptionalNameRow.new(id: row[0], name: row[1], bio: row[2])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def pause_query(seconds:)
+      with_client('pause_query') do |client|
+        query_params = [seconds]
+        stmt = client.prepare(PAUSE_QUERY_SQL)
+        begin
+          stmt.execute(*query_params, as: :array)
+          nil
         ensure
           stmt.close
         end
@@ -890,6 +948,20 @@ module Mysql2Codegen
       end
     end
 
+    def list_regression_rows
+      with_client('list_regression_rows') do |client|
+        stmt = client.prepare(LIST_REGRESSION_ROWS_SQL)
+        begin
+          result = stmt.execute(as: :array)
+          result.map do |row|
+            ListRegressionRowsRow.new(id: row[0], order: row[1], note: row[2], payload: row[3])
+          end
+        ensure
+          stmt.close
+        end
+      end
+    end
+
     def truncate_regressions
       with_client('truncate_regressions') do |client|
         stmt = client.prepare(TRUNCATE_REGRESSIONS_SQL)
@@ -1097,6 +1169,11 @@ module Mysql2Codegen
           end
         end
       end
+    end
+
+    def timeout_exits_with_throw?
+      !!(defined?(::Timeout::VERSION) &&
+         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?)
     end
 
     # Formats one row for LOAD DATA ... FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'.

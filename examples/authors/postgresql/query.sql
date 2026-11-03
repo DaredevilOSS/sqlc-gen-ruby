@@ -23,6 +23,23 @@ WHERE id = $1;
 SELECT * FROM node_postgres_types
 LIMIT 1;
 
+-- name: SetJSONRoundTrip :exec
+INSERT INTO json_round_trips (id, json_value, jsonb_value) VALUES ($1, $2, $3);
+
+-- name: GetJSONRoundTrip :one
+SELECT json_value, jsonb_value FROM json_round_trips WHERE id = $1;
+
+-- name: ToggleJSONBRoundTrip :exec
+UPDATE json_round_trips
+SET jsonb_value = to_jsonb(NOT (jsonb_value #>> '{}')::boolean)
+WHERE id = $1;
+
+-- name: TruncateJSONRoundTrips :exec
+TRUNCATE TABLE json_round_trips;
+
+-- name: PauseQuery :exec
+SELECT pg_sleep(sqlc.arg(seconds)::double precision);
+
 -- name: ListAuthorsPaged :many
 SELECT * FROM authors
 ORDER BY name
@@ -32,6 +49,12 @@ OFFSET sqlc.arg('offset');
 -- name: GetAuthorByNamePattern :many
 SELECT * FROM authors
 WHERE name LIKE COALESCE(sqlc.narg('name_pattern'), '%');
+
+-- name: GetAuthorsByOptionalName :many
+SELECT * FROM authors
+WHERE (sqlc.narg(name_filter)::text IS NULL OR name = sqlc.narg(name_filter)::text)
+ORDER BY id
+LIMIT sqlc.arg(lim);
 
 -- name: CreateAuthorReturnId :execlastid
 INSERT INTO authors (name, bio) VALUES ($1, $2) RETURNING id;
@@ -59,6 +82,12 @@ TRUNCATE TABLE authors CASCADE;
 
 -- name: CreateBook :execlastid
 INSERT INTO books (name, author_id) VALUES ($1, $2) RETURNING id;
+
+-- name: CreateDeferredBook :exec
+INSERT INTO deferred_books (author_id) VALUES ($1);
+
+-- name: TruncateDeferredBooks :exec
+TRUNCATE TABLE deferred_books;
 
 -- name: ListAllAuthorsBooks :many
 SELECT

@@ -43,6 +43,15 @@ LIMIT ? OFFSET ?;
 SELECT * FROM authors
 WHERE name LIKE COALESCE(sqlc.narg('name_pattern'), '%');
 
+-- name: GetAuthorsByOptionalName :many
+SELECT * FROM authors
+WHERE (sqlc.narg(name_filter) IS NULL OR name = sqlc.narg(name_filter))
+ORDER BY id
+LIMIT ?;
+
+-- name: PauseQuery :exec
+SELECT SLEEP(sqlc.arg(seconds));
+
 -- name: UpdateAuthorBios :execrows
 -- Sets the bio of every author that has one and returns how many were changed.
 UPDATE authors
@@ -115,6 +124,9 @@ INSERT INTO regressions (id, `order`, note, payload) VALUES (?, ?, ?, ?);
 
 -- name: ListRegressionPayloads :many
 SELECT id, payload FROM regressions ORDER BY id;
+
+-- name: ListRegressionRows :many
+SELECT id, `order`, note, payload FROM regressions ORDER BY id;
 
 -- name: TruncateRegressions :exec
 TRUNCATE TABLE regressions;

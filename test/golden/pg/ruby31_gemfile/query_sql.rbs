@@ -95,6 +95,29 @@ module PgCodegen
     ) -> TestRow
   end
 
+  SET_JSON_ROUND_TRIP_SQL: String
+
+  GET_JSON_ROUND_TRIP_SQL: String
+
+  class GetJSONRoundTripRow < ::Struct[untyped]
+    attr_accessor json_value: untyped
+    attr_accessor jsonb_value: untyped
+    def initialize: (  json_value: untyped, jsonb_value: untyped) -> void
+    def self.new: (  json_value: untyped, jsonb_value: untyped) -> GetJSONRoundTripRow
+  end
+
+  TOGGLE_JSONB_ROUND_TRIP_SQL: String
+
+  TRUNCATE_JSON_ROUND_TRIPS_SQL: String
+
+  PAUSE_QUERY_SQL: String
+
+  class PauseQueryRow < ::Struct[untyped]
+    attr_accessor pg_sleep: untyped
+    def initialize: (  pg_sleep: untyped) -> void
+    def self.new: (  pg_sleep: untyped) -> PauseQueryRow
+  end
+
   LIST_AUTHORS_PAGED_SQL: String
 
   class ListAuthorsPagedRow < ::Struct[untyped]
@@ -113,6 +136,16 @@ module PgCodegen
     attr_accessor bio: String?
     def initialize: (  id: Integer, name: String, bio: String?) -> void
     def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorByNamePatternRow
+  end
+
+  GET_AUTHORS_BY_OPTIONAL_NAME_SQL: String
+
+  class GetAuthorsByOptionalNameRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor name: String
+    attr_accessor bio: String?
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByOptionalNameRow
   end
 
   CREATE_AUTHOR_RETURN_ID_SQL: String
@@ -161,6 +194,10 @@ module PgCodegen
     def initialize: (  id: String) -> void
     def self.new: (  id: String) -> CreateBookRow
   end
+
+  CREATE_DEFERRED_BOOK_SQL: String
+
+  TRUNCATE_DEFERRED_BOOKS_SQL: String
 
   LIST_ALL_AUTHORS_BOOKS_SQL: String
 
@@ -620,9 +657,23 @@ module PgCodegen
 
     def test!: -> TestRow
 
+    def set_json_round_trip: (id: Integer, json_value: untyped, jsonb_value: untyped) -> void
+
+    def get_json_round_trip: (id: Integer) -> GetJSONRoundTripRow?
+
+    def get_json_round_trip!: (id: Integer) -> GetJSONRoundTripRow
+
+    def toggle_jsonb_round_trip: (id: Integer) -> void
+
+    def truncate_json_round_trips: -> void
+
+    def pause_query: (seconds: Float) -> void
+
     def list_authors_paged: (offset: Integer, limit: Integer) -> Array[ListAuthorsPagedRow]
 
     def get_author_by_name_pattern: (?name_pattern: String?) -> Array[GetAuthorByNamePatternRow]
+
+    def get_authors_by_optional_name: (lim: Integer, ?name_filter: String?) -> Array[GetAuthorsByOptionalNameRow]
 
     def create_author_return_id: (name: String, bio: String?) -> Integer
 
@@ -637,6 +688,10 @@ module PgCodegen
     def truncate_authors: -> void
 
     def create_book: (name: String, author_id: Integer) -> String
+
+    def create_deferred_book: (author_id: Integer) -> void
+
+    def truncate_deferred_books: -> void
 
     def list_all_authors_books: -> Array[ListAllAuthorsBooksRow]
 
@@ -731,6 +786,8 @@ module PgCodegen
     def configure: (untyped client) -> void
 
     def string_arrays: (untyped client) -> untyped
+
+    def timeout_exits_with_throw?: () -> bool
 
     def encode_bytea: (String? value) -> String?
 

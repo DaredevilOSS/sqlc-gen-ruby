@@ -59,8 +59,11 @@ module Mysql2Codegen
         end
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
         failed = false
+        completed = false
         begin
-          yield self
+          result = yield self
+          completed = true
+          result
         rescue Exception # rubocop:disable Lint/RescueException
           failed = true
           client.query(rollback)
@@ -69,7 +72,7 @@ module Mysql2Codegen
           begin
             unless failed
               commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-              client.query(Thread.current.status == 'aborting' ? rollback : commit)
+              client.query(Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
             end
           ensure
             client.in_transaction = false if outermost
@@ -155,6 +158,11 @@ module Mysql2Codegen
           end
         end
       end
+    end
+
+    def timeout_exits_with_throw?
+      !!(defined?(::Timeout::VERSION) &&
+         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?)
     end
   end
 end
