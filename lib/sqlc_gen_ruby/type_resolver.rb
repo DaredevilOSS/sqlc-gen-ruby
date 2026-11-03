@@ -8,22 +8,22 @@ module SqlcGenRuby
       @options = options
     end
 
-    # query_name: used to look up `overrides:` entries; nil for model (table) columns.
+    # query_name: used to look up `overrides:` entries; nil for model (table) columns, which pass their table.
     # fallback: see Drivers::Base#column_type.
-    def type(column, query_name: nil, fallback: 'untyped')
-      override = query_name && @options.override_for(query_name, column.name)
+    def type(column, query_name: nil, table: column.table, fallback: 'untyped')
+      override = @options.override_for(query_name, column, table: table)
       base = override ? override.type : @driver.column_type(column, fallback: fallback)
       base = array_of(base, column) if column.is_array && !override
       not_null?(column, override) || base == 'untyped' ? base : "#{base}?"
     end
 
     def nullable?(column, query_name)
-      !not_null?(column, @options.override_for(query_name, column.name)) && !column.is_sqlc_slice
+      !not_null?(column, @options.override_for(query_name, column)) && !column.is_sqlc_slice
     end
 
     # A sqlc.slice parameter is passed as an Array of the element type.
     def slice_type(column, query_name)
-      override = @options.override_for(query_name, column.name)
+      override = @options.override_for(query_name, column)
       "Array[#{override ? override.type : @driver.column_type(column, fallback: 'untyped')}]"
     end
 

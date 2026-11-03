@@ -346,4 +346,52 @@ class FeaturesTest < Minitest::Test
     assert_includes generate(load_request('pg')).fetch('query_sql.rbs'),
                     'attr_reader c_integer_matrix: Array[Array[Integer]]?'
   end
+
+  def test_table_column_and_db_type_overrides_apply_to_models_and_rows
+    overrides = [{ column: 'authors.bio', ruby_type: { type: 'Symbol' } },
+                 { column: '*:c_uuid', ruby_type: { type: 'Pathname', notNull: true } },
+                 { db_type: 'jsonb', ruby_type: { type: 'Hash[String, untyped]' } }]
+    files = generate(load_request('pg', overrides: overrides))
+    assert_includes files.fetch('models.rbs'), "attr_reader bio: Symbol?\n"
+    assert_includes files.fetch('models.rbs'), 'attr_reader c_uuid: Pathname'
+    assert_includes files.fetch('models.rbs'), 'attr_reader c_jsonb: Hash[String, untyped]?'
+    assert_match(/class GetAuthorRow\n.*\n.*\n\s+attr_reader bio: Symbol\?/, files.fetch('query_sql.rbs'))
+    assert_includes files.fetch('query_sql.rbs'), 'attr_reader c_uuid: Pathname'
+  end
+
+  def test_rename_and_exact_table_names
+    files = generate(load_request('pg', rename: { 'authors' => 'Writer', 'bio' => 'biography' }))
+    assert_includes files.fetch('models.rb'), 'class Writer < Data.define(:id, :name, :biography)'
+    assert_includes files.fetch('query_sql.rb'), 'class GetAuthorRow < Data.define(:id, :name, :biography)'
+    assert_includes files.fetch('query_sql.rb'), "GetAuthorRow.new(row['id'], row['name'], row['bio'])"
+    assert_includes files.fetch('query_sql.rb'), 'Writer.new(row[0], row[1], row[2])'
+    assert_includes generate(load_request('pg', exactTableNames: true)).fetch('models.rb'), 'class Authors < Data.define'
+    assert_raises(RuntimeError) { generate(load_request('pg', rename: { 'authors' => 'writer' })) }
+  end
+
+  def test_global_options_are_merged_under_plugin_options
+    request = load_request('pg')
+    request.global_options = JSON.generate(moduleName: 'Global::Db', generateTypes: false,
+                                           overrides: [{ column: '*:bio', ruby_type: { type: 'Symbol' } }])
+    files = generate(request)
+    assert_includes files.fetch('query_sql.rb'), 'module Global::Db'
+    assert_includes files.keys, 'query_sql.rbs' # generateTypes: true in the plugin options wins
+    assert_match(/class GetAuthorRow\n.*\n.*\n\s+attr_reader bio: Symbol\?/, files.fetch('query_sql.rbs'))
+  end
+
+  def test_engine_must_match_the_driver
+    request = load_request('pg')
+    request.settings = Plugin::Settings.new(engine: 'mysql')
+    error = assert_raises(RuntimeError) { generate(request) }
+    assert_includes error.message, 'driver pg needs engine: postgresql (this sql block uses mysql)'
+    request.settings.engine = 'postgresql'
+    generate(request)
+  end
+
+  def test_table_column_and_enum_comments_become_doc_comments
+    files = generate(load_request('pg'))
+    assert_includes files.fetch('models.rb'), "  # People who wrote at least one book.\n  class Author < Data.define"
+    assert_includes files.fetch('models.rbs'), "    # Short biography, NULL when unknown.\n    attr_reader bio: String?"
+    assert_includes files.fetch('models.rb'), "  # Kinds of biographies.\n  module ExtendedBioType"
+  end
 end

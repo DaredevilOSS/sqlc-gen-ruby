@@ -86,8 +86,13 @@ module SqlcGenRuby
       field :schemas, 4, :message, repeated: true, klass: Schema
     end
 
+    class Settings < P
+      field :version, 1, :string
+      field :engine, 2, :string
+    end
+
     class GenerateRequest < P
-      # settings(1) is skipped: the generator does not need it.
+      field :settings, 1, :message, klass: Settings
       field :catalog, 2, :message, klass: Catalog
       field :queries, 3, :message, repeated: true, klass: Query
       field :sqlc_version, 4, :string

@@ -78,3 +78,7 @@ CREATE TABLE postgres_special_types (
     c_dimensions extended.dimensions,
     c_positive positive_int
 );
+
+COMMENT ON TABLE authors IS 'People who wrote at least one book.';
+COMMENT ON COLUMN authors.bio IS 'Short biography, NULL when unknown.';
+COMMENT ON TYPE extended.bio_type IS 'Kinds of biographies.';

@@ -51,4 +51,19 @@ class OptionsTest < Minitest::Test
     assert_raises(ArgumentError) { opts(driver: 'pg', generateTypes: 'yes') }
     assert_raises(ArgumentError) { opts(driver: 'pg', rubyVersion: 3.3) }
   end
+
+  def test_unknown_options_are_rejected_with_a_hint
+    error = assert_raises(ArgumentError) { opts(driver: 'pg', generate_types: false, emitJsonTags: true) }
+    assert_includes error.message, 'unknown plugin options: generate_types (did you mean generateTypes?), emitJsonTags'
+    error = assert_raises(ArgumentError) { Options.new(JSON.generate(driver: 'pg'), JSON.generate(typo: 1)) }
+    assert_includes error.message, 'unknown global options: typo'
+  end
+
+  def test_override_forms
+    o = opts(driver: 'pg', overrides: [{ column: 'public.authors.bio', ruby_type: { type: 'A' } },
+                                       { db_type: 'pg_catalog.UUID', ruby_type: { type: 'B' } }])
+    assert_equal [%w[authors bio public], 'uuid'], [o.overrides[0].to_h.values_at(:table, :column, :schema), o.overrides[1].db_type]
+    assert_raises(ArgumentError) { opts(driver: 'pg', overrides: [{ column: 'a.b.c.d', ruby_type: { type: 'A' } }]) }
+    assert_raises(ArgumentError) { opts(driver: 'pg', rename: { 'a' => 1 }) }
+  end
 end

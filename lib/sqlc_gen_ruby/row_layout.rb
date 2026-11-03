@@ -32,7 +32,7 @@ module SqlcGenRuby
     def embed?(column) = !column.embed_table.nil? && !column.embed_table.name.empty?
 
     def build(query)
-      taken = query.columns.reject { |c| embed?(c) }.map { |c| Code.attr_name(c.name) }
+      taken = query.columns.reject { |c| embed?(c) }.map { |c| @catalog.attr_name(c.name) }
       # sqlc does not say which side of a join an embedded table is on: in an outer join any of them may be missing
       outer = query.text.match?(OUTER_JOIN)
       query.columns.map do |column|
@@ -42,7 +42,7 @@ module SqlcGenRuby
           name = unique_name(taken, Code.attr_name(Code.singularize(column.name)))
           Entry.new(name, outer ? "#{table.model_name}?" : table.model_name, column, table, outer)
         else
-          Entry.new(Code.attr_name(column.name), @types.type(column, query_name: query.name), column, nil, false)
+          Entry.new(@catalog.attr_name(column.name), @types.type(column, query_name: query.name), column, nil, false)
         end
       end.tap { |list| reject_duplicate_columns(query, list) }
     end

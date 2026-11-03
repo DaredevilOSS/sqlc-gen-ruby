@@ -21,6 +21,16 @@ codec), and it is shipped as a single self-contained WebAssembly module — the 
 | overrides       | a list, see [below](#override-option)          | Yes      | Overrides the generated (RBS) type of specific columns / parameters.                                      |
 | moduleName      | default: `<Driver>Codegen` (e.g. `PgCodegen`)  | Yes      | The Ruby module the generated code lives in, e.g. `MyApp::Db`.                                            |
 | preparedStatements | default: `true`<br/>values: `false`,`true`  | Yes      | `pg` only: `false` sends the SQL with every call (`exec_params`) - needed behind pgbouncer in transaction mode. |
+| rename          | an object, e.g. `{authors: Writer, bio: biography}` | Yes | Renames generated identifiers: a table name (or `schema.table`) gives the model class, a column name gives the row / model attribute. |
+| exactTableNames | default: `false`<br/>values: `false`,`true`    | Yes      | `true` keeps table names as they are for model classes (`authors` => `Authors`) instead of singularizing them. |
+
+Unknown options are rejected (with a hint for near misses such as `generate_types`). Options can also be set once for
+all `sql:` blocks in the top-level `options:` of `sqlc.yaml`, under the plugin's name (`options: {ruby: {moduleName: MyApp::Db}}`).
+The `options:` of a codegen entry win over these, and the `overrides` of both apply. A driver used with another
+`engine:` (e.g. `pg` with `engine: mysql`) is an error.
+
+Table, column and enum comments (`COMMENT ON ...` in PostgreSQL, `COMMENT '...'` in MySQL) become doc comments of the
+generated models (column comments in the RBS).
 
 ### Override option
 ```yaml
@@ -29,11 +39,18 @@ overrides:
     ruby_type:
       type: "Symbol"
       notNull: true
-  - column: "*:<column-name>"              # every query
+  - column: "*:<column-name>"              # every query and model
     ruby_type:
       type: "Pathname"
       notNull: false
+  - column: "<table>.<column>"             # a table column ("<schema>.<table>.<column>" too): its model and query columns
+    ruby_type:
+      type: "Symbol"
+  - db_type: "uuid"                        # every column / parameter of a database type
+    ruby_type:
+      type: "String"
 ```
+The first match wins, in this order: `<query>:<column>`, `<table>.<column>`, `*:<column>`, `db_type`.
 
 ### Configuration
 ```yaml

@@ -20,9 +20,10 @@ module SqlcGenRuby
     CONNECTION_FILE = 'connection'
 
     def generate(request)
-      @options = Options.new(request.plugin_options)
+      @options = Options.new(request.plugin_options, request.global_options)
+      check_engine(request.settings&.engine.to_s)
       @driver = instantiate_driver
-      @catalog = Catalog.new(request.catalog)
+      @catalog = Catalog.new(request.catalog, rename: @options.rename, exact_table_names: @options.exact_table_names)
       @driver.catalog = @catalog
       @types = TypeResolver.new(@driver, @options)
       @layout = RowLayout.new(@driver, @catalog, @types)
@@ -50,6 +51,15 @@ module SqlcGenRuby
           param.column.name = "param#{param.number}" if param.column.name.empty?
         end
       end
+    end
+
+    ENGINES = { 'pg' => 'postgresql', 'mysql2' => 'mysql', 'sqlite3' => 'sqlite' }.freeze
+
+    def check_engine(engine)
+      expected = ENGINES.fetch(@options.driver_name)
+      return if engine.empty? || engine == expected
+
+      raise ArgumentError, "driver #{@options.driver_name} needs engine: #{expected} (this sql block uses #{engine})"
     end
 
     def instantiate_driver
@@ -152,26 +162,37 @@ module SqlcGenRuby
 
     # --- data classes (Data.define / Struct.new) ---
 
-    def dataclass(name, pairs)
+    # doc: comment of the class (table comment), attr_docs: { attr => comment } (column comments, RBS only)
+    def dataclass(name, pairs, doc: nil, attr_docs: {})
       dupes = pairs.map(&:first).tally.select { |_, n| n > 1 }.keys
       raise ArgumentError, "duplicate column names in #{name}: #{dupes.join(', ')}" unless dupes.empty?
 
-      @options.ruby_version.immutable_data_supported? ? data_define(name, pairs) : new_struct(name, pairs)
+      code, rbs = @options.ruby_version.immutable_data_supported? ? data_define(name, pairs, attr_docs) : new_struct(name, pairs, attr_docs)
+      comment = Code.comment(doc)
+      comment.empty? ? [code, rbs] : ["#{comment}\n#{code}", "#{comment}\n#{rbs}"]
     end
 
-    def data_define(name, pairs)
+    def attribute_lines(pairs, attr_docs, keyword)
+      pairs.map do |n, t|
+        comment = Code.comment(attr_docs[n])
+        line = "#{keyword} #{n}: #{t}"
+        comment.empty? ? line : "#{comment}\n#{line}"
+      end.join("\n")
+    end
+
+    def data_define(name, pairs, attr_docs = {})
       attrs = Code.comma_join(pairs.map { |n, _| ":#{n}" })
       code = "class #{name} < Data.define(#{attrs})\nend"
-      readers = Code.indent(pairs.map { |n, t| "attr_reader #{n}: #{t}" }.join("\n"))
+      readers = Code.indent(attribute_lines(pairs, attr_docs, 'attr_reader'))
       init_args = Code.indent(Code.comma_join(pairs.map { |n, t| "#{t} #{n}" }))
       init = Code.indent("def initialize: (#{init_args}) -> void")
       [code, "class #{name}\n#{readers}\n#{init}\nend"]
     end
 
-    def new_struct(name, pairs)
+    def new_struct(name, pairs, attr_docs = {})
       attrs = Code.comma_join(pairs.map { |n, _| ":#{n}" })
       code = "class #{name} < Struct.new(#{attrs})\nend"
-      accessors = Code.indent(pairs.map { |n, t| "attr_accessor #{n}: #{t}" }.join("\n"))
+      accessors = Code.indent(attribute_lines(pairs, attr_docs, 'attr_accessor'))
       init_args = Code.indent(Code.comma_join(pairs.map { |n, t| "#{t} #{n}" }))
       init = Code.indent("def self.new: (#{init_args}) -> #{name}")
       [code, "class #{name} < ::Struct\n#{accessors}\n#{init}\nend"]
@@ -180,12 +201,14 @@ module SqlcGenRuby
     # --- models.rb: one class per table + one module per enum ---
 
     def models_files
-      members = @catalog.enum_modules.map { |name, vals| enum_module(name, vals) }
+      members = @catalog.enum_modules.map { |name, vals, comment| enum_module(name, vals, comment) }
       @catalog.tables.each do |table|
         next if table.columns.empty?
 
-        pairs = table.columns.map { |c| [Code.attr_name(c.name), @types.type(c, fallback: 'untyped')] }
-        members << dataclass(table.model_name, pairs)
+        ident = Plugin::Identifier.new(schema: table.schema, name: table.name)
+        pairs = table.columns.map { |c| [@catalog.attr_name(c.name), @types.type(c, table: ident, fallback: 'untyped')] }
+        docs = table.columns.to_h { |c| [@catalog.attr_name(c.name), c.comment.to_s] }
+        members << dataclass(table.model_name, pairs, doc: table.comment, attr_docs: docs)
       end
       return [] if members.empty?
 
@@ -213,13 +236,15 @@ module SqlcGenRuby
     end
 
     # module BioType; AUTOBIOGRAPHY = 'Autobiography'; ...; ALL = [...].freeze; end
-    def enum_module(name, values)
+    def enum_module(name, values, comment = nil)
       consts = unique_constants(values)
       code = consts.map { |const, value| "#{const} = #{quote(value)}" }
       code << "ALL = [#{consts.map(&:first).join(', ')}].freeze"
       rbs = consts.map { |const, _| "#{const}: String" }
       rbs << 'ALL: Array[String]'
-      [Code.block("module #{name}", code.join("\n")), Code.block("module #{name}", rbs.join("\n"))]
+      doc = Code.comment(comment)
+      doc = doc.empty? ? '' : "#{doc}\n"
+      ["#{doc}#{Code.block("module #{name}", code.join("\n"))}", "#{doc}#{Code.block("module #{name}", rbs.join("\n"))}"]
     end
 
     # 'Memoir' (single quotes unless the value needs escaping)
