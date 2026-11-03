@@ -233,6 +233,30 @@ module Mysql2Codegen
     def initialize: (  String name) -> void
   end
 
+  COUNT_REGRESSIONS_BY_TEXT_SQL: String
+
+  class CountRegressionsByTextRow
+    attr_reader count: Integer
+    def initialize: (  Integer count) -> void
+  end
+
+  LIST_REGRESSIONS_BY_IDS_SQL: String
+
+  class ListRegressionsByIdsRow
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader note: String?
+    def initialize: (  Integer id, String order, String? note) -> void
+  end
+
+  class CopyRegressionsArgs
+    attr_reader order: String
+    attr_reader note: String?
+    def initialize: (  String order, String? note) -> void
+  end
+
+  TRUNCATE_REGRESSIONS_SQL: String
+
   class QuerySql
     class NotFound < StandardError
     end
@@ -304,6 +328,16 @@ module Mysql2Codegen
     def get_author_batch: (Array[GetAuthorBatchArgs] rows) -> Array[GetAuthorBatchRow?]
 
     def list_authors_by_name_batch: (Array[ListAuthorsByNameBatchArgs] rows) -> Array[Array[ListAuthorsByNameBatchRow]]
+
+    def count_regressions_by_text: (term: String) -> CountRegressionsByTextRow?
+
+    def count_regressions_by_text!: (term: String) -> CountRegressionsByTextRow
+
+    def list_regressions_by_ids: (id: Integer, id_2: Integer, id_3: Integer) -> Array[ListRegressionsByIdsRow]
+
+    def copy_regressions: (Array[CopyRegressionsArgs] rows) -> void
+
+    def truncate_regressions: -> void
 
     private
 

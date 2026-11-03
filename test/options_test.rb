@@ -24,9 +24,9 @@ class OptionsTest < Minitest::Test
   end
 
   def test_version_bounds
-    %w[3.1 3.2 3.3 3].each { |v| RubyVersion.parse(v) }
-    err = assert_raises(ArgumentError) { RubyVersion.parse('3.4') }
-    assert_equal 'Provided version 3.4 exceeds max version 3.3', err.message
+    %w[3.1 3.2 3.3 3.4 3].each { |v| RubyVersion.parse(v) }
+    err = assert_raises(ArgumentError) { RubyVersion.parse('3.5') }
+    assert_equal 'Provided version 3.5 exceeds max version 3.4', err.message
     err = assert_raises(ArgumentError) { RubyVersion.parse('3.0') }
     assert_equal 'Provided version 3.0 exceeds min version 3.1', err.message
     assert_raises(ArgumentError) { RubyVersion.parse('2.7') }
@@ -36,7 +36,7 @@ class OptionsTest < Minitest::Test
 
   # The C# comparison treats a patch component as greater than a missing one.
   def test_patch_versions_compare_like_the_csharp_implementation
-    assert_raises(ArgumentError) { RubyVersion.parse('3.3.1') }
+    assert_raises(ArgumentError) { RubyVersion.parse('3.4.1') }
     RubyVersion.parse('3.2.9')
   end
 

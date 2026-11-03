@@ -29,4 +29,11 @@ module Sqlite3Codegen
         Float? c_double
     ) -> void
   end
+
+  class Regression
+    attr_reader id: Integer
+    attr_reader order: String
+    attr_reader price: Float?
+    def initialize: (  Integer id, String order, Float? price) -> void
+  end
 end

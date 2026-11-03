@@ -40,9 +40,12 @@ module SqlcGenRuby
 
       def supports_slice? = true
 
-      def exec_rows_lines(exec) = [exec, 'client.changes']
+      # sqlite3 only runs a statement eagerly when it has no result columns: one with RETURNING is stepped to the end.
+      def exec_lines(exec, query) = [query.columns.empty? ? exec : "#{exec}.to_a", 'nil']
 
-      def exec_result_lines(exec) = [exec, 'ExecResult.new(client.changes, client.last_insert_row_id)']
+      def exec_rows_lines(exec, query) = [query.columns.empty? ? exec : "#{exec}.to_a", 'client.changes']
+
+      def exec_result_lines(exec) = [exec, 'client.changes', 'client.last_insert_row_id']
 
       # Relies on a user-written `RETURNING <id>`.
       def exec_last_id_lines(exec, query)
@@ -54,12 +57,12 @@ module SqlcGenRuby
       end
 
       # One multi-row `INSERT ... VALUES (?, ?), (?, ?), ...` per batch.
-      def copy_from_lines(rows_var, table, columns, attrs, _label)
+      def copy_from_lines(rows_var, table, columns, values, _label)
         rows_per_batch = [MAX_BOUND_PARAMETERS / columns.size, 1].max
         placeholders = "(#{(['?'] * columns.size).join(', ')})"
         body = [
-          %(sql = "INSERT INTO #{table} (#{columns.join(', ')}) VALUES \#{Array.new(batch.size, '#{placeholders}').join(', ')}"),
-          "client.execute(sql, batch.flat_map { |row| [#{attrs.map { |a| "row.#{a}" }.join(', ')}] })"
+          "sql = %(INSERT INTO #{table} (#{columns.join(', ')}) VALUES \#{Array.new(batch.size, '#{placeholders}').join(', ')})",
+          "client.execute(sql, batch.flat_map { |row| [#{values.join(', ')}] })"
         ].join("\n")
         [Code.block("#{rows_var}.each_slice(#{rows_per_batch}) do |batch|", body), 'nil']
       end
@@ -74,20 +77,27 @@ module SqlcGenRuby
       RUBY
 
       TRANSACTION = <<~'RUBY'.chomp
-        # Runs the block in a transaction and returns its value: COMMIT when the block returns, ROLLBACK when it
-        # raises. A nested call becomes a SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
+        # Runs the block in a transaction and returns its value: COMMIT when the block returns (also through
+        # break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call becomes a
+        # SAVEPOINT. mode: :deferred (default), :immediate or :exclusive.
         def transaction(mode: nil)
           instrument('transaction') do
             outermost = !@db.transaction_active?
             savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
             @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
+            rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+            failed = false
             begin
-              result = yield self
-              @db.execute(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-              result
+              yield self
             rescue Exception # rubocop:disable Lint/RescueException
-              @db.execute(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+              failed = true
+              @db.execute(rollback)
               raise
+            ensure
+              unless failed
+                commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+                @db.execute(Thread.current.status == 'aborting' ? rollback : commit)
+              end
             end
           end
         end

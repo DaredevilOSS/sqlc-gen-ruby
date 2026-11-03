@@ -18,7 +18,11 @@ module SqlcGenRuby
     ROWS_COMMANDS = [':copyfrom', *BATCH_COMMANDS.keys].freeze
 
     # optional: nullable and named by the user (sqlc.arg / sqlc.narg) -> keyword argument defaulting to nil
-    Param = Struct.new(:name, :column, :slice, :optional, :type)
+    # reused: a later occurrence of a named parameter (MySQL sends one parameter per `?`): bound, not a keyword
+    Param = Struct.new(:name, :column, :slice, :optional, :type, :reused)
+
+    # Locals of the generated query methods; parameters with these names get a trailing underscore.
+    GENERATED_LOCALS = %w[client query_params sql stmt result row].freeze
 
     # layout: RowLayout, types: TypeResolver, class_name: the generated query class (prefixes statement names)
     def initialize(driver, layout, types, class_name)
@@ -30,12 +34,22 @@ module SqlcGenRuby
 
     # `created_at > $1 AND created_at < $2` -> created_at:, created_at_2:
     def params(query)
-      names = unique_param_names(query.params.map { |p| Code.param_name(p.column.name) })
-      query.params.zip(names).map do |p, name|
+      copy = ROWS_COMMANDS.include?(query.cmd)
+      by_name = {}
+      query.params.map do |p|
         column = p.column
+        name = Code.param_name(column.name)
+        name = copy ? @types.member_name(name) : avoid_locals(name)
+        if column.is_named_param && by_name.key?(name)
+          first = by_name[name]
+          first.optional &&= optional?(column, query)
+          next Param.new(name, column, first.slice, false, first.type, true)
+        end
+
+        name = unique_param_name(name, by_name)
         slice = column.is_sqlc_slice
         type = slice ? @types.slice_type(column, query.name) : @types.type(column, query_name: query.name)
-        Param.new(name, column, slice, column.is_named_param && @types.nullable?(column, query.name), type)
+        by_name[name] = Param.new(name, column, slice, optional?(column, query), type, false)
       end
     end
 
@@ -50,7 +64,8 @@ module SqlcGenRuby
         signature = '(rows)'
       else
         statements = query_statements(query, func, params)
-        signature = params.empty? ? '' : "(#{params.map { |p| p.optional ? "#{p.name}: nil" : "#{p.name}:" }.join(', ')})"
+        keywords = params.reject(&:reused).map { |p| p.optional ? "#{p.name}: nil" : "#{p.name}:" }
+        signature = keywords.empty? ? '' : "(#{keywords.join(', ')})"
       end
       doc = query.comments.map { |c| "# #{c.strip}".rstrip }.join("\n")
       method = Code.block("def #{func}#{signature}", method_body(func, statements))
@@ -69,13 +84,13 @@ module SqlcGenRuby
       if ROWS_COMMANDS.include?(query.cmd)
         signature = "(Array[#{query.name}Args] rows)"
       else
-        list = params(query).map { |p| "#{p.optional ? '?' : ''}#{p.name}: #{p.type}" }
+        list = params(query).reject(&:reused).map { |p| "#{p.optional ? '?' : ''}#{p.name}: #{p.type}" }
         signature = list.empty? ? '' : "(#{list.join(', ')})"
       end
       rbs = "def #{func}: #{signature}#{signature.empty? ? '' : ' '}-> #{return_type(query)}"
       return rbs unless query.cmd == ':one'
 
-      "#{rbs}\n\ndef #{func}!: #{signature}#{signature.empty? ? '' : ' '}-> #{query.name}Row"
+      "#{rbs}\n\ndef #{func}!: #{signature}#{signature.empty? ? '' : ' '}-> #{Code.upcase_first(query.name)}Row"
     end
 
     # [[code, rbs]] of private helper methods the generated class needs for these queries.
@@ -87,23 +102,33 @@ module SqlcGenRuby
 
     private
 
-    def unique_param_names(bases)
-      used = []
-      bases.map do |base|
-        name = base
-        suffix = 1
-        name = "#{base}_#{suffix += 1}" while used.include?(name) || (name != base && bases.include?(name))
-        used << name
-        name
-      end
+    # sqlc.narg / sqlc.arg are named parameters; behind a cast (`sqlc.narg(email)::text`) sqlc drops the flag, but
+    # keeps the name without a source column.
+    def optional?(column, query)
+      named = column.is_named_param ||
+              (!column.name.empty? && column.table.nil? && column.original_name.to_s.empty?)
+      named && @types.nullable?(column, query.name)
+    end
+
+    def avoid_locals(name)
+      name = "#{name}_" while GENERATED_LOCALS.include?(name)
+      name
+    end
+
+    # id, id_2, id_3 for unnamed parameters of the same column (`WHERE id IN (?, ?, ?)`)
+    def unique_param_name(base, taken)
+      name = base
+      suffix = 1
+      name = "#{base}_#{suffix += 1}" while taken.key?(name)
+      name
     end
 
     def slice?(query) = query.params.any? { |p| p.column.is_sqlc_slice }
 
     def return_type(query)
       case query.cmd
-      when ':one' then "#{query.name}Row?"
-      when ':many' then "Array[#{query.name}Row]"
+      when ':one' then "#{Code.upcase_first(query.name)}Row?"
+      when ':many' then "Array[#{Code.upcase_first(query.name)}Row]"
       when ':execrows' then 'Integer'
       when ':execlastid' then last_id_type(query)
       when ':execresult' then 'ExecResult'
@@ -124,8 +149,10 @@ module SqlcGenRuby
       raise ArgumentError, "#{query.name}: :copyfrom without a target table" if query.insert_into_table.nil?
 
       table = query.insert_into_table
-      name = table.schema.to_s.empty? ? table.name : "#{table.schema}.#{table.name}"
-      @driver.copy_from_lines('rows', name, params.map { |p| p.column.name }, params.map { |p| Code.attr_name(p.name) },
+      name = table.schema.to_s.empty? ? '' : "#{@driver.quote_identifier(table.schema)}."
+      name += @driver.quote_identifier(table.name)
+      values = params.map { |p| @driver.encode_param("row.#{p.name}", p.column) }
+      @driver.copy_from_lines('rows', name, params.map { |p| @driver.quote_identifier(p.column.name) }, values,
                               Code.snake_case(query.name))
     end
 
@@ -162,7 +189,7 @@ module SqlcGenRuby
       statements = [@driver.prepare_stmt(stmt_name, const)].compact
       cmd = BATCH_COMMANDS.fetch(query.cmd)
       body = []
-      body << "query_params = [#{Code.comma_join(params.map { |p| "args.#{Code.attr_name(p.name)}" })}]" unless params.empty?
+      body << "query_params = [#{Code.comma_join(params.map { |p| "args.#{p.name}" })}]" unless params.empty?
       body.concat(command_statements(query, stmt_name, const, !params.empty?, cmd: cmd))
       body.pop if cmd == ':exec' # the trailing nil
       block_arg = params.empty? ? '_args' : 'args'
@@ -177,29 +204,29 @@ module SqlcGenRuby
     end
 
     def query_params(params)
-      list = params.map { |p| p.slice ? "*#{p.name}" : p.name }
+      list = params.map { |p| p.slice ? "*#{p.name}" : @driver.encode_param(p.name, p.column) }
       "query_params = [#{Code.comma_join(list)}]"
     end
 
-    # sql = FOO_SQL.sub('/*SLICE:ids*/?', slice_placeholders(ids)) - once per slice
+    # sql = FOO_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids)) - once per slice
     def slice_sql(const, params)
-      params.select(&:slice).each_with_index.map do |p, i|
-        "sql = #{i.zero? ? const : 'sql'}.sub('/*SLICE:#{p.column.name}*/?', slice_placeholders(#{p.name}))"
+      params.select { |p| p.slice && !p.reused }.each_with_index.map do |p, i|
+        "sql = #{i.zero? ? const : 'sql'}.gsub('/*SLICE:#{p.column.name}*/?', slice_placeholders(#{p.name}))"
       end.join("\n")
     end
 
     # The value of the last expression is the return value of the method (no explicit `return`).
     def command_statements(query, stmt_name, const, has_params, cmd: query.cmd)
-      exec = @driver.execute_stmt(stmt_name, const, has_params, array_rows: @layout.array_rows?(query))
+      exec = @driver.execute_stmt(stmt_name, const, has_params, array_rows: !query.columns.empty? && @layout.array_rows?(query))
       case cmd
       when ':one'
         ["result = #{exec}", 'row = result.first', "row && #{new_row(query)}"]
       when ':many'
         ["result = #{exec}", Code.block('result.map do |row|', new_row(query))]
-      when ':exec' then [exec, 'nil']
-      when ':execrows' then @driver.exec_rows_lines(exec)
+      when ':exec' then @driver.exec_lines(exec, query)
+      when ':execrows' then @driver.exec_rows_lines(exec, query)
       when ':execlastid' then @driver.exec_last_id_lines(exec, query)
-      when ':execresult' then @driver.exec_result_lines(exec)
+      when ':execresult' then exec_result_lines(exec)
       else raise ArgumentError, "unsupported query command: #{query.cmd}"
       end
     end
@@ -212,18 +239,32 @@ module SqlcGenRuby
       array = @layout.array_rows?(query)
       index = 0
       args = @layout.entries(query).map do |entry|
-        if entry.table
-          values = entry.table.columns.each_index.map { |i| "row[#{index + i}]" }
-          index += values.size
-          model = "#{entry.table.model_name}.new(#{Code.comma_join(values)})"
-          entry.optional ? "#{missing_row_check(entry.table, values)} ? nil : #{model}" : model
-        else
-          access = array ? "row[#{index}]" : "row['#{entry.column.name}']"
-          index += 1
-          access
-        end
+        value = if entry.table
+                  values = entry.table.columns.each_index.map { |i| "row[#{index + i}]" }
+                  index += values.size
+                  names = entry.table.columns.map { |c| @types.member_name(c.name) }
+                  model = "#{entry.table.model_name}.new(#{constructor_args(names, values).join(', ')})"
+                  entry.optional ? "#{missing_row_check(entry.table, values)} ? nil : #{model}" : model
+                else
+                  index += 1
+                  array ? "row[#{index - 1}]" : "row['#{entry.column.name}']"
+                end
+        [entry.attr, value]
       end
-      "#{query.name}Row.new(#{Code.comma_join(args)})"
+      args = constructor_args(args.map(&:first), args.map(&:last))
+      row_class = "#{Code.upcase_first(query.name)}Row"
+      wrap = "#{row_class}.new(#{args.join(', ')})".length > 100
+      "#{row_class}.new(#{Code.comma_join(args, wrap: wrap)})"
+    end
+
+    # Struct rows (Ruby < 3.2) are built with keywords (keyword_init: true), Data rows positionally.
+    def exec_result_lines(exec)
+      *lines, rows_affected, last_insert_id = @driver.exec_result_lines(exec)
+      lines << "ExecResult.new(#{constructor_args(%w[rows_affected last_insert_id], [rows_affected, last_insert_id]).join(', ')})"
+    end
+
+    def constructor_args(names, values)
+      @types.keyword_rows? ? names.zip(values).map { |n, v| "#{n}: #{v}" } : values
     end
 
     # The outer side of a join is missing when its NOT NULL columns (all columns if it has none) are NULL.

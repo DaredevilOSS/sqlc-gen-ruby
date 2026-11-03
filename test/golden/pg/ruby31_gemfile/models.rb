@@ -12,10 +12,9 @@ module PgCodegen
   end
 
   # People who wrote at least one book.
-  class Author < Struct.new(:id, :name, :bio)
-  end
+  Author = Struct.new(:id, :name, :bio, keyword_init: true)
 
-  class NodePostgresType < Struct.new(
+  NodePostgresType = Struct.new(
     :c_bit,
     :c_smallint,
     :c_boolean,
@@ -33,14 +32,19 @@ module PgCodegen
     :c_varchar,
     :c_bytea,
     :c_text,
-    :c_json
+    :c_json,
+    keyword_init: true
   )
-  end
 
-  class Book < Struct.new(:id, :name, :author_id, :description)
-  end
+  Book = Struct.new(
+    :id,
+    :name,
+    :author_id,
+    :description,
+    keyword_init: true
+  )
 
-  class PostgresExtraType < Struct.new(
+  PostgresExtraType = Struct.new(
     :c_uuid,
     :c_jsonb,
     :c_text_array,
@@ -48,24 +52,32 @@ module PgCodegen
     :c_timestamptz,
     :c_inet,
     :c_money,
-    :c_not_null
+    :c_not_null,
+    keyword_init: true
   )
-  end
 
-  class PostgresArrayType < Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix)
-  end
+  PostgresArrayType = Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix, keyword_init: true)
 
-  class PostgresSpecialType < Struct.new(
+  PostgresSpecialType = Struct.new(
     :c_timetz,
     :c_tsvector,
     :c_point,
     :c_int4range,
     :c_oid,
     :c_dimensions,
-    :c_positive
+    :c_positive,
+    keyword_init: true
   )
-  end
 
-  class ExtendedBio < Struct.new(:author_name, :name, :bio_type)
-  end
+  Regression = Struct.new(
+    :id,
+    :order,
+    :payload,
+    :doc,
+    :bio_types,
+    :uids,
+    keyword_init: true
+  )
+
+  ExtendedBio = Struct.new(:author_name, :name, :bio_type, keyword_init: true)
 end

@@ -38,6 +38,9 @@ module SqlcGenRuby
       @prepared_statements = fetch_bool(raw, 'preparedStatements', true)
       @rename = parse_rename(raw['rename'])
       @exact_table_names = fetch_bool(raw, 'exactTableNames', false)
+      if raw.key?('preparedStatements') && @driver_name != 'pg'
+        raise ArgumentError, 'option preparedStatements is only supported by the pg driver'
+      end
     end
 
     # The override for a result column / parameter of a query (query_name nil for model columns); the first match of

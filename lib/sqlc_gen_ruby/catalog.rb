@@ -54,8 +54,8 @@ module SqlcGenRuby
             .map { |name, vals| [Code.camelize(name), vals, @enum_comments[name]] }
     end
 
-    # Attribute name of a column in rows and models (`rename:` applies first).
-    def attr_name(column_name) = Code.attr_name(@rename.fetch(column_name, column_name))
+    # Column name after `rename:` (rows and models).
+    def column_name(name) = @rename.fetch(name, name)
 
     # embed_table: Identifier(schema, name) as sqlc sends it for sqlc.embed
     def table_for(identifier)

@@ -267,4 +267,37 @@ class TestSqlite3 < Minitest::Test
     assert_equal %i[id name bio], Author.members
     assert_equal %i[id name author_id description], Book.members
   end
+
+  # ---- regressions -----------------------------------------------------------------------------------------------
+
+  def test_exec_and_execrows_with_returning_run_to_the_end
+    @query_sql.create_regression(order: 'a', price: 1.5)
+    @query_sql.create_regression(order: 'b', price: nil)
+    assert_equal 2, @query_sql.update_regression_prices(price: 2.25)
+    assert_equal [['a', 2.25], ['b', 2.25]], @query_sql.list_regressions.map { |r| [r.order, r.price] }
+  end
+
+  def test_copyfrom_quotes_reserved_column_names_and_untyped_expressions
+    assert_equal 0, @query_sql.get_max_regression_price!.max_price
+    @query_sql.copy_regressions([CopyRegressionsArgs.new(order: 'x', price: 3.5)])
+    assert_equal [['x', 3.5]], @query_sql.list_regressions.map { |r| [r.order, r.price] }
+    assert_in_delta 3.5, @query_sql.get_max_regression_price!.max_price
+  end
+
+  def test_transaction_left_with_break_or_throw_commits
+    2.times do |i|
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: "break #{i}", bio: nil)
+        break
+      end
+    end
+    catch(:out) do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'throw', bio: nil)
+        throw :out
+      end
+    end
+    refute @db.transaction_active?
+    assert_equal ['break 0', 'break 1', 'throw'], @query_sql.list_authors.map(&:name).sort
+  end
 end

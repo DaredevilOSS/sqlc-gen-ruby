@@ -82,7 +82,7 @@ module SqlcGenRuby
     private :compare_nullable
 
     MIN_SUPPORTED = new(3, 1).freeze
-    MAX_SUPPORTED = new(3, 3).freeze
+    MAX_SUPPORTED = new(3, 4).freeze
     IMMUTABLE_DATA_MIN = new(3, 2).freeze
   end
 end

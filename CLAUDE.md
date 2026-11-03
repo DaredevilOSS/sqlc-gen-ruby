@@ -28,7 +28,7 @@ UPDATE_GOLDEN=1 bundle exec ruby -Itest test/extended_golden_test.rb   # rewrite
 * **The plugin runs inside ruby.wasm**: only Ruby core + `json`; no gems, no C extensions, no filesystem, no network.
   Anything `require`d by `lib/` or `exe/` must exist in the WASM (`scripts/wasm/build.sh` stages the stdlib). Gems used
   only by tests/tooling go in the `Gemfile` groups, never in `lib/`.
-* **Generated code must stay valid for Ruby 3.1–3.3** (`Struct` below 3.2, `Data` from 3.2) and RuboCop/Steep-clean.
+* **Generated code must stay valid for Ruby 3.1–3.4** (`Struct` below 3.2, `Data` from 3.2) and RuboCop/Steep-clean.
 * Generated code is plain, idiomatic Ruby (keyword args, `Data` rows, implicit returns, 2-space indent); do not mirror
   the C# sibling plugin's style. Parameter *values* are never logged.
 * Prepared statements are per connection (`ConnectionState`) because the query object is shared by pooled connections.

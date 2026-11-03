@@ -17,4 +17,7 @@ module Sqlite3Codegen
     :c_double
   )
   end
+
+  class Regression < Data.define(:id, :order, :price)
+  end
 end

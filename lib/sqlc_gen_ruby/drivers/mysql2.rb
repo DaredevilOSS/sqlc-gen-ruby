@@ -41,17 +41,21 @@ module SqlcGenRuby
 
       def supports_slice? = true
 
-      def exec_rows_lines(exec) = [exec, 'stmt.affected_rows']
+      # Rows are read by position: mysql2 names unaliased expressions after their text (`count(*)`), sqlc does not.
+      def row_data_type = :array
+
+      def quote_identifier(name) = "`#{name.gsub('`', '``')}`"
+
+      def exec_rows_lines(exec, _query) = [exec, 'stmt.affected_rows']
 
       def exec_last_id_lines(exec, _query) = [exec, 'client.last_id']
 
-      def exec_result_lines(exec) = [exec, 'ExecResult.new(stmt.affected_rows, client.last_id)']
+      def exec_result_lines(exec) = [exec, 'stmt.affected_rows', 'client.last_id']
 
       # LOAD DATA LOCAL INFILE from a temporary CSV (the client needs `local_infile: true`, the server
       # `local_infile=1`).
-      def copy_from_lines(rows_var, table, columns, attrs, label)
-        write = Code.block("#{rows_var}.each do |row|",
-                           "file.write(csv_line([#{attrs.map { |a| "row.#{a}" }.join(', ')}]))")
+      def copy_from_lines(rows_var, table, columns, values, label)
+        write = Code.block("#{rows_var}.each do |row|", "file.write(csv_line([#{values.join(', ')}]))")
         load_data = format(LOAD_DATA, table: table, columns: columns.join(', '))
         [
           "return if #{rows_var}.empty?",
@@ -61,9 +65,7 @@ module SqlcGenRuby
         ]
       end
 
-      def extra_requires(queries, _ruby_version) = copy_from?(queries) ? %w[csv tempfile] : []
-
-      def extra_gems(queries) = copy_from?(queries) ? %w[csv] : []
+      def extra_requires(queries, _ruby_version) = copy_from?(queries) ? %w[tempfile] : []
 
       def helper_methods(queries)
         return [] unless copy_from?(queries)
@@ -96,8 +98,9 @@ module SqlcGenRuby
       RUBY
 
       TRANSACTION = <<~'RUBY'.chomp
-        # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns,
-        # ROLLBACK when it raises. A nested call becomes a SAVEPOINT. Yields self, bound to that connection.
+        # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
+        # (also through break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call
+        # becomes a SAVEPOINT. Yields self, bound to that connection.
         def transaction(isolation: nil)
           with_client('transaction') do |client|
             outermost = !client.in_transaction
@@ -109,15 +112,23 @@ module SqlcGenRuby
             else
               client.query("SAVEPOINT #{savepoint}")
             end
+            rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+            failed = false
             begin
-              result = yield self
-              client.query(outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}")
-              result
+              yield self
             rescue Exception # rubocop:disable Lint/RescueException
-              client.query(outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}")
+              failed = true
+              client.query(rollback)
               raise
             ensure
-              client.in_transaction = false if outermost
+              begin
+                unless failed
+                  commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+                  client.query(Thread.current.status == 'aborting' ? rollback : commit)
+                end
+              ensure
+                client.in_transaction = false if outermost
+              end
             end
           end
         end
@@ -139,7 +150,8 @@ module SqlcGenRuby
         client.query("LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE %<table>s FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (%<columns>s)")
       RUBY
 
-      # \N is LOAD DATA's NULL; backslashes are doubled because the statement uses ESCAPED BY '\'.
+      # \N is LOAD DATA's NULL; every other value is enclosed in quotes (an unquoted NULL would also be read as
+      # NULL), backslashes are doubled because the statement uses ESCAPED BY '\'.
       CSV_LINE = <<~'RUBY'.chomp
         # Formats one row for LOAD DATA ... FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'.
         def csv_line(values)
@@ -149,10 +161,10 @@ module SqlcGenRuby
             when true then '1'
             when false then '0'
             when Time then value.strftime('%Y-%m-%d %H:%M:%S.%6N')
-            else value.to_s.gsub('\\') { '\\\\' }
+            else %("#{value.to_s.b.gsub('\\') { '\\\\' }.gsub('"', '""')}")
             end
           end
-          CSV.generate_line(fields)
+          "#{fields.join(',')}\n"
         end
       RUBY
 

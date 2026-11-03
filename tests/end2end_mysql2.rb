@@ -27,6 +27,7 @@ class TestMysql2 < Minitest::Test
     @query_sql = QuerySql.connect(mysql2_params)
     @query_sql.truncate_authors # cascades to books
     @query_sql.truncate_extended_bios
+    @query_sql.truncate_regressions
   end
 
   def create_author(name, bio = nil)
@@ -362,5 +363,44 @@ class TestMysql2 < Minitest::Test
     assert_equal %i[id name bio], Author.members
     assert_equal %i[id name author_id description], Book.members
     assert_equal %i[author_name name bio_type author_type], ExtendedBio.members
+  end
+
+  # ---- regressions -----------------------------------------------------------------------------------------------
+
+  def test_reused_named_parameter_and_unaliased_columns
+    @query_sql.copy_regressions([CopyRegressionsArgs.new(order: 'x', note: 'y'),
+                                 CopyRegressionsArgs.new(order: 'z', note: 'x'),
+                                 CopyRegressionsArgs.new(order: 'z', note: 'z')])
+    assert_equal 2, @query_sql.count_regressions_by_text!(term: 'x').count
+  end
+
+  def test_repeated_positional_parameters_get_distinct_names
+    @query_sql.copy_regressions(%w[a b c].map { |o| CopyRegressionsArgs.new(order: o, note: nil) })
+    assert_equal [[1, 'a'], [3, 'c']], @query_sql.list_regressions_by_ids(id: 1, id_2: 3, id_3: 99).map { |r| [r.id, r.order] }
+  end
+
+  def test_copyfrom_keeps_strings_that_look_like_null_and_special_characters
+    notes = ['NULL', '\N', 'a "quoted", value', 'back\\slash', "new\nline", nil]
+    @query_sql.copy_regressions(notes.map { |n| CopyRegressionsArgs.new(order: 'o', note: n) })
+    rows = @query_sql.list_regressions_by_ids(id: 1, id_2: 2, id_3: 3) + @query_sql.list_regressions_by_ids(id: 4, id_2: 5, id_3: 6)
+    assert_equal notes, rows.map(&:note)
+  end
+
+  def test_transaction_left_with_break_or_throw_commits_and_frees_the_connection
+    pooled = QuerySql.connect(mysql2_params, size: 1)
+    2.times do |i|
+      pooled.transaction do |tx|
+        tx.create_author_return_id(name: "break #{i}", bio: nil)
+        break
+      end
+    end
+    catch(:out) do
+      pooled.transaction do |tx|
+        tx.create_author_return_id(name: 'throw', bio: nil)
+        throw :out
+      end
+    end
+    pooled.instance_variable_get(:@db).with { |client| refute client.in_transaction }
+    assert_equal ['break 0', 'break 1', 'throw'], @query_sql.list_authors.map(&:name).sort
   end
 end

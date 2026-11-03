@@ -2,20 +2,22 @@
 module Mysql2Codegen
   GET_AUTHOR_SQL: String
 
-  class GetAuthorRow < ::Struct
+  class GetAuthorRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> GetAuthorRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorRow
   end
 
   LIST_AUTHORS_SQL: String
 
-  class ListAuthorsRow < ::Struct
+  class ListAuthorsRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> ListAuthorsRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> ListAuthorsRow
   end
 
   CREATE_AUTHOR_SQL: String
@@ -28,7 +30,7 @@ module Mysql2Codegen
 
   TEST_SQL: String
 
-  class TestRow < ::Struct
+  class TestRow < ::Struct[untyped]
     attr_accessor c_bit: String?
     attr_accessor c_tinyint: Integer?
     attr_accessor c_bool: Integer?
@@ -66,89 +68,133 @@ module Mysql2Codegen
     attr_accessor c_longblob: String?
     attr_accessor c_longtext: String?
     attr_accessor c_json: String?
+    def initialize: (
+        c_bit: String?,
+        c_tinyint: Integer?,
+        c_bool: Integer?,
+        c_boolean: Integer?,
+        c_smallint: Integer?,
+        c_mediumint: Integer?,
+        c_int: Integer?,
+        c_integer: Integer?,
+        c_bigint: Integer?,
+        c_serial: Integer,
+        c_decimal: BigDecimal?,
+        c_dec: BigDecimal?,
+        c_numeric: BigDecimal?,
+        c_fixed: BigDecimal?,
+        c_float: Float?,
+        c_double: Float?,
+        c_double_precision: Float?,
+        c_date: Date?,
+        c_time: Time?,
+        c_datetime: Time?,
+        c_timestamp: Time?,
+        c_year: Integer?,
+        c_char: String?,
+        c_nchar: String?,
+        c_national_char: String?,
+        c_varchar: String?,
+        c_binary: String?,
+        c_varbinary: String?,
+        c_tinyblob: String?,
+        c_tinytext: String?,
+        c_blob: String?,
+        c_text: String?,
+        c_mediumblob: String?,
+        c_mediumtext: String?,
+        c_longblob: String?,
+        c_longtext: String?,
+        c_json: String?
+    ) -> void
     def self.new: (
-        String? c_bit,
-        Integer? c_tinyint,
-        Integer? c_bool,
-        Integer? c_boolean,
-        Integer? c_smallint,
-        Integer? c_mediumint,
-        Integer? c_int,
-        Integer? c_integer,
-        Integer? c_bigint,
-        Integer c_serial,
-        BigDecimal? c_decimal,
-        BigDecimal? c_dec,
-        BigDecimal? c_numeric,
-        BigDecimal? c_fixed,
-        Float? c_float,
-        Float? c_double,
-        Float? c_double_precision,
-        Date? c_date,
-        Time? c_time,
-        Time? c_datetime,
-        Time? c_timestamp,
-        Integer? c_year,
-        String? c_char,
-        String? c_nchar,
-        String? c_national_char,
-        String? c_varchar,
-        String? c_binary,
-        String? c_varbinary,
-        String? c_tinyblob,
-        String? c_tinytext,
-        String? c_blob,
-        String? c_text,
-        String? c_mediumblob,
-        String? c_mediumtext,
-        String? c_longblob,
-        String? c_longtext,
-        String? c_json
+        c_bit: String?,
+        c_tinyint: Integer?,
+        c_bool: Integer?,
+        c_boolean: Integer?,
+        c_smallint: Integer?,
+        c_mediumint: Integer?,
+        c_int: Integer?,
+        c_integer: Integer?,
+        c_bigint: Integer?,
+        c_serial: Integer,
+        c_decimal: BigDecimal?,
+        c_dec: BigDecimal?,
+        c_numeric: BigDecimal?,
+        c_fixed: BigDecimal?,
+        c_float: Float?,
+        c_double: Float?,
+        c_double_precision: Float?,
+        c_date: Date?,
+        c_time: Time?,
+        c_datetime: Time?,
+        c_timestamp: Time?,
+        c_year: Integer?,
+        c_char: String?,
+        c_nchar: String?,
+        c_national_char: String?,
+        c_varchar: String?,
+        c_binary: String?,
+        c_varbinary: String?,
+        c_tinyblob: String?,
+        c_tinytext: String?,
+        c_blob: String?,
+        c_text: String?,
+        c_mediumblob: String?,
+        c_mediumtext: String?,
+        c_longblob: String?,
+        c_longtext: String?,
+        c_json: String?
     ) -> TestRow
   end
 
   LIST_AUTHORS_PAGED_SQL: String
 
-  class ListAuthorsPagedRow < ::Struct
+  class ListAuthorsPagedRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> ListAuthorsPagedRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> ListAuthorsPagedRow
   end
 
   GET_AUTHOR_BY_NAME_PATTERN_SQL: String
 
-  class GetAuthorByNamePatternRow < ::Struct
+  class GetAuthorByNamePatternRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> GetAuthorByNamePatternRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorByNamePatternRow
   end
 
   UPDATE_AUTHOR_BIOS_SQL: String
 
   GET_AUTHORS_BY_IDS_SQL: String
 
-  class GetAuthorsByIdsRow < ::Struct
+  class GetAuthorsByIdsRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> GetAuthorsByIdsRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByIdsRow
   end
 
   GET_AUTHORS_BY_IDS_AND_NAMES_SQL: String
 
-  class GetAuthorsByIdsAndNamesRow < ::Struct
+  class GetAuthorsByIdsAndNamesRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> GetAuthorsByIdsAndNamesRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorsByIdsAndNamesRow
   end
 
-  class CopyAuthorsArgs < ::Struct
+  class CopyAuthorsArgs < ::Struct[untyped]
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  String name, String? bio) -> CopyAuthorsArgs
+    def initialize: (  name: String, bio: String?) -> void
+    def self.new: (  name: String, bio: String?) -> CopyAuthorsArgs
   end
 
   TRUNCATE_AUTHORS_SQL: String
@@ -157,40 +203,44 @@ module Mysql2Codegen
 
   LIST_ALL_AUTHORS_BOOKS_SQL: String
 
-  class ListAllAuthorsBooksRow < ::Struct
+  class ListAllAuthorsBooksRow < ::Struct[untyped]
     attr_accessor author: Author
     attr_accessor book: Book
-    def self.new: (  Author author, Book book) -> ListAllAuthorsBooksRow
+    def initialize: (  author: Author, book: Book) -> void
+    def self.new: (  author: Author, book: Book) -> ListAllAuthorsBooksRow
   end
 
   GET_DUPLICATE_AUTHORS_SQL: String
 
-  class GetDuplicateAuthorsRow < ::Struct
+  class GetDuplicateAuthorsRow < ::Struct[untyped]
     attr_accessor author: Author
     attr_accessor author2: Author
-    def self.new: (  Author author, Author author2) -> GetDuplicateAuthorsRow
+    def initialize: (  author: Author, author2: Author) -> void
+    def self.new: (  author: Author, author2: Author) -> GetDuplicateAuthorsRow
   end
 
   GET_AUTHORS_BY_BOOK_NAME_SQL: String
 
-  class GetAuthorsByBookNameRow < ::Struct
+  class GetAuthorsByBookNameRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
     attr_accessor book: Book
-    def self.new: (  Integer id, String name, String? bio, Book book) -> GetAuthorsByBookNameRow
+    def initialize: (  id: Integer, name: String, bio: String?, book: Book) -> void
+    def self.new: (  id: Integer, name: String, bio: String?, book: Book) -> GetAuthorsByBookNameRow
   end
 
   CREATE_EXTENDED_BIO_SQL: String
 
   GET_FIRST_EXTENDED_BIO_BY_TYPE_SQL: String
 
-  class GetFirstExtendedBioByTypeRow < ::Struct
+  class GetFirstExtendedBioByTypeRow < ::Struct[untyped]
     attr_accessor author_name: String?
     attr_accessor name: String?
     attr_accessor bio_type: String?
     attr_accessor author_type: String?
-    def self.new: (  String? author_name, String? name, String? bio_type, String? author_type) -> GetFirstExtendedBioByTypeRow
+    def initialize: (  author_name: String?, name: String?, bio_type: String?, author_type: String?) -> void
+    def self.new: (  author_name: String?, name: String?, bio_type: String?, author_type: String?) -> GetFirstExtendedBioByTypeRow
   end
 
   TRUNCATE_EXTENDED_BIOS_SQL: String
@@ -199,73 +249,114 @@ module Mysql2Codegen
 
   CREATE_AUTHORS_BATCH_SQL: String
 
-  class CreateAuthorsBatchArgs < ::Struct
+  class CreateAuthorsBatchArgs < ::Struct[untyped]
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  String name, String? bio) -> CreateAuthorsBatchArgs
+    def initialize: (  name: String, bio: String?) -> void
+    def self.new: (  name: String, bio: String?) -> CreateAuthorsBatchArgs
   end
 
   GET_AUTHOR_BATCH_SQL: String
 
-  class GetAuthorBatchRow < ::Struct
+  class GetAuthorBatchRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> GetAuthorBatchRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> GetAuthorBatchRow
   end
 
-  class GetAuthorBatchArgs < ::Struct
+  class GetAuthorBatchArgs < ::Struct[untyped]
     attr_accessor id: Integer
-    def self.new: (  Integer id) -> GetAuthorBatchArgs
+    def initialize: (  id: Integer) -> void
+    def self.new: (  id: Integer) -> GetAuthorBatchArgs
   end
 
   LIST_AUTHORS_BY_NAME_BATCH_SQL: String
 
-  class ListAuthorsByNameBatchRow < ::Struct
+  class ListAuthorsByNameBatchRow < ::Struct[untyped]
     attr_accessor id: Integer
     attr_accessor name: String
     attr_accessor bio: String?
-    def self.new: (  Integer id, String name, String? bio) -> ListAuthorsByNameBatchRow
+    def initialize: (  id: Integer, name: String, bio: String?) -> void
+    def self.new: (  id: Integer, name: String, bio: String?) -> ListAuthorsByNameBatchRow
   end
 
-  class ListAuthorsByNameBatchArgs < ::Struct
+  class ListAuthorsByNameBatchArgs < ::Struct[untyped]
     attr_accessor name: String
-    def self.new: (  String name) -> ListAuthorsByNameBatchArgs
+    def initialize: (  name: String) -> void
+    def self.new: (  name: String) -> ListAuthorsByNameBatchArgs
   end
+
+  COUNT_REGRESSIONS_BY_TEXT_SQL: String
+
+  class CountRegressionsByTextRow < ::Struct[untyped]
+    attr_accessor count_: Integer
+    def initialize: (  count_: Integer) -> void
+    def self.new: (  count_: Integer) -> CountRegressionsByTextRow
+  end
+
+  LIST_REGRESSIONS_BY_IDS_SQL: String
+
+  class ListRegressionsByIdsRow < ::Struct[untyped]
+    attr_accessor id: Integer
+    attr_accessor order: String
+    attr_accessor note: String?
+    def initialize: (  id: Integer, order: String, note: String?) -> void
+    def self.new: (  id: Integer, order: String, note: String?) -> ListRegressionsByIdsRow
+  end
+
+  class CopyRegressionsArgs < ::Struct[untyped]
+    attr_accessor order: String
+    attr_accessor note: String?
+    def initialize: (  order: String, note: String?) -> void
+    def self.new: (  order: String, note: String?) -> CopyRegressionsArgs
+  end
+
+  TRUNCATE_REGRESSIONS_SQL: String
 
   MANY_PARAMS_SQL: String
 
-  class ManyParamsRow < ::Struct
+  class ManyParamsRow < ::Struct[untyped]
     attr_accessor c0: Integer
     attr_accessor c1: String
-    def self.new: (  Integer c0, String c1) -> ManyParamsRow
+    def initialize: (  c0: Integer, c1: String) -> void
+    def self.new: (  c0: Integer, c1: String) -> ManyParamsRow
   end
 
   MANY_ROWS_SQL: String
 
-  class ManyRowsRow < ::Struct
+  class ManyRowsRow < ::Struct[untyped]
     attr_accessor c0: Integer
     attr_accessor c1: String
     attr_accessor c2: Float
     attr_accessor c3: String
     attr_accessor c4: Integer
+    def initialize: (
+        c0: Integer,
+        c1: String,
+        c2: Float,
+        c3: String,
+        c4: Integer
+    ) -> void
     def self.new: (
-        Integer c0,
-        String c1,
-        Float c2,
-        String c3,
-        Integer c4
+        c0: Integer,
+        c1: String,
+        c2: Float,
+        c3: String,
+        c4: Integer
     ) -> ManyRowsRow
   end
 
   FOUR_COLS_SQL: String
 
-  class FourColsRow < ::Struct
+  class FourColsRow < ::Struct[untyped]
     attr_accessor c0: Integer
     attr_accessor c1: String
     attr_accessor c2: Float
     attr_accessor c3: String
-    def self.new: (  Integer c0, String c1, Float c2, String c3) -> FourColsRow
+    def initialize: (  c0: Integer, c1: String, c2: Float, c3: String) -> void
+    def self.new: (  c0: Integer, c1: String, c2: Float, c3: String) -> FourColsRow
   end
 
   class QuerySql
@@ -278,10 +369,11 @@ module Mysql2Codegen
 
     def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | :serializable)?) { (self) -> T } -> T
 
-    class ExecResult < ::Struct
+    class ExecResult < ::Struct[untyped]
       attr_accessor rows_affected: Integer
       attr_accessor last_insert_id: Integer?
-      def self.new: (  Integer rows_affected, Integer? last_insert_id) -> ExecResult
+      def initialize: (  rows_affected: Integer, last_insert_id: Integer?) -> void
+      def self.new: (  rows_affected: Integer, last_insert_id: Integer?) -> ExecResult
     end
 
     def get_author: (id: Integer) -> GetAuthorRow?
@@ -340,11 +432,21 @@ module Mysql2Codegen
 
     def list_authors_by_name_batch: (Array[ListAuthorsByNameBatchArgs] rows) -> Array[Array[ListAuthorsByNameBatchRow]]
 
+    def count_regressions_by_text: (term: String) -> CountRegressionsByTextRow?
+
+    def count_regressions_by_text!: (term: String) -> CountRegressionsByTextRow
+
+    def list_regressions_by_ids: (id: Integer, id_2: Integer, id_3: Integer) -> Array[ListRegressionsByIdsRow]
+
+    def copy_regressions: (Array[CopyRegressionsArgs] rows) -> void
+
+    def truncate_regressions: -> void
+
     def many_params: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow?
 
     def many_params!: (c0: Integer, c1: String, c2: Float, c3: String, c4: Integer) -> ManyParamsRow
 
-    def many_rows: (c0: Integer) -> Array[manyRowsRow]
+    def many_rows: (c0: Integer) -> Array[ManyRowsRow]
 
     def four_cols: -> Array[FourColsRow]
 

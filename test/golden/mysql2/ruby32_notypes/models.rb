@@ -66,4 +66,7 @@ module Mysql2Codegen
 
   class ExtendedBio < Data.define(:author_name, :name, :bio_type, :author_type)
   end
+
+  class Regression < Data.define(:id, :order, :note)
+  end
 end

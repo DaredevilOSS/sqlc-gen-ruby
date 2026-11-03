@@ -1,7 +1,7 @@
 
 
 2
-postgresqlÍpublic"‹publicÍ
+postgresql‹public"ÉpublicÍ
 	authors)
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserial&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextH
@@ -73,7 +73,15 @@ c_tsvector0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesb
 c_dimensions0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbextended
 dimensionsA
 
-c_positive0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbpositive_int"´extendedÔ
+c_positive0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbpositive_int»
+regressions4
+id0ÿÿÿÿÿÿÿÿÿRregressionsb
+pg_catalogint8+
+order0ÿÿÿÿÿÿÿÿÿRregressionsbtext,
+payload0ÿÿÿÿÿÿÿÿÿRregressionsbbytea(
+doc0ÿÿÿÿÿÿÿÿÿRregressionsbjsonb@
+	bio_types 0ÿÿÿÿÿÿÿÿÿRregressionsbextendedbio_typeˆ-
+uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidˆ"´extendedÔ
 extendedbiosC
 author_name0ÿÿÿÿÿÿÿÿÿRextendedbiosb
 pg_catalogvarchar<
@@ -323,4 +331,39 @@ c_positive:	query.sqlO
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
 bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*0,
-name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname:	query.sqlÀ
+™INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, "order", payload, doc, bio_types, uidsCreateRegression:one"8
+id0ÿÿÿÿÿÿÿÿÿRregressionsb
+pg_catalogint8zid"2
+order0ÿÿÿÿÿÿÿÿÿRregressionsbtextzorder"5
+payload0ÿÿÿÿÿÿÿÿÿRregressionsbbyteazpayload"-
+doc0ÿÿÿÿÿÿÿÿÿRregressionsbjsonbzdoc"K
+	bio_types 0ÿÿÿÿÿÿÿÿÿRregressionsbextendedbio_typez	bio_typesˆ"3
+uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidzuidsˆ*C?
+id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbpg_catalog.int8zid*>:
+order0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextzorder*A=
+payload0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbyteazpayload*95
+doc0ÿÿÿÿÿÿÿÿÿRpublicregressionsbjsonbzdoc*VR
+	bio_types 0ÿÿÿÿÿÿÿÿÿRpublicregressionsbextended.bio_typez	bio_typesˆ*?;
+uids 0ÿÿÿÿÿÿÿÿÿRpublicregressionsbuuidzuidsˆ:	query.sqlBregressionsÝ
+^INSERT INTO regressions (id, "order") VALUES ($1, $2) ON CONFLICT (id) DO NOTHING RETURNING idCreateRegressionIfNew:execlastid"8
+id0ÿÿÿÿÿÿÿÿÿRregressionsb
+pg_catalogint8zid*C?
+id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbpg_catalog.int8zid*>:
+order0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextzorder:	query.sqlBregressions†
+KINSERT INTO regressions (id, "order", payload, doc) VALUES ($1, $2, $3, $4)CopyRegressions	:copyfrom*C?
+id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbpg_catalog.int8zid*>:
+order0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextzorder*A=
+payload0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbyteazpayload*95
+doc0ÿÿÿÿÿÿÿÿÿRpublicregressionsbjsonbzdoc:	query.sqlBregressions—
+wSELECT id, "order", payload, doc, bio_types, uids FROM regressions WHERE ($1::text IS NULL OR "order" = $1) ORDER BY idListRegressions:many"8
+id0ÿÿÿÿÿÿÿÿÿRregressionsb
+pg_catalogint8zid"2
+order0ÿÿÿÿÿÿÿÿÿRregressionsbtextzorder"5
+payload0ÿÿÿÿÿÿÿÿÿRregressionsbbyteazpayload"-
+doc0ÿÿÿÿÿÿÿÿÿRregressionsbjsonbzdoc"K
+	bio_types 0ÿÿÿÿÿÿÿÿÿRregressionsbextendedbio_typez	bio_typesˆ"3
+uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidzuidsˆ*#
+
+order_name0ÿÿÿÿÿÿÿÿÿbtext:	query.sqlC
+TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

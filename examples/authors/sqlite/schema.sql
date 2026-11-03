@@ -20,3 +20,9 @@ CREATE TABLE declared_types (
     c_native NATIVE CHARACTER(70),
     c_double DOUBLE PRECISION
 );
+
+CREATE TABLE regressions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    "order" VARCHAR(255) NOT NULL,
+    price DECIMAL(10,2)
+);
