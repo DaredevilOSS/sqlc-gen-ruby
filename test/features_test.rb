@@ -561,6 +561,6 @@ class FeaturesTest < Minitest::Test
   def test_unknown_and_misplaced_options_are_errors
     assert_raises(RuntimeError) { generate(load_request('pg', moduleNmae: 'Db')) }
     assert_raises(RuntimeError) { generate(load_request('mysql2', preparedStatements: false)) }
-    generate(load_request('pg', rubyVersion: '3.4'))
+    generate(load_request('pg', rubyVersion: '4.0'))
   end
 end

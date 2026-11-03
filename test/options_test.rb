@@ -29,20 +29,20 @@ class OptionsTest < Minitest::Test
   end
 
   def test_version_bounds
-    %w[3.1 3.2 3.3 3.4 3].each { |v| RubyVersion.parse(v) }
-    err = assert_raises(ArgumentError) { RubyVersion.parse('3.5') }
-    assert_equal 'Provided version 3.5 is above the maximum supported version 3.4', err.message
+    %w[3.1 3.2 3.3 3.4 4.0 3 4].each { |v| RubyVersion.parse(v) }
+    err = assert_raises(ArgumentError) { RubyVersion.parse('4.1') }
+    assert_equal 'Provided version 4.1 is above the maximum supported version 4.0', err.message
     err = assert_raises(ArgumentError) { RubyVersion.parse('3.0') }
     assert_equal 'Provided version 3.0 is below the minimum supported version 3.1', err.message
+    assert_raises(ArgumentError) { RubyVersion.parse('5') }
     assert_raises(ArgumentError) { RubyVersion.parse('2.7') }
     assert_raises(ArgumentError) { RubyVersion.parse('three') }
     assert_raises(ArgumentError) { RubyVersion.parse('3.03') }
   end
 
-  # The C# comparison treats a patch component as greater than a missing one.
-  def test_patch_versions_compare_like_the_csharp_implementation
-    assert_raises(ArgumentError) { RubyVersion.parse('3.4.1') }
-    RubyVersion.parse('3.2.9')
+  def test_patch_versions_are_accepted
+    %w[3.2.9 3.4.1 4.0.1].each { |v| RubyVersion.parse(v) }
+    assert_operator RubyVersion.parse('3.4.1'), :>, RubyVersion.parse('3.4')
   end
 
   def test_immutable_data_support

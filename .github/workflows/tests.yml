@@ -49,7 +49,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: ['3.1', '3.2', '3.4']
+        ruby-version: ['3.1', '3.2', '3.4', '4.0']
 
     steps:
       - uses: actions/checkout@v7
@@ -63,8 +63,13 @@ jobs:
         run: ruby -Ilib -Itest -e 'Dir["test/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
 
   end2end-pg:
-    name: End-to-End (PostgreSQL)
+    name: End-to-End (PostgreSQL, Ruby ${{ matrix.ruby-version }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version: ['3.3', '4.0']
 
     services:
       postgres:
@@ -89,7 +94,7 @@ jobs:
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.3'
+          ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
 
       - name: Create the schema
@@ -101,8 +106,13 @@ jobs:
         run: bundle exec rake end2end_pg
 
   end2end-mysql:
-    name: End-to-End (MySQL)
+    name: End-to-End (MySQL, Ruby ${{ matrix.ruby-version }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version: ['3.3', '4.0']
 
     services:
       mysql:
@@ -126,7 +136,7 @@ jobs:
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.3'
+          ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
 
       - name: Create the schema (and allow LOAD DATA LOCAL INFILE for :copyfrom)
@@ -138,15 +148,20 @@ jobs:
         run: bundle exec rake end2end_mysql2
 
   end2end-sqlite:
-    name: End-to-End (SQLite)
+    name: End-to-End (SQLite, Ruby ${{ matrix.ruby-version }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version: ['3.3', '4.0']
 
     steps:
       - uses: actions/checkout@v7
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.3'
+          ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
 
       - name: End-to-End tests

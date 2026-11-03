@@ -3,7 +3,7 @@
 
 # sqlc-gen-ruby
 A [sqlc](https://sqlc.dev) plugin that turns your SQL into Ruby methods, with RBS type signatures.
-Works with `pg` (PostgreSQL), `mysql2` (MySQL) and `sqlite3` (SQLite), and Ruby 3.1 – 3.4.
+Works with `pg` (PostgreSQL), `mysql2` (MySQL) and `sqlite3` (SQLite), and Ruby 3.1 – 4.0.
 
 The plugin is written in pure Ruby and ships as one self-contained WebAssembly file
 (the [ruby.wasm](https://github.com/ruby/ruby.wasm) interpreter with the plugin inside), so you don't need to install anything besides sqlc.
@@ -58,7 +58,7 @@ More: [the generated code for every driver](docs/Examples.md) (it is the plugin'
 | Option | Default | What it does |
 |---|---|---|
 | `driver` | required | `pg`, `mysql2` or `sqlite3`. Must match the sqlc `engine:`. |
-| `rubyVersion` | `3.3` | Oldest Ruby the code must run on, `3.1` – `3.4`. Rows are `Data` classes from 3.2 and `Struct`s below. |
+| `rubyVersion` | `3.3` | Oldest Ruby the code must run on, `3.1` – `4.0`. Rows are `Data` classes from 3.2 and `Struct`s below. |
 | `generateTypes` | `true` | Also generate `.rbs` type signatures. |
 | `generateGemfile` | `false` | Also generate a `Gemfile` with the gems the code needs. |
 | `moduleName` | `<Driver>Codegen` | The module the code lives in, e.g. `MyApp::Db`. |
@@ -177,7 +177,6 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 
 ### Limitations
 * Two result columns with the same name (e.g. `a.id, b.id`) are an error: alias one (`b.id AS book_id`) or use `sqlc.embed`.
-* `rubyVersion` takes `3.4` but not a patch version of it (`3.4.1`).
 * SQLite's `NUMERIC` affinity can return an `Integer` where `Float` is declared.
 * `:batchexec` / `:batchone` / `:batchmany` are not atomic on their own: wrap them in `transaction` for all-or-nothing.
 * SQLite: a transaction belongs to the thread that opened it; a Fiber / `Enumerator#next` inside it that uses the same
