@@ -64,7 +64,7 @@ class TestOptions < Minitest::Test
   def assert_sqlite_runtime(generated_dir)
     gemfile = File.join(generated_dir, 'Gemfile')
     bundle_env = Bundler.unbundled_env.merge(
-      'BUNDLE_BIN_PATH' => nil, 'BUNDLE_PATH' => ENV['BUNDLE_PATH'],
+      'BUNDLE_BIN_PATH' => nil, 'BUNDLE_PATH' => ENV['BUNDLE_PATH'], 'RUBYOPT' => nil,
       'BUNDLE_GEMFILE' => gemfile, 'OPTIONS_SQLITE_DIR' => generated_dir,
       'OPTIONS_SCHEMA' => File.join(OPTIONS_DIR, 'sqlite_schema.sql')
     )
