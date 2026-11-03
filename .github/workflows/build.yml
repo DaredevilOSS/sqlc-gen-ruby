@@ -146,3 +146,8 @@ jobs:
         run: >-
           ./scripts/tests/run_codegen.rb sqlc.ci.yaml
           "${{ matrix.ruby-version }}" ${{ matrix.generate-types }} ${{ matrix.generate-gemfile }}
+
+  cross-platform:
+    name: Cross-platform
+    needs: [build-wasm]
+    uses: ./.github/workflows/cross-platform.yml
