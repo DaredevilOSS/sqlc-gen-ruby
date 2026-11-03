@@ -171,7 +171,7 @@ jobs:
             echo "BUNDLE_BUILD__MYSQL2=--with-opt-dir=$(brew --prefix openssl@3):$(brew --prefix zstd)" >> "$GITHUB_ENV"
           fi
 
-      # prism (minitest 6), mysql2 and date compile from source on Windows (~2 min): keep the installed gems, per runner
+      # prism (minitest 6), mysql2 and date compile from source on Windows (~2 min): keep the installed E2E gems, per runner
       # image (the native extensions link against its libraries)
       - name: Runner image
         id: image
@@ -180,7 +180,7 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: ${{ env.BUNDLE_PATH }}
-          key: e2e-gems-${{ steps.image.outputs.version }}-ruby${{ matrix.ruby-version }}-${{ hashFiles('Gemfile.e2e', 'Gemfile.options.e2e') }}
+          key: e2e-gems-${{ steps.image.outputs.version }}-ruby${{ matrix.ruby-version }}-${{ hashFiles('Gemfile.e2e') }}
 
       - name: End-to-End tests (SQLite)
         if: ${{ !cancelled() }}
@@ -204,7 +204,11 @@ jobs:
         if: ${{ !cancelled() }}
         env:
           BUNDLE_GEMFILE: ${{ github.workspace }}/Gemfile.options.e2e
-        run: bundle install && bundle exec ruby tests/end2end_options.rb
+        # default gem path (only prebuilt gems): with BUNDLE_PATH, the test's nested `bundle install` on Windows Ruby
+        # 3.1 trips over setup-ruby's newer Bundler next to the default 2.3 one
+        run: |
+          unset BUNDLE_PATH
+          bundle install && bundle exec ruby tests/end2end_options.rb
 
       - name: Native extension build logs
         if: failure()
