@@ -1266,7 +1266,7 @@ module Sqlite3Codegen
       with_client('copy_mixed_case_copies') do |client|
         atomically(client) do
           rows.each_slice(499) do |batch|
-            sql = %(INSERT INTO """MixedCaseCopies""" ("Id", "SomeValue") VALUES #{::Array.new(batch.size, '(?, ?)').join(', ')})
+            sql = %(INSERT INTO "MixedCaseCopies" ("Id", "SomeValue") VALUES #{::Array.new(batch.size, '(?, ?)').join(', ')})
             client.execute(sql, batch.flat_map { |row| [row.id, row.some_value] })
           end
         end
