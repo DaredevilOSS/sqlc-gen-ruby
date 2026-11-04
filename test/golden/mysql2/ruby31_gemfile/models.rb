@@ -29,47 +29,6 @@ module Mysql2Codegen
 
   Author = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
-  NodeMysqlType = ::Struct.new(
-    :c_bit,
-    :c_tinyint,
-    :c_bool,
-    :c_boolean,
-    :c_smallint,
-    :c_mediumint,
-    :c_int,
-    :c_integer,
-    :c_bigint,
-    :c_serial,
-    :c_decimal,
-    :c_dec,
-    :c_numeric,
-    :c_fixed,
-    :c_float,
-    :c_double,
-    :c_double_precision,
-    :c_date,
-    :c_time,
-    :c_datetime,
-    :c_timestamp,
-    :c_year,
-    :c_char,
-    :c_nchar,
-    :c_national_char,
-    :c_varchar,
-    :c_binary,
-    :c_varbinary,
-    :c_tinyblob,
-    :c_tinytext,
-    :c_blob,
-    :c_text,
-    :c_mediumblob,
-    :c_mediumtext,
-    :c_longblob,
-    :c_longtext,
-    :c_json,
-    keyword_init: true
-  )
-
   Book = ::Struct.new(
     :id,
     :name,
@@ -92,39 +51,12 @@ module Mysql2Codegen
     :note,
     :payload,
     :step,
-    keyword_init: true
-  )
-
-  CopyType = ::Struct.new(
-    :id,
     :code,
     :doc,
     :flags,
     :amount,
     keyword_init: true
   )
-
-  # rubocop:disable Naming/VariableNumber
-  MysqlBindingValu = ::Struct.new(
-    :id,
-    :text_value,
-    :blob_value,
-    :signed_value,
-    :unsigned_value,
-    :decimal_value,
-    :float_value,
-    :date_value,
-    :datetime_value,
-    :datetime_2,
-    :bool_value,
-    :nullable_value,
-    :bit_value,
-    :year_value,
-    :time_value,
-    :json_unicode,
-    keyword_init: true
-  )
-  # rubocop:enable Naming/VariableNumber
 
   Mixedcasecopy = ::Struct.new(:id, :somevalue, keyword_init: true)
 
@@ -168,4 +100,69 @@ module Mysql2Codegen
   Mutex = ::Struct.new(:id, keyword_init: true)
 
   ConnectionPool = ::Struct.new(:id, keyword_init: true)
+
+  MysqlNumericType = ::Struct.new(
+    :id,
+    :c_bool,
+    :c_boolean,
+    :c_tinyint,
+    :c_smallint,
+    :c_mediumint,
+    :c_int,
+    :c_integer,
+    :c_bigint,
+    :c_bigint_unsigned,
+    :c_serial,
+    :c_decimal,
+    :c_dec,
+    :c_numeric,
+    :c_fixed,
+    :c_decimal_wide,
+    :c_float,
+    :c_double,
+    :c_double_precision,
+    keyword_init: true
+  )
+
+  MysqlStringType = ::Struct.new(
+    :id,
+    :c_char,
+    :c_nchar,
+    :c_national_char,
+    :c_varchar,
+    :c_tinytext,
+    :c_text,
+    :c_mediumtext,
+    :c_longtext,
+    :c_json,
+    keyword_init: true
+  )
+
+  # rubocop:disable Naming/VariableNumber
+  MysqlDatetimeType = ::Struct.new(
+    :id,
+    :c_date,
+    :c_time,
+    :c_datetime,
+    :c_datetime_6,
+    :c_timestamp,
+    :c_year,
+    keyword_init: true
+  )
+  # rubocop:enable Naming/VariableNumber
+
+  # rubocop:disable Naming/VariableNumber
+  MysqlBinaryType = ::Struct.new(
+    :id,
+    :c_bit,
+    :c_bit_16,
+    :c_binary,
+    :c_varbinary,
+    :c_tinyblob,
+    :c_blob,
+    :c_mediumblob,
+    :c_longblob,
+    keyword_init: true
+  )
+  # rubocop:enable Naming/VariableNumber
 end

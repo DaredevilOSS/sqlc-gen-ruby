@@ -53,51 +53,123 @@ module Mysql2Codegen
     WHERE id = ?
   SQL
 
-  TEST_SQL = <<~'SQL'
-    SELECT c_bit, c_tinyint, c_bool, c_boolean, c_smallint, c_mediumint, c_int, c_integer, c_bigint, c_serial, c_decimal, c_dec, c_numeric, c_fixed, c_float, c_double, c_double_precision, c_date, c_time, c_datetime, c_timestamp, c_year, c_char, c_nchar, c_national_char, c_varchar, c_binary, c_varbinary, c_tinyblob, c_tinytext, c_blob, c_text, c_mediumblob, c_mediumtext, c_longblob, c_longtext, c_json FROM node_mysql_types
-    LIMIT 1
+  INSERT_MYSQL_NUMERIC_TYPES_SQL = <<~'SQL'
+    INSERT INTO mysql_numeric_types (
+      id, c_bool, c_boolean, c_tinyint, c_smallint, c_mediumint, c_int, c_integer, c_bigint, c_bigint_unsigned, c_decimal, c_dec, c_numeric, c_fixed, c_decimal_wide, c_float, c_double, c_double_precision
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    )
   SQL
 
-  class TestRow < ::Data.define(
-    :c_bit,
-    :c_tinyint,
+  GET_MYSQL_NUMERIC_TYPES_SQL = <<~'SQL'
+    SELECT id, c_bool, c_boolean, c_tinyint, c_smallint, c_mediumint, c_int, c_integer, c_bigint, c_bigint_unsigned, c_serial, c_decimal, c_dec, c_numeric, c_fixed, c_decimal_wide, c_float, c_double, c_double_precision FROM mysql_numeric_types WHERE id = ?
+  SQL
+
+  class GetMysqlNumericTypesRow < ::Data.define(
+    :id,
     :c_bool,
     :c_boolean,
+    :c_tinyint,
     :c_smallint,
     :c_mediumint,
     :c_int,
     :c_integer,
     :c_bigint,
+    :c_bigint_unsigned,
     :c_serial,
     :c_decimal,
     :c_dec,
     :c_numeric,
     :c_fixed,
+    :c_decimal_wide,
     :c_float,
     :c_double,
-    :c_double_precision,
-    :c_date,
-    :c_time,
-    :c_datetime,
-    :c_timestamp,
-    :c_year,
+    :c_double_precision
+  )
+  end
+
+  INSERT_MYSQL_STRING_TYPES_SQL = <<~'SQL'
+    INSERT INTO mysql_string_types (
+      id, c_char, c_nchar, c_national_char, c_varchar, c_tinytext, c_text, c_mediumtext, c_longtext, c_json
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    )
+  SQL
+
+  GET_MYSQL_STRING_TYPES_SQL = <<~'SQL'
+    SELECT id, c_char, c_nchar, c_national_char, c_varchar, c_tinytext, c_text, c_mediumtext, c_longtext, c_json FROM mysql_string_types WHERE id = ?
+  SQL
+
+  class GetMysqlStringTypesRow < ::Data.define(
+    :id,
     :c_char,
     :c_nchar,
     :c_national_char,
     :c_varchar,
-    :c_binary,
-    :c_varbinary,
-    :c_tinyblob,
     :c_tinytext,
-    :c_blob,
     :c_text,
-    :c_mediumblob,
     :c_mediumtext,
-    :c_longblob,
     :c_longtext,
     :c_json
   )
   end
+
+  INSERT_MYSQL_DATETIME_TYPES_SQL = <<~'SQL'
+    INSERT INTO mysql_datetime_types (
+      id, c_date, c_time, c_datetime, c_datetime_6, c_timestamp, c_year
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?
+    )
+  SQL
+
+  GET_MYSQL_DATETIME_TYPES_SQL = <<~'SQL'
+    SELECT id, c_date, c_time, c_datetime, c_datetime_6, c_timestamp, c_year FROM mysql_datetime_types WHERE id = ?
+  SQL
+
+  # rubocop:disable Naming/VariableNumber
+  class GetMysqlDatetimeTypesRow < ::Data.define(
+    :id,
+    :c_date,
+    :c_time,
+    :c_datetime,
+    :c_datetime_6,
+    :c_timestamp,
+    :c_year
+  )
+  end
+  # rubocop:enable Naming/VariableNumber
+
+  # rubocop:disable Naming/VariableNumber
+  class CopyMysqlDatetimeTypesArgs < ::Data.define(:id, :c_datetime_6)
+  end
+  # rubocop:enable Naming/VariableNumber
+
+  INSERT_MYSQL_BINARY_TYPES_SQL = <<~'SQL'
+    INSERT INTO mysql_binary_types (
+      id, c_bit, c_bit_16, c_binary, c_varbinary, c_tinyblob, c_blob, c_mediumblob, c_longblob
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?
+    )
+  SQL
+
+  GET_MYSQL_BINARY_TYPES_SQL = <<~'SQL'
+    SELECT id, c_bit, c_bit_16, c_binary, c_varbinary, c_tinyblob, c_blob, c_mediumblob, c_longblob FROM mysql_binary_types WHERE id = ?
+  SQL
+
+  # rubocop:disable Naming/VariableNumber
+  class GetMysqlBinaryTypesRow < ::Data.define(
+    :id,
+    :c_bit,
+    :c_bit_16,
+    :c_binary,
+    :c_varbinary,
+    :c_tinyblob,
+    :c_blob,
+    :c_mediumblob,
+    :c_longblob
+  )
+  end
+  # rubocop:enable Naming/VariableNumber
 
   LIST_AUTHORS_PAGED_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors
@@ -268,18 +340,20 @@ module Mysql2Codegen
   class GetRegressionStepRow < ::Data.define(:step)
   end
 
-  LIST_REGRESSION_PAYLOADS_SQL = <<~'SQL'
-    SELECT id, payload FROM regressions ORDER BY id
-  SQL
-
-  class ListRegressionPayloadsRow < ::Data.define(:id, :payload)
-  end
-
   LIST_REGRESSION_ROWS_SQL = <<~'SQL'
-    SELECT id, `order`, note, payload FROM regressions ORDER BY id
+    SELECT id, `order`, note, payload, code, doc, flags, amount FROM regressions ORDER BY id
   SQL
 
-  class ListRegressionRowsRow < ::Data.define(:id, :order, :note, :payload)
+  class ListRegressionRowsRow < ::Data.define(
+    :id,
+    :order,
+    :note,
+    :payload,
+    :code,
+    :doc,
+    :flags,
+    :amount
+  )
   end
 
   LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL = <<~'SQL'
@@ -296,7 +370,7 @@ module Mysql2Codegen
     TRUNCATE TABLE regressions
   SQL
 
-  class CopyCopyTypesArgs < ::Data.define(
+  class CopyRegressionTypesArgs < ::Data.define(
     :id,
     :code,
     :doc,
@@ -305,47 +379,30 @@ module Mysql2Codegen
   )
   end
 
-  class CopyCopyTypesIgnoreArgs < ::Data.define(:id, :code)
+  class CopyRegressionsIgnoreArgs < ::Data.define(:id, :code)
   end
 
-  class CopyCopyTypesReplaceArgs < ::Data.define(:id, :code)
+  class CopyRegressionsReplaceArgs < ::Data.define(:id, :code)
   end
 
-  CREATE_COPY_TYPES_BATCH_SQL = <<~'SQL'
-    INSERT INTO copy_types (id, code, flags, amount) VALUES (?, ?, ?, ?)
+  CREATE_REGRESSIONS_BATCH_SQL = <<~'SQL'
+    INSERT INTO regressions (id, code, flags, amount) VALUES (?, ?, ?, ?)
   SQL
 
-  class CreateCopyTypesBatchArgs < ::Data.define(:id, :code, :flags, :amount)
+  class CreateRegressionsBatchArgs < ::Data.define(:id, :code, :flags, :amount)
   end
 
-  COUNT_COPY_TYPES_BY_CODES_SQL = <<~'SQL'
-    SELECT count(*) AS matches FROM copy_types WHERE code = ? OR code = ?
+  COUNT_REGRESSIONS_BY_CODES_SQL = <<~'SQL'
+    SELECT count(*) AS matches FROM regressions WHERE code = ? OR code = ?
   SQL
 
-  class CountCopyTypesByCodesRow < ::Data.define(:matches)
+  class CountRegressionsByCodesRow < ::Data.define(:matches)
   end
 
   # rubocop:disable Naming/VariableNumber
-  class CountCopyTypesByCodesArgs < ::Data.define(:code, :code_2)
+  class CountRegressionsByCodesArgs < ::Data.define(:code, :code_2)
   end
   # rubocop:enable Naming/VariableNumber
-
-  LIST_COPY_TYPES_SQL = <<~'SQL'
-    SELECT id, code, doc, flags, amount FROM copy_types ORDER BY id
-  SQL
-
-  class ListCopyTypesRow < ::Data.define(
-    :id,
-    :code,
-    :doc,
-    :flags,
-    :amount
-  )
-  end
-
-  TRUNCATE_COPY_TYPES_SQL = <<~'SQL'
-    TRUNCATE TABLE copy_types
-  SQL
 
   FIND_AUTHORS_BY_EXACT_NAME_SQL = <<~'SQL'
     SELECT id FROM authors WHERE name = ?
@@ -362,52 +419,6 @@ module Mysql2Codegen
 
   class GetAuthorWithQuestionMarksRow < ::Data.define(:id)
   end
-
-  INSERT_MYSQL_BINDING_VALUES_SQL = <<~'SQL'
-    INSERT INTO mysql_binding_values (
-      id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value,
-      datetime_value, datetime_2, bool_value, nullable_value
-    ) VALUES (
-      ?, ?, ?, ?, ?,
-      ?, ?, ?, ?,
-      ?, ?, ?
-    )
-  SQL
-
-  GET_MYSQL_BINDING_VALUES_SQL = <<~'SQL'
-    SELECT id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value, datetime_value, datetime_2, bool_value, nullable_value, bit_value, year_value, time_value, json_unicode FROM mysql_binding_values WHERE id = ?
-  SQL
-
-  # rubocop:disable Naming/VariableNumber
-  class GetMysqlBindingValuesRow < ::Data.define(
-    :id,
-    :text_value,
-    :blob_value,
-    :signed_value,
-    :unsigned_value,
-    :decimal_value,
-    :float_value,
-    :date_value,
-    :datetime_value,
-    :datetime_2,
-    :bool_value,
-    :nullable_value,
-    :bit_value,
-    :year_value,
-    :time_value,
-    :json_unicode
-  )
-  end
-  # rubocop:enable Naming/VariableNumber
-
-  TRUNCATE_MYSQL_BINDING_VALUES_SQL = <<~'SQL'
-    TRUNCATE TABLE mysql_binding_values
-  SQL
-
-  # rubocop:disable Naming/VariableNumber
-  class CopyMysqlBindingTimesArgs < ::Data.define(:id, :datetime_value, :datetime_2)
-  end
-  # rubocop:enable Naming/VariableNumber
 
   INSERT_NAME_CASE_SQL = <<~'SQL'
     INSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`, `initialize`)
@@ -677,11 +688,39 @@ module Mysql2Codegen
       end
     end
 
-    def test
-      with_client('test') do |client|
-        result = client.query(bind_params(client, TEST_SQL, []), as: :array)
+    def insert_mysql_numeric_types(id:, c_bool:, c_boolean:, c_tinyint:, c_smallint:, c_mediumint:, c_int:, c_integer:, c_bigint:, c_bigint_unsigned:, c_decimal:, c_dec:, c_numeric:, c_fixed:, c_decimal_wide:, c_float:, c_double:, c_double_precision:)
+      with_client('insert_mysql_numeric_types') do |client|
+        query_params = [
+          id,
+          c_bool,
+          c_boolean,
+          c_tinyint,
+          c_smallint,
+          c_mediumint,
+          c_int,
+          c_integer,
+          c_bigint,
+          c_bigint_unsigned,
+          c_decimal,
+          c_dec,
+          c_numeric,
+          c_fixed,
+          c_decimal_wide,
+          c_float,
+          c_double,
+          c_double_precision
+        ]
+        client.query(bind_params(client, INSERT_MYSQL_NUMERIC_TYPES_SQL, query_params))
+        nil
+      end
+    end
+
+    def get_mysql_numeric_types(id:)
+      with_client('get_mysql_numeric_types') do |client|
+        query_params = [id]
+        result = client.query(bind_params(client, GET_MYSQL_NUMERIC_TYPES_SQL, query_params), as: :array)
         row = result.first
-        row && TestRow.new(
+        row && GetMysqlNumericTypesRow.new(
           row[0],
           row[1],
           row[2],
@@ -700,32 +739,151 @@ module Mysql2Codegen
           row[15],
           row[16],
           row[17],
-          row[18],
-          row[19],
-          row[20],
-          row[21],
-          row[22],
-          row[23],
-          row[24],
-          row[25],
-          row[26],
-          row[27],
-          row[28],
-          row[29],
-          row[30],
-          row[31],
-          row[32],
-          row[33],
-          row[34],
-          row[35],
-          row[36]
+          row[18]
         )
       end
     end
 
-    # Like #test, but raises NotFound when there is no row.
-    def test!(...)
-      test(...) || raise(NotFound, 'Test returned no row')
+    # Like #get_mysql_numeric_types, but raises NotFound when there is no row.
+    def get_mysql_numeric_types!(...)
+      get_mysql_numeric_types(...) || raise(NotFound, 'GetMysqlNumericTypes returned no row')
+    end
+
+    def insert_mysql_string_types(id:, c_char:, c_nchar:, c_national_char:, c_varchar:, c_tinytext:, c_text:, c_mediumtext:, c_longtext:, c_json:)
+      with_client('insert_mysql_string_types') do |client|
+        query_params = [
+          id,
+          c_char,
+          c_nchar,
+          c_national_char,
+          c_varchar,
+          c_tinytext,
+          c_text,
+          c_mediumtext,
+          c_longtext,
+          c_json
+        ]
+        client.query(bind_params(client, INSERT_MYSQL_STRING_TYPES_SQL, query_params))
+        nil
+      end
+    end
+
+    def get_mysql_string_types(id:)
+      with_client('get_mysql_string_types') do |client|
+        query_params = [id]
+        result = client.query(bind_params(client, GET_MYSQL_STRING_TYPES_SQL, query_params), as: :array)
+        row = result.first
+        row && GetMysqlStringTypesRow.new(
+          row[0],
+          row[1],
+          row[2],
+          row[3],
+          row[4],
+          row[5],
+          row[6],
+          row[7],
+          row[8],
+          row[9]
+        )
+      end
+    end
+
+    # Like #get_mysql_string_types, but raises NotFound when there is no row.
+    def get_mysql_string_types!(...)
+      get_mysql_string_types(...) || raise(NotFound, 'GetMysqlStringTypes returned no row')
+    end
+
+    def insert_mysql_datetime_types(id:, c_date:, c_time:, c_datetime:, c_datetime_6:, c_timestamp:, c_year:)
+      with_client('insert_mysql_datetime_types') do |client|
+        query_params = [
+          id,
+          c_date,
+          c_time,
+          c_datetime,
+          c_datetime_6,
+          c_timestamp,
+          c_year
+        ]
+        client.query(bind_params(client, INSERT_MYSQL_DATETIME_TYPES_SQL, query_params))
+        nil
+      end
+    end
+
+    def get_mysql_datetime_types(id:)
+      with_client('get_mysql_datetime_types') do |client|
+        query_params = [id]
+        result = client.query(bind_params(client, GET_MYSQL_DATETIME_TYPES_SQL, query_params), as: :array)
+        row = result.first
+        row && GetMysqlDatetimeTypesRow.new(
+          row[0],
+          row[1],
+          row[2],
+          row[3],
+          row[4],
+          row[5],
+          row[6]
+        )
+      end
+    end
+
+    # Like #get_mysql_datetime_types, but raises NotFound when there is no row.
+    def get_mysql_datetime_types!(...)
+      get_mysql_datetime_types(...) || raise(NotFound, 'GetMysqlDatetimeTypes returned no row')
+    end
+
+    def copy_mysql_datetime_types(rows)
+      with_client('copy_mysql_datetime_types') do |client|
+        ::Tempfile.create(['copy_mysql_datetime_types', '.csv']) do |file|
+          rows.each do |row|
+            file.write(csv_line(client, [row.id, row.c_datetime_6]))
+          end
+          file.flush
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `mysql_datetime_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `c_datetime_6`)") if file.pos.positive?
+        end
+        nil
+      end
+    end
+
+    def insert_mysql_binary_types(id:, c_bit:, c_bit_16:, c_binary:, c_varbinary:, c_tinyblob:, c_blob:, c_mediumblob:, c_longblob:)
+      with_client('insert_mysql_binary_types') do |client|
+        query_params = [
+          id,
+          c_bit,
+          c_bit_16,
+          c_binary,
+          c_varbinary,
+          c_tinyblob,
+          c_blob,
+          c_mediumblob,
+          c_longblob
+        ]
+        client.query(bind_params(client, INSERT_MYSQL_BINARY_TYPES_SQL, query_params))
+        nil
+      end
+    end
+
+    def get_mysql_binary_types(id:)
+      with_client('get_mysql_binary_types') do |client|
+        query_params = [id]
+        result = client.query(bind_params(client, GET_MYSQL_BINARY_TYPES_SQL, query_params), as: :array)
+        row = result.first
+        row && GetMysqlBinaryTypesRow.new(
+          row[0],
+          row[1],
+          row[2],
+          row[3],
+          row[4],
+          row[5],
+          row[6],
+          row[7],
+          row[8]
+        )
+      end
+    end
+
+    # Like #get_mysql_binary_types, but raises NotFound when there is no row.
+    def get_mysql_binary_types!(...)
+      get_mysql_binary_types(...) || raise(NotFound, 'GetMysqlBinaryTypes returned no row')
     end
 
     def list_authors_paged(limit:, offset:)
@@ -1000,20 +1158,20 @@ module Mysql2Codegen
       get_regression_step(...) || raise(NotFound, 'GetRegressionStep returned no row')
     end
 
-    def list_regression_payloads
-      with_client('list_regression_payloads') do |client|
-        result = client.query(bind_params(client, LIST_REGRESSION_PAYLOADS_SQL, []), as: :array)
-        result.map do |row|
-          ListRegressionPayloadsRow.new(row[0], row[1])
-        end
-      end
-    end
-
     def list_regression_rows
       with_client('list_regression_rows') do |client|
         result = client.query(bind_params(client, LIST_REGRESSION_ROWS_SQL, []), as: :array)
         result.map do |row|
-          ListRegressionRowsRow.new(row[0], row[1], row[2], row[3])
+          ListRegressionRowsRow.new(
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4],
+            row[5],
+            row[6],
+            row[7]
+          )
         end
       end
     end
@@ -1037,85 +1195,63 @@ module Mysql2Codegen
       end
     end
 
-    def copy_copy_types(rows)
-      with_client('copy_copy_types') do |client|
-        ::Tempfile.create(['copy_copy_types', '.csv']) do |file|
+    def copy_regression_types(rows)
+      with_client('copy_regression_types') do |client|
+        ::Tempfile.create(['copy_regression_types', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line(client, [row.id, row.code, row.doc, row.flags, row.amount]))
           end
           file.flush
-          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`, @sqlc_v2, `flags`, `amount`) SET `doc` = CONVERT(@sqlc_v2 USING utf8mb4)") if file.pos.positive?
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `regressions` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`, @sqlc_v2, `flags`, `amount`) SET `doc` = CONVERT(@sqlc_v2 USING utf8mb4)") if file.pos.positive?
         end
         nil
       end
     end
 
-    def copy_copy_types_ignore(rows)
-      with_client('copy_copy_types_ignore') do |client|
-        ::Tempfile.create(['copy_copy_types_ignore', '.csv']) do |file|
+    def copy_regressions_ignore(rows)
+      with_client('copy_regressions_ignore') do |client|
+        ::Tempfile.create(['copy_regressions_ignore', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line(client, [row.id, row.code]))
           end
           file.flush
-          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' IGNORE INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)", strict: false) if file.pos.positive?
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' IGNORE INTO TABLE `regressions` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)", strict: false) if file.pos.positive?
         end
         nil
       end
     end
 
-    def copy_copy_types_replace(rows)
-      with_client('copy_copy_types_replace') do |client|
-        ::Tempfile.create(['copy_copy_types_replace', '.csv']) do |file|
+    def copy_regressions_replace(rows)
+      with_client('copy_regressions_replace') do |client|
+        ::Tempfile.create(['copy_regressions_replace', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line(client, [row.id, row.code]))
           end
           file.flush
-          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' REPLACE INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)") if file.pos.positive?
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' REPLACE INTO TABLE `regressions` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)") if file.pos.positive?
         end
         nil
       end
     end
 
-    def create_copy_types_batch(rows)
-      with_client('create_copy_types_batch') do |client|
+    def create_regressions_batch(rows)
+      with_client('create_regressions_batch') do |client|
         rows.each do |args|
           query_params = [args.id, args.code, args.flags, args.amount]
-          client.query(bind_params(client, CREATE_COPY_TYPES_BATCH_SQL, query_params))
+          client.query(bind_params(client, CREATE_REGRESSIONS_BATCH_SQL, query_params))
         end
         nil
       end
     end
 
-    def count_copy_types_by_codes(rows)
-      with_client('count_copy_types_by_codes') do |client|
+    def count_regressions_by_codes(rows)
+      with_client('count_regressions_by_codes') do |client|
         rows.map do |args|
           query_params = [args.code, args.code_2]
-          result = client.query(bind_params(client, COUNT_COPY_TYPES_BY_CODES_SQL, query_params), as: :array)
+          result = client.query(bind_params(client, COUNT_REGRESSIONS_BY_CODES_SQL, query_params), as: :array)
           row = result.first
-          row && CountCopyTypesByCodesRow.new(row[0])
+          row && CountRegressionsByCodesRow.new(row[0])
         end
-      end
-    end
-
-    def list_copy_types
-      with_client('list_copy_types') do |client|
-        result = client.query(bind_params(client, LIST_COPY_TYPES_SQL, []), as: :array)
-        result.map do |row|
-          ListCopyTypesRow.new(
-            row[0],
-            row[1],
-            row[2],
-            row[3],
-            row[4]
-          )
-        end
-      end
-    end
-
-    def truncate_copy_types
-      with_client('truncate_copy_types') do |client|
-        client.query(bind_params(client, TRUNCATE_COPY_TYPES_SQL, []))
-        nil
       end
     end
 
@@ -1137,78 +1273,6 @@ module Mysql2Codegen
         result.map do |row|
           GetAuthorWithQuestionMarksRow.new(row[0])
         end
-      end
-    end
-
-    def insert_mysql_binding_values(id:, text_value: nil, blob_value: nil, signed_value: nil, unsigned_value: nil, decimal_value: nil, float_value: nil, date_value: nil, datetime_value: nil, datetime_2: nil, bool_value: nil, nullable_value: nil)
-      with_client('insert_mysql_binding_values') do |client|
-        query_params = [
-          id,
-          text_value,
-          blob_value,
-          signed_value,
-          unsigned_value,
-          decimal_value,
-          float_value,
-          date_value,
-          datetime_value,
-          datetime_2,
-          bool_value,
-          nullable_value
-        ]
-        client.query(bind_params(client, INSERT_MYSQL_BINDING_VALUES_SQL, query_params))
-        nil
-      end
-    end
-
-    def get_mysql_binding_values(id:)
-      with_client('get_mysql_binding_values') do |client|
-        query_params = [id]
-        result = client.query(bind_params(client, GET_MYSQL_BINDING_VALUES_SQL, query_params), as: :array)
-        row = result.first
-        row && GetMysqlBindingValuesRow.new(
-          row[0],
-          row[1],
-          row[2],
-          row[3],
-          row[4],
-          row[5],
-          row[6],
-          row[7],
-          row[8],
-          row[9],
-          row[10],
-          row[11],
-          row[12],
-          row[13],
-          row[14],
-          row[15]
-        )
-      end
-    end
-
-    # Like #get_mysql_binding_values, but raises NotFound when there is no row.
-    def get_mysql_binding_values!(...)
-      get_mysql_binding_values(...) || raise(NotFound, 'GetMysqlBindingValues returned no row')
-    end
-
-    def truncate_mysql_binding_values
-      with_client('truncate_mysql_binding_values') do |client|
-        client.query(bind_params(client, TRUNCATE_MYSQL_BINDING_VALUES_SQL, []))
-        nil
-      end
-    end
-
-    def copy_mysql_binding_times(rows)
-      with_client('copy_mysql_binding_times') do |client|
-        ::Tempfile.create(['copy_mysql_binding_times', '.csv']) do |file|
-          rows.each do |row|
-            file.write(csv_line(client, [row.id, row.datetime_value, row.datetime_2]))
-          end
-          file.flush
-          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `mysql_binding_values` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `datetime_value`, `datetime_2`)") if file.pos.positive?
-        end
-        nil
       end
     end
 

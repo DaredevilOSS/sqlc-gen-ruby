@@ -84,17 +84,7 @@ class TestPg < Minitest::Test
   def setup
     @query_sql = QuerySql.connect(pg_params)
     @query_sql.truncate_authors # cascades to books
-    @query_sql.truncate_extended_bios
-    @query_sql.truncate_extra_types
-    @query_sql.truncate_remaining_types
-    @query_sql.truncate_array_types
-    @query_sql.truncate_special_types
-    @query_sql.truncate_regressions
-    @query_sql.truncate_batch_types
-    @query_sql.truncate_name_cases
-    @query_sql.truncate_mixed_case_copies
-    @query_sql.truncate_json_round_trips
-    @query_sql.truncate_deferred_books
+    @query_sql.truncate_test_tables
     @query_sql.truncate_exceptions
   end
 
@@ -133,7 +123,7 @@ class TestPg < Minitest::Test
   end
 
   def test_one_on_empty_table_returns_nil
-    assert_nil @query_sql.test
+    assert_nil @query_sql.get_postgres_numeric_types
   end
 
   # ---- :execlastid / :execrows -----------------------------------------------------------------------------------
@@ -404,22 +394,108 @@ class TestPg < Minitest::Test
 
   # ---- more data types -------------------------------------------------------------------------------------------
 
-  def test_extra_types_round_trip
-    uuid = '0e52082f-bf69-480e-aff0-1a85139a1074'
-    time = ::Time.utc(2024, 5, 6, 7, 8, 9)
-    @query_sql.insert_extra_types(
-      c_uuid: uuid, c_jsonb: { 'a' => [1, 2, { 'b' => nil }] }.to_json, c_text_array: ['x', nil, 'y z'],
-      c_integer_array: [1, 2, 3], c_timestamptz: time, c_inet: '10.1.2.3', c_money: '12.50', c_not_null: 'nn'
+  def assert_matches_rbs(row, row_type)
+    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), row_type)
+  end
+
+  def test_numeric_types_round_trip
+    numeric = BigDecimal('12345678901234567890.1234567890123456789012345678901234567890')
+    @query_sql.insert_postgres_numeric_types(
+      c_boolean: true, c_smallint: -32_768, c_integer: 2_147_483_647, c_bigint: -9_223_372_036_854_775_808,
+      c_decimal: BigDecimal('1.5'), c_numeric: numeric, c_real: 1.25, c_double_precision: 0.1 + 0.2, c_money: '12.50',
+      c_oid: 42, c_positive: 5
     )
-    row = @query_sql.get_extra_types
-    assert_equal uuid, row.c_uuid
-    assert_equal({ 'a' => [1, 2, { 'b' => nil }] }, row.c_jsonb)
-    assert_equal ['x', nil, 'y z'], row.c_text_array
-    assert_equal [1, 2, 3], row.c_integer_array
-    assert_equal time, row.c_timestamptz.utc
-    assert_equal IPAddr.new('10.1.2.3'), row.c_inet
+    row = @query_sql.get_postgres_numeric_types
+    assert_equal [true, -32_768, 2_147_483_647, -9_223_372_036_854_775_808, BigDecimal('1.5'), numeric, 1.25, 0.1 + 0.2, 42, 5],
+                 row.to_h.values_at(:c_boolean, :c_smallint, :c_integer, :c_bigint, :c_decimal, :c_numeric, :c_real,
+                                    :c_double_precision, :c_oid, :c_positive)
+    assert_kind_of ::Integer, row.c_serial
     assert_includes row.c_money, '12.50'
-    assert_equal 'nn', row.c_not_null
+    assert_matches_rbs(row, 'GetPostgresNumericTypesRow')
+    assert_raises(PG::CheckViolation) do
+      @query_sql.insert_postgres_numeric_types(**row.to_h.except(:c_serial).merge(c_money: nil, c_positive: -1))
+    end
+  end
+
+  def test_string_types_round_trip
+    @query_sql.insert_postgres_string_types(
+      c_char: 'a', c_varchar: 'quote \' 🙂', c_text: "line\nbreak \\ back", c_not_null: 'nn',
+      c_xml: '<greeting>Grüße🙂</greeting>', c_tsvector: 'a:1 b:2', c_ltree: 'Top.Science.Astronomy',
+      c_hstore: '"key"=>"value", "quoted"=>"two"', c_regclass: 'authors'
+    )
+    row = @query_sql.get_postgres_string_types
+    assert_equal ['a', 'quote \' 🙂', "line\nbreak \\ back", 'nn', '<greeting>Grüße🙂</greeting>', "'a':1 'b':2",
+                  'Top.Science.Astronomy', '"key"=>"value", "quoted"=>"two"', 'authors'], row.to_h.values
+    assert_matches_rbs(row, 'GetPostgresStringTypesRow')
+  end
+
+  def test_datetime_types_round_trip
+    timestamp = ::Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
+    timestamptz = ::Time.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
+    @query_sql.insert_postgres_datetime_types(
+      c_date: Date.new(2024, 1, 2), c_time: '03:04:05.678', c_timetz: '12:00:00+02', c_timestamp: timestamp,
+      c_timestamptz: timestamptz, c_interval: '1 year 2 mons 3 days 04:05:06.789'
+    )
+    row = @query_sql.get_postgres_datetime_types
+    assert_equal [Date.new(2024, 1, 2), '03:04:05.678', '12:00:00+02', timestamp, timestamptz, '1 year 2 mons 3 days 04:05:06.789'],
+                 row.to_h.values
+    assert_equal timestamptz.utc, row.c_timestamptz.utc
+    assert_matches_rbs(row, 'GetPostgresDatetimeTypesRow')
+  end
+
+  def array_type_values(id, **values)
+    { id: id, c_boolean: nil, c_double_precision: nil, c_text_array: nil, c_integer_array: nil, c_uuid_array: nil,
+      c_bio_type_array: nil, c_bytea_array: nil, c_jsonb_array: nil, c_numeric_array: nil, c_timestamptz_array: nil,
+      c_integer_matrix: nil, c_text_matrix: nil }.merge(values)
+  end
+
+  # includes arrays of types without a decoder (uuid[], enum[]) and multi-dimensional arrays
+  def test_array_types_round_trip
+    uuids = [SecureRandom.uuid, SecureRandom.uuid]
+    matrix = [['', "a,'b", nil], ["back\\slash", "line\nbreak", '🙂']]
+    values = array_type_values(
+      1, c_text_array: ['x', nil, 'y z'], c_integer_array: [1, 2, 3], c_uuid_array: uuids,
+         c_bio_type_array: %w[Memoir Biography], c_bytea_array: ["\x00\xFF".b], c_jsonb_array: [{ 'a' => [1, nil] }],
+         c_numeric_array: [BigDecimal('1.25')], c_integer_matrix: [[1, 2], [3, 4]], c_text_matrix: matrix
+    )
+    @query_sql.insert_postgres_array_types(**values)
+    row = @query_sql.list_postgres_array_types.first
+    assert_equal values, row.to_h
+    assert_matches_rbs(row, 'ListPostgresArrayTypesRow')
+  end
+
+  def test_special_types_round_trip
+    uuid = '0e52082f-bf69-480e-aff0-1a85139a1074'
+    @query_sql.insert_postgres_special_types(
+      c_bytea: "\x00\xFF\x01".b, c_bit: '1', c_varbit: '1010010110', c_uuid: uuid, c_inet: '10.1.2.3',
+      c_cidr: '192.168.1.0/24', c_macaddr: '08:00:2b:01:02:03', c_point: '(1,2)', c_int4range: '[1,3]', c_dimensions: '(3,4)'
+    )
+    row = @query_sql.get_postgres_special_types
+    assert_equal ["\x00\xFF\x01".b, '1', '1010010110', uuid, IPAddr.new('10.1.2.3'), '08:00:2b:01:02:03', '(1,2)', '[1,4)', '(3,4)'],
+                 row.to_h.except(:c_cidr).values.tap { |v| v[0] = v[0].b }
+    assert_equal ['192.168.1.0', 24], [row.c_cidr.to_s, row.c_cidr.prefix]
+    assert_matches_rbs(row, 'GetPostgresSpecialTypesRow')
+  end
+
+  def test_type_families_round_trip_nil
+    @query_sql.insert_postgres_numeric_types(c_boolean: nil, c_smallint: nil, c_integer: nil, c_bigint: nil, c_decimal: nil,
+                                             c_numeric: nil, c_real: nil, c_double_precision: nil, c_money: nil, c_oid: nil,
+                                             c_positive: nil)
+    @query_sql.insert_postgres_string_types(c_char: nil, c_varchar: nil, c_text: nil, c_not_null: 'x', c_xml: nil,
+                                            c_tsvector: nil, c_ltree: nil, c_hstore: nil, c_regclass: nil)
+    @query_sql.insert_postgres_datetime_types(c_date: nil, c_time: nil, c_timetz: nil, c_timestamp: nil, c_timestamptz: nil,
+                                              c_interval: nil)
+    @query_sql.insert_postgres_array_types(**array_type_values(1))
+    @query_sql.insert_postgres_special_types(c_bytea: nil, c_bit: nil, c_varbit: nil, c_uuid: nil, c_inet: nil, c_cidr: nil,
+                                             c_macaddr: nil, c_point: nil, c_int4range: nil, c_dimensions: nil)
+    {
+      'GetPostgresNumericTypesRow' => @query_sql.get_postgres_numeric_types.to_h.except(:c_serial),
+      'GetPostgresStringTypesRow' => @query_sql.get_postgres_string_types.to_h.except(:c_not_null),
+      'GetPostgresDatetimeTypesRow' => @query_sql.get_postgres_datetime_types.to_h,
+      'ListPostgresArrayTypesRow' => @query_sql.list_postgres_array_types.first.to_h.except(:id),
+      'GetPostgresSpecialTypesRow' => @query_sql.get_postgres_special_types.to_h
+    }.each { |type, values| assert_equal [nil], values.values.uniq, type }
+    assert_equal 'x', @query_sql.get_postgres_string_types.c_not_null
   end
 
   def test_json_and_jsonb_parameters_round_trip_all_json_value_types
@@ -427,130 +503,87 @@ class TestPg < Minitest::Test
       [true, true], [false, false], [7, 7], [1.25, 1.25],
       [{ 'nested' => [1, { 'nil' => nil }] }, { 'nested' => [1, { 'nil' => nil }] }],
       [[1, false, { 'a' => 'b' }], [1, false, { 'a' => 'b' }]],
-      ['{"from":"json text"}', { 'from' => 'json text' }], [nil, nil]
+      ['{"from":"json text"}', { 'from' => 'json text' }],
+      [{ 'a' => [1, 2, { 'b' => nil }] }.to_json, { 'a' => [1, 2, { 'b' => nil }] }], [nil, nil]
     ]
     cases.each_with_index do |(value, expected), id|
-      @query_sql.set_json_round_trip(id: id, json_value: value, jsonb_value: value)
-      row = @query_sql.get_json_round_trip(id: id)
+      @query_sql.insert_postgres_json_types(id: id, c_json: value, c_jsonb: value)
+      row = @query_sql.get_postgres_json_types(id: id)
       if expected.nil?
-        assert_nil row.json_value
-        assert_nil row.jsonb_value
+        assert_nil row.c_json
+        assert_nil row.c_jsonb
       else
-        assert_equal expected, row.json_value
-        assert_equal expected, row.jsonb_value
+        assert_equal expected, row.c_json
+        assert_equal expected, row.c_jsonb
       end
     end
-    @query_sql.set_json_round_trip(id: 10, json_value: true, jsonb_value: true)
-    @query_sql.toggle_jsonb_round_trip(id: 10)
-    assert_equal false, @query_sql.get_json_round_trip(id: 10).jsonb_value
-  end
-
-  def test_arrays_of_types_without_a_decoder_are_arrays
-    uuids = [SecureRandom.uuid, SecureRandom.uuid]
-    @query_sql.insert_array_types(c_uuid_array: uuids, c_bio_type_array: %w[Memoir Biography],
-                                  c_integer_matrix: [[1, 2], [3, 4]])
-    row = @query_sql.get_array_types
-    assert_equal uuids, row.c_uuid_array
-    assert_equal %w[Memoir Biography], row.c_bio_type_array
-    assert_equal [[1, 2], [3, 4]], row.c_integer_matrix
-    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), 'GetArrayTypesRow')
-  end
-
-  def test_special_types_composites_and_domains
-    @query_sql.insert_special_types(c_timetz: '12:00:00+02', c_tsvector: 'a:1 b:2', c_point: '(1,2)', c_int4range: '[1,3]',
-                                    c_oid: 42, c_dimensions: '(3,4)', c_positive: 5)
-    row = @query_sql.get_special_types
-    assert_equal ['12:00:00+02', "'a':1 'b':2", '(1,2)', '[1,4)', 42, '(3,4)', 5],
-                 [row.c_timetz, row.c_tsvector, row.c_point, row.c_int4range, row.c_oid, row.c_dimensions, row.c_positive]
-    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), 'GetSpecialTypesRow')
-  end
-
-  def test_extra_types_nulls
-    @query_sql.insert_extra_types(
-      c_uuid: nil, c_jsonb: nil, c_text_array: nil, c_integer_array: nil, c_timestamptz: nil, c_inet: nil,
-      c_money: nil, c_not_null: 'x'
-    )
-    row = @query_sql.get_extra_types
-    assert_equal [nil] * 7, row.to_h.values_at(:c_uuid, :c_jsonb, :c_text_array, :c_integer_array, :c_timestamptz,
-                                              :c_inet, :c_money)
-  end
-
-  def test_remaining_postgresql_types_round_trip
-    timestamp = ::Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
-    timestamptz = ::Time.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
-    matrix = [['', "a,'b", nil], ["back\\slash", "line\nbreak", '🙂']]
-    @query_sql.insert_remaining_types(
-      c_hstore: '"key"=>"value", "quoted"=>"two"',
-      c_ltree: 'Top.Science.Astronomy',
-      c_regclass: 'authors',
-      c_cidr: '192.168.1.0/24',
-      c_macaddr: '08:00:2b:01:02:03',
-      c_interval: '1 year 2 mons 3 days 04:05:06.789',
-      c_varbit: '1010010110',
-      c_xml: '<greeting>Grüße🙂</greeting>',
-      c_numeric: BigDecimal('12345678901234567890.1234567890123456789012345678901234567890'),
-      c_bigint: -9_223_372_036_854_775_808,
-      c_timestamp: timestamp,
-      c_timestamptz: timestamptz,
-      c_text_matrix: matrix
-    )
-    row = @query_sql.get_remaining_types
-    assert_equal '"key"=>"value", "quoted"=>"two"', row.c_hstore
-    assert_equal 'Top.Science.Astronomy', row.c_ltree
-    assert_equal 'authors', row.c_regclass
-    assert_equal '192.168.1.0', row.c_cidr.to_s
-    assert_equal 24, row.c_cidr.prefix
-    assert_equal '08:00:2b:01:02:03', row.c_macaddr
-    assert_equal '1 year 2 mons 3 days 04:05:06.789', row.c_interval
-    assert_equal '1010010110', row.c_varbit
-    assert_equal '<greeting>Grüße🙂</greeting>', row.c_xml
-    assert_equal BigDecimal('12345678901234567890.1234567890123456789012345678901234567890'), row.c_numeric
-    assert_equal(-9_223_372_036_854_775_808, row.c_bigint)
-    assert_equal timestamp, row.c_timestamp
-    assert_equal timestamptz, row.c_timestamptz
-    assert_equal matrix, row.c_text_matrix
-    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), 'GetRemainingTypesRow')
+    @query_sql.insert_postgres_json_types(id: 10, c_json: true, c_jsonb: true)
+    @query_sql.toggle_postgres_jsonb_type(id: 10)
+    assert_equal false, @query_sql.get_postgres_json_types(id: 10).c_jsonb
   end
 
   def raw_client
     PG.connect(**pg_params.transform_keys(&:to_sym))
   end
 
+  # values written by SQL literals, not by generated parameters, are read with the declared types
   def test_declared_types_match_runtime_values
     client = raw_client
-    client.exec('DELETE FROM node_postgres_types')
     client.exec(<<~SQL)
-      INSERT INTO node_postgres_types VALUES (B'1', 2, true, 4, 5, 6, 1.5, 2.5, 1.25, 2.25, '2024-01-02', '03:04:05',
-        '2024-01-02 03:04:05', 'a', 'b', '\\x0102', 'c', '{"a": 1}')
+      INSERT INTO postgres_numeric_types VALUES (true, 2, 4, 5, 6, 1.5, 2.5, 1.25, 2.25, 3.5, 7, 8);
+      INSERT INTO postgres_string_types VALUES ('a', 'b', 'c', 'd', '<x/>', 'e', 'f.g', 'h=>i', 'authors');
+      INSERT INTO postgres_datetime_types VALUES ('2024-01-02', '03:04:05', '03:04:05+02', '2024-01-02 03:04:05',
+        '2024-01-02 03:04:05+00', '1 day');
+      INSERT INTO postgres_json_types VALUES (1, '{"a": 1}', '[1]');
+      INSERT INTO postgres_array_types VALUES (1, true, 1.5, '{a}', '{1}', '{0e52082f-bf69-480e-aff0-1a85139a1074}',
+        '{Memoir}', '{"\\\\x0102"}', '{"{}"}', '{1.5}', '{"2024-01-02 03:04:05+00"}', '{{1}}', '{{a}}');
+      INSERT INTO postgres_special_types VALUES ('\\x0102', B'1', B'101', '0e52082f-bf69-480e-aff0-1a85139a1074',
+        '::1', '10.0.0.0/8', '08:00:2b:01:02:03', '(1,2)', '[1,3)', '(3,4)');
     SQL
-    row = @query_sql.test
-    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), 'TestRow')
-    assert_equal Date.new(2024, 1, 2), row.c_date
-    assert_equal BigDecimal('1.5'), row.c_decimal
-    assert_equal({ 'a' => 1 }, row.c_json)
-    assert_equal "\x01\x02".b, row.c_bytea.b
+    rows = { 'GetPostgresNumericTypesRow' => @query_sql.get_postgres_numeric_types,
+             'GetPostgresStringTypesRow' => @query_sql.get_postgres_string_types,
+             'GetPostgresDatetimeTypesRow' => @query_sql.get_postgres_datetime_types,
+             'GetPostgresJSONTypesRow' => @query_sql.get_postgres_json_types(id: 1),
+             'ListPostgresArrayTypesRow' => @query_sql.list_postgres_array_types.first,
+             'GetPostgresSpecialTypesRow' => @query_sql.get_postgres_special_types }
+    rows.each { |type, row| assert_matches_rbs(row, type) }
+    assert_equal BigDecimal('1.5'), rows['GetPostgresNumericTypesRow'].c_decimal
+    assert_equal Date.new(2024, 1, 2), rows['GetPostgresDatetimeTypesRow'].c_date
+    assert_equal [{ 'a' => 1 }, [1]], rows['GetPostgresJSONTypesRow'].to_h.values
+    assert_equal ["\x01\x02".b], rows['ListPostgresArrayTypesRow'].c_bytea_array
+    assert_equal "\x01\x02".b, rows['GetPostgresSpecialTypesRow'].c_bytea.b
   ensure
-    client&.exec('DELETE FROM node_postgres_types')
+    client&.close
   end
 
   def test_declared_types_match_runtime_values_for_nulls
     client = raw_client
-    client.exec('DELETE FROM node_postgres_types')
-    client.exec('INSERT INTO node_postgres_types (c_integer) VALUES (NULL)')
-    row = @query_sql.test
-    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), 'TestRow')
-    assert_equal [nil], row.to_h.except(:c_serial).values.uniq # c_serial is filled by its default
+    client.exec(<<~SQL)
+      INSERT INTO postgres_numeric_types (c_integer) VALUES (NULL);
+      INSERT INTO postgres_string_types (c_text) VALUES (NULL);
+      INSERT INTO postgres_datetime_types (c_date) VALUES (NULL);
+      INSERT INTO postgres_json_types (id) VALUES (1);
+      INSERT INTO postgres_array_types (id) VALUES (1);
+      INSERT INTO postgres_special_types (c_uuid) VALUES (NULL);
+    SQL
+    numeric = @query_sql.get_postgres_numeric_types
+    assert_matches_rbs(numeric, 'GetPostgresNumericTypesRow')
+    assert_equal [nil], numeric.to_h.except(:c_serial).values.uniq # c_serial is filled by its default
+    string = @query_sql.get_postgres_string_types
+    assert_matches_rbs(string, 'GetPostgresStringTypesRow')
+    assert_equal 'x', string.c_not_null # filled by its default
+    assert_equal [nil], string.to_h.except(:c_not_null).values.uniq
+    { 'GetPostgresDatetimeTypesRow' => @query_sql.get_postgres_datetime_types,
+      'GetPostgresJSONTypesRow' => @query_sql.get_postgres_json_types(id: 1),
+      'GetPostgresSpecialTypesRow' => @query_sql.get_postgres_special_types }.each do |type, row|
+      assert_matches_rbs(row, type)
+      assert_equal [nil], row.to_h.values.uniq, type
+    end
+    arrays = @query_sql.list_postgres_array_types.first
+    assert_matches_rbs(arrays, 'ListPostgresArrayTypesRow')
+    assert_equal [nil], arrays.to_h.except(:id).values.uniq
   ensure
-    client&.exec('DELETE FROM node_postgres_types')
-  end
-
-  def test_extra_types_match_declared_types
-    @query_sql.insert_extra_types(
-      c_uuid: SecureRandom.uuid, c_jsonb: '[1]', c_text_array: %w[a], c_integer_array: [1], c_timestamptz: ::Time.now,
-      c_inet: '::1', c_money: '1', c_not_null: 'x'
-    )
-    assert_empty RbsTypes.mismatches(@query_sql.get_extra_types, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'),
-                                     'GetExtraTypesRow')
+    client&.close
   end
 
   def test_nested_transaction_rolls_back_to_a_savepoint
@@ -883,18 +916,21 @@ class TestPg < Minitest::Test
 
   def batch_type_rows
     stamp = ::Time.at(1_700_000_000, 123_456, :usec)
-    [{ id: 1, ok: true, ratio: 115_610.38729014261, blobs: ["\x00\xFF".b, nil], docs: [{ 'a' => 1 }, [1, 2], nil],
-       counts: [], amounts: [nil, BigDecimal('1.25')], stamps: [nil, stamp] },
-     { id: 2, ok: false, ratio: 1.0e-305, blobs: [], docs: [], counts: [nil], amounts: [], stamps: [] },
-     { id: 3, ok: nil, ratio: nil, blobs: nil, docs: nil, counts: nil, amounts: nil, stamps: nil }]
+    [{ id: 1, c_boolean: true, c_double_precision: 115_610.38729014261, c_bytea_array: ["\x00\xFF".b, nil],
+       c_jsonb_array: [{ 'a' => 1 }, [1, 2], nil], c_integer_array: [], c_numeric_array: [nil, BigDecimal('1.25')],
+       c_timestamptz_array: [nil, stamp] },
+     { id: 2, c_boolean: false, c_double_precision: 1.0e-305, c_bytea_array: [], c_jsonb_array: [], c_integer_array: [nil],
+       c_numeric_array: [], c_timestamptz_array: [] },
+     { id: 3, c_boolean: nil, c_double_precision: nil, c_bytea_array: nil, c_jsonb_array: nil, c_integer_array: nil,
+       c_numeric_array: nil, c_timestamptz_array: nil }]
   end
 
   def assert_batch_types_round_trip(rows)
-    got = @query_sql.list_batch_types.map(&:to_h)
+    got = @query_sql.list_postgres_array_types.map(&:to_h)
     assert_equal rows.size, got.size
     rows.zip(got).each do |want, row|
       want.each do |key, value|
-        if key == :stamps && value
+        if key == :c_timestamptz_array && value
           assert_equal value.map { |t| t&.to_r }, row[key].map { |t| t&.to_r }, "#{want[:id]} #{key}"
         elsif value.nil?
           assert_nil row[key], "#{want[:id]} #{key}"
@@ -906,12 +942,12 @@ class TestPg < Minitest::Test
   end
 
   def test_copyfrom_encodes_booleans_floats_and_arrays
-    @query_sql.copy_batch_types(batch_type_rows.map { |r| CopyBatchTypesArgs.new(**r) })
+    @query_sql.copy_postgres_array_types(batch_type_rows.map { |r| CopyPostgresArrayTypesArgs.new(**r) })
     assert_batch_types_round_trip(batch_type_rows)
   end
 
   def test_batchexec_encodes_booleans_floats_and_arrays
-    @query_sql.create_batch_types_batch(batch_type_rows.map { |r| CreateBatchTypesBatchArgs.new(**r) })
+    @query_sql.insert_postgres_array_types_batch(batch_type_rows.map { |r| InsertPostgresArrayTypesBatchArgs.new(**r) })
     assert_batch_types_round_trip(batch_type_rows)
   end
 
@@ -919,13 +955,13 @@ class TestPg < Minitest::Test
     # what preparedStatements: false sends: exec_params without prepared parameter types
     params = [9, nil, nil, @query_sql.send(:encode_array, ["\x00".b], :bytea), @query_sql.send(:encode_array, [{ 'a' => 1 }], :json),
               @query_sql.send(:encode_array, []), @query_sql.send(:encode_array, [nil]), @query_sql.send(:encode_array, [nil, ::Time.now])]
-    @query_sql.instance_variable_get(:@db).with { |client| client.exec_params(CREATE_BATCH_TYPES_BATCH_SQL, params) }
-    row = @query_sql.list_batch_types.first
-    assert_equal [["\x00".b], [{ 'a' => 1 }], [], [nil]], [row.blobs, row.docs, row.counts, row.amounts]
+    @query_sql.instance_variable_get(:@db).with { |client| client.exec_params(INSERT_POSTGRES_ARRAY_TYPES_BATCH_SQL, params) }
+    row = @query_sql.list_postgres_array_types.first
+    assert_equal [["\x00".b], [{ 'a' => 1 }], [], [nil]], [row.c_bytea_array, row.c_jsonb_array, row.c_integer_array, row.c_numeric_array]
   end
 
   def test_all_caps_parameter_names_are_snake_cased
-    assert_equal 0, row_value(@query_sql.count_batch_types_above!(min_id: 0), :count)
+    assert_equal 0, row_value(@query_sql.count_postgres_array_types_above!(min_id: 0), :count)
   end
 
   def test_nested_transaction_rescuing_a_failed_statement_rolls_back_only_itself
@@ -1101,9 +1137,9 @@ class TestPg < Minitest::Test
 
   def test_top_level_float_json_parameters_round_trip_exactly
     [0.3304, 0.1 + 0.2, 1.0e-7, -2.5].each_with_index do |value, id|
-      @query_sql.set_json_round_trip(id: id, json_value: value, jsonb_value: value)
-      row = @query_sql.get_json_round_trip(id: id)
-      assert_equal [value, value], [row.json_value, row.jsonb_value]
+      @query_sql.insert_postgres_json_types(id: id, c_json: value, c_jsonb: value)
+      row = @query_sql.get_postgres_json_types(id: id)
+      assert_equal [value, value], [row.c_json, row.c_jsonb]
     end
   end
 
@@ -1294,14 +1330,12 @@ class TestPg < Minitest::Test
     saved = ENV.fetch('TZ', nil)
     ENV['TZ'] = 'XYZ-3' # UTC+3, also on Windows
     [::DateTime.new(2024, 1, 1, 10, 0, Rational(61, 2), '+02:00'), ::DateTime.new(2024, 7, 1, 23, 30, 0, '-07:00')].each do |datetime|
-      @query_sql.insert_remaining_types(
-        c_hstore: nil, c_ltree: nil, c_regclass: nil, c_cidr: nil, c_macaddr: nil, c_interval: nil, c_varbit: nil,
-        c_xml: nil, c_numeric: nil, c_bigint: nil, c_timestamp: datetime, c_timestamptz: datetime, c_text_matrix: nil
-      )
-      row = @query_sql.get_remaining_types
+      @query_sql.insert_postgres_datetime_types(c_date: nil, c_time: nil, c_timetz: nil, c_timestamp: datetime, c_timestamptz: datetime,
+                                                c_interval: nil)
+      row = @query_sql.get_postgres_datetime_types
       assert_equal datetime.to_time, row.c_timestamp, datetime.inspect
       assert_equal datetime.to_time, row.c_timestamptz, datetime.inspect
-      @query_sql.truncate_remaining_types
+      @query_sql.truncate_test_tables
     end
   ensure
     saved ? ENV['TZ'] = saved : ENV.delete('TZ')
@@ -1314,14 +1348,12 @@ class TestPg < Minitest::Test
     ENV['TZ'] = 'XYZ-3' # UTC+3, also on Windows
     [::Time.utc(2024, 1, 15, 12, 0, Rational(1, 2)), ::Time.new(2024, 2, 3, 4, 5, 6, '+05:30'),
      ::Time.new(2024, 7, 1, 23, 30, 0, '-07:00'), ::Time.at(::Time.now.to_i)].each do |time|
-      @query_sql.insert_remaining_types(
-        c_hstore: nil, c_ltree: nil, c_regclass: nil, c_cidr: nil, c_macaddr: nil, c_interval: nil, c_varbit: nil,
-        c_xml: nil, c_numeric: nil, c_bigint: nil, c_timestamp: time, c_timestamptz: time, c_text_matrix: nil
-      )
-      row = @query_sql.get_remaining_types
+      @query_sql.insert_postgres_datetime_types(c_date: nil, c_time: nil, c_timetz: nil, c_timestamp: time, c_timestamptz: time,
+                                                c_interval: nil)
+      row = @query_sql.get_postgres_datetime_types
       assert_equal time, row.c_timestamp, time.inspect
       assert_equal time, row.c_timestamptz, time.inspect
-      @query_sql.truncate_remaining_types
+      @query_sql.truncate_test_tables
     end
   ensure
     saved ? ENV['TZ'] = saved : ENV.delete('TZ')

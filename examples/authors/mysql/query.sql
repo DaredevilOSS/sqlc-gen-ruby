@@ -30,9 +30,48 @@ INSERT INTO authors (
 DELETE FROM authors
 WHERE id = ?;
 
--- name: Test :one
-SELECT * FROM node_mysql_types
-LIMIT 1;
+-- name: InsertMysqlNumericTypes :exec
+INSERT INTO mysql_numeric_types (
+  id, c_bool, c_boolean, c_tinyint, c_smallint, c_mediumint, c_int, c_integer, c_bigint, c_bigint_unsigned, c_decimal, c_dec, c_numeric, c_fixed, c_decimal_wide, c_float, c_double, c_double_precision
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+);
+
+-- name: GetMysqlNumericTypes :one
+SELECT * FROM mysql_numeric_types WHERE id = ?;
+
+-- name: InsertMysqlStringTypes :exec
+INSERT INTO mysql_string_types (
+  id, c_char, c_nchar, c_national_char, c_varchar, c_tinytext, c_text, c_mediumtext, c_longtext, c_json
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+);
+
+-- name: GetMysqlStringTypes :one
+SELECT * FROM mysql_string_types WHERE id = ?;
+
+-- name: InsertMysqlDatetimeTypes :exec
+INSERT INTO mysql_datetime_types (
+  id, c_date, c_time, c_datetime, c_datetime_6, c_timestamp, c_year
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?
+);
+
+-- name: GetMysqlDatetimeTypes :one
+SELECT * FROM mysql_datetime_types WHERE id = ?;
+
+-- name: CopyMysqlDatetimeTypes :copyfrom
+INSERT INTO mysql_datetime_types (id, c_datetime_6) VALUES (?, ?);
+
+-- name: InsertMysqlBinaryTypes :exec
+INSERT INTO mysql_binary_types (
+  id, c_bit, c_bit_16, c_binary, c_varbinary, c_tinyblob, c_blob, c_mediumblob, c_longblob
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?, ?, ?
+);
+
+-- name: GetMysqlBinaryTypes :one
+SELECT * FROM mysql_binary_types WHERE id = ?;
 
 -- name: ListAuthorsPaged :many
 SELECT * FROM authors
@@ -128,11 +167,8 @@ UPDATE regressions SET step = ? WHERE id = ?;
 -- name: GetRegressionStep :one
 SELECT step FROM regressions WHERE id = ?;
 
--- name: ListRegressionPayloads :many
-SELECT id, payload FROM regressions ORDER BY id;
-
 -- name: ListRegressionRows :many
-SELECT id, `order`, note, payload FROM regressions ORDER BY id;
+SELECT id, `order`, note, payload, code, doc, flags, amount FROM regressions ORDER BY id;
 
 -- name: ListAuthorsWithOptionalBook :many
 SELECT sqlc.embed(authors), sqlc.embed(books)
@@ -143,26 +179,20 @@ ORDER BY authors.id;
 -- name: TruncateRegressions :exec
 TRUNCATE TABLE regressions;
 
--- name: CopyCopyTypes :copyfrom
-INSERT INTO copy_types (id, code, doc, flags, amount) VALUES (?, ?, ?, ?, ?);
+-- name: CopyRegressionTypes :copyfrom
+INSERT INTO regressions (id, code, doc, flags, amount) VALUES (?, ?, ?, ?, ?);
 
--- name: CopyCopyTypesIgnore :copyfrom
-INSERT IGNORE INTO copy_types (id, code) VALUES (?, ?);
+-- name: CopyRegressionsIgnore :copyfrom
+INSERT IGNORE INTO regressions (id, code) VALUES (?, ?);
 
--- name: CopyCopyTypesReplace :copyfrom
-REPLACE INTO copy_types (id, code) VALUES (?, ?);
+-- name: CopyRegressionsReplace :copyfrom
+REPLACE INTO regressions (id, code) VALUES (?, ?);
 
--- name: CreateCopyTypesBatch :batchexec
-INSERT INTO copy_types (id, code, flags, amount) VALUES (?, ?, ?, ?);
+-- name: CreateRegressionsBatch :batchexec
+INSERT INTO regressions (id, code, flags, amount) VALUES (?, ?, ?, ?);
 
--- name: CountCopyTypesByCodes :batchone
-SELECT count(*) AS matches FROM copy_types WHERE code = ? OR code = ?;
-
--- name: ListCopyTypes :many
-SELECT id, code, doc, flags, amount FROM copy_types ORDER BY id;
-
--- name: TruncateCopyTypes :exec
-TRUNCATE TABLE copy_types;
+-- name: CountRegressionsByCodes :batchone
+SELECT count(*) AS matches FROM regressions WHERE code = ? OR code = ?;
 
 -- name: FindAuthorsByExactName :many
 SELECT id FROM authors WHERE name = sqlc.arg(name);
@@ -172,25 +202,6 @@ SELECT id FROM authors AS `?`
 WHERE name = ? AND '?' = '?' AND "?" = "?" /* ? */
 # ?
 ORDER BY id;
-
--- name: InsertMysqlBindingValues :exec
-INSERT INTO mysql_binding_values (
-  id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value,
-  datetime_value, datetime_2, bool_value, nullable_value
-) VALUES (
-  sqlc.arg(id), sqlc.arg(text_value), sqlc.arg(blob_value), sqlc.arg(signed_value), sqlc.arg(unsigned_value),
-  sqlc.arg(decimal_value), sqlc.arg(float_value), sqlc.arg(date_value), sqlc.arg(datetime_value),
-  sqlc.arg(datetime_2), sqlc.arg(bool_value), sqlc.arg(nullable_value)
-);
-
--- name: GetMysqlBindingValues :one
-SELECT * FROM mysql_binding_values WHERE id = sqlc.arg(id);
-
--- name: TruncateMysqlBindingValues :exec
-TRUNCATE TABLE mysql_binding_values;
-
--- name: CopyMysqlBindingTimes :copyfrom
-INSERT INTO mysql_binding_values (id, datetime_value, datetime_2) VALUES (?, ?, ?);
 
 -- name: InsertNameCase :exec
 INSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`, `initialize`)

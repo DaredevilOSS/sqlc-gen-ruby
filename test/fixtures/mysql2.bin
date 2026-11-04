@@ -1,66 +1,11 @@
 
 
 
-2mysqlÏ)public"Ä)public€
+2mysqlÑ&public"Æ&public€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
-bio0ÿÿÿÿÿÿÿÿÿR	authorsbtext÷
-node_mysql_types$
-c_bit0Rnode_mysql_typesbbit5
-	c_tinyint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb	tinyint)
-c_bool0Rnode_mysql_typesb	tinyint,
-	c_boolean0Rnode_mysql_typesb	tinyint7
-
-c_smallint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
-smallint9
-c_mediumint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb	mediumint-
-c_int0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbint1
-	c_integer0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbint3
-c_bigint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbbigint8
-c_serial0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbbigint€,
-	c_decimal0Rnode_mysql_typesb	decimal(
-c_dec0Rnode_mysql_typesb	decimal,
-	c_numeric0Rnode_mysql_typesb	decimal*
-c_fixed0Rnode_mysql_typesb	decimal1
-c_float0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbfloat3
-c_double0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbdouble=
-c_double_precision0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbdouble/
-c_date0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbdate&
-c_time0
-Rnode_mysql_typesbtime.
-
-c_datetime0Rnode_mysql_typesb
-datetime0
-c_timestamp0Rnode_mysql_typesb	timestamp/
-c_year0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbyear/
-c_char0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbchar0
-c_nchar0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbchar8
-c_national_char0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbchar,
-	c_varchar0
-Rnode_mysql_typesb	varchar3
-c_binary0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbbinary0
-c_varbinary0
-Rnode_mysql_typesb	varbinary7
-
-c_tinyblob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
-tinyblob7
-
-c_tinytext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
-tinytext/
-c_blob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbblob/
-c_text0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbtext;
-c_mediumblob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
-mediumblob;
-c_mediumtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
-mediumtext7
-
-c_longblob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
-longblob7
-
-c_longtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
-longtext/
-c_json0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbjson­
+bio0ÿÿÿÿÿÿÿÿÿR	authorsbtext­
 books$
 id0ÿÿÿÿÿÿÿÿÿRbooksbbigint$
 name0ÿÿÿÿÿÿÿÿÿRbooksbtext+
@@ -70,54 +15,17 @@ c_longtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
 author_name0dRextended_biosb	varchar$
 name0dRextended_biosb	varchar7
 bio_type0Rextended_biosbextended_bios_bio_type=
-author_type0Rextended_biosbextended_bios_author_typeã
+author_type0Rextended_biosbextended_bios_author_typeÿ
 regressions*
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigint&
 order0ÿRregressionsb	varchar(
 note0ÿÿÿÿÿÿÿÿÿRregressionsbtext'
 payload0Rregressionsb	varbinary+
-step0Rregressionsbregressions_stepÓ
-
-copy_types)
-id0ÿÿÿÿÿÿÿÿÿR
-copy_typesbbigint#
-code0 R
-copy_typesb	varchar&
-doc0ÿÿÿÿÿÿÿÿÿR
-copy_typesbjson
-flags0R
-copy_typesbbit+
-amount0ÿÿÿÿÿÿÿÿÿR
-copy_typesbint€Ÿ
-mysql_binding_values3
-id0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigint;
-
-text_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
-longtext;
-
-blob_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
-longblob;
-signed_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigint@
-unsigned_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigint€4
-decimal_value0ARmysql_binding_valuesb	decimal:
-float_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdouble7
-
-date_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdate6
-datetime_value0Rmysql_binding_valuesb
-datetime2
-
-datetime_20Rmysql_binding_valuesb
-datetime1
-
-bool_value0Rmysql_binding_valuesb	tinyint;
-nullable_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbtext,
-	bit_value0Rmysql_binding_valuesbbit7
-
-year_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbyear.
-
-time_value0
-Rmysql_binding_valuesbtime9
-json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjsonv
+step0Rregressionsbregressions_step"
+code0 Rregressionsb	varchar'
+doc0ÿÿÿÿÿÿÿÿÿRregressionsbjson
+flags0Rregressionsbbit,
+amount0ÿÿÿÿÿÿÿÿÿRregressionsbint€v
 mixedcasecopies.
 id0ÿÿÿÿÿÿÿÿÿRmixedcasecopiesbbigint1
 	somevalue0ÿÿÿÿÿÿÿÿÿRmixedcasecopiesbtext¤
@@ -176,7 +84,74 @@ exceptionsbbigintC
 	mutexes&
 id0ÿÿÿÿÿÿÿÿÿR	mutexesbbigintE
 connection_pools/
-id0ÿÿÿÿÿÿÿÿÿRconnection_poolsbbigint":
+id0ÿÿÿÿÿÿÿÿÿRconnection_poolsbbigint£
+mysql_numeric_types2
+id0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbbigint,
+c_bool0Rmysql_numeric_typesb	tinyint/
+	c_boolean0Rmysql_numeric_typesb	tinyint8
+	c_tinyint0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesb	tinyint:
+
+c_smallint0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesb
+smallint<
+c_mediumint0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesb	mediumint0
+c_int0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbint4
+	c_integer0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbint6
+c_bigint0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbbigintB
+c_bigint_unsigned0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbbigint€;
+c_serial0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbbigint€/
+	c_decimal0Rmysql_numeric_typesb	decimal+
+c_dec0Rmysql_numeric_typesb	decimal/
+	c_numeric0Rmysql_numeric_typesb	decimal-
+c_fixed0Rmysql_numeric_typesb	decimal4
+c_decimal_wide0ARmysql_numeric_typesb	decimal4
+c_float0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbfloat6
+c_double0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbdouble@
+c_double_precision0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbdouble·
+mysql_string_types1
+id0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbbigint1
+c_char0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbchar2
+c_nchar0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbchar:
+c_national_char0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbchar.
+	c_varchar0
+Rmysql_string_typesb	varchar9
+
+c_tinytext0ÿÿÿÿÿÿÿÿÿRmysql_string_typesb
+tinytext1
+c_text0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbtext=
+c_mediumtext0ÿÿÿÿÿÿÿÿÿRmysql_string_typesb
+mediumtext9
+
+c_longtext0ÿÿÿÿÿÿÿÿÿRmysql_string_typesb
+longtext1
+c_json0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbjsonƒ
+mysql_datetime_types3
+id0ÿÿÿÿÿÿÿÿÿRmysql_datetime_typesbbigint3
+c_date0ÿÿÿÿÿÿÿÿÿRmysql_datetime_typesbdate*
+c_time0
+Rmysql_datetime_typesbtime2
+
+c_datetime0Rmysql_datetime_typesb
+datetime4
+c_datetime_60Rmysql_datetime_typesb
+datetime4
+c_timestamp0Rmysql_datetime_typesb	timestamp3
+c_year0ÿÿÿÿÿÿÿÿÿRmysql_datetime_typesbyearï
+mysql_binary_types1
+id0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesbbigint&
+c_bit0Rmysql_binary_typesbbit)
+c_bit_160Rmysql_binary_typesbbit5
+c_binary0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesbbinary2
+c_varbinary0
+Rmysql_binary_typesb	varbinary9
+
+c_tinyblob0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesb
+tinyblob1
+c_blob0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesbblob=
+c_mediumblob0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesb
+mediumblob9
+
+c_longblob0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesb
+longblob":
 extended_bios_bio_typeAutobiography	BiographyMemoir"7
 extended_bios_author_typeAuthorEditor
 Translator"2
@@ -213,69 +188,178 @@ WHERE id = ?UpdateAuthor:exec*40
 bio0ÿÿÿÿÿÿÿÿÿRpublicauthorsbtextzbio:	query.sqlB	authorsr
  DELETE FROM authors
 WHERE id = ?DeleteAuthor:exec*.*
-id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid:	query.sql´
-­SELECT c_bit, c_tinyint, c_bool, c_boolean, c_smallint, c_mediumint, c_int, c_integer, c_bigint, c_serial, c_decimal, c_dec, c_numeric, c_fixed, c_float, c_double, c_double_precision, c_date, c_time, c_datetime, c_timestamp, c_year, c_char, c_nchar, c_national_char, c_varchar, c_binary, c_varbinary, c_tinyblob, c_tinytext, c_blob, c_text, c_mediumblob, c_mediumtext, c_longblob, c_longtext, c_json FROM node_mysql_types
-LIMIT 1Test:one"+
-c_bit0Rnode_mysql_typesbbitzc_bit"@
-	c_tinyint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb	tinyintz	c_tinyint"1
-c_bool0Rnode_mysql_typesb	tinyintzc_bool"7
-	c_boolean0Rnode_mysql_typesb	tinyintz	c_boolean"C
+id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid:	query.sqlà
+­INSERT INTO mysql_numeric_types (
+  id, c_bool, c_boolean, c_tinyint, c_smallint, c_mediumint, c_int, c_integer, c_bigint, c_bigint_unsigned, c_decimal, c_dec, c_numeric, c_fixed, c_decimal_wide, c_float, c_double, c_double_precision
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)InsertMysqlNumericTypes:exec*B>
+id0ÿÿÿÿÿÿÿÿÿRpublicmysql_numeric_typesbbigintzid*@<
+c_bool0Rpublicmysql_numeric_typesb	tinyintzc_bool*FB
+	c_boolean0Rpublicmysql_numeric_typesb	tinyintz	c_boolean*OK
+	c_tinyint0ÿÿÿÿÿÿÿÿÿRpublicmysql_numeric_typesb	tinyintz	c_tinyint*RN
 
-c_smallint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
+c_smallint0ÿÿÿÿÿÿÿÿÿRpublicmysql_numeric_typesb
 smallintz
-c_smallint"F
-c_mediumint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb	mediumintzc_mediumint"4
-c_int0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbintzc_int"<
-	c_integer0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbintz	c_integer"=
-c_bigint0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbbigintzc_bigint"B
-c_serial0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbbigintzc_serial€"7
-	c_decimal0Rnode_mysql_typesb	decimalz	c_decimal"/
-c_dec0Rnode_mysql_typesb	decimalzc_dec"7
-	c_numeric0Rnode_mysql_typesb	decimalz	c_numeric"3
-c_fixed0Rnode_mysql_typesb	decimalzc_fixed":
-c_float0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbfloatzc_float"=
-c_double0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbdoublezc_double"Q
-c_double_precision0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbdoublezc_double_precision"7
-c_date0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbdatezc_date".
-c_time0
-Rnode_mysql_typesbtimezc_time":
+c_smallint*UQ
+c_mediumint0ÿÿÿÿÿÿÿÿÿRpublicmysql_numeric_typesb	mediumintzc_mediumint*C?
+c_int0ÿÿÿÿÿÿÿÿÿRpublicmysql_numeric_typesbintzc_int*KG
+	c_integer0ÿÿÿÿÿÿÿÿÿRpublicmysql_numeric_typesbintz	c_integer*L	H
+c_bigint0ÿÿÿÿÿÿÿÿÿRpublicmysql_numeric_typesbbigintzc_bigint*a
+]
+c_bigint_unsigned0ÿÿÿÿÿÿÿÿÿRpublicmysql_numeric_typesbbigintzc_bigint_unsigned€*FB
+	c_decimal0Rpublicmysql_numeric_typesb	decimalz	c_decimal*>:
+c_dec0Rpublicmysql_numeric_typesb	decimalzc_dec*FB
+	c_numeric0Rpublicmysql_numeric_typesb	decimalz	c_numeric*B>
+c_fixed0Rpublicmysql_numeric_typesb	decimalzc_fixed*PL
+c_decimal_wide0ARpublicmysql_numeric_typesb	decimalzc_decimal_wide*IE
+c_float0ÿÿÿÿÿÿÿÿÿRpublicmysql_numeric_typesbfloatzc_float*LH
+c_double0ÿÿÿÿÿÿÿÿÿRpublicmysql_numeric_typesbdoublezc_double*`\
+c_double_precision0ÿÿÿÿÿÿÿÿÿRpublicmysql_numeric_typesbdoublezc_double_precision:	query.sqlBmysql_numeric_types¿
+üSELECT id, c_bool, c_boolean, c_tinyint, c_smallint, c_mediumint, c_int, c_integer, c_bigint, c_bigint_unsigned, c_serial, c_decimal, c_dec, c_numeric, c_fixed, c_decimal_wide, c_float, c_double, c_double_precision FROM mysql_numeric_types WHERE id = ?GetMysqlNumericTypes:one"6
+id0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbbigintzid"4
+c_bool0Rmysql_numeric_typesb	tinyintzc_bool":
+	c_boolean0Rmysql_numeric_typesb	tinyintz	c_boolean"C
+	c_tinyint0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesb	tinyintz	c_tinyint"F
 
-c_datetime0Rnode_mysql_typesb
-datetimez
-c_datetime"=
-c_timestamp0Rnode_mysql_typesb	timestampzc_timestamp"7
-c_year0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbyearzc_year"7
-c_char0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbcharzc_char"9
-c_nchar0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbcharzc_nchar"I
-c_national_char0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbcharzc_national_char"7
+c_smallint0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesb
+smallintz
+c_smallint"I
+c_mediumint0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesb	mediumintzc_mediumint"7
+c_int0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbintzc_int"?
+	c_integer0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbintz	c_integer"@
+c_bigint0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbbigintzc_bigint"U
+c_bigint_unsigned0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbbigintzc_bigint_unsigned€"E
+c_serial0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbbigintzc_serial€":
+	c_decimal0Rmysql_numeric_typesb	decimalz	c_decimal"2
+c_dec0Rmysql_numeric_typesb	decimalzc_dec":
+	c_numeric0Rmysql_numeric_typesb	decimalz	c_numeric"6
+c_fixed0Rmysql_numeric_typesb	decimalzc_fixed"D
+c_decimal_wide0ARmysql_numeric_typesb	decimalzc_decimal_wide"=
+c_float0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbfloatzc_float"@
+c_double0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbdoublezc_double"T
+c_double_precision0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbdoublezc_double_precision*:6
+id0ÿÿÿÿÿÿÿÿÿRmysql_numeric_typesbbigintzid:	query.sql÷
+´INSERT INTO mysql_string_types (
+  id, c_char, c_nchar, c_national_char, c_varchar, c_tinytext, c_text, c_mediumtext, c_longtext, c_json
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)InsertMysqlStringTypes:exec*A=
+id0ÿÿÿÿÿÿÿÿÿRpublicmysql_string_typesbbigintzid*EA
+c_char0ÿÿÿÿÿÿÿÿÿRpublicmysql_string_typesbcharzc_char*GC
+c_nchar0ÿÿÿÿÿÿÿÿÿRpublicmysql_string_typesbcharzc_nchar*WS
+c_national_char0ÿÿÿÿÿÿÿÿÿRpublicmysql_string_typesbcharzc_national_char*EA
 	c_varchar0
-Rnode_mysql_typesb	varcharz	c_varchar"=
-c_binary0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbbinaryzc_binary"=
-c_varbinary0
-Rnode_mysql_typesb	varbinaryzc_varbinary"C
+Rpublicmysql_string_typesb	varcharz	c_varchar*QM
 
-c_tinyblob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
-tinyblobz
-c_tinyblob"C
-
-c_tinytext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
+c_tinytext0ÿÿÿÿÿÿÿÿÿRpublicmysql_string_typesb
 tinytextz
-c_tinytext"7
-c_blob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbblobzc_blob"7
-c_text0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbtextzc_text"I
-c_mediumblob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
-mediumblobzc_mediumblob"I
-c_mediumtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
-mediumtextzc_mediumtext"C
+c_tinytext*EA
+c_text0ÿÿÿÿÿÿÿÿÿRpublicmysql_string_typesbtextzc_text*WS
+c_mediumtext0ÿÿÿÿÿÿÿÿÿRpublicmysql_string_typesb
+mediumtextzc_mediumtext*Q	M
 
-c_longblob0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
-longblobz
-c_longblob"C
-
-c_longtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
+c_longtext0ÿÿÿÿÿÿÿÿÿRpublicmysql_string_typesb
 longtextz
-c_longtext"7
-c_json0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesbjsonzc_json:	query.sqlµ
+c_longtext*E
+A
+c_json0ÿÿÿÿÿÿÿÿÿRpublicmysql_string_typesbjsonzc_json:	query.sqlBmysql_string_typesý
+‘SELECT id, c_char, c_nchar, c_national_char, c_varchar, c_tinytext, c_text, c_mediumtext, c_longtext, c_json FROM mysql_string_types WHERE id = ?GetMysqlStringTypes:one"5
+id0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbbigintzid"9
+c_char0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbcharzc_char";
+c_nchar0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbcharzc_nchar"K
+c_national_char0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbcharzc_national_char"9
+	c_varchar0
+Rmysql_string_typesb	varcharz	c_varchar"E
+
+c_tinytext0ÿÿÿÿÿÿÿÿÿRmysql_string_typesb
+tinytextz
+c_tinytext"9
+c_text0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbtextzc_text"K
+c_mediumtext0ÿÿÿÿÿÿÿÿÿRmysql_string_typesb
+mediumtextzc_mediumtext"E
+
+c_longtext0ÿÿÿÿÿÿÿÿÿRmysql_string_typesb
+longtextz
+c_longtext"9
+c_json0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbjsonzc_json*95
+id0ÿÿÿÿÿÿÿÿÿRmysql_string_typesbbigintzid:	query.sqlÒ
+‰INSERT INTO mysql_datetime_types (
+  id, c_date, c_time, c_datetime, c_datetime_6, c_timestamp, c_year
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?
+)InsertMysqlDatetimeTypes:exec*C?
+id0ÿÿÿÿÿÿÿÿÿRpublicmysql_datetime_typesbbigintzid*GC
+c_date0ÿÿÿÿÿÿÿÿÿRpublicmysql_datetime_typesbdatezc_date*>:
+c_time0
+Rpublicmysql_datetime_typesbtimezc_time*JF
+
+c_datetime0Rpublicmysql_datetime_typesb
+datetimez
+c_datetime*NJ
+c_datetime_60Rpublicmysql_datetime_typesb
+datetimezc_datetime_6*MI
+c_timestamp0Rpublicmysql_datetime_typesb	timestampzc_timestamp*GC
+c_year0ÿÿÿÿÿÿÿÿÿRpublicmysql_datetime_typesbyearzc_year:	query.sqlBmysql_datetime_types„
+oSELECT id, c_date, c_time, c_datetime, c_datetime_6, c_timestamp, c_year FROM mysql_datetime_types WHERE id = ?GetMysqlDatetimeTypes:one"7
+id0ÿÿÿÿÿÿÿÿÿRmysql_datetime_typesbbigintzid";
+c_date0ÿÿÿÿÿÿÿÿÿRmysql_datetime_typesbdatezc_date"2
+c_time0
+Rmysql_datetime_typesbtimezc_time">
+
+c_datetime0Rmysql_datetime_typesb
+datetimez
+c_datetime"B
+c_datetime_60Rmysql_datetime_typesb
+datetimezc_datetime_6"A
+c_timestamp0Rmysql_datetime_typesb	timestampzc_timestamp";
+c_year0ÿÿÿÿÿÿÿÿÿRmysql_datetime_typesbyearzc_year*;7
+id0ÿÿÿÿÿÿÿÿÿRmysql_datetime_typesbbigintzid:	query.sqlž
+AINSERT INTO mysql_datetime_types (id, c_datetime_6) VALUES (?, ?)CopyMysqlDatetimeTypes	:copyfrom*C?
+id0ÿÿÿÿÿÿÿÿÿRpublicmysql_datetime_typesbbigintzid*NJ
+c_datetime_60Rpublicmysql_datetime_typesb
+datetimezc_datetime_6:	query.sqlBmysql_datetime_types†
+¤INSERT INTO mysql_binary_types (
+  id, c_bit, c_bit_16, c_binary, c_varbinary, c_tinyblob, c_blob, c_mediumblob, c_longblob
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?, ?, ?
+)InsertMysqlBinaryTypes:exec*A=
+id0ÿÿÿÿÿÿÿÿÿRpublicmysql_binary_typesbbigintzid*95
+c_bit0Rpublicmysql_binary_typesbbitzc_bit*?;
+c_bit_160Rpublicmysql_binary_typesbbitzc_bit_16*KG
+c_binary0ÿÿÿÿÿÿÿÿÿRpublicmysql_binary_typesbbinaryzc_binary*KG
+c_varbinary0
+Rpublicmysql_binary_typesb	varbinaryzc_varbinary*QM
+
+c_tinyblob0ÿÿÿÿÿÿÿÿÿRpublicmysql_binary_typesb
+tinyblobz
+c_tinyblob*EA
+c_blob0ÿÿÿÿÿÿÿÿÿRpublicmysql_binary_typesbblobzc_blob*WS
+c_mediumblob0ÿÿÿÿÿÿÿÿÿRpublicmysql_binary_typesb
+mediumblobzc_mediumblob*Q	M
+
+c_longblob0ÿÿÿÿÿÿÿÿÿRpublicmysql_binary_typesb
+longblobz
+c_longblob:	query.sqlBmysql_binary_types›
+„SELECT id, c_bit, c_bit_16, c_binary, c_varbinary, c_tinyblob, c_blob, c_mediumblob, c_longblob FROM mysql_binary_types WHERE id = ?GetMysqlBinaryTypes:one"5
+id0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesbbigintzid"-
+c_bit0Rmysql_binary_typesbbitzc_bit"3
+c_bit_160Rmysql_binary_typesbbitzc_bit_16"?
+c_binary0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesbbinaryzc_binary"?
+c_varbinary0
+Rmysql_binary_typesb	varbinaryzc_varbinary"E
+
+c_tinyblob0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesb
+tinyblobz
+c_tinyblob"9
+c_blob0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesbblobzc_blob"K
+c_mediumblob0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesb
+mediumblobzc_mediumblob"E
+
+c_longblob0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesb
+longblobz
+c_longblob*95
+id0ÿÿÿÿÿÿÿÿÿRmysql_binary_typesbbigintzid:	query.sqlµ
 @SELECT id, name, bio FROM authors
 ORDER BY name
 LIMIT ? OFFSET ?ListAuthorsPaged:many"*
@@ -399,75 +483,45 @@ HINSERT INTO regressions (id, `order`, note, payload) VALUES (?, ?, ?, ?)CopyR
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid:	query.sql¶
 )SELECT step FROM regressions WHERE id = ?GetRegressionStep:one"1
 step0Rregressionsbregressions_stepzstep*2.
-id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid:	query.sql½
-/SELECT id, payload FROM regressions ORDER BY idListRegressionPayloads:many".
-id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid"0
-payload0Rregressionsb	varbinaryzpayload:	query.sql§
->SELECT id, `order`, note, payload FROM regressions ORDER BY idListRegressionRows:many".
+id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid:	query.sql÷
+XSELECT id, `order`, note, payload, code, doc, flags, amount FROM regressions ORDER BY idListRegressionRows:many".
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid"-
 order0ÿRregressionsb	varcharzorder".
 note0ÿÿÿÿÿÿÿÿÿRregressionsbtextznote"0
-payload0Rregressionsb	varbinaryzpayload:	query.sql«
+payload0Rregressionsb	varbinaryzpayload"(
+code0 Rregressionsb	varcharzcode",
+doc0ÿÿÿÿÿÿÿÿÿRregressionsbjsonzdoc"&
+flags0Rregressionsbbitzflags"4
+amount0ÿÿÿÿÿÿÿÿÿRregressionsbintzamount€:	query.sql«
 ·SELECT authors.id, authors.name, authors.bio, books.id, books.name, books.author_id, books.description
 FROM authors
 LEFT JOIN books ON authors.id = books.author_id
 ORDER BY authors.idListAuthorsWithOptionalBook:many"!
 authors0ÿÿÿÿÿÿÿÿÿb r	authors"
 books0ÿÿÿÿÿÿÿÿÿb rbooks:	query.sqlC
-TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sql 
-LINSERT INTO copy_types (id, code, doc, flags, amount) VALUES (?, ?, ?, ?, ?)CopyCopyTypes	:copyfrom*95
-id0ÿÿÿÿÿÿÿÿÿRpublic
-copy_typesbbigintzid*51
-code0 Rpublic
-copy_typesb	varcharzcode*73
-doc0ÿÿÿÿÿÿÿÿÿRpublic
-copy_typesbjsonzdoc*1-
-flags0Rpublic
-copy_typesbbitzflags*?;
-amount0ÿÿÿÿÿÿÿÿÿRpublic
-copy_typesbintzamount€:	query.sqlB
-copy_typesã
-6INSERT IGNORE INTO copy_types (id, code) VALUES (?, ?)CopyCopyTypesIgnore	:copyfrom*95
-id0ÿÿÿÿÿÿÿÿÿRpublic
-copy_typesbbigintzid*51
-code0 Rpublic
-copy_typesb	varcharzcode:	query.sqlB
-copy_typesÞ
-0REPLACE INTO copy_types (id, code) VALUES (?, ?)CopyCopyTypesReplace	:copyfrom*95
-id0ÿÿÿÿÿÿÿÿÿRpublic
-copy_typesbbigintzid*51
-code0 Rpublic
-copy_typesb	varcharzcode:	query.sqlB
-copy_typesç
-DINSERT INTO copy_types (id, code, flags, amount) VALUES (?, ?, ?, ?)CreateCopyTypesBatch
-:batchexec*95
-id0ÿÿÿÿÿÿÿÿÿRpublic
-copy_typesbbigintzid*51
-code0 Rpublic
-copy_typesb	varcharzcode*1-
-flags0Rpublic
-copy_typesbbitzflags*?;
-amount0ÿÿÿÿÿÿÿÿÿRpublic
-copy_typesbintzamount€:	query.sqlB
-copy_typesö
-ESELECT count(*) AS matches FROM copy_types WHERE code = ? OR code = ?CountCopyTypesByCodes	:batchone""
-matches0ÿÿÿÿÿÿÿÿÿ@bbigint*-)
-code0 R
-copy_typesb	varcharzcode*-)
-code0 R
-copy_typesb	varcharzcode:	query.sqlÅ
-?SELECT id, code, doc, flags, amount FROM copy_types ORDER BY idListCopyTypes:many"-
-id0ÿÿÿÿÿÿÿÿÿR
-copy_typesbbigintzid")
-code0 R
-copy_typesb	varcharzcode"+
-doc0ÿÿÿÿÿÿÿÿÿR
-copy_typesbjsonzdoc"%
-flags0R
-copy_typesbbitzflags"3
-amount0ÿÿÿÿÿÿÿÿÿR
-copy_typesbintzamount€:	query.sql@
-TRUNCATE TABLE copy_typesTruncateCopyTypes:exec:	query.sql±
+TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sql«
+MINSERT INTO regressions (id, code, doc, flags, amount) VALUES (?, ?, ?, ?, ?)CopyRegressionTypes	:copyfrom*:6
+id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbigintzid*40
+code0 Rpublicregressionsb	varcharzcode*84
+doc0ÿÿÿÿÿÿÿÿÿRpublicregressionsbjsonzdoc*2.
+flags0Rpublicregressionsbbitzflags*@<
+amount0ÿÿÿÿÿÿÿÿÿRpublicregressionsbintzamount€:	query.sqlBregressionsç
+7INSERT IGNORE INTO regressions (id, code) VALUES (?, ?)CopyRegressionsIgnore	:copyfrom*:6
+id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbigintzid*40
+code0 Rpublicregressionsb	varcharzcode:	query.sqlBregressionsâ
+1REPLACE INTO regressions (id, code) VALUES (?, ?)CopyRegressionsReplace	:copyfrom*:6
+id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbigintzid*40
+code0 Rpublicregressionsb	varcharzcode:	query.sqlBregressionsí
+EINSERT INTO regressions (id, code, flags, amount) VALUES (?, ?, ?, ?)CreateRegressionsBatch
+:batchexec*:6
+id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbigintzid*40
+code0 Rpublicregressionsb	varcharzcode*2.
+flags0Rpublicregressionsbbitzflags*@<
+amount0ÿÿÿÿÿÿÿÿÿRpublicregressionsbintzamount€:	query.sqlBregressions÷
+FSELECT count(*) AS matches FROM regressions WHERE code = ? OR code = ?CountRegressionsByCodes	:batchone""
+matches0ÿÿÿÿÿÿÿÿÿ@bbigint*,(
+code0 Rregressionsb	varcharzcode*,(
+code0 Rregressionsb	varcharzcode:	query.sql±
 %SELECT id FROM authors WHERE name = ?FindAuthorsByExactName:many"*
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid*2.
 name0ÿÿÿÿÿÿÿÿÿ8R	authorsbtextzname:	query.sqlî
@@ -475,89 +529,7 @@ copy_typesbintzamount€:	query.sql@
 WHERE name = ? AND '?' = '?' AND "?" = "?" /* ? */
 ORDER BY idGetAuthorWithQuestionMarks:many"*
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid*0,
-name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname2 ?:	query.sql³
-
-õINSERT INTO mysql_binding_values (
-  id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value,
-  datetime_value, datetime_2, bool_value, nullable_value
-) VALUES (
-  ?, ?, ?, ?, ?,
-  ?, ?, ?, ?,
-  ?, ?, ?
-)InsertMysqlBindingValues:exec*EA
-id0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbbigintzid*UQ
-
-text_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesb
-longtextz
-text_value*UQ
-
-blob_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesb
-longblobz
-blob_value*WS
-signed_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbbigintzsigned_value*^Z
-unsigned_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbbigintzunsigned_value€*QM
-decimal_value0A8Rpublicmysql_binding_valuesb	decimalzdecimal_value*UQ
-float_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbdoublezfloat_value*QM
-
-date_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbdatez
-date_value*T	P
-datetime_value08Rpublicmysql_binding_valuesb
-datetimezdatetime_value*L
-H
-
-datetime_208Rpublicmysql_binding_valuesb
-datetimez
-datetime_2*KG
-
-bool_value08Rpublicmysql_binding_valuesb	tinyintz
-bool_value*YU
-nullable_value0ÿÿÿÿÿÿÿÿÿ8Rpublicmysql_binding_valuesbtextznullable_value:	query.sqlBmysql_binding_values³
-÷SELECT id, text_value, blob_value, signed_value, unsigned_value, decimal_value, float_value, date_value, datetime_value, datetime_2, bool_value, nullable_value, bit_value, year_value, time_value, json_unicode FROM mysql_binding_values WHERE id = ?GetMysqlBindingValues:one"7
-id0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigintzid"G
-
-text_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
-longtextz
-text_value"G
-
-blob_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesb
-longblobz
-blob_value"I
-signed_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigintzsigned_value"P
-unsigned_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbbigintzunsigned_value€"C
-decimal_value0ARmysql_binding_valuesb	decimalzdecimal_value"G
-float_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdoublezfloat_value"C
-
-date_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbdatez
-date_value"F
-datetime_value0Rmysql_binding_valuesb
-datetimezdatetime_value">
-
-datetime_20Rmysql_binding_valuesb
-datetimez
-datetime_2"=
-
-bool_value0Rmysql_binding_valuesb	tinyintz
-bool_value"K
-nullable_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbtextznullable_value"7
-	bit_value0Rmysql_binding_valuesbbitz	bit_value"C
-
-year_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbyearz
-year_value":
-
-time_value0
-Rmysql_binding_valuesbtimez
-time_value"G
-json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjsonzjson_unicode*=9
-id0ÿÿÿÿÿÿÿÿÿ8Rmysql_binding_valuesbbigintzid:	query.sqlS
-#TRUNCATE TABLE mysql_binding_valuesTruncateMysqlBindingValues:exec:	query.sqlþ
-RINSERT INTO mysql_binding_values (id, datetime_value, datetime_2) VALUES (?, ?, ?)CopyMysqlBindingTimes	:copyfrom*C?
-id0ÿÿÿÿÿÿÿÿÿRpublicmysql_binding_valuesbbigintzid*RN
-datetime_value0Rpublicmysql_binding_valuesb
-datetimezdatetime_value*JF
-
-datetime_20Rpublicmysql_binding_valuesb
-datetimez
-datetime_2:	query.sqlBmysql_binding_values¬
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname2 ?:	query.sql¬
 šINSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`, `initialize`)
 VALUES (?, ?, ?, ?, ?, ?,
         ?, ?, ?)InsertNameCase:exec*;7

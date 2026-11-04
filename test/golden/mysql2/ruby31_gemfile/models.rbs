@@ -32,124 +32,6 @@ module Mysql2Codegen
     def self.new: (  id: ::Integer, name: ::String, bio: ::String?) -> Author
   end
 
-  class NodeMysqlType < ::Struct[untyped]
-    attr_accessor c_bit: ::String?
-    attr_accessor c_tinyint: ::Integer?
-    attr_accessor c_bool: ::Integer?
-    attr_accessor c_boolean: ::Integer?
-    attr_accessor c_smallint: ::Integer?
-    attr_accessor c_mediumint: ::Integer?
-    attr_accessor c_int: ::Integer?
-    attr_accessor c_integer: ::Integer?
-    attr_accessor c_bigint: ::Integer?
-    attr_accessor c_serial: ::Integer
-    attr_accessor c_decimal: ::BigDecimal?
-    attr_accessor c_dec: ::BigDecimal?
-    attr_accessor c_numeric: ::BigDecimal?
-    attr_accessor c_fixed: ::BigDecimal?
-    attr_accessor c_float: ::Float?
-    attr_accessor c_double: ::Float?
-    attr_accessor c_double_precision: ::Float?
-    attr_accessor c_date: ::Date?
-    attr_accessor c_time: ::Time?
-    attr_accessor c_datetime: ::Time?
-    attr_accessor c_timestamp: ::Time?
-    attr_accessor c_year: ::Integer?
-    attr_accessor c_char: ::String?
-    attr_accessor c_nchar: ::String?
-    attr_accessor c_national_char: ::String?
-    attr_accessor c_varchar: ::String?
-    attr_accessor c_binary: ::String?
-    attr_accessor c_varbinary: ::String?
-    attr_accessor c_tinyblob: ::String?
-    attr_accessor c_tinytext: ::String?
-    attr_accessor c_blob: ::String?
-    attr_accessor c_text: ::String?
-    attr_accessor c_mediumblob: ::String?
-    attr_accessor c_mediumtext: ::String?
-    attr_accessor c_longblob: ::String?
-    attr_accessor c_longtext: ::String?
-    attr_accessor c_json: ::String?
-    def initialize: (
-        c_bit: ::String?,
-        c_tinyint: ::Integer?,
-        c_bool: ::Integer?,
-        c_boolean: ::Integer?,
-        c_smallint: ::Integer?,
-        c_mediumint: ::Integer?,
-        c_int: ::Integer?,
-        c_integer: ::Integer?,
-        c_bigint: ::Integer?,
-        c_serial: ::Integer,
-        c_decimal: ::BigDecimal?,
-        c_dec: ::BigDecimal?,
-        c_numeric: ::BigDecimal?,
-        c_fixed: ::BigDecimal?,
-        c_float: ::Float?,
-        c_double: ::Float?,
-        c_double_precision: ::Float?,
-        c_date: ::Date?,
-        c_time: ::Time?,
-        c_datetime: ::Time?,
-        c_timestamp: ::Time?,
-        c_year: ::Integer?,
-        c_char: ::String?,
-        c_nchar: ::String?,
-        c_national_char: ::String?,
-        c_varchar: ::String?,
-        c_binary: ::String?,
-        c_varbinary: ::String?,
-        c_tinyblob: ::String?,
-        c_tinytext: ::String?,
-        c_blob: ::String?,
-        c_text: ::String?,
-        c_mediumblob: ::String?,
-        c_mediumtext: ::String?,
-        c_longblob: ::String?,
-        c_longtext: ::String?,
-        c_json: ::String?
-    ) -> void
-    def self.new: (
-        c_bit: ::String?,
-        c_tinyint: ::Integer?,
-        c_bool: ::Integer?,
-        c_boolean: ::Integer?,
-        c_smallint: ::Integer?,
-        c_mediumint: ::Integer?,
-        c_int: ::Integer?,
-        c_integer: ::Integer?,
-        c_bigint: ::Integer?,
-        c_serial: ::Integer,
-        c_decimal: ::BigDecimal?,
-        c_dec: ::BigDecimal?,
-        c_numeric: ::BigDecimal?,
-        c_fixed: ::BigDecimal?,
-        c_float: ::Float?,
-        c_double: ::Float?,
-        c_double_precision: ::Float?,
-        c_date: ::Date?,
-        c_time: ::Time?,
-        c_datetime: ::Time?,
-        c_timestamp: ::Time?,
-        c_year: ::Integer?,
-        c_char: ::String?,
-        c_nchar: ::String?,
-        c_national_char: ::String?,
-        c_varchar: ::String?,
-        c_binary: ::String?,
-        c_varbinary: ::String?,
-        c_tinyblob: ::String?,
-        c_tinytext: ::String?,
-        c_blob: ::String?,
-        c_text: ::String?,
-        c_mediumblob: ::String?,
-        c_mediumtext: ::String?,
-        c_longblob: ::String?,
-        c_longtext: ::String?,
-        c_json: ::String?
-    ) -> NodeMysqlType
-  end
-
   class Book < ::Struct[untyped]
     attr_accessor id: ::Integer
     attr_accessor name: ::String
@@ -174,97 +56,32 @@ module Mysql2Codegen
     attr_accessor note: ::String?
     attr_accessor payload: ::String?
     attr_accessor step: ::String?
-    def initialize: (
-        id: ::Integer,
-        order: ::String,
-        note: ::String?,
-        payload: ::String?,
-        step: ::String?
-    ) -> void
-    def self.new: (
-        id: ::Integer,
-        order: ::String,
-        note: ::String?,
-        payload: ::String?,
-        step: ::String?
-    ) -> Regression
-  end
-
-  class CopyType < ::Struct[untyped]
-    attr_accessor id: ::Integer
-    attr_accessor code: ::String
+    attr_accessor code: ::String?
     attr_accessor doc: ::String?
     attr_accessor flags: ::String?
     attr_accessor amount: ::Integer?
     def initialize: (
         id: ::Integer,
-        code: ::String,
+        order: ::String,
+        note: ::String?,
+        payload: ::String?,
+        step: ::String?,
+        code: ::String?,
         doc: ::String?,
         flags: ::String?,
         amount: ::Integer?
     ) -> void
     def self.new: (
         id: ::Integer,
-        code: ::String,
+        order: ::String,
+        note: ::String?,
+        payload: ::String?,
+        step: ::String?,
+        code: ::String?,
         doc: ::String?,
         flags: ::String?,
         amount: ::Integer?
-    ) -> CopyType
-  end
-
-  class MysqlBindingValu < ::Struct[untyped]
-    attr_accessor id: ::Integer
-    attr_accessor text_value: ::String?
-    attr_accessor blob_value: ::String?
-    attr_accessor signed_value: ::Integer?
-    attr_accessor unsigned_value: ::Integer?
-    attr_accessor decimal_value: ::BigDecimal?
-    attr_accessor float_value: ::Float?
-    attr_accessor date_value: ::Date?
-    attr_accessor datetime_value: ::Time?
-    attr_accessor datetime_2: ::Time?
-    attr_accessor bool_value: ::Integer?
-    attr_accessor nullable_value: ::String?
-    attr_accessor bit_value: ::String?
-    attr_accessor year_value: ::Integer?
-    attr_accessor time_value: ::Time?
-    attr_accessor json_unicode: ::String?
-    def initialize: (
-        id: ::Integer,
-        text_value: ::String?,
-        blob_value: ::String?,
-        signed_value: ::Integer?,
-        unsigned_value: ::Integer?,
-        decimal_value: ::BigDecimal?,
-        float_value: ::Float?,
-        date_value: ::Date?,
-        datetime_value: ::Time?,
-        datetime_2: ::Time?,
-        bool_value: ::Integer?,
-        nullable_value: ::String?,
-        bit_value: ::String?,
-        year_value: ::Integer?,
-        time_value: ::Time?,
-        json_unicode: ::String?
-    ) -> void
-    def self.new: (
-        id: ::Integer,
-        text_value: ::String?,
-        blob_value: ::String?,
-        signed_value: ::Integer?,
-        unsigned_value: ::Integer?,
-        decimal_value: ::BigDecimal?,
-        float_value: ::Float?,
-        date_value: ::Date?,
-        datetime_value: ::Time?,
-        datetime_2: ::Time?,
-        bool_value: ::Integer?,
-        nullable_value: ::String?,
-        bit_value: ::String?,
-        year_value: ::Integer?,
-        time_value: ::Time?,
-        json_unicode: ::String?
-    ) -> MysqlBindingValu
+    ) -> Regression
   end
 
   class Mixedcasecopy < ::Struct[untyped]
@@ -390,5 +207,168 @@ module Mysql2Codegen
     attr_accessor id: ::Integer
     def initialize: (  id: ::Integer) -> void
     def self.new: (  id: ::Integer) -> ConnectionPool
+  end
+
+  class MysqlNumericType < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor c_bool: ::Integer?
+    attr_accessor c_boolean: ::Integer?
+    attr_accessor c_tinyint: ::Integer?
+    attr_accessor c_smallint: ::Integer?
+    attr_accessor c_mediumint: ::Integer?
+    attr_accessor c_int: ::Integer?
+    attr_accessor c_integer: ::Integer?
+    attr_accessor c_bigint: ::Integer?
+    attr_accessor c_bigint_unsigned: ::Integer?
+    attr_accessor c_serial: ::Integer
+    attr_accessor c_decimal: ::BigDecimal?
+    attr_accessor c_dec: ::BigDecimal?
+    attr_accessor c_numeric: ::BigDecimal?
+    attr_accessor c_fixed: ::BigDecimal?
+    attr_accessor c_decimal_wide: ::BigDecimal?
+    attr_accessor c_float: ::Float?
+    attr_accessor c_double: ::Float?
+    attr_accessor c_double_precision: ::Float?
+    def initialize: (
+        id: ::Integer,
+        c_bool: ::Integer?,
+        c_boolean: ::Integer?,
+        c_tinyint: ::Integer?,
+        c_smallint: ::Integer?,
+        c_mediumint: ::Integer?,
+        c_int: ::Integer?,
+        c_integer: ::Integer?,
+        c_bigint: ::Integer?,
+        c_bigint_unsigned: ::Integer?,
+        c_serial: ::Integer,
+        c_decimal: ::BigDecimal?,
+        c_dec: ::BigDecimal?,
+        c_numeric: ::BigDecimal?,
+        c_fixed: ::BigDecimal?,
+        c_decimal_wide: ::BigDecimal?,
+        c_float: ::Float?,
+        c_double: ::Float?,
+        c_double_precision: ::Float?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        c_bool: ::Integer?,
+        c_boolean: ::Integer?,
+        c_tinyint: ::Integer?,
+        c_smallint: ::Integer?,
+        c_mediumint: ::Integer?,
+        c_int: ::Integer?,
+        c_integer: ::Integer?,
+        c_bigint: ::Integer?,
+        c_bigint_unsigned: ::Integer?,
+        c_serial: ::Integer,
+        c_decimal: ::BigDecimal?,
+        c_dec: ::BigDecimal?,
+        c_numeric: ::BigDecimal?,
+        c_fixed: ::BigDecimal?,
+        c_decimal_wide: ::BigDecimal?,
+        c_float: ::Float?,
+        c_double: ::Float?,
+        c_double_precision: ::Float?
+    ) -> MysqlNumericType
+  end
+
+  class MysqlStringType < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor c_char: ::String?
+    attr_accessor c_nchar: ::String?
+    attr_accessor c_national_char: ::String?
+    attr_accessor c_varchar: ::String?
+    attr_accessor c_tinytext: ::String?
+    attr_accessor c_text: ::String?
+    attr_accessor c_mediumtext: ::String?
+    attr_accessor c_longtext: ::String?
+    attr_accessor c_json: ::String?
+    def initialize: (
+        id: ::Integer,
+        c_char: ::String?,
+        c_nchar: ::String?,
+        c_national_char: ::String?,
+        c_varchar: ::String?,
+        c_tinytext: ::String?,
+        c_text: ::String?,
+        c_mediumtext: ::String?,
+        c_longtext: ::String?,
+        c_json: ::String?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        c_char: ::String?,
+        c_nchar: ::String?,
+        c_national_char: ::String?,
+        c_varchar: ::String?,
+        c_tinytext: ::String?,
+        c_text: ::String?,
+        c_mediumtext: ::String?,
+        c_longtext: ::String?,
+        c_json: ::String?
+    ) -> MysqlStringType
+  end
+
+  class MysqlDatetimeType < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor c_date: ::Date?
+    attr_accessor c_time: ::Time?
+    attr_accessor c_datetime: ::Time?
+    attr_accessor c_datetime_6: ::Time?
+    attr_accessor c_timestamp: ::Time?
+    attr_accessor c_year: ::Integer?
+    def initialize: (
+        id: ::Integer,
+        c_date: ::Date?,
+        c_time: ::Time?,
+        c_datetime: ::Time?,
+        c_datetime_6: ::Time?,
+        c_timestamp: ::Time?,
+        c_year: ::Integer?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        c_date: ::Date?,
+        c_time: ::Time?,
+        c_datetime: ::Time?,
+        c_datetime_6: ::Time?,
+        c_timestamp: ::Time?,
+        c_year: ::Integer?
+    ) -> MysqlDatetimeType
+  end
+
+  class MysqlBinaryType < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor c_bit: ::String?
+    attr_accessor c_bit_16: ::String?
+    attr_accessor c_binary: ::String?
+    attr_accessor c_varbinary: ::String?
+    attr_accessor c_tinyblob: ::String?
+    attr_accessor c_blob: ::String?
+    attr_accessor c_mediumblob: ::String?
+    attr_accessor c_longblob: ::String?
+    def initialize: (
+        id: ::Integer,
+        c_bit: ::String?,
+        c_bit_16: ::String?,
+        c_binary: ::String?,
+        c_varbinary: ::String?,
+        c_tinyblob: ::String?,
+        c_blob: ::String?,
+        c_mediumblob: ::String?,
+        c_longblob: ::String?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        c_bit: ::String?,
+        c_bit_16: ::String?,
+        c_binary: ::String?,
+        c_varbinary: ::String?,
+        c_tinyblob: ::String?,
+        c_blob: ::String?,
+        c_mediumblob: ::String?,
+        c_longblob: ::String?
+    ) -> MysqlBinaryType
   end
 end

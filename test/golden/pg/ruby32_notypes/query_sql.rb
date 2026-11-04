@@ -40,15 +40,21 @@ module PgCodegen
     WHERE id = $1
   SQL
 
-  TEST_SQL = <<~'SQL'
-    SELECT c_bit, c_smallint, c_boolean, c_integer, c_bigint, c_serial, c_decimal, c_numeric, c_real, c_double_precision, c_date, c_time, c_timestamp, c_char, c_varchar, c_bytea, c_text, c_json FROM node_postgres_types
-    LIMIT 1
+  INSERT_POSTGRES_NUMERIC_TYPES_SQL = <<~'SQL'
+    INSERT INTO postgres_numeric_types (
+      c_boolean, c_smallint, c_integer, c_bigint, c_decimal, c_numeric, c_real, c_double_precision, c_money, c_oid, c_positive
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+    )
   SQL
 
-  class TestRow < ::Data.define(
-    :c_bit,
-    :c_smallint,
+  GET_POSTGRES_NUMERIC_TYPES_SQL = <<~'SQL'
+    SELECT c_boolean, c_smallint, c_integer, c_bigint, c_serial, c_decimal, c_numeric, c_real, c_double_precision, c_money, c_oid, c_positive FROM postgres_numeric_types LIMIT 1
+  SQL
+
+  class GetPostgresNumericTypesRow < ::Data.define(
     :c_boolean,
+    :c_smallint,
     :c_integer,
     :c_bigint,
     :c_serial,
@@ -56,36 +62,170 @@ module PgCodegen
     :c_numeric,
     :c_real,
     :c_double_precision,
-    :c_date,
-    :c_time,
-    :c_timestamp,
-    :c_char,
-    :c_varchar,
-    :c_bytea,
-    :c_text,
-    :c_json
+    :c_money,
+    :c_oid,
+    :c_positive
   )
   end
 
-  SET_JSON_ROUND_TRIP_SQL = <<~'SQL'
-    INSERT INTO json_round_trips (id, json_value, jsonb_value) VALUES ($1, $2, $3)
+  INSERT_POSTGRES_STRING_TYPES_SQL = <<~'SQL'
+    INSERT INTO postgres_string_types (
+      c_char, c_varchar, c_text, c_not_null, c_xml, c_tsvector, c_ltree, c_hstore, c_regclass
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9
+    )
   SQL
 
-  GET_JSON_ROUND_TRIP_SQL = <<~'SQL'
-    SELECT json_value, jsonb_value FROM json_round_trips WHERE id = $1
+  GET_POSTGRES_STRING_TYPES_SQL = <<~'SQL'
+    SELECT c_char, c_varchar, c_text, c_not_null, c_xml, c_tsvector, c_ltree, c_hstore, c_regclass FROM postgres_string_types LIMIT 1
   SQL
 
-  class GetJSONRoundTripRow < ::Data.define(:json_value, :jsonb_value)
+  class GetPostgresStringTypesRow < ::Data.define(
+    :c_char,
+    :c_varchar,
+    :c_text,
+    :c_not_null,
+    :c_xml,
+    :c_tsvector,
+    :c_ltree,
+    :c_hstore,
+    :c_regclass
+  )
   end
 
-  TOGGLE_JSONB_ROUND_TRIP_SQL = <<~'SQL'
-    UPDATE json_round_trips
-    SET jsonb_value = to_jsonb(NOT (jsonb_value #>> '{}')::boolean)
+  INSERT_POSTGRES_DATETIME_TYPES_SQL = <<~'SQL'
+    INSERT INTO postgres_datetime_types (
+      c_date, c_time, c_timetz, c_timestamp, c_timestamptz, c_interval
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6
+    )
+  SQL
+
+  GET_POSTGRES_DATETIME_TYPES_SQL = <<~'SQL'
+    SELECT c_date, c_time, c_timetz, c_timestamp, c_timestamptz, c_interval FROM postgres_datetime_types LIMIT 1
+  SQL
+
+  class GetPostgresDatetimeTypesRow < ::Data.define(
+    :c_date,
+    :c_time,
+    :c_timetz,
+    :c_timestamp,
+    :c_timestamptz,
+    :c_interval
+  )
+  end
+
+  INSERT_POSTGRES_JSON_TYPES_SQL = <<~'SQL'
+    INSERT INTO postgres_json_types (id, c_json, c_jsonb) VALUES ($1, $2, $3)
+  SQL
+
+  GET_POSTGRES_JSON_TYPES_SQL = <<~'SQL'
+    SELECT c_json, c_jsonb FROM postgres_json_types WHERE id = $1
+  SQL
+
+  class GetPostgresJSONTypesRow < ::Data.define(:c_json, :c_jsonb)
+  end
+
+  TOGGLE_POSTGRES_JSONB_TYPE_SQL = <<~'SQL'
+    UPDATE postgres_json_types
+    SET c_jsonb = to_jsonb(NOT (c_jsonb #>> '{}')::boolean)
     WHERE id = $1
   SQL
 
-  TRUNCATE_JSON_ROUND_TRIPS_SQL = <<~'SQL'
-    TRUNCATE TABLE json_round_trips
+  INSERT_POSTGRES_ARRAY_TYPES_SQL = <<~'SQL'
+    INSERT INTO postgres_array_types (
+      id, c_boolean, c_double_precision, c_text_array, c_integer_array, c_uuid_array, c_bio_type_array, c_bytea_array, c_jsonb_array, c_numeric_array, c_timestamptz_array, c_integer_matrix, c_text_matrix
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+    )
+  SQL
+
+  LIST_POSTGRES_ARRAY_TYPES_SQL = <<~'SQL'
+    SELECT id, c_boolean, c_double_precision, c_text_array, c_integer_array, c_uuid_array, c_bio_type_array, c_bytea_array, c_jsonb_array, c_numeric_array, c_timestamptz_array, c_integer_matrix, c_text_matrix FROM postgres_array_types ORDER BY id
+  SQL
+
+  class ListPostgresArrayTypesRow < ::Data.define(
+    :id,
+    :c_boolean,
+    :c_double_precision,
+    :c_text_array,
+    :c_integer_array,
+    :c_uuid_array,
+    :c_bio_type_array,
+    :c_bytea_array,
+    :c_jsonb_array,
+    :c_numeric_array,
+    :c_timestamptz_array,
+    :c_integer_matrix,
+    :c_text_matrix
+  )
+  end
+
+  INSERT_POSTGRES_ARRAY_TYPES_BATCH_SQL = <<~'SQL'
+    INSERT INTO postgres_array_types (id, c_boolean, c_double_precision, c_bytea_array, c_jsonb_array, c_integer_array, c_numeric_array, c_timestamptz_array) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+  SQL
+
+  class InsertPostgresArrayTypesBatchArgs < ::Data.define(
+    :id,
+    :c_boolean,
+    :c_double_precision,
+    :c_bytea_array,
+    :c_jsonb_array,
+    :c_integer_array,
+    :c_numeric_array,
+    :c_timestamptz_array
+  )
+  end
+
+  class CopyPostgresArrayTypesArgs < ::Data.define(
+    :id,
+    :c_boolean,
+    :c_double_precision,
+    :c_bytea_array,
+    :c_jsonb_array,
+    :c_integer_array,
+    :c_numeric_array,
+    :c_timestamptz_array
+  )
+  end
+
+  COUNT_POSTGRES_ARRAY_TYPES_ABOVE_SQL = <<~'SQL'
+    SELECT count(*) FROM postgres_array_types WHERE id > $1
+  SQL
+
+  class CountPostgresArrayTypesAboveRow < ::Data.define(:count)
+  end
+
+  INSERT_POSTGRES_SPECIAL_TYPES_SQL = <<~'SQL'
+    INSERT INTO postgres_special_types (
+      c_bytea, c_bit, c_varbit, c_uuid, c_inet, c_cidr, c_macaddr, c_point, c_int4range, c_dimensions
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    )
+  SQL
+
+  GET_POSTGRES_SPECIAL_TYPES_SQL = <<~'SQL'
+    SELECT c_bytea, c_bit, c_varbit, c_uuid, c_inet, c_cidr, c_macaddr, c_point, c_int4range, c_dimensions FROM postgres_special_types LIMIT 1
+  SQL
+
+  class GetPostgresSpecialTypesRow < ::Data.define(
+    :c_bytea,
+    :c_bit,
+    :c_varbit,
+    :c_uuid,
+    :c_inet,
+    :c_cidr,
+    :c_macaddr,
+    :c_point,
+    :c_int4range,
+    :c_dimensions
+  )
+  end
+
+  TRUNCATE_TEST_TABLES_SQL = <<~'SQL'
+    TRUNCATE TABLE
+      postgres_numeric_types, postgres_string_types, postgres_datetime_types, postgres_json_types, postgres_array_types,
+      postgres_special_types, extended.bios, regressions, name_cases, "MixedCaseCopies", deferred_books
   SQL
 
   PAUSE_QUERY_SQL = <<~'SQL'
@@ -170,10 +310,6 @@ module PgCodegen
     INSERT INTO deferred_books (author_id) VALUES ($1)
   SQL
 
-  TRUNCATE_DEFERRED_BOOKS_SQL = <<~'SQL'
-    TRUNCATE TABLE deferred_books
-  SQL
-
   LIST_ALL_AUTHORS_BOOKS_SQL = <<~'SQL'
     SELECT
         authors.id, authors.name, authors.bio,
@@ -220,84 +356,6 @@ module PgCodegen
   class GetFirstExtendedBioByTypeRow < ::Data.define(:author_name, :name, :bio_type)
   end
 
-  TRUNCATE_EXTENDED_BIOS_SQL = <<~'SQL'
-    TRUNCATE TABLE extended.bios
-  SQL
-
-  INSERT_EXTRA_TYPES_SQL = <<~'SQL'
-    INSERT INTO postgres_extra_types (c_uuid, c_jsonb, c_text_array, c_integer_array, c_timestamptz, c_inet, c_money, c_not_null)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-  SQL
-
-  GET_EXTRA_TYPES_SQL = <<~'SQL'
-    SELECT c_uuid, c_jsonb, c_text_array, c_integer_array, c_timestamptz, c_inet, c_money, c_not_null FROM postgres_extra_types LIMIT 1
-  SQL
-
-  class GetExtraTypesRow < ::Data.define(
-    :c_uuid,
-    :c_jsonb,
-    :c_text_array,
-    :c_integer_array,
-    :c_timestamptz,
-    :c_inet,
-    :c_money,
-    :c_not_null
-  )
-  end
-
-  TRUNCATE_EXTRA_TYPES_SQL = <<~'SQL'
-    TRUNCATE TABLE postgres_extra_types
-  SQL
-
-  INSERT_REMAINING_TYPES_SQL = <<~'SQL'
-    INSERT INTO postgres_remaining_types (
-      c_hstore, c_ltree, c_regclass, c_cidr, c_macaddr, c_interval, c_varbit, c_xml,
-      c_numeric, c_bigint, c_timestamp, c_timestamptz, c_text_matrix
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
-    )
-  SQL
-
-  GET_REMAINING_TYPES_SQL = <<~'SQL'
-    SELECT c_hstore, c_ltree, c_regclass, c_cidr, c_macaddr, c_interval, c_varbit, c_xml, c_numeric, c_bigint, c_timestamp, c_timestamptz, c_text_matrix FROM postgres_remaining_types LIMIT 1
-  SQL
-
-  class GetRemainingTypesRow < ::Data.define(
-    :c_hstore,
-    :c_ltree,
-    :c_regclass,
-    :c_cidr,
-    :c_macaddr,
-    :c_interval,
-    :c_varbit,
-    :c_xml,
-    :c_numeric,
-    :c_bigint,
-    :c_timestamp,
-    :c_timestamptz,
-    :c_text_matrix
-  )
-  end
-
-  TRUNCATE_REMAINING_TYPES_SQL = <<~'SQL'
-    TRUNCATE TABLE postgres_remaining_types
-  SQL
-
-  INSERT_ARRAY_TYPES_SQL = <<~'SQL'
-    INSERT INTO postgres_array_types (c_uuid_array, c_bio_type_array, c_integer_matrix) VALUES ($1, $2, $3)
-  SQL
-
-  GET_ARRAY_TYPES_SQL = <<~'SQL'
-    SELECT c_uuid_array, c_bio_type_array, c_integer_matrix FROM postgres_array_types LIMIT 1
-  SQL
-
-  class GetArrayTypesRow < ::Data.define(:c_uuid_array, :c_bio_type_array, :c_integer_matrix)
-  end
-
-  TRUNCATE_ARRAY_TYPES_SQL = <<~'SQL'
-    TRUNCATE TABLE postgres_array_types
-  SQL
-
   LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL = <<~'SQL'
     SELECT
         authors.id, authors.name, authors.bio,
@@ -318,30 +376,6 @@ module PgCodegen
 
   class ListAuthorsBetweenIdsRow < ::Data.define(:id, :name, :bio)
   end
-
-  INSERT_SPECIAL_TYPES_SQL = <<~'SQL'
-    INSERT INTO postgres_special_types (c_timetz, c_tsvector, c_point, c_int4range, c_oid, c_dimensions, c_positive)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-  SQL
-
-  GET_SPECIAL_TYPES_SQL = <<~'SQL'
-    SELECT c_timetz, c_tsvector, c_point, c_int4range, c_oid, c_dimensions, c_positive FROM postgres_special_types LIMIT 1
-  SQL
-
-  class GetSpecialTypesRow < ::Data.define(
-    :c_timetz,
-    :c_tsvector,
-    :c_point,
-    :c_int4range,
-    :c_oid,
-    :c_dimensions,
-    :c_positive
-  )
-  end
-
-  TRUNCATE_SPECIAL_TYPES_SQL = <<~'SQL'
-    TRUNCATE TABLE postgres_special_types
-  SQL
 
   CREATE_AUTHOR_RESULT_SQL = <<~'SQL'
     INSERT INTO authors (name, bio) VALUES ($1, $2)
@@ -428,65 +462,6 @@ module PgCodegen
   class SetRegressionStepRow < ::Data.define(:step)
   end
 
-  TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
-    TRUNCATE TABLE regressions
-  SQL
-
-  CREATE_BATCH_TYPES_BATCH_SQL = <<~'SQL'
-    INSERT INTO batch_types (id, ok, ratio, blobs, docs, counts, amounts, stamps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-  SQL
-
-  class CreateBatchTypesBatchArgs < ::Data.define(
-    :id,
-    :ok,
-    :ratio,
-    :blobs,
-    :docs,
-    :counts,
-    :amounts,
-    :stamps
-  )
-  end
-
-  class CopyBatchTypesArgs < ::Data.define(
-    :id,
-    :ok,
-    :ratio,
-    :blobs,
-    :docs,
-    :counts,
-    :amounts,
-    :stamps
-  )
-  end
-
-  LIST_BATCH_TYPES_SQL = <<~'SQL'
-    SELECT id, ok, ratio, blobs, docs, counts, amounts, stamps FROM batch_types ORDER BY id
-  SQL
-
-  class ListBatchTypesRow < ::Data.define(
-    :id,
-    :ok,
-    :ratio,
-    :blobs,
-    :docs,
-    :counts,
-    :amounts,
-    :stamps
-  )
-  end
-
-  COUNT_BATCH_TYPES_ABOVE_SQL = <<~'SQL'
-    SELECT count(*) FROM batch_types WHERE id > $1
-  SQL
-
-  class CountBatchTypesAboveRow < ::Data.define(:count)
-  end
-
-  TRUNCATE_BATCH_TYPES_SQL = <<~'SQL'
-    TRUNCATE TABLE batch_types
-  SQL
-
   INSERT_NAME_CASE_SQL = <<~'SQL'
     INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer", "initialize")
     VALUES ($1, $2, $3, $4, $5, $6,
@@ -535,10 +510,6 @@ module PgCodegen
   end
   # rubocop:enable Naming/MethodName
 
-  TRUNCATE_NAME_CASES_SQL = <<~'SQL'
-    TRUNCATE TABLE name_cases
-  SQL
-
   class CopyMixedCaseCopiesArgs < ::Data.define(:id, :some_value)
   end
 
@@ -550,10 +521,6 @@ module PgCodegen
   class ListMixedCaseCopiesRow < ::Data.define(:Id, :SomeValue)
   end
   # rubocop:enable Naming/MethodName
-
-  TRUNCATE_MIXED_CASE_COPIES_SQL = <<~'SQL'
-    TRUNCATE TABLE "MixedCaseCopies"
-  SQL
 
   GET_UNNAMED_COLUMNS_SQL = <<~'SQL'
     SELECT 1, 'two'
@@ -772,14 +739,33 @@ module PgCodegen
       end
     end
 
-    def test
-      with_client('test') do |client|
-        result = run_prepared(client, 'PgCodegen::QuerySql#test', TEST_SQL)
+    def insert_postgres_numeric_types(c_boolean:, c_smallint:, c_integer:, c_bigint:, c_decimal:, c_numeric:, c_real:, c_double_precision:, c_money:, c_oid:, c_positive:)
+      with_client('insert_postgres_numeric_types') do |client|
+        query_params = [
+          c_boolean,
+          c_smallint,
+          c_integer,
+          c_bigint,
+          c_decimal,
+          c_numeric,
+          encode_float(c_real),
+          encode_float(c_double_precision),
+          c_money,
+          c_oid,
+          c_positive
+        ]
+        run_prepared(client, 'PgCodegen::QuerySql#insert_postgres_numeric_types', INSERT_POSTGRES_NUMERIC_TYPES_SQL, query_params)
+        nil
+      end
+    end
+
+    def get_postgres_numeric_types
+      with_client('get_postgres_numeric_types') do |client|
+        result = run_prepared(client, 'PgCodegen::QuerySql#get_postgres_numeric_types', GET_POSTGRES_NUMERIC_TYPES_SQL)
         row = result.first
-        row && TestRow.new(
-          row['c_bit'],
-          row['c_smallint'],
+        row && GetPostgresNumericTypesRow.new(
           row['c_boolean'],
+          row['c_smallint'],
           row['c_integer'],
           row['c_bigint'],
           row['c_serial'],
@@ -787,56 +773,260 @@ module PgCodegen
           row['c_numeric'],
           row['c_real'],
           row['c_double_precision'],
-          row['c_date'],
-          row['c_time'],
-          row['c_timestamp'],
-          row['c_char'],
-          row['c_varchar'],
-          row['c_bytea'],
-          row['c_text'],
-          row['c_json']
+          row['c_money'],
+          row['c_oid'],
+          row['c_positive']
         )
       end
     end
 
-    # Like #test, but raises NotFound when there is no row.
-    def test!(...)
-      test(...) || raise(NotFound, 'Test returned no row')
+    # Like #get_postgres_numeric_types, but raises NotFound when there is no row.
+    def get_postgres_numeric_types!(...)
+      get_postgres_numeric_types(...) || raise(NotFound, 'GetPostgresNumericTypes returned no row')
     end
 
-    def set_json_round_trip(id:, json_value:, jsonb_value:)
-      with_client('set_json_round_trip') do |client|
-        query_params = [id, encode_json(json_value), encode_json(jsonb_value)]
-        run_prepared(client, 'PgCodegen::QuerySql#set_json_round_trip', SET_JSON_ROUND_TRIP_SQL, query_params)
+    def insert_postgres_string_types(c_char:, c_varchar:, c_text:, c_not_null:, c_xml:, c_tsvector:, c_ltree:, c_hstore:, c_regclass:)
+      with_client('insert_postgres_string_types') do |client|
+        query_params = [
+          c_char,
+          c_varchar,
+          c_text,
+          c_not_null,
+          c_xml,
+          c_tsvector,
+          c_ltree,
+          c_hstore,
+          c_regclass
+        ]
+        run_prepared(client, 'PgCodegen::QuerySql#insert_postgres_string_types', INSERT_POSTGRES_STRING_TYPES_SQL, query_params)
         nil
       end
     end
 
-    def get_json_round_trip(id:)
-      with_client('get_json_round_trip') do |client|
-        query_params = [id]
-        result = run_prepared(client, 'PgCodegen::QuerySql#get_json_round_trip', GET_JSON_ROUND_TRIP_SQL, query_params)
+    def get_postgres_string_types
+      with_client('get_postgres_string_types') do |client|
+        result = run_prepared(client, 'PgCodegen::QuerySql#get_postgres_string_types', GET_POSTGRES_STRING_TYPES_SQL)
         row = result.first
-        row && GetJSONRoundTripRow.new(row['json_value'], row['jsonb_value'])
+        row && GetPostgresStringTypesRow.new(
+          row['c_char'],
+          row['c_varchar'],
+          row['c_text'],
+          row['c_not_null'],
+          row['c_xml'],
+          row['c_tsvector'],
+          row['c_ltree'],
+          row['c_hstore'],
+          row['c_regclass']
+        )
       end
     end
 
-    # Like #get_json_round_trip, but raises NotFound when there is no row.
-    def get_json_round_trip!(...)
-      get_json_round_trip(...) || raise(NotFound, 'GetJSONRoundTrip returned no row')
+    # Like #get_postgres_string_types, but raises NotFound when there is no row.
+    def get_postgres_string_types!(...)
+      get_postgres_string_types(...) || raise(NotFound, 'GetPostgresStringTypes returned no row')
     end
 
-    def toggle_jsonb_round_trip(id:)
-      with_client('toggle_jsonb_round_trip') do |client|
-        query_params = [id]
-        run_prepared(client, 'PgCodegen::QuerySql#toggle_jsonb_round_trip', TOGGLE_JSONB_ROUND_TRIP_SQL, query_params)
+    def insert_postgres_datetime_types(c_date:, c_time:, c_timetz:, c_timestamp:, c_timestamptz:, c_interval:)
+      with_client('insert_postgres_datetime_types') do |client|
+        query_params = [
+          c_date,
+          c_time,
+          c_timetz,
+          encode_timestamp(c_timestamp),
+          encode_timestamp(c_timestamptz),
+          c_interval
+        ]
+        run_prepared(client, 'PgCodegen::QuerySql#insert_postgres_datetime_types', INSERT_POSTGRES_DATETIME_TYPES_SQL, query_params)
         nil
       end
     end
 
-    def truncate_json_round_trips
-      with_client('truncate_json_round_trips') do |client|
-        run_prepared(client, 'PgCodegen::QuerySql#truncate_json_round_trips', TRUNCATE_JSON_ROUND_TRIPS_SQL)
+    def get_postgres_datetime_types
+      with_client('get_postgres_datetime_types') do |client|
+        result = run_prepared(client, 'PgCodegen::QuerySql#get_postgres_datetime_types', GET_POSTGRES_DATETIME_TYPES_SQL)
+        row = result.first
+        row && GetPostgresDatetimeTypesRow.new(
+          row['c_date'],
+          row['c_time'],
+          row['c_timetz'],
+          row['c_timestamp'],
+          row['c_timestamptz'],
+          row['c_interval']
+        )
+      end
+    end
+
+    # Like #get_postgres_datetime_types, but raises NotFound when there is no row.
+    def get_postgres_datetime_types!(...)
+      get_postgres_datetime_types(...) || raise(NotFound, 'GetPostgresDatetimeTypes returned no row')
+    end
+
+    def insert_postgres_json_types(id:, c_json:, c_jsonb:)
+      with_client('insert_postgres_json_types') do |client|
+        query_params = [id, encode_json(c_json), encode_json(c_jsonb)]
+        run_prepared(client, 'PgCodegen::QuerySql#insert_postgres_json_types', INSERT_POSTGRES_JSON_TYPES_SQL, query_params)
+        nil
+      end
+    end
+
+    def get_postgres_json_types(id:)
+      with_client('get_postgres_json_types') do |client|
+        query_params = [id]
+        result = run_prepared(client, 'PgCodegen::QuerySql#get_postgres_json_types', GET_POSTGRES_JSON_TYPES_SQL, query_params)
+        row = result.first
+        row && GetPostgresJSONTypesRow.new(row['c_json'], row['c_jsonb'])
+      end
+    end
+
+    # Like #get_postgres_json_types, but raises NotFound when there is no row.
+    def get_postgres_json_types!(...)
+      get_postgres_json_types(...) || raise(NotFound, 'GetPostgresJSONTypes returned no row')
+    end
+
+    def toggle_postgres_jsonb_type(id:)
+      with_client('toggle_postgres_jsonb_type') do |client|
+        query_params = [id]
+        run_prepared(client, 'PgCodegen::QuerySql#toggle_postgres_jsonb_type', TOGGLE_POSTGRES_JSONB_TYPE_SQL, query_params)
+        nil
+      end
+    end
+
+    def insert_postgres_array_types(id:, c_boolean:, c_double_precision:, c_text_array:, c_integer_array:, c_uuid_array:, c_bio_type_array:, c_bytea_array:, c_jsonb_array:, c_numeric_array:, c_timestamptz_array:, c_integer_matrix:, c_text_matrix:)
+      with_client('insert_postgres_array_types') do |client|
+        query_params = [
+          id,
+          c_boolean,
+          encode_float(c_double_precision),
+          encode_array(c_text_array),
+          encode_array(c_integer_array),
+          encode_array(c_uuid_array),
+          encode_array(c_bio_type_array),
+          encode_array(c_bytea_array, :bytea),
+          encode_array(c_jsonb_array, :json),
+          encode_array(c_numeric_array),
+          encode_array(c_timestamptz_array),
+          encode_array(c_integer_matrix),
+          encode_array(c_text_matrix)
+        ]
+        run_prepared(client, 'PgCodegen::QuerySql#insert_postgres_array_types', INSERT_POSTGRES_ARRAY_TYPES_SQL, query_params)
+        nil
+      end
+    end
+
+    def list_postgres_array_types
+      with_client('list_postgres_array_types') do |client|
+        result = run_prepared(client, 'PgCodegen::QuerySql#list_postgres_array_types', LIST_POSTGRES_ARRAY_TYPES_SQL)
+        result.map do |row|
+          ListPostgresArrayTypesRow.new(
+            row['id'],
+            row['c_boolean'],
+            row['c_double_precision'],
+            row['c_text_array'],
+            row['c_integer_array'],
+            row['c_uuid_array'],
+            row['c_bio_type_array'],
+            row['c_bytea_array'],
+            row['c_jsonb_array'],
+            row['c_numeric_array'],
+            row['c_timestamptz_array'],
+            row['c_integer_matrix'],
+            row['c_text_matrix']
+          )
+        end
+      end
+    end
+
+    def insert_postgres_array_types_batch(rows)
+      with_client('insert_postgres_array_types_batch') do |client|
+        rows.each do |args|
+          query_params = [
+            args.id,
+            args.c_boolean,
+            encode_float(args.c_double_precision),
+            encode_array(args.c_bytea_array, :bytea),
+            encode_array(args.c_jsonb_array, :json),
+            encode_array(args.c_integer_array),
+            encode_array(args.c_numeric_array),
+            encode_array(args.c_timestamptz_array)
+          ]
+          run_prepared(client, 'PgCodegen::QuerySql#insert_postgres_array_types_batch', INSERT_POSTGRES_ARRAY_TYPES_BATCH_SQL, query_params)
+        end
+        nil
+      end
+    end
+
+    def copy_postgres_array_types(rows)
+      with_client('copy_postgres_array_types') do |client|
+        encoder = ::PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
+        client.copy_data('COPY "postgres_array_types" ("id", "c_boolean", "c_double_precision", "c_bytea_array", "c_jsonb_array", "c_integer_array", "c_numeric_array", "c_timestamptz_array") FROM STDIN', encoder) do
+          rows.each do |row|
+            client.put_copy_data([row.id, row.c_boolean, encode_float(row.c_double_precision), encode_array(row.c_bytea_array, :bytea), encode_array(row.c_jsonb_array, :json), encode_array(row.c_integer_array), encode_array(row.c_numeric_array), encode_array(row.c_timestamptz_array)])
+          end
+        end
+        nil
+      end
+    end
+
+    def count_postgres_array_types_above(min_id:)
+      with_client('count_postgres_array_types_above') do |client|
+        query_params = [min_id]
+        result = run_prepared(client, 'PgCodegen::QuerySql#count_postgres_array_types_above', COUNT_POSTGRES_ARRAY_TYPES_ABOVE_SQL, query_params)
+        row = result.first
+        row && CountPostgresArrayTypesAboveRow.new(row['count'])
+      end
+    end
+
+    # Like #count_postgres_array_types_above, but raises NotFound when there is no row.
+    def count_postgres_array_types_above!(...)
+      count_postgres_array_types_above(...) || raise(NotFound, 'CountPostgresArrayTypesAbove returned no row')
+    end
+
+    def insert_postgres_special_types(c_bytea:, c_bit:, c_varbit:, c_uuid:, c_inet:, c_cidr:, c_macaddr:, c_point:, c_int4range:, c_dimensions:)
+      with_client('insert_postgres_special_types') do |client|
+        query_params = [
+          encode_bytea(c_bytea),
+          c_bit,
+          c_varbit,
+          c_uuid,
+          c_inet,
+          c_cidr,
+          c_macaddr,
+          c_point,
+          c_int4range,
+          c_dimensions
+        ]
+        run_prepared(client, 'PgCodegen::QuerySql#insert_postgres_special_types', INSERT_POSTGRES_SPECIAL_TYPES_SQL, query_params)
+        nil
+      end
+    end
+
+    def get_postgres_special_types
+      with_client('get_postgres_special_types') do |client|
+        result = run_prepared(client, 'PgCodegen::QuerySql#get_postgres_special_types', GET_POSTGRES_SPECIAL_TYPES_SQL)
+        row = result.first
+        row && GetPostgresSpecialTypesRow.new(
+          row['c_bytea'],
+          row['c_bit'],
+          row['c_varbit'],
+          row['c_uuid'],
+          row['c_inet'],
+          row['c_cidr'],
+          row['c_macaddr'],
+          row['c_point'],
+          row['c_int4range'],
+          row['c_dimensions']
+        )
+      end
+    end
+
+    # Like #get_postgres_special_types, but raises NotFound when there is no row.
+    def get_postgres_special_types!(...)
+      get_postgres_special_types(...) || raise(NotFound, 'GetPostgresSpecialTypes returned no row')
+    end
+
+    def truncate_test_tables
+      with_client('truncate_test_tables') do |client|
+        run_prepared(client, 'PgCodegen::QuerySql#truncate_test_tables', TRUNCATE_TEST_TABLES_SQL)
         nil
       end
     end
@@ -954,13 +1144,6 @@ module PgCodegen
       end
     end
 
-    def truncate_deferred_books
-      with_client('truncate_deferred_books') do |client|
-        run_prepared(client, 'PgCodegen::QuerySql#truncate_deferred_books', TRUNCATE_DEFERRED_BOOKS_SQL)
-        nil
-      end
-    end
-
     def list_all_authors_books
       with_client('list_all_authors_books') do |client|
         result = run_prepared(client, 'PgCodegen::QuerySql#list_all_authors_books', LIST_ALL_AUTHORS_BOOKS_SQL).values
@@ -1014,143 +1197,6 @@ module PgCodegen
       get_first_extended_bio_by_type(...) || raise(NotFound, 'GetFirstExtendedBioByType returned no row')
     end
 
-    def truncate_extended_bios
-      with_client('truncate_extended_bios') do |client|
-        run_prepared(client, 'PgCodegen::QuerySql#truncate_extended_bios', TRUNCATE_EXTENDED_BIOS_SQL)
-        nil
-      end
-    end
-
-    def insert_extra_types(c_uuid:, c_jsonb:, c_text_array:, c_integer_array:, c_timestamptz:, c_inet:, c_money:, c_not_null:)
-      with_client('insert_extra_types') do |client|
-        query_params = [
-          c_uuid,
-          encode_json(c_jsonb),
-          encode_array(c_text_array),
-          encode_array(c_integer_array),
-          encode_timestamp(c_timestamptz),
-          c_inet,
-          c_money,
-          c_not_null
-        ]
-        run_prepared(client, 'PgCodegen::QuerySql#insert_extra_types', INSERT_EXTRA_TYPES_SQL, query_params)
-        nil
-      end
-    end
-
-    def get_extra_types
-      with_client('get_extra_types') do |client|
-        result = run_prepared(client, 'PgCodegen::QuerySql#get_extra_types', GET_EXTRA_TYPES_SQL)
-        row = result.first
-        row && GetExtraTypesRow.new(
-          row['c_uuid'],
-          row['c_jsonb'],
-          row['c_text_array'],
-          row['c_integer_array'],
-          row['c_timestamptz'],
-          row['c_inet'],
-          row['c_money'],
-          row['c_not_null']
-        )
-      end
-    end
-
-    # Like #get_extra_types, but raises NotFound when there is no row.
-    def get_extra_types!(...)
-      get_extra_types(...) || raise(NotFound, 'GetExtraTypes returned no row')
-    end
-
-    def truncate_extra_types
-      with_client('truncate_extra_types') do |client|
-        run_prepared(client, 'PgCodegen::QuerySql#truncate_extra_types', TRUNCATE_EXTRA_TYPES_SQL)
-        nil
-      end
-    end
-
-    def insert_remaining_types(c_hstore:, c_ltree:, c_regclass:, c_cidr:, c_macaddr:, c_interval:, c_varbit:, c_xml:, c_numeric:, c_bigint:, c_timestamp:, c_timestamptz:, c_text_matrix:)
-      with_client('insert_remaining_types') do |client|
-        query_params = [
-          c_hstore,
-          c_ltree,
-          c_regclass,
-          c_cidr,
-          c_macaddr,
-          c_interval,
-          c_varbit,
-          c_xml,
-          c_numeric,
-          c_bigint,
-          encode_timestamp(c_timestamp),
-          encode_timestamp(c_timestamptz),
-          encode_array(c_text_matrix)
-        ]
-        run_prepared(client, 'PgCodegen::QuerySql#insert_remaining_types', INSERT_REMAINING_TYPES_SQL, query_params)
-        nil
-      end
-    end
-
-    def get_remaining_types
-      with_client('get_remaining_types') do |client|
-        result = run_prepared(client, 'PgCodegen::QuerySql#get_remaining_types', GET_REMAINING_TYPES_SQL)
-        row = result.first
-        row && GetRemainingTypesRow.new(
-          row['c_hstore'],
-          row['c_ltree'],
-          row['c_regclass'],
-          row['c_cidr'],
-          row['c_macaddr'],
-          row['c_interval'],
-          row['c_varbit'],
-          row['c_xml'],
-          row['c_numeric'],
-          row['c_bigint'],
-          row['c_timestamp'],
-          row['c_timestamptz'],
-          row['c_text_matrix']
-        )
-      end
-    end
-
-    # Like #get_remaining_types, but raises NotFound when there is no row.
-    def get_remaining_types!(...)
-      get_remaining_types(...) || raise(NotFound, 'GetRemainingTypes returned no row')
-    end
-
-    def truncate_remaining_types
-      with_client('truncate_remaining_types') do |client|
-        run_prepared(client, 'PgCodegen::QuerySql#truncate_remaining_types', TRUNCATE_REMAINING_TYPES_SQL)
-        nil
-      end
-    end
-
-    def insert_array_types(c_uuid_array:, c_bio_type_array:, c_integer_matrix:)
-      with_client('insert_array_types') do |client|
-        query_params = [encode_array(c_uuid_array), encode_array(c_bio_type_array), encode_array(c_integer_matrix)]
-        run_prepared(client, 'PgCodegen::QuerySql#insert_array_types', INSERT_ARRAY_TYPES_SQL, query_params)
-        nil
-      end
-    end
-
-    def get_array_types
-      with_client('get_array_types') do |client|
-        result = run_prepared(client, 'PgCodegen::QuerySql#get_array_types', GET_ARRAY_TYPES_SQL)
-        row = result.first
-        row && GetArrayTypesRow.new(row['c_uuid_array'], row['c_bio_type_array'], row['c_integer_matrix'])
-      end
-    end
-
-    # Like #get_array_types, but raises NotFound when there is no row.
-    def get_array_types!(...)
-      get_array_types(...) || raise(NotFound, 'GetArrayTypes returned no row')
-    end
-
-    def truncate_array_types
-      with_client('truncate_array_types') do |client|
-        run_prepared(client, 'PgCodegen::QuerySql#truncate_array_types', TRUNCATE_ARRAY_TYPES_SQL)
-        nil
-      end
-    end
-
     def list_authors_with_optional_book
       with_client('list_authors_with_optional_book') do |client|
         result = run_prepared(client, 'PgCodegen::QuerySql#list_authors_with_optional_book', LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL).values
@@ -1170,50 +1216,6 @@ module PgCodegen
         result.map do |row|
           ListAuthorsBetweenIdsRow.new(row['id'], row['name'], row['bio'])
         end
-      end
-    end
-
-    def insert_special_types(c_timetz:, c_tsvector:, c_point:, c_int4range:, c_oid:, c_dimensions:, c_positive:)
-      with_client('insert_special_types') do |client|
-        query_params = [
-          c_timetz,
-          c_tsvector,
-          c_point,
-          c_int4range,
-          c_oid,
-          c_dimensions,
-          c_positive
-        ]
-        run_prepared(client, 'PgCodegen::QuerySql#insert_special_types', INSERT_SPECIAL_TYPES_SQL, query_params)
-        nil
-      end
-    end
-
-    def get_special_types
-      with_client('get_special_types') do |client|
-        result = run_prepared(client, 'PgCodegen::QuerySql#get_special_types', GET_SPECIAL_TYPES_SQL)
-        row = result.first
-        row && GetSpecialTypesRow.new(
-          row['c_timetz'],
-          row['c_tsvector'],
-          row['c_point'],
-          row['c_int4range'],
-          row['c_oid'],
-          row['c_dimensions'],
-          row['c_positive']
-        )
-      end
-    end
-
-    # Like #get_special_types, but raises NotFound when there is no row.
-    def get_special_types!(...)
-      get_special_types(...) || raise(NotFound, 'GetSpecialTypes returned no row')
-    end
-
-    def truncate_special_types
-      with_client('truncate_special_types') do |client|
-        run_prepared(client, 'PgCodegen::QuerySql#truncate_special_types', TRUNCATE_SPECIAL_TYPES_SQL)
-        nil
       end
     end
 
@@ -1350,83 +1352,6 @@ module PgCodegen
       set_regression_step(...) || raise(NotFound, 'SetRegressionStep returned no row')
     end
 
-    def truncate_regressions
-      with_client('truncate_regressions') do |client|
-        run_prepared(client, 'PgCodegen::QuerySql#truncate_regressions', TRUNCATE_REGRESSIONS_SQL)
-        nil
-      end
-    end
-
-    def create_batch_types_batch(rows)
-      with_client('create_batch_types_batch') do |client|
-        rows.each do |args|
-          query_params = [
-            args.id,
-            args.ok,
-            encode_float(args.ratio),
-            encode_array(args.blobs, :bytea),
-            encode_array(args.docs, :json),
-            encode_array(args.counts),
-            encode_array(args.amounts),
-            encode_array(args.stamps)
-          ]
-          run_prepared(client, 'PgCodegen::QuerySql#create_batch_types_batch', CREATE_BATCH_TYPES_BATCH_SQL, query_params)
-        end
-        nil
-      end
-    end
-
-    def copy_batch_types(rows)
-      with_client('copy_batch_types') do |client|
-        encoder = ::PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
-        client.copy_data('COPY "batch_types" ("id", "ok", "ratio", "blobs", "docs", "counts", "amounts", "stamps") FROM STDIN', encoder) do
-          rows.each do |row|
-            client.put_copy_data([row.id, row.ok, encode_float(row.ratio), encode_array(row.blobs, :bytea), encode_array(row.docs, :json), encode_array(row.counts), encode_array(row.amounts), encode_array(row.stamps)])
-          end
-        end
-        nil
-      end
-    end
-
-    def list_batch_types
-      with_client('list_batch_types') do |client|
-        result = run_prepared(client, 'PgCodegen::QuerySql#list_batch_types', LIST_BATCH_TYPES_SQL)
-        result.map do |row|
-          ListBatchTypesRow.new(
-            row['id'],
-            row['ok'],
-            row['ratio'],
-            row['blobs'],
-            row['docs'],
-            row['counts'],
-            row['amounts'],
-            row['stamps']
-          )
-        end
-      end
-    end
-
-    def count_batch_types_above(min_id:)
-      with_client('count_batch_types_above') do |client|
-        query_params = [min_id]
-        result = run_prepared(client, 'PgCodegen::QuerySql#count_batch_types_above', COUNT_BATCH_TYPES_ABOVE_SQL, query_params)
-        row = result.first
-        row && CountBatchTypesAboveRow.new(row['count'])
-      end
-    end
-
-    # Like #count_batch_types_above, but raises NotFound when there is no row.
-    def count_batch_types_above!(...)
-      count_batch_types_above(...) || raise(NotFound, 'CountBatchTypesAbove returned no row')
-    end
-
-    def truncate_batch_types
-      with_client('truncate_batch_types') do |client|
-        run_prepared(client, 'PgCodegen::QuerySql#truncate_batch_types', TRUNCATE_BATCH_TYPES_SQL)
-        nil
-      end
-    end
-
     def insert_name_case(id:, class_:, end_:, hash:, method:, count:, camel_case:, http_server:, initialize:)
       with_client('insert_name_case') do |client|
         query_params = [
@@ -1503,13 +1428,6 @@ module PgCodegen
       get_http_server(...) || raise(NotFound, 'GetHTTPServer returned no row')
     end
 
-    def truncate_name_cases
-      with_client('truncate_name_cases') do |client|
-        run_prepared(client, 'PgCodegen::QuerySql#truncate_name_cases', TRUNCATE_NAME_CASES_SQL)
-        nil
-      end
-    end
-
     def copy_mixed_case_copies(rows)
       with_client('copy_mixed_case_copies') do |client|
         encoder = ::PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
@@ -1528,13 +1446,6 @@ module PgCodegen
         result.map do |row|
           ListMixedCaseCopiesRow.new(row['Id'], row['SomeValue'])
         end
-      end
-    end
-
-    def truncate_mixed_case_copies
-      with_client('truncate_mixed_case_copies') do |client|
-        run_prepared(client, 'PgCodegen::QuerySql#truncate_mixed_case_copies', TRUNCATE_MIXED_CASE_COPIES_SQL)
-        nil
       end
     end
 

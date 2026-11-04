@@ -4,31 +4,6 @@ CREATE TABLE authors (
     bio  text
 );
 
-CREATE TABLE node_postgres_types (
-    c_bit BIT(1),
-    c_smallint SMALLINT,
-    c_boolean BOOLEAN,
-    c_integer INTEGER,
-    c_bigint BIGINT,
-    c_serial SERIAL,
-    c_decimal DECIMAL(2,1),
-    c_numeric NUMERIC(2,1),
-    c_real REAL,
-    c_double_precision DOUBLE PRECISION,
-    
-    /* Date and Time Data Types */
-    c_date DATE,
-    c_time TIME,
-    c_timestamp TIMESTAMP,
-    
-    /* String Data Type Syntax */
-    c_char CHAR,
-    c_varchar VARCHAR(10),
-    c_bytea BYTEA,
-    c_text TEXT,
-    c_json JSON
-);
-
 CREATE TABLE books (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -56,57 +31,82 @@ CREATE TABLE extended.bios (
     PRIMARY KEY (author_name, name)
 );
 
-CREATE TABLE postgres_extra_types (
-    c_uuid UUID,
-    c_jsonb JSONB,
-    c_text_array TEXT [],
-    c_integer_array INTEGER [],
-    c_timestamptz TIMESTAMP WITH TIME ZONE,
-    c_inet INET,
-    c_money MONEY,
-    c_not_null TEXT NOT NULL DEFAULT 'x'
-);
-
-CREATE TABLE postgres_remaining_types (
-    c_hstore HSTORE,
-    c_ltree LTREE,
-    c_regclass REGCLASS,
-    c_cidr CIDR,
-    c_macaddr MACADDR,
-    c_interval INTERVAL,
-    c_varbit VARBIT,
-    c_xml XML,
-    c_numeric NUMERIC(100, 50),
-    c_bigint BIGINT,
-    c_timestamp TIMESTAMP,
-    c_timestamptz TIMESTAMPTZ,
-    c_text_matrix TEXT[][]
-);
-
-CREATE TABLE json_round_trips (
-    id INTEGER PRIMARY KEY,
-    json_value JSON,
-    jsonb_value JSONB
-);
-
-CREATE TABLE postgres_array_types (
-    c_uuid_array UUID [],
-    c_bio_type_array extended.bio_type [],
-    c_integer_matrix INTEGER [][]
-);
-
 CREATE TYPE extended.dimensions AS (width INTEGER, height INTEGER);
 
 CREATE DOMAIN positive_int AS INTEGER CHECK (VALUE > 0);
 
-CREATE TABLE postgres_special_types (
-    c_timetz TIMETZ,
+-- Type coverage: one table per type family, written by one Insert and read by one Get query.
+
+CREATE TABLE postgres_numeric_types (
+    c_boolean BOOLEAN,
+    c_smallint SMALLINT,
+    c_integer INTEGER,
+    c_bigint BIGINT,
+    c_serial SERIAL,
+    c_decimal DECIMAL(2,1),
+    c_numeric NUMERIC(100, 50),
+    c_real REAL,
+    c_double_precision DOUBLE PRECISION,
+    c_money MONEY,
+    c_oid OID,
+    c_positive positive_int
+);
+
+CREATE TABLE postgres_string_types (
+    c_char CHAR,
+    c_varchar VARCHAR(10),
+    c_text TEXT,
+    c_not_null TEXT NOT NULL DEFAULT 'x',
+    c_xml XML,
     c_tsvector TSVECTOR,
+    c_ltree LTREE,
+    c_hstore HSTORE,
+    c_regclass REGCLASS
+);
+
+CREATE TABLE postgres_datetime_types (
+    c_date DATE,
+    c_time TIME,
+    c_timetz TIMETZ,
+    c_timestamp TIMESTAMP,
+    c_timestamptz TIMESTAMP WITH TIME ZONE,
+    c_interval INTERVAL
+);
+
+CREATE TABLE postgres_json_types (
+    id INTEGER PRIMARY KEY,
+    c_json JSON,
+    c_jsonb JSONB
+);
+
+CREATE TABLE postgres_array_types (
+    id BIGINT PRIMARY KEY,
+    -- scalars that :copyfrom / :batchexec encode next to the arrays
+    c_boolean BOOLEAN,
+    c_double_precision DOUBLE PRECISION,
+    c_text_array TEXT [],
+    c_integer_array INTEGER [],
+    c_uuid_array UUID [],
+    c_bio_type_array extended.bio_type [],
+    c_bytea_array BYTEA [],
+    c_jsonb_array JSONB [],
+    c_numeric_array NUMERIC [],
+    c_timestamptz_array TIMESTAMPTZ [],
+    c_integer_matrix INTEGER [][],
+    c_text_matrix TEXT [][]
+);
+
+CREATE TABLE postgres_special_types (
+    c_bytea BYTEA,
+    c_bit BIT(1),
+    c_varbit VARBIT,
+    c_uuid UUID,
+    c_inet INET,
+    c_cidr CIDR,
+    c_macaddr MACADDR,
     c_point POINT,
     c_int4range INT4RANGE,
-    c_oid OID,
-    c_dimensions extended.dimensions,
-    c_positive positive_int
+    c_dimensions extended.dimensions
 );
 
 COMMENT ON TABLE authors IS 'People who wrote at least one book.';
@@ -124,17 +124,6 @@ CREATE TABLE regressions (
   bio_types extended.bio_type[],
   uids      uuid[],
   step      step
-);
-
-CREATE TABLE batch_types (
-  id      bigint PRIMARY KEY,
-  ok      boolean,
-  ratio   float8,
-  blobs   bytea[],
-  docs    jsonb[],
-  counts  int[],
-  amounts numeric[],
-  stamps  timestamptz[]
 );
 
 CREATE TABLE "MixedCaseCopies" ("Id" BIGINT NOT NULL PRIMARY KEY, "SomeValue" TEXT);

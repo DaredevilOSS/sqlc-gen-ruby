@@ -35,67 +35,6 @@ module PgCodegen
     def self.new: (  id: ::Integer, name: ::String, bio: ::String?) -> Author
   end
 
-  class NodePostgresType < ::Struct[untyped]
-    attr_accessor c_bit: ::String?
-    attr_accessor c_smallint: ::Integer?
-    attr_accessor c_boolean: bool?
-    attr_accessor c_integer: ::Integer?
-    attr_accessor c_bigint: ::Integer?
-    attr_accessor c_serial: ::Integer?
-    attr_accessor c_decimal: ::BigDecimal?
-    attr_accessor c_numeric: ::BigDecimal?
-    attr_accessor c_real: ::Float?
-    attr_accessor c_double_precision: ::Float?
-    attr_accessor c_date: ::Date?
-    attr_accessor c_time: ::String?
-    attr_accessor c_timestamp: ::Time?
-    attr_accessor c_char: ::String?
-    attr_accessor c_varchar: ::String?
-    attr_accessor c_bytea: ::String?
-    attr_accessor c_text: ::String?
-    attr_accessor c_json: untyped
-    def initialize: (
-        c_bit: ::String?,
-        c_smallint: ::Integer?,
-        c_boolean: bool?,
-        c_integer: ::Integer?,
-        c_bigint: ::Integer?,
-        c_serial: ::Integer?,
-        c_decimal: ::BigDecimal?,
-        c_numeric: ::BigDecimal?,
-        c_real: ::Float?,
-        c_double_precision: ::Float?,
-        c_date: ::Date?,
-        c_time: ::String?,
-        c_timestamp: ::Time?,
-        c_char: ::String?,
-        c_varchar: ::String?,
-        c_bytea: ::String?,
-        c_text: ::String?,
-        c_json: untyped
-    ) -> void
-    def self.new: (
-        c_bit: ::String?,
-        c_smallint: ::Integer?,
-        c_boolean: bool?,
-        c_integer: ::Integer?,
-        c_bigint: ::Integer?,
-        c_serial: ::Integer?,
-        c_decimal: ::BigDecimal?,
-        c_numeric: ::BigDecimal?,
-        c_real: ::Float?,
-        c_double_precision: ::Float?,
-        c_date: ::Date?,
-        c_time: ::String?,
-        c_timestamp: ::Time?,
-        c_char: ::String?,
-        c_varchar: ::String?,
-        c_bytea: ::String?,
-        c_text: ::String?,
-        c_json: untyped
-    ) -> NodePostgresType
-  end
-
   class Book < ::Struct[untyped]
     attr_accessor id: ::String
     attr_accessor name: ::String
@@ -112,124 +51,196 @@ module PgCodegen
     def self.new: (  id: ::Integer, author_id: ::Integer) -> DeferredBook
   end
 
-  class PostgresExtraType < ::Struct[untyped]
-    attr_accessor c_uuid: ::String?
-    attr_accessor c_jsonb: untyped
-    attr_accessor c_text_array: ::Array[::String]?
-    attr_accessor c_integer_array: ::Array[::Integer]?
-    attr_accessor c_timestamptz: ::Time?
-    attr_accessor c_inet: ::IPAddr?
+  class PostgresNumericType < ::Struct[untyped]
+    attr_accessor c_boolean: bool?
+    attr_accessor c_smallint: ::Integer?
+    attr_accessor c_integer: ::Integer?
+    attr_accessor c_bigint: ::Integer?
+    attr_accessor c_serial: ::Integer?
+    attr_accessor c_decimal: ::BigDecimal?
+    attr_accessor c_numeric: ::BigDecimal?
+    attr_accessor c_real: ::Float?
+    attr_accessor c_double_precision: ::Float?
     attr_accessor c_money: ::String?
-    attr_accessor c_not_null: ::String
+    attr_accessor c_oid: ::Integer?
+    attr_accessor c_positive: untyped
     def initialize: (
-        c_uuid: ::String?,
-        c_jsonb: untyped,
-        c_text_array: ::Array[::String]?,
-        c_integer_array: ::Array[::Integer]?,
-        c_timestamptz: ::Time?,
-        c_inet: ::IPAddr?,
+        c_boolean: bool?,
+        c_smallint: ::Integer?,
+        c_integer: ::Integer?,
+        c_bigint: ::Integer?,
+        c_serial: ::Integer?,
+        c_decimal: ::BigDecimal?,
+        c_numeric: ::BigDecimal?,
+        c_real: ::Float?,
+        c_double_precision: ::Float?,
         c_money: ::String?,
-        c_not_null: ::String
+        c_oid: ::Integer?,
+        c_positive: untyped
     ) -> void
     def self.new: (
-        c_uuid: ::String?,
-        c_jsonb: untyped,
-        c_text_array: ::Array[::String]?,
-        c_integer_array: ::Array[::Integer]?,
-        c_timestamptz: ::Time?,
-        c_inet: ::IPAddr?,
+        c_boolean: bool?,
+        c_smallint: ::Integer?,
+        c_integer: ::Integer?,
+        c_bigint: ::Integer?,
+        c_serial: ::Integer?,
+        c_decimal: ::BigDecimal?,
+        c_numeric: ::BigDecimal?,
+        c_real: ::Float?,
+        c_double_precision: ::Float?,
         c_money: ::String?,
-        c_not_null: ::String
-    ) -> PostgresExtraType
+        c_oid: ::Integer?,
+        c_positive: untyped
+    ) -> PostgresNumericType
   end
 
-  class PostgresRemainingType < ::Struct[untyped]
-    attr_accessor c_hstore: ::String?
-    attr_accessor c_ltree: ::String?
-    attr_accessor c_regclass: ::String?
-    attr_accessor c_cidr: ::IPAddr?
-    attr_accessor c_macaddr: ::String?
-    attr_accessor c_interval: ::String?
-    attr_accessor c_varbit: ::String?
+  class PostgresStringType < ::Struct[untyped]
+    attr_accessor c_char: ::String?
+    attr_accessor c_varchar: ::String?
+    attr_accessor c_text: ::String?
+    attr_accessor c_not_null: ::String
     attr_accessor c_xml: ::String?
-    attr_accessor c_numeric: ::BigDecimal?
-    attr_accessor c_bigint: ::Integer?
+    attr_accessor c_tsvector: ::String?
+    attr_accessor c_ltree: ::String?
+    attr_accessor c_hstore: ::String?
+    attr_accessor c_regclass: ::String?
+    def initialize: (
+        c_char: ::String?,
+        c_varchar: ::String?,
+        c_text: ::String?,
+        c_not_null: ::String,
+        c_xml: ::String?,
+        c_tsvector: ::String?,
+        c_ltree: ::String?,
+        c_hstore: ::String?,
+        c_regclass: ::String?
+    ) -> void
+    def self.new: (
+        c_char: ::String?,
+        c_varchar: ::String?,
+        c_text: ::String?,
+        c_not_null: ::String,
+        c_xml: ::String?,
+        c_tsvector: ::String?,
+        c_ltree: ::String?,
+        c_hstore: ::String?,
+        c_regclass: ::String?
+    ) -> PostgresStringType
+  end
+
+  class PostgresDatetimeType < ::Struct[untyped]
+    attr_accessor c_date: ::Date?
+    attr_accessor c_time: ::String?
+    attr_accessor c_timetz: ::String?
     attr_accessor c_timestamp: ::Time?
     attr_accessor c_timestamptz: ::Time?
-    attr_accessor c_text_matrix: ::Array[::Array[::String]]?
+    attr_accessor c_interval: ::String?
     def initialize: (
-        c_hstore: ::String?,
-        c_ltree: ::String?,
-        c_regclass: ::String?,
-        c_cidr: ::IPAddr?,
-        c_macaddr: ::String?,
-        c_interval: ::String?,
-        c_varbit: ::String?,
-        c_xml: ::String?,
-        c_numeric: ::BigDecimal?,
-        c_bigint: ::Integer?,
+        c_date: ::Date?,
+        c_time: ::String?,
+        c_timetz: ::String?,
         c_timestamp: ::Time?,
         c_timestamptz: ::Time?,
-        c_text_matrix: ::Array[::Array[::String]]?
+        c_interval: ::String?
     ) -> void
     def self.new: (
-        c_hstore: ::String?,
-        c_ltree: ::String?,
-        c_regclass: ::String?,
-        c_cidr: ::IPAddr?,
-        c_macaddr: ::String?,
-        c_interval: ::String?,
-        c_varbit: ::String?,
-        c_xml: ::String?,
-        c_numeric: ::BigDecimal?,
-        c_bigint: ::Integer?,
+        c_date: ::Date?,
+        c_time: ::String?,
+        c_timetz: ::String?,
         c_timestamp: ::Time?,
         c_timestamptz: ::Time?,
-        c_text_matrix: ::Array[::Array[::String]]?
-    ) -> PostgresRemainingType
+        c_interval: ::String?
+    ) -> PostgresDatetimeType
   end
 
-  class JsonRoundTrip < ::Struct[untyped]
+  class PostgresJsonType < ::Struct[untyped]
     attr_accessor id: ::Integer
-    attr_accessor json_value: untyped
-    attr_accessor jsonb_value: untyped
-    def initialize: (  id: ::Integer, json_value: untyped, jsonb_value: untyped) -> void
-    def self.new: (  id: ::Integer, json_value: untyped, jsonb_value: untyped) -> JsonRoundTrip
+    attr_accessor c_json: untyped
+    attr_accessor c_jsonb: untyped
+    def initialize: (  id: ::Integer, c_json: untyped, c_jsonb: untyped) -> void
+    def self.new: (  id: ::Integer, c_json: untyped, c_jsonb: untyped) -> PostgresJsonType
   end
 
   class PostgresArrayType < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor c_boolean: bool?
+    attr_accessor c_double_precision: ::Float?
+    attr_accessor c_text_array: ::Array[::String]?
+    attr_accessor c_integer_array: ::Array[::Integer]?
     attr_accessor c_uuid_array: ::Array[::String]?
     attr_accessor c_bio_type_array: ::Array[::String]?
+    attr_accessor c_bytea_array: ::Array[::String]?
+    attr_accessor c_jsonb_array: ::Array[untyped]?
+    attr_accessor c_numeric_array: ::Array[::BigDecimal]?
+    attr_accessor c_timestamptz_array: ::Array[::Time]?
     attr_accessor c_integer_matrix: ::Array[::Array[::Integer]]?
-    def initialize: (  c_uuid_array: ::Array[::String]?, c_bio_type_array: ::Array[::String]?, c_integer_matrix: ::Array[::Array[::Integer]]?) -> void
-    def self.new: (  c_uuid_array: ::Array[::String]?, c_bio_type_array: ::Array[::String]?, c_integer_matrix: ::Array[::Array[::Integer]]?) -> PostgresArrayType
+    attr_accessor c_text_matrix: ::Array[::Array[::String]]?
+    def initialize: (
+        id: ::Integer,
+        c_boolean: bool?,
+        c_double_precision: ::Float?,
+        c_text_array: ::Array[::String]?,
+        c_integer_array: ::Array[::Integer]?,
+        c_uuid_array: ::Array[::String]?,
+        c_bio_type_array: ::Array[::String]?,
+        c_bytea_array: ::Array[::String]?,
+        c_jsonb_array: ::Array[untyped]?,
+        c_numeric_array: ::Array[::BigDecimal]?,
+        c_timestamptz_array: ::Array[::Time]?,
+        c_integer_matrix: ::Array[::Array[::Integer]]?,
+        c_text_matrix: ::Array[::Array[::String]]?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        c_boolean: bool?,
+        c_double_precision: ::Float?,
+        c_text_array: ::Array[::String]?,
+        c_integer_array: ::Array[::Integer]?,
+        c_uuid_array: ::Array[::String]?,
+        c_bio_type_array: ::Array[::String]?,
+        c_bytea_array: ::Array[::String]?,
+        c_jsonb_array: ::Array[untyped]?,
+        c_numeric_array: ::Array[::BigDecimal]?,
+        c_timestamptz_array: ::Array[::Time]?,
+        c_integer_matrix: ::Array[::Array[::Integer]]?,
+        c_text_matrix: ::Array[::Array[::String]]?
+    ) -> PostgresArrayType
   end
 
   class PostgresSpecialType < ::Struct[untyped]
-    attr_accessor c_timetz: ::String?
-    attr_accessor c_tsvector: ::String?
+    attr_accessor c_bytea: ::String?
+    attr_accessor c_bit: ::String?
+    attr_accessor c_varbit: ::String?
+    attr_accessor c_uuid: ::String?
+    attr_accessor c_inet: ::IPAddr?
+    attr_accessor c_cidr: ::IPAddr?
+    attr_accessor c_macaddr: ::String?
     attr_accessor c_point: ::String?
     attr_accessor c_int4range: ::String?
-    attr_accessor c_oid: ::Integer?
     attr_accessor c_dimensions: ::String?
-    attr_accessor c_positive: untyped
     def initialize: (
-        c_timetz: ::String?,
-        c_tsvector: ::String?,
+        c_bytea: ::String?,
+        c_bit: ::String?,
+        c_varbit: ::String?,
+        c_uuid: ::String?,
+        c_inet: ::IPAddr?,
+        c_cidr: ::IPAddr?,
+        c_macaddr: ::String?,
         c_point: ::String?,
         c_int4range: ::String?,
-        c_oid: ::Integer?,
-        c_dimensions: ::String?,
-        c_positive: untyped
+        c_dimensions: ::String?
     ) -> void
     def self.new: (
-        c_timetz: ::String?,
-        c_tsvector: ::String?,
+        c_bytea: ::String?,
+        c_bit: ::String?,
+        c_varbit: ::String?,
+        c_uuid: ::String?,
+        c_inet: ::IPAddr?,
+        c_cidr: ::IPAddr?,
+        c_macaddr: ::String?,
         c_point: ::String?,
         c_int4range: ::String?,
-        c_oid: ::Integer?,
-        c_dimensions: ::String?,
-        c_positive: untyped
+        c_dimensions: ::String?
     ) -> PostgresSpecialType
   end
 
@@ -259,37 +270,6 @@ module PgCodegen
         uids: ::Array[::String]?,
         step: ::String?
     ) -> Regression
-  end
-
-  class BatchType < ::Struct[untyped]
-    attr_accessor id: ::Integer
-    attr_accessor ok: bool?
-    attr_accessor ratio: ::Float?
-    attr_accessor blobs: ::Array[::String]?
-    attr_accessor docs: ::Array[untyped]?
-    attr_accessor counts: ::Array[::Integer]?
-    attr_accessor amounts: ::Array[::BigDecimal]?
-    attr_accessor stamps: ::Array[::Time]?
-    def initialize: (
-        id: ::Integer,
-        ok: bool?,
-        ratio: ::Float?,
-        blobs: ::Array[::String]?,
-        docs: ::Array[untyped]?,
-        counts: ::Array[::Integer]?,
-        amounts: ::Array[::BigDecimal]?,
-        stamps: ::Array[::Time]?
-    ) -> void
-    def self.new: (
-        id: ::Integer,
-        ok: bool?,
-        ratio: ::Float?,
-        blobs: ::Array[::String]?,
-        docs: ::Array[untyped]?,
-        counts: ::Array[::Integer]?,
-        amounts: ::Array[::BigDecimal]?,
-        stamps: ::Array[::Time]?
-    ) -> BatchType
   end
 
   class MixedCaseCopy < ::Struct[untyped]

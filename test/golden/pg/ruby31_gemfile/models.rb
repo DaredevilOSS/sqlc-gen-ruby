@@ -31,28 +31,6 @@ module PgCodegen
   # People who wrote at least one book.
   Author = ::Struct.new(:id, :name, :bio, keyword_init: true)
 
-  NodePostgresType = ::Struct.new(
-    :c_bit,
-    :c_smallint,
-    :c_boolean,
-    :c_integer,
-    :c_bigint,
-    :c_serial,
-    :c_decimal,
-    :c_numeric,
-    :c_real,
-    :c_double_precision,
-    :c_date,
-    :c_time,
-    :c_timestamp,
-    :c_char,
-    :c_varchar,
-    :c_bytea,
-    :c_text,
-    :c_json,
-    keyword_init: true
-  )
-
   Book = ::Struct.new(
     :id,
     :name,
@@ -63,47 +41,75 @@ module PgCodegen
 
   DeferredBook = ::Struct.new(:id, :author_id, keyword_init: true)
 
-  PostgresExtraType = ::Struct.new(
-    :c_uuid,
-    :c_jsonb,
-    :c_text_array,
-    :c_integer_array,
-    :c_timestamptz,
-    :c_inet,
+  PostgresNumericType = ::Struct.new(
+    :c_boolean,
+    :c_smallint,
+    :c_integer,
+    :c_bigint,
+    :c_serial,
+    :c_decimal,
+    :c_numeric,
+    :c_real,
+    :c_double_precision,
     :c_money,
-    :c_not_null,
+    :c_oid,
+    :c_positive,
     keyword_init: true
   )
 
-  PostgresRemainingType = ::Struct.new(
-    :c_hstore,
-    :c_ltree,
-    :c_regclass,
-    :c_cidr,
-    :c_macaddr,
-    :c_interval,
-    :c_varbit,
+  PostgresStringType = ::Struct.new(
+    :c_char,
+    :c_varchar,
+    :c_text,
+    :c_not_null,
     :c_xml,
-    :c_numeric,
-    :c_bigint,
+    :c_tsvector,
+    :c_ltree,
+    :c_hstore,
+    :c_regclass,
+    keyword_init: true
+  )
+
+  PostgresDatetimeType = ::Struct.new(
+    :c_date,
+    :c_time,
+    :c_timetz,
     :c_timestamp,
     :c_timestamptz,
+    :c_interval,
+    keyword_init: true
+  )
+
+  PostgresJsonType = ::Struct.new(:id, :c_json, :c_jsonb, keyword_init: true)
+
+  PostgresArrayType = ::Struct.new(
+    :id,
+    :c_boolean,
+    :c_double_precision,
+    :c_text_array,
+    :c_integer_array,
+    :c_uuid_array,
+    :c_bio_type_array,
+    :c_bytea_array,
+    :c_jsonb_array,
+    :c_numeric_array,
+    :c_timestamptz_array,
+    :c_integer_matrix,
     :c_text_matrix,
     keyword_init: true
   )
 
-  JsonRoundTrip = ::Struct.new(:id, :json_value, :jsonb_value, keyword_init: true)
-
-  PostgresArrayType = ::Struct.new(:c_uuid_array, :c_bio_type_array, :c_integer_matrix, keyword_init: true)
-
   PostgresSpecialType = ::Struct.new(
-    :c_timetz,
-    :c_tsvector,
+    :c_bytea,
+    :c_bit,
+    :c_varbit,
+    :c_uuid,
+    :c_inet,
+    :c_cidr,
+    :c_macaddr,
     :c_point,
     :c_int4range,
-    :c_oid,
     :c_dimensions,
-    :c_positive,
     keyword_init: true
   )
 
@@ -115,18 +121,6 @@ module PgCodegen
     :bio_types,
     :uids,
     :step,
-    keyword_init: true
-  )
-
-  BatchType = ::Struct.new(
-    :id,
-    :ok,
-    :ratio,
-    :blobs,
-    :docs,
-    :counts,
-    :amounts,
-    :stamps,
     keyword_init: true
   )
 

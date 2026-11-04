@@ -31,85 +31,6 @@ module Mysql2Codegen
     def initialize: (  ::Integer id, ::String name, ::String? bio) -> void
   end
 
-  class NodeMysqlType
-    attr_reader c_bit: ::String?
-    attr_reader c_tinyint: ::Integer?
-    attr_reader c_bool: ::Integer?
-    attr_reader c_boolean: ::Integer?
-    attr_reader c_smallint: ::Integer?
-    attr_reader c_mediumint: ::Integer?
-    attr_reader c_int: ::Integer?
-    attr_reader c_integer: ::Integer?
-    attr_reader c_bigint: ::Integer?
-    attr_reader c_serial: ::Integer
-    attr_reader c_decimal: ::BigDecimal?
-    attr_reader c_dec: ::BigDecimal?
-    attr_reader c_numeric: ::BigDecimal?
-    attr_reader c_fixed: ::BigDecimal?
-    attr_reader c_float: ::Float?
-    attr_reader c_double: ::Float?
-    attr_reader c_double_precision: ::Float?
-    attr_reader c_date: ::Date?
-    attr_reader c_time: ::Time?
-    attr_reader c_datetime: ::Time?
-    attr_reader c_timestamp: ::Time?
-    attr_reader c_year: ::Integer?
-    attr_reader c_char: ::String?
-    attr_reader c_nchar: ::String?
-    attr_reader c_national_char: ::String?
-    attr_reader c_varchar: ::String?
-    attr_reader c_binary: ::String?
-    attr_reader c_varbinary: ::String?
-    attr_reader c_tinyblob: ::String?
-    attr_reader c_tinytext: ::String?
-    attr_reader c_blob: ::String?
-    attr_reader c_text: ::String?
-    attr_reader c_mediumblob: ::String?
-    attr_reader c_mediumtext: ::String?
-    attr_reader c_longblob: ::String?
-    attr_reader c_longtext: ::String?
-    attr_reader c_json: ::String?
-    def initialize: (
-        ::String? c_bit,
-        ::Integer? c_tinyint,
-        ::Integer? c_bool,
-        ::Integer? c_boolean,
-        ::Integer? c_smallint,
-        ::Integer? c_mediumint,
-        ::Integer? c_int,
-        ::Integer? c_integer,
-        ::Integer? c_bigint,
-        ::Integer c_serial,
-        ::BigDecimal? c_decimal,
-        ::BigDecimal? c_dec,
-        ::BigDecimal? c_numeric,
-        ::BigDecimal? c_fixed,
-        ::Float? c_float,
-        ::Float? c_double,
-        ::Float? c_double_precision,
-        ::Date? c_date,
-        ::Time? c_time,
-        ::Time? c_datetime,
-        ::Time? c_timestamp,
-        ::Integer? c_year,
-        ::String? c_char,
-        ::String? c_nchar,
-        ::String? c_national_char,
-        ::String? c_varchar,
-        ::String? c_binary,
-        ::String? c_varbinary,
-        ::String? c_tinyblob,
-        ::String? c_tinytext,
-        ::String? c_blob,
-        ::String? c_text,
-        ::String? c_mediumblob,
-        ::String? c_mediumtext,
-        ::String? c_longblob,
-        ::String? c_longtext,
-        ::String? c_json
-    ) -> void
-  end
-
   class Book
     attr_reader id: ::Integer
     attr_reader name: ::String
@@ -132,64 +53,20 @@ module Mysql2Codegen
     attr_reader note: ::String?
     attr_reader payload: ::String?
     attr_reader step: ::String?
-    def initialize: (
-        ::Integer id,
-        ::String order,
-        ::String? note,
-        ::String? payload,
-        ::String? step
-    ) -> void
-  end
-
-  class CopyType
-    attr_reader id: ::Integer
-    attr_reader code: ::String
+    attr_reader code: ::String?
     attr_reader doc: ::String?
     attr_reader flags: ::String?
     attr_reader amount: ::Integer?
     def initialize: (
         ::Integer id,
-        ::String code,
+        ::String order,
+        ::String? note,
+        ::String? payload,
+        ::String? step,
+        ::String? code,
         ::String? doc,
         ::String? flags,
         ::Integer? amount
-    ) -> void
-  end
-
-  class MysqlBindingValu
-    attr_reader id: ::Integer
-    attr_reader text_value: ::String?
-    attr_reader blob_value: ::String?
-    attr_reader signed_value: ::Integer?
-    attr_reader unsigned_value: ::Integer?
-    attr_reader decimal_value: ::BigDecimal?
-    attr_reader float_value: ::Float?
-    attr_reader date_value: ::Date?
-    attr_reader datetime_value: ::Time?
-    attr_reader datetime_2: ::Time?
-    attr_reader bool_value: ::Integer?
-    attr_reader nullable_value: ::String?
-    attr_reader bit_value: ::String?
-    attr_reader year_value: ::Integer?
-    attr_reader time_value: ::Time?
-    attr_reader json_unicode: ::String?
-    def initialize: (
-        ::Integer id,
-        ::String? text_value,
-        ::String? blob_value,
-        ::Integer? signed_value,
-        ::Integer? unsigned_value,
-        ::BigDecimal? decimal_value,
-        ::Float? float_value,
-        ::Date? date_value,
-        ::Time? datetime_value,
-        ::Time? datetime_2,
-        ::Integer? bool_value,
-        ::String? nullable_value,
-        ::String? bit_value,
-        ::Integer? year_value,
-        ::Time? time_value,
-        ::String? json_unicode
     ) -> void
   end
 
@@ -290,5 +167,115 @@ module Mysql2Codegen
   class ConnectionPool
     attr_reader id: ::Integer
     def initialize: (  ::Integer id) -> void
+  end
+
+  class MysqlNumericType
+    attr_reader id: ::Integer
+    attr_reader c_bool: ::Integer?
+    attr_reader c_boolean: ::Integer?
+    attr_reader c_tinyint: ::Integer?
+    attr_reader c_smallint: ::Integer?
+    attr_reader c_mediumint: ::Integer?
+    attr_reader c_int: ::Integer?
+    attr_reader c_integer: ::Integer?
+    attr_reader c_bigint: ::Integer?
+    attr_reader c_bigint_unsigned: ::Integer?
+    attr_reader c_serial: ::Integer
+    attr_reader c_decimal: ::BigDecimal?
+    attr_reader c_dec: ::BigDecimal?
+    attr_reader c_numeric: ::BigDecimal?
+    attr_reader c_fixed: ::BigDecimal?
+    attr_reader c_decimal_wide: ::BigDecimal?
+    attr_reader c_float: ::Float?
+    attr_reader c_double: ::Float?
+    attr_reader c_double_precision: ::Float?
+    def initialize: (
+        ::Integer id,
+        ::Integer? c_bool,
+        ::Integer? c_boolean,
+        ::Integer? c_tinyint,
+        ::Integer? c_smallint,
+        ::Integer? c_mediumint,
+        ::Integer? c_int,
+        ::Integer? c_integer,
+        ::Integer? c_bigint,
+        ::Integer? c_bigint_unsigned,
+        ::Integer c_serial,
+        ::BigDecimal? c_decimal,
+        ::BigDecimal? c_dec,
+        ::BigDecimal? c_numeric,
+        ::BigDecimal? c_fixed,
+        ::BigDecimal? c_decimal_wide,
+        ::Float? c_float,
+        ::Float? c_double,
+        ::Float? c_double_precision
+    ) -> void
+  end
+
+  class MysqlStringType
+    attr_reader id: ::Integer
+    attr_reader c_char: ::String?
+    attr_reader c_nchar: ::String?
+    attr_reader c_national_char: ::String?
+    attr_reader c_varchar: ::String?
+    attr_reader c_tinytext: ::String?
+    attr_reader c_text: ::String?
+    attr_reader c_mediumtext: ::String?
+    attr_reader c_longtext: ::String?
+    attr_reader c_json: ::String?
+    def initialize: (
+        ::Integer id,
+        ::String? c_char,
+        ::String? c_nchar,
+        ::String? c_national_char,
+        ::String? c_varchar,
+        ::String? c_tinytext,
+        ::String? c_text,
+        ::String? c_mediumtext,
+        ::String? c_longtext,
+        ::String? c_json
+    ) -> void
+  end
+
+  class MysqlDatetimeType
+    attr_reader id: ::Integer
+    attr_reader c_date: ::Date?
+    attr_reader c_time: ::Time?
+    attr_reader c_datetime: ::Time?
+    attr_reader c_datetime_6: ::Time?
+    attr_reader c_timestamp: ::Time?
+    attr_reader c_year: ::Integer?
+    def initialize: (
+        ::Integer id,
+        ::Date? c_date,
+        ::Time? c_time,
+        ::Time? c_datetime,
+        ::Time? c_datetime_6,
+        ::Time? c_timestamp,
+        ::Integer? c_year
+    ) -> void
+  end
+
+  class MysqlBinaryType
+    attr_reader id: ::Integer
+    attr_reader c_bit: ::String?
+    attr_reader c_bit_16: ::String?
+    attr_reader c_binary: ::String?
+    attr_reader c_varbinary: ::String?
+    attr_reader c_tinyblob: ::String?
+    attr_reader c_blob: ::String?
+    attr_reader c_mediumblob: ::String?
+    attr_reader c_longblob: ::String?
+    def initialize: (
+        ::Integer id,
+        ::String? c_bit,
+        ::String? c_bit_16,
+        ::String? c_binary,
+        ::String? c_varbinary,
+        ::String? c_tinyblob,
+        ::String? c_blob,
+        ::String? c_mediumblob,
+        ::String? c_longblob
+    ) -> void
   end
 end
