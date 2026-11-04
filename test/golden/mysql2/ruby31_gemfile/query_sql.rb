@@ -253,6 +253,16 @@ module Mysql2Codegen
     keyword_init: true
   )
 
+  SET_REGRESSION_STEP_SQL = <<~'SQL'
+    UPDATE regressions SET step = ? WHERE id = ?
+  SQL
+
+  GET_REGRESSION_STEP_SQL = <<~'SQL'
+    SELECT step FROM regressions WHERE id = ?
+  SQL
+
+  GetRegressionStepRow = ::Struct.new(:step, keyword_init: true)
+
   LIST_REGRESSION_PAYLOADS_SQL = <<~'SQL'
     SELECT id, payload FROM regressions ORDER BY id
   SQL
@@ -531,41 +541,61 @@ module Mysql2Codegen
         raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
 
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
-        if outermost
-          client.query("SET TRANSACTION ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}") if isolation
-          client.query('BEGIN')
-          client.in_transaction = true
-        else
-          client.query("SAVEPOINT #{savepoint}")
-        end
+        level = "SET TRANSACTION ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}" if isolation
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        # Timeout / Thread#raise / Thread#kill wait while BEGIN, COMMIT and ROLLBACK run and only interrupt the
+        # block: the connection never goes back to the pool inside a transaction.
         bound = TransactionConnection.new(client) unless @db.is_a?(TransactionConnection)
-        failed = false
-        completed = false
-        begin
-          result = bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
-          completed = true
-          result
-        rescue ::Exception => e # rubocop:disable Lint/RescueException
-          failed = true
-          bound&.close
+        ::Thread.handle_interrupt(::Object => :never) do
+          started = false
+          failed = false
+          completed = false
           begin
-            client.query(rollback)
-          rescue ::Mysql2::Error
-            # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone;
-            # an interrupted query closed the connection: the server rolls back
-            raise unless e.is_a?(::Mysql2::Error) || client.closed?
-          end
-          raise
-        ensure
-          bound&.close
-          begin
-            unless failed
-              commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-              client.query(::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
+            if outermost
+              client.in_transaction = true
+              client.query(level) if level
+              client.query('BEGIN')
+            else
+              client.query("SAVEPOINT #{savepoint}")
             end
+            started = true
+            ::Thread.handle_interrupt(::Object => :immediate) do
+              result = bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
+              completed = true
+              result
+            end
+          rescue ::Exception => e # rubocop:disable Lint/RescueException
+            failed = true
+            bound&.close
+            begin
+              client.query(rollback) if started || outermost
+            rescue ::Mysql2::Error
+              # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone;
+              # an interrupted query closed the connection: the server rolls back
+              raise unless e.is_a?(::Mysql2::Error) || client.closed?
+            end
+            raise
           ensure
-            client.in_transaction = false if outermost
+            bound&.close
+            begin
+              unless failed
+                commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+                begin
+                  client.query(::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
+                rescue ::Exception # rubocop:disable Lint/RescueException
+                  # COMMIT did not run: roll back instead of leaving the transaction open (a closed client is
+                  # discarded and the server rolls back)
+                  begin
+                    client.query('ROLLBACK') if outermost && !client.closed?
+                  rescue ::Mysql2::Error
+                    nil
+                  end
+                  raise
+                end
+              end
+            ensure
+              client.in_transaction = false if outermost
+            end
           end
         end
       end
@@ -949,6 +979,28 @@ module Mysql2Codegen
       end
     end
 
+    def set_regression_step(step:, id:)
+      with_client('set_regression_step') do |client|
+        query_params = [step, id]
+        client.query(bind_params(client, SET_REGRESSION_STEP_SQL, query_params))
+        nil
+      end
+    end
+
+    def get_regression_step(id:)
+      with_client('get_regression_step') do |client|
+        query_params = [id]
+        result = client.query(bind_params(client, GET_REGRESSION_STEP_SQL, query_params), as: :array)
+        row = result.first
+        row && GetRegressionStepRow.new(step: row[0])
+      end
+    end
+
+    # Like #get_regression_step, but raises NotFound when there is no row.
+    def get_regression_step!(...)
+      get_regression_step(...) || raise(NotFound, 'GetRegressionStep returned no row')
+    end
+
     def list_regression_payloads
       with_client('list_regression_payloads') do |client|
         result = client.query(bind_params(client, LIST_REGRESSION_PAYLOADS_SQL, []), as: :array)
@@ -1116,6 +1168,7 @@ module Mysql2Codegen
       end
     end
 
+    # rubocop:disable Naming/VariableNumber
     def get_mysql_binding_values(id:)
       with_client('get_mysql_binding_values') do |client|
         query_params = [id]
@@ -1141,6 +1194,7 @@ module Mysql2Codegen
         )
       end
     end
+    # rubocop:enable Naming/VariableNumber
 
     # Like #get_mysql_binding_values, but raises NotFound when there is no row.
     def get_mysql_binding_values!(...)
@@ -1233,6 +1287,7 @@ module Mysql2Codegen
       end
     end
 
+    # rubocop:disable Naming/VariableNumber
     def get_unnamed_columns
       with_client('get_unnamed_columns') do |client|
         result = client.query(bind_params(client, GET_UNNAMED_COLUMNS_SQL, []), as: :array)
@@ -1240,6 +1295,7 @@ module Mysql2Codegen
         row && GetUnnamedColumnsRow.new(column_1: row[0], column_2: row[1])
       end
     end
+    # rubocop:enable Naming/VariableNumber
 
     # Like #get_unnamed_columns, but raises NotFound when there is no row.
     def get_unnamed_columns!(...)

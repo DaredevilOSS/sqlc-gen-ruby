@@ -122,6 +122,12 @@ INSERT INTO regressions (`order`, note) VALUES (?, ?);
 -- name: CopyRegressionRows :copyfrom
 INSERT INTO regressions (id, `order`, note, payload) VALUES (?, ?, ?, ?);
 
+-- name: SetRegressionStep :exec
+UPDATE regressions SET step = ? WHERE id = ?;
+
+-- name: GetRegressionStep :one
+SELECT step FROM regressions WHERE id = ?;
+
 -- name: ListRegressionPayloads :many
 SELECT id, payload FROM regressions ORDER BY id;
 

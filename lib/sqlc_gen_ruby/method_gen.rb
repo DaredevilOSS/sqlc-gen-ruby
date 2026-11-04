@@ -74,7 +74,10 @@ module SqlcGenRuby
       method = Code.block("def #{func}#{signature}", method_body(func, statements))
       # :copyfrom / :batch* take only `rows`; the Args class gets its own exemptions
       method_params = ROWS_COMMANDS.include?(query.cmd) ? [] : params.map(&:name)
-      method = Code.without_cops(method, Code.naming_cops(params: method_params))
+      cops = Code.naming_cops(params: method_params)
+      # Struct rows (Ruby < 3.2) are built with keywords: row_1: (unnamed columns, repeated names)
+      cops << 'Naming/VariableNumber' if keyword_row_names(query).any? { |n| n.match?(/_\d+\z/) } && !cops.include?('Naming/VariableNumber')
+      method = Code.without_cops(method, cops)
       method = "#{doc}\n#{method}" unless doc.empty?
       query.cmd == ':one' ? "#{method}\n\n#{bang_method(query, func)}" : method
     end
@@ -307,6 +310,15 @@ module SqlcGenRuby
     def exec_result_lines(exec, query)
       *lines, rows_affected, last_insert_id = @driver.exec_result_lines(exec, query)
       lines << "ExecResult.new(#{constructor_args(%w[rows_affected last_insert_id], [rows_affected, last_insert_id]).join(', ')})"
+    end
+
+    # Keyword names of the row / embedded model constructors in the method (none for positional Data rows).
+    def keyword_row_names(query)
+      return [] if !@types.keyword_rows? || query.columns.empty?
+
+      @layout.entries(query).flat_map do |entry|
+        [entry.attr, *(entry.table ? entry.table.columns.map { |c| @types.member_name(c.name) } : [])]
+      end
     end
 
     def constructor_args(names, values)

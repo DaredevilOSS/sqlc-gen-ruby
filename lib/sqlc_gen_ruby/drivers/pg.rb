@@ -42,6 +42,7 @@ module SqlcGenRuby
           [WITH_CLIENT, 'def with_client: [T] (::String name) { (untyped) -> T } -> T'],
           bound_to_method('@db'),
           [CONFIGURE, "def configure: (untyped client) -> void\n\ndef string_arrays: (untyped client) -> untyped"],
+          *([[RUN_PREPARED, RUN_PREPARED_RBS]] if @prepared),
           *timeout_exit_methods(ruby_version)
         ]
       end
@@ -49,18 +50,14 @@ module SqlcGenRuby
       # Set is only autoloaded since Ruby 3.2
       def extra_requires(_queries, ruby_version) = ruby_version.immutable_data_supported? ? [] : %w[set]
 
-      def prepare_stmt(stmt_name, const)
-        return nil unless @prepared
-
-        body = "client.prepare('#{stmt_name}', #{const})\nclient.prepared_statements.add('#{stmt_name}')"
-        Code.block("unless client.prepared_statements.include?('#{stmt_name}')", body)
-      end
+      # Prepared on first use by run_prepared.
+      def prepare_stmt(_stmt_name, _const) = nil
 
       # With preparedStatements: false (e.g. behind pgbouncer in transaction mode) the SQL is sent with every call.
       def execute_stmt(stmt_name, const, has_params, array_rows: false)
         args = has_params ? ', query_params' : ''
         call = if @prepared
-                 "client.exec_prepared('#{stmt_name}'#{args})"
+                 "run_prepared(client, '#{stmt_name}', #{const}#{args})"
                else
                  "client.exec_params(#{const}#{has_params ? ', query_params' : ', []'})"
                end
@@ -290,44 +287,84 @@ module SqlcGenRuby
             raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
 
             savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
-            if outermost
-              client.exec(isolation ? "BEGIN ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}" : 'BEGIN')
-            else
-              client.exec("SAVEPOINT #{savepoint}")
-            end
-            entered = !client.in_transaction
-            client.in_transaction = true
+            start = if outermost
+                      isolation ? "BEGIN ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}" : 'BEGIN'
+                    else
+                      "SAVEPOINT #{savepoint}"
+                    end
             rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+            # Timeout / Thread#raise / Thread#kill wait while BEGIN, COMMIT and ROLLBACK run and only interrupt the
+            # block: the connection never goes back to the pool inside a transaction.
             bound = TransactionConnection.new(client) unless @db.is_a?(TransactionConnection)
-            failed = false
-            begin
-              bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
-            rescue ::Exception # rubocop:disable Lint/RescueException
-              failed = true
-              bound&.close
-              client.cancel if client.transaction_status == ::PG::PQTRANS_ACTIVE
-              client.exec(rollback) unless client.status == ::PG::CONNECTION_BAD # the server already rolled back
-              raise
-            ensure
-              bound&.close
-              client.in_transaction = false if entered
-              if failed
-                nil
-              elsif client.status == ::PG::CONNECTION_BAD
-                # the block rescued the error of a lost connection: the server rolled the transaction back
-                raise ::PG::ConnectionBad, 'transaction rolled back: the connection was lost' if ::Thread.current.status != 'aborting'
-              else
-                # a statement failed and the block rescued the error: PostgreSQL can only roll back
-                rescued = client.transaction_status == ::PG::PQTRANS_INERROR
-                commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-                client.exec(rescued || ::Thread.current.status == 'aborting' ? rollback : commit)
-                client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
-                raise ::PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && ::Thread.current.status != 'aborting'
+            ::Thread.handle_interrupt(::Object => :never) do
+              entered = !client.in_transaction
+              client.in_transaction = true
+              started = false
+              failed = false
+              begin
+                client.exec(start)
+                started = true
+                ::Thread.handle_interrupt(::Object => :immediate) do
+                  bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
+                end
+              rescue ::Exception # rubocop:disable Lint/RescueException
+                failed = true
+                bound&.close
+                client.cancel if client.transaction_status == ::PG::PQTRANS_ACTIVE
+                # BEGIN itself may have raised after it ran (an Async task stopped while it waited)
+                begun = started || (outermost && client.transaction_status != ::PG::PQTRANS_IDLE)
+                client.exec(rollback) if begun && client.status != ::PG::CONNECTION_BAD # the server already rolled back
+                raise
+              ensure
+                bound&.close
+                client.in_transaction = false if entered
+                if failed
+                  nil
+                elsif client.status == ::PG::CONNECTION_BAD
+                  # the block rescued the error of a lost connection: the server rolled the transaction back
+                  raise ::PG::ConnectionBad, 'transaction rolled back: the connection was lost' if ::Thread.current.status != 'aborting'
+                else
+                  # a statement failed and the block rescued the error: PostgreSQL can only roll back
+                  rescued = client.transaction_status == ::PG::PQTRANS_INERROR
+                  commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+                  begin
+                    client.exec(rescued || ::Thread.current.status == 'aborting' ? rollback : commit)
+                  rescue ::Exception # rubocop:disable Lint/RescueException
+                    # COMMIT did not run (an Async task stopped while it waited): roll back instead of leaving it open
+                    client.cancel if client.transaction_status == ::PG::PQTRANS_ACTIVE
+                    open = client.status != ::PG::CONNECTION_BAD && client.transaction_status != ::PG::PQTRANS_IDLE
+                    client.exec('ROLLBACK') if outermost && open
+                    raise
+                  end
+                  client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
+                  raise ::PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && ::Thread.current.status != 'aborting'
+                end
               end
             end
           end
         end
       RUBY
+
+      RUN_PREPARED = <<~'RUBY'.chomp
+        # Executes a statement prepared once per connection. A statement dropped by hand (DEALLOCATE ALL, DISCARD ALL) is
+        # prepared again; inside a transaction the error has already aborted it, so it is raised.
+        def run_prepared(client, name, sql, params = [])
+          unless client.prepared_statements.include?(name)
+            client.prepare(name, sql)
+            client.prepared_statements.add(name)
+          end
+          client.exec_prepared(name, params)
+        rescue ::PG::InvalidSqlStatementName
+          client.prepared_statements.delete(name)
+          raise unless client.transaction_status == ::PG::PQTRANS_IDLE
+
+          client.prepare(name, sql)
+          client.prepared_statements.add(name)
+          client.exec_prepared(name, params)
+        end
+      RUBY
+
+      RUN_PREPARED_RBS = 'def run_prepared: (untyped client, ::String name, ::String sql, ?::Array[untyped] params) -> untyped'
 
       WITH_CLIENT = <<~'RUBY'.chomp
         def with_client(name)

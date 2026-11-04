@@ -282,11 +282,14 @@ module SqlcGenRuby
     def quote(value) = value.match?(/['\\\n]/) ? value.inspect : "'#{value}'"
 
     def unique_constants(values)
-      seen = Hash.new(0)
+      taken = {}
       values.map do |value|
-        const = Code.constant_name(value)
-        seen[const] += 1
-        [seen[const] == 1 ? const : "#{const}_#{seen[const]}", value]
+        base = Code.constant_name(value)
+        const = base
+        suffix = 1
+        const = "#{base}_#{suffix += 1}" while taken.key?(const)
+        taken[const] = true
+        [const, value]
       end
     end
 

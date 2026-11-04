@@ -1000,4 +1000,64 @@ class TestMysql2 < Minitest::Test
     leaked = @query_sql.transaction { |tx| tx }
     assert_raises(TransactionEnded) { leaked.count_exceptions }
   end
+
+  def test_enum_values_named_like_ruby_keywords_get_valid_constants
+    assert_equal %w[begin end all nil self do], RegressionsStep::ALL
+    assert_equal %w[begin end all nil self do],
+                 [RegressionsStep::BEGIN_, RegressionsStep::END_, RegressionsStep::ALL_, RegressionsStep::NIL,
+                  RegressionsStep::SELF, RegressionsStep::DO]
+    @query_sql.copy_regression_rows([CopyRegressionRowsArgs.new(id: 1, order: 'steps', note: nil, payload: nil)])
+    RegressionsStep::ALL.each do |step|
+      @query_sql.set_regression_step(step: step, id: 1)
+      assert_equal step, @query_sql.get_regression_step(id: 1).step
+    end
+  end
+
+  # A Mysql2::Client whose #query runs `hook` once, when it is called with `sql`, before (:before) or after (:after)
+  # the statement itself: lands an interrupt exactly at BEGIN / COMMIT.
+  def interrupting_client(sql, at, &hook)
+    client = Mysql2::Client.new(**mysql2_params)
+    armed = [true]
+    client.extend(Module.new do
+      define_method(:query) do |query, *args, **options, &block|
+        fire = armed[0] && query == sql
+        armed[0] = false if fire
+        hook.call if fire && at == :before
+        result = super(query, *args, **options, &block)
+        hook.call if fire && at == :after
+        result
+      end
+    end)
+    client
+  end
+
+  def test_interrupts_around_begin_and_commit_never_leave_the_connection_in_a_transaction
+    [
+      ['BEGIN', :after, :thread_raise], # Timeout / Thread#raise arriving right after BEGIN
+      ['BEGIN', :after, :raise],        # raised from BEGIN after it ran
+      ['COMMIT', :before, :raise]       # raised from COMMIT before it reached the server
+    ].each do |sql, at, kind|
+      began = ::Queue.new
+      client = interrupting_client(sql, at) do
+        raise ::Timeout::Error, "interrupted at #{sql}" unless kind == :thread_raise
+
+        began << true
+        sleep(0.5)
+      end
+      query_sql = QuerySql.new(::ConnectionPool.new(size: 1) { client })
+      thread = ::Thread.new { query_sql.transaction { |tx| tx.create_author_return_id(name: 'interrupted', bio: nil) } }
+      if kind == :thread_raise
+        began.pop
+        thread.raise(::Timeout::Error, "interrupted at #{sql}")
+      end
+      assert_raises(::Timeout::Error) { thread.join }
+      query_sql.create_author_return_id(name: 'autocommitted', bio: nil)
+      assert_equal %w[autocommitted], @query_sql.list_authors.map(&:name), "#{sql} #{kind}"
+      query_sql.transaction { |tx| tx.create_author_return_id(name: 'committed', bio: nil) }
+      assert_equal %w[autocommitted committed], @query_sql.list_authors.map(&:name).sort, "#{sql} #{kind}"
+      @query_sql.truncate_authors
+    ensure
+      client&.close
+    end
+  end
 end

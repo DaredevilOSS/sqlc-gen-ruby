@@ -68,7 +68,9 @@ CREATE TABLE regressions (
   id      bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `order` varchar(255) NOT NULL,
   note    text,
-  payload varbinary(16)
+  payload varbinary(16),
+  -- enum values that are Ruby keywords or the enum module's own ALL constant
+  step    ENUM('begin', 'end', 'all', 'nil', 'self', 'do')
 );
 
 CREATE TABLE copy_types (

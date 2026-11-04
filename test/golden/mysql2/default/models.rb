@@ -17,6 +17,16 @@ module Mysql2Codegen
     ALL = [AUTHOR, EDITOR, TRANSLATOR].freeze
   end
 
+  module RegressionsStep
+    BEGIN_ = 'begin'
+    END_ = 'end'
+    ALL_ = 'all'
+    NIL = 'nil'
+    SELF = 'self'
+    DO = 'do'
+    ALL = [BEGIN_, END_, ALL_, NIL, SELF, DO].freeze
+  end
+
   class Author < ::Data.define(:id, :name, :bio)
   end
 
@@ -67,7 +77,13 @@ module Mysql2Codegen
   class ExtendedBio < ::Data.define(:author_name, :name, :bio_type, :author_type)
   end
 
-  class Regression < ::Data.define(:id, :order, :note, :payload)
+  class Regression < ::Data.define(
+    :id,
+    :order,
+    :note,
+    :payload,
+    :step
+  )
   end
 
   class CopyType < ::Data.define(

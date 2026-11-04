@@ -250,11 +250,10 @@ module SqlcGenRuby
           "#{indent}# On Ruby <3.3 with timeout <0.4, break / return / throw roll back because Timeout cannot be told apart.\n" \
             "#{indent}# Add gem 'timeout', '>= 0.4' to keep these exits committing.\n#{indent}def transaction"
         end
-        template = template.sub(/^( +)failed = false\n\1begin\n( +)(.*\byield\b.*)\n/) do
+        template = template.sub(/^( +)failed = false\n/) { "#{Regexp.last_match(0)}#{Regexp.last_match(1)}completed = false\n" }
+        template = template.sub(/^( +)(.*\byield\b.*)\n/) do
           indent = Regexp.last_match(1)
-          yield_indent = Regexp.last_match(2)
-          "#{indent}failed = false\n#{indent}completed = false\n#{indent}begin\n" \
-            "#{yield_indent}result = #{Regexp.last_match(3)}\n#{yield_indent}completed = true\n#{yield_indent}result\n"
+          "#{indent}result = #{Regexp.last_match(2)}\n#{indent}completed = true\n#{indent}result\n"
         end
         raise 'transaction template without a yield' unless template.include?('completed = true')
         template.sub(old_condition, guarded_condition)

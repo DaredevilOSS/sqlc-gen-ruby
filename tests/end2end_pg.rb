@@ -1114,4 +1114,81 @@ class TestPg < Minitest::Test
     leaked = @query_sql.transaction { |tx| tx }
     assert_raises(TransactionEnded) { leaked.count_exceptions }
   end
+
+  def test_enum_values_named_like_ruby_keywords_get_valid_constants
+    assert_equal %w[begin end all BEGIN nil self __FILE__], Step::ALL
+    assert_equal %w[begin end all BEGIN nil self __FILE__],
+                 [Step::BEGIN_, Step::END_, Step::ALL_, Step::BEGIN__2, Step::NIL, Step::SELF, Step::FILE]
+    @query_sql.create_regression(id: 1, order: 'steps', payload: nil, doc: nil, bio_types: nil, uids: nil)
+    Step::ALL.each { |step| assert_equal step, @query_sql.set_regression_step(id: 1, step: step).step }
+  end
+
+  # A PG::Connection whose #exec runs `hook` once, when it is called with `sql`, before (:before) or after (:after)
+  # the statement itself: lands an interrupt exactly at BEGIN / COMMIT.
+  def interrupting_client(sql, at, &hook)
+    client = PG.connect(**pg_params)
+    armed = [true]
+    client.extend(Module.new do
+      define_method(:exec) do |query, *args, &block|
+        fire = armed[0] && query == sql
+        armed[0] = false if fire
+        hook.call if fire && at == :before
+        result = super(query, *args, &block)
+        hook.call if fire && at == :after
+        result
+      end
+    end)
+    client
+  end
+
+  def test_interrupts_around_begin_and_commit_never_leave_the_connection_in_a_transaction
+    [
+      ['BEGIN', :after, :thread_raise], # Timeout / Thread#raise arriving right after BEGIN
+      ['BEGIN', :after, :raise],        # raised from BEGIN itself (an Async task stopped while it waits)
+      ['COMMIT', :before, :raise]       # raised from COMMIT before it reached the server
+    ].each do |sql, at, kind|
+      began = ::Queue.new
+      client = interrupting_client(sql, at) do
+        raise ::Timeout::Error, "interrupted at #{sql}" unless kind == :thread_raise
+
+        began << true
+        sleep(0.5)
+      end
+      query_sql = QuerySql.new(::ConnectionPool.new(size: 1) { client })
+      thread = ::Thread.new { query_sql.transaction { |tx| tx.create_author_return_id(name: 'interrupted', bio: nil) } }
+      if kind == :thread_raise
+        began.pop
+        thread.raise(::Timeout::Error, "interrupted at #{sql}")
+      end
+      assert_raises(::Timeout::Error) { thread.join }
+      assert_equal PG::PQTRANS_IDLE, client.transaction_status, "#{sql} #{kind}"
+      query_sql.transaction { |tx| tx.create_author_return_id(name: 'committed', bio: nil) }
+      query_sql.create_author_return_id(name: 'autocommitted', bio: nil)
+      assert_equal %w[autocommitted committed], @query_sql.list_authors.map(&:name).sort, "#{sql} #{kind}"
+      @query_sql.truncate_authors
+    ensure
+      client&.close
+    end
+  end
+
+  def test_statements_are_prepared_again_after_deallocate_all
+    client = PG.connect(**pg_params)
+    query_sql = QuerySql.new(::ConnectionPool.new(size: 1) { client })
+    create_author('kept')
+    ['DEALLOCATE ALL', 'DISCARD ALL'].each do |sql|
+      assert_equal ['kept'], query_sql.list_authors.map(&:name)
+      client.exec(sql)
+      assert_equal ['kept'], query_sql.list_authors.map(&:name), sql
+    end
+    # inside a transaction the failed statement has already aborted it: it rolls back, later calls prepare again
+    assert_raises(PG::InvalidSqlStatementName) do
+      query_sql.transaction do |tx|
+        client.exec('DEALLOCATE ALL')
+        tx.list_authors
+      end
+    end
+    assert_equal ['kept'], query_sql.list_authors.map(&:name)
+  ensure
+    client&.close
+  end
 end

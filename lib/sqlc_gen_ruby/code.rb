@@ -47,11 +47,14 @@ module SqlcGenRuby
       word.split(/[^A-Za-z0-9]+/).reject(&:empty?).map { |w| w[0].upcase + w[1..] }.join
     end
 
-    # 'Auto biography' => AUTO_BIOGRAPHY (valid constant name)
+    # Names an enum module cannot use for a value: the keywords BEGIN / END and its own ALL list.
+    RESERVED_CONSTANTS = %w[BEGIN END ALL].freeze
+
+    # 'Auto biography' => AUTO_BIOGRAPHY, 'end' => END_, '2x' => VALUE_2X (valid constant name)
     def constant_name(value)
       name = value.to_s.gsub(/[^A-Za-z0-9]+/, '_').gsub(/\A_+|_+\z/, '').upcase
       name = "VALUE_#{name}" if name.empty? || name.match?(/\A[0-9]/)
-      name
+      RESERVED_CONSTANTS.include?(name) ? "#{name}_" : name
     end
 
     RUBY_KEYWORDS = %w[BEGIN END alias and begin break case class def defined? do else elsif end ensure false for if in

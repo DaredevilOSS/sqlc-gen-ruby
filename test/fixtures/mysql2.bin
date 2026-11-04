@@ -1,7 +1,7 @@
 
 
 
-2mysqlÅ'public"º'public€
+2mysql¦(public"›(public€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
@@ -70,12 +70,13 @@ c_longtext0ÿÿÿÿÿÿÿÿÿRnode_mysql_typesb
 author_name0dRextended_biosb	varchar$
 name0dRextended_biosb	varchar7
 bio_type0Rextended_biosbextended_bios_bio_type=
-author_type0Rextended_biosbextended_bios_author_type¶
+author_type0Rextended_biosbextended_bios_author_typeã
 regressions*
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigint&
 order0ÿRregressionsb	varchar(
 note0ÿÿÿÿÿÿÿÿÿRregressionsbtext'
-payload0Rregressionsb	varbinaryÓ
+payload0Rregressionsb	varbinary+
+step0Rregressionsbregressions_stepÓ
 
 copy_types)
 id0ÿÿÿÿÿÿÿÿÿR
@@ -172,7 +173,8 @@ exceptionsbbigintC
 id0ÿÿÿÿÿÿÿÿÿRconnection_poolsbbigint":
 extended_bios_bio_typeAutobiography	BiographyMemoir"7
 extended_bios_author_typeAuthorEditor
-TranslatorË
+Translator"2
+regressions_stepbeginendallnilselfdoË
 6SELECT id, name, bio FROM authors
 WHERE id = ? LIMIT 1	GetAuthor:one"*
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
@@ -385,7 +387,13 @@ HINSERT INTO regressions (id, `order`, note, payload) VALUES (?, ?, ?, ?)CopyR
 id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbigintzid*95
 order0ÿRpublicregressionsb	varcharzorder*:6
 note0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextznote*<8
-payload0Rpublicregressionsb	varbinaryzpayload:	query.sqlBregressions½
+payload0Rpublicregressionsb	varbinaryzpayload:	query.sqlBregressionsÆ
+,UPDATE regressions SET step = ? WHERE id = ?SetRegressionStep:exec*=9
+step0Rpublicregressionsbregressions_stepzstep*2.
+id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid:	query.sql¶
+)SELECT step FROM regressions WHERE id = ?GetRegressionStep:one"1
+step0Rregressionsbregressions_stepzstep*2.
+id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid:	query.sql½
 /SELECT id, payload FROM regressions ORDER BY idListRegressionPayloads:many".
 id0ÿÿÿÿÿÿÿÿÿRregressionsbbigintzid"0
 payload0Rregressionsb	varbinaryzpayload:	query.sql§

@@ -371,13 +371,15 @@ module PgCodegen
     attr_reader doc: untyped
     attr_reader bio_types: ::Array[::String]?
     attr_reader uids: ::Array[::String]?
+    attr_reader step: ::String?
     def initialize: (
         ::Integer id,
         ::String order,
         ::String? payload,
         untyped doc,
         ::Array[::String]? bio_types,
-        ::Array[::String]? uids
+        ::Array[::String]? uids,
+        ::String? step
     ) -> void
   end
 
@@ -415,14 +417,23 @@ module PgCodegen
     attr_reader doc: untyped
     attr_reader bio_types: ::Array[::String]?
     attr_reader uids: ::Array[::String]?
+    attr_reader step: ::String?
     def initialize: (
         ::Integer id,
         ::String order,
         ::String? payload,
         untyped doc,
         ::Array[::String]? bio_types,
-        ::Array[::String]? uids
+        ::Array[::String]? uids,
+        ::String? step
     ) -> void
+  end
+
+  SET_REGRESSION_STEP_SQL: ::String
+
+  class SetRegressionStepRow
+    attr_reader step: ::String?
+    def initialize: (  ::String? step) -> void
   end
 
   TRUNCATE_REGRESSIONS_SQL: ::String
@@ -726,6 +737,10 @@ module PgCodegen
 
     def list_regressions: (?order_name: ::String?) -> ::Array[ListRegressionsRow]
 
+    def set_regression_step: (id: ::Integer, step: ::String?) -> SetRegressionStepRow?
+
+    def set_regression_step!: (id: ::Integer, step: ::String?) -> SetRegressionStepRow
+
     def truncate_regressions: -> void
 
     def create_batch_types_batch: (::Array[CreateBatchTypesBatchArgs] rows) -> void
@@ -785,6 +800,8 @@ module PgCodegen
     def configure: (untyped client) -> void
 
     def string_arrays: (untyped client) -> untyped
+
+    def run_prepared: (untyped client, ::String name, ::String sql, ?::Array[untyped] params) -> untyped
 
     def encode_bytea: (::String? value) -> ::String?
 

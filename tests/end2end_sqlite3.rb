@@ -801,4 +801,48 @@ class TestSqlite3 < Minitest::Test
     leaked = @query_sql.transaction { |tx| tx }
     assert_raises(TransactionEnded) { leaked.count_exceptions }
   end
+
+  # Makes @db#execute run `hook` once, when it is called with `sql`, before (:before) or after (:after) the statement
+  # itself: lands an interrupt exactly at BEGIN / COMMIT.
+  def interrupt_database(sql, at, &hook)
+    armed = [true]
+    @db.extend(Module.new do
+      define_method(:execute) do |query, *args, &block|
+        fire = armed[0] && query == sql
+        armed[0] = false if fire
+        hook.call if fire && at == :before
+        result = super(query, *args, &block)
+        hook.call if fire && at == :after
+        result
+      end
+    end)
+  end
+
+  def test_interrupts_around_begin_and_commit_never_leave_the_database_in_a_transaction
+    [
+      ['BEGIN', :after, :thread_raise], # Timeout / Thread#raise arriving right after BEGIN
+      ['BEGIN', :after, :raise],        # raised from BEGIN after it ran
+      ['COMMIT', :before, :raise]       # raised from COMMIT before it ran
+    ].each do |sql, at, kind|
+      began = ::Queue.new
+      interrupt_database(sql, at) do
+        raise ::Timeout::Error, "interrupted at #{sql}" unless kind == :thread_raise
+
+        began << true
+        sleep(0.5)
+      end
+      thread = ::Thread.new { @query_sql.transaction { |tx| tx.create_author_return_id(name: 'interrupted', bio: nil) } }
+      if kind == :thread_raise
+        began.pop
+        thread.raise(::Timeout::Error, "interrupted at #{sql}")
+      end
+      assert_raises(::Timeout::Error) { thread.join }
+      refute @db.transaction_active?, "#{sql} #{kind}"
+      @query_sql.transaction { |tx| tx.create_author_return_id(name: 'committed', bio: nil) }
+      @query_sql.create_author_return_id(name: 'autocommitted', bio: nil)
+      refute @db.transaction_active?, "#{sql} #{kind}"
+      assert_equal %w[autocommitted committed], @query_sql.list_authors.map(&:name).sort, "#{sql} #{kind}"
+      @query_sql.truncate_authors
+    end
+  end
 end

@@ -113,13 +113,17 @@ COMMENT ON TABLE authors IS 'People who wrote at least one book.';
 COMMENT ON COLUMN authors.bio IS 'Short biography, NULL when unknown.';
 COMMENT ON TYPE extended.bio_type IS 'Kinds of biographies.';
 
+-- enum values that are Ruby keywords or the enum module's own ALL constant
+CREATE TYPE step AS ENUM ('begin', 'end', 'all', 'BEGIN', 'nil', 'self', '__FILE__');
+
 CREATE TABLE regressions (
   id        bigint PRIMARY KEY,
   "order"   text NOT NULL,
   payload   bytea,
   doc       jsonb,
   bio_types extended.bio_type[],
-  uids      uuid[]
+  uids      uuid[],
+  step      step
 );
 
 CREATE TABLE batch_types (

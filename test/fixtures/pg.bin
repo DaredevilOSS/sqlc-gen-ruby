@@ -1,7 +1,7 @@
 
 
 2
-postgresqlö2public"/publicÍ
+postgresqlÕ3public"ì/publicÍ
 	authors)
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserial&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextH
@@ -104,7 +104,7 @@ c_tsvector0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesb
 c_dimensions0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbextended
 dimensionsA
 
-c_positive0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbpositive_int»
+c_positive0ÿÿÿÿÿÿÿÿÿRpostgres_special_typesbpositive_intå
 regressions4
 id0ÿÿÿÿÿÿÿÿÿRregressionsb
 pg_catalogint8+
@@ -112,7 +112,8 @@ pg_catalogint8+
 payload0ÿÿÿÿÿÿÿÿÿRregressionsbbytea(
 doc0ÿÿÿÿÿÿÿÿÿRregressionsbjsonb@
 	bio_types 0ÿÿÿÿÿÿÿÿÿRregressionsbextendedbio_typeˆ-
-uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidˆ½
+uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidˆ(
+step0ÿÿÿÿÿÿÿÿÿRregressionsbstep½
 batch_types4
 id0ÿÿÿÿÿÿÿÿÿRbatch_typesb
 pg_catalogint82
@@ -180,7 +181,8 @@ exceptionsb	bigserialF
 	mutexes)
 id0ÿÿÿÿÿÿÿÿÿR	mutexesb	bigserialH
 connection_pools2
-id0ÿÿÿÿÿÿÿÿÿRconnection_poolsb	bigserial"´extendedÔ
+id0ÿÿÿÿÿÿÿÿÿRconnection_poolsb	bigserial"3
+stepbeginendallBEGINnilself__FILE__"´extendedÔ
 extendedbiosC
 author_name0ÿÿÿÿÿÿÿÿÿRextendedbiosb
 pg_catalogvarchar<
@@ -518,15 +520,16 @@ c_positive:	query.sqlO
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
 bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*0,
-name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname:	query.sqlÀ
-™INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, "order", payload, doc, bio_types, uidsCreateRegression:one"8
+name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname:	query.sqlö
+ŸINSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, "order", payload, doc, bio_types, uids, stepCreateRegression:one"8
 id0ÿÿÿÿÿÿÿÿÿRregressionsb
 pg_catalogint8zid"2
 order0ÿÿÿÿÿÿÿÿÿRregressionsbtextzorder"5
 payload0ÿÿÿÿÿÿÿÿÿRregressionsbbyteazpayload"-
 doc0ÿÿÿÿÿÿÿÿÿRregressionsbjsonbzdoc"K
 	bio_types 0ÿÿÿÿÿÿÿÿÿRregressionsbextendedbio_typez	bio_typesˆ"3
-uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidzuidsˆ*C?
+uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidzuidsˆ".
+step0ÿÿÿÿÿÿÿÿÿRregressionsbstepzstep*C?
 id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbpg_catalog.int8zid*>:
 order0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextzorder*A=
 payload0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbyteazpayload*95
@@ -548,17 +551,22 @@ KINSERT INTO regressions (id, "order", payload, doc) VALUES ($1, $2, $3, $4)Cr
 id0ÿÿÿÿÿÿÿÿÿRpublicregressionsbpg_catalog.int8zid*>:
 order0ÿÿÿÿÿÿÿÿÿRpublicregressionsbtextzorder*A=
 payload0ÿÿÿÿÿÿÿÿÿRpublicregressionsbbyteazpayload*95
-doc0ÿÿÿÿÿÿÿÿÿRpublicregressionsbjsonbzdoc:	query.sqlBregressions—
-wSELECT id, "order", payload, doc, bio_types, uids FROM regressions WHERE ($1::text IS NULL OR "order" = $1) ORDER BY idListRegressions:many"8
+doc0ÿÿÿÿÿÿÿÿÿRpublicregressionsbjsonbzdoc:	query.sqlBregressionsÍ
+}SELECT id, "order", payload, doc, bio_types, uids, step FROM regressions WHERE ($1::text IS NULL OR "order" = $1) ORDER BY idListRegressions:many"8
 id0ÿÿÿÿÿÿÿÿÿRregressionsb
 pg_catalogint8zid"2
 order0ÿÿÿÿÿÿÿÿÿRregressionsbtextzorder"5
 payload0ÿÿÿÿÿÿÿÿÿRregressionsbbyteazpayload"-
 doc0ÿÿÿÿÿÿÿÿÿRregressionsbjsonbzdoc"K
 	bio_types 0ÿÿÿÿÿÿÿÿÿRregressionsbextendedbio_typez	bio_typesˆ"3
-uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidzuidsˆ*#
+uids 0ÿÿÿÿÿÿÿÿÿRregressionsbuuidzuidsˆ".
+step0ÿÿÿÿÿÿÿÿÿRregressionsbstepzstep*#
 
-order_name0ÿÿÿÿÿÿÿÿÿbtext:	query.sqlC
+order_name0ÿÿÿÿÿÿÿÿÿbtext:	query.sqlŒ
+=UPDATE regressions SET step = $2 WHERE id = $1 RETURNING stepSetRegressionStep:one".
+step0ÿÿÿÿÿÿÿÿÿRregressionsbstepzstep*;7
+id0ÿÿÿÿÿÿÿÿÿRregressionsbpg_catalog.int8zid*:6
+step0ÿÿÿÿÿÿÿÿÿRpublicregressionsbstepzstep:	query.sqlC
 TRUNCATE TABLE regressionsTruncateRegressions:exec:	query.sqló
 uINSERT INTO batch_types (id, ok, ratio, blobs, docs, counts, amounts, stamps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)CreateBatchTypesBatch
 :batchexec*C?
