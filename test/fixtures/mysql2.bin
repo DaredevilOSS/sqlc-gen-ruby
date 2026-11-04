@@ -549,7 +549,15 @@ Rmysql_binding_valuesbtimez
 time_value"G
 json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjsonzjson_unicode*=9
 id0ÿÿÿÿÿÿÿÿÿ8Rmysql_binding_valuesbbigintzid:	query.sqlS
-#TRUNCATE TABLE mysql_binding_valuesTruncateMysqlBindingValues:exec:	query.sql¬
+#TRUNCATE TABLE mysql_binding_valuesTruncateMysqlBindingValues:exec:	query.sqlþ
+RINSERT INTO mysql_binding_values (id, datetime_value, datetime_2) VALUES (?, ?, ?)CopyMysqlBindingTimes	:copyfrom*C?
+id0ÿÿÿÿÿÿÿÿÿRpublicmysql_binding_valuesbbigintzid*RN
+datetime_value0Rpublicmysql_binding_valuesb
+datetimezdatetime_value*JF
+
+datetime_20Rpublicmysql_binding_valuesb
+datetimez
+datetime_2:	query.sqlBmysql_binding_values¬
 šINSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`, `initialize`)
 VALUES (?, ?, ?, ?, ?, ?,
         ?, ?, ?)InsertNameCase:exec*;7

@@ -199,7 +199,7 @@ module Mysql2Codegen
 
     def timeout_exits_with_throw?
       !!(defined?(::Timeout::VERSION) &&
-         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?)
+         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]) == -1)
     end
 
     def quote(client, value)
@@ -218,7 +218,7 @@ module Mysql2Codegen
 
         value.to_s('F')
       when ::DateTime, ::Time
-        "'#{value.strftime('%Y-%m-%d %H:%M:%S.%6N')}'"
+        "'#{mysql_time(client, value)}'"
       when ::Date
         "'#{value.strftime('%Y-%m-%d')}'"
       when ::String
@@ -230,6 +230,12 @@ module Mysql2Codegen
       else
         raise ::TypeError, "cannot bind #{value.class} to MySQL"
       end
+    end
+
+    def mysql_time(client, value)
+      time = value.is_a?(::DateTime) ? value.to_time : value
+      time = client.query_options[:database_timezone] == :utc ? time.getutc : time.getlocal
+      time.strftime('%Y-%m-%d %H:%M:%S.%6N')
     end
 
     def bind_params(client, sql, params)

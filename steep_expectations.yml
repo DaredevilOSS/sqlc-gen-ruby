@@ -3,90 +3,90 @@
   diagnostics:
   - range:
       start:
-        line: 524
+        line: 529
         character: 12
       end:
-        line: 524
+        line: 529
         character: 26
     severity: WARNING
     message: 'Cannot find the declaration of constant: `ConnectionPool`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 524
+        line: 529
         character: 51
       end:
-        line: 524
+        line: 529
         character: 57
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 524
+        line: 529
         character: 70
       end:
-        line: 524
+        line: 529
         character: 85
     severity: WARNING
     message: Empty kwargs doesn't have type annotation
     code: Ruby::UnannotatedEmptyCollection
   - range:
       start:
-        line: 551
+        line: 556
         character: 54
       end:
-        line: 605
+        line: 610
         character: 11
     severity: WARNING
     message: The method cannot be called with a block
     code: Ruby::UnexpectedBlockGiven
   - range:
       start:
-        line: 563
+        line: 568
         character: 62
       end:
-        line: 565
+        line: 570
         character: 15
     severity: WARNING
     message: The method cannot be called with a block
     code: Ruby::UnexpectedBlockGiven
   - range:
       start:
-        line: 571
+        line: 576
         character: 21
       end:
-        line: 571
+        line: 576
         character: 27
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 574
+        line: 579
         character: 37
       end:
-        line: 574
+        line: 579
         character: 43
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 594
+        line: 599
         character: 29
       end:
-        line: 594
+        line: 599
         character: 35
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1492
+        line: 1516
         character: 20
       end:
-        line: 1492
+        line: 1516
         character: 38
     severity: ERROR
     message: |-
@@ -99,20 +99,20 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1493
+        line: 1517
         character: 78
       end:
-        line: 1493
+        line: 1517
         character: 84
     severity: ERROR
     message: Type `(::String | nil)` does not have method `match?`
     code: Ruby::NoMethod
   - range:
       start:
-        line: 1495
+        line: 1519
         character: 20
       end:
-        line: 1495
+        line: 1519
         character: 39
     severity: ERROR
     message: |-
@@ -125,10 +125,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1499
+        line: 1523
         character: 20
       end:
-        line: 1499
+        line: 1523
         character: 39
     severity: ERROR
     message: |-
@@ -141,10 +141,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1504
+        line: 1528
         character: 20
       end:
-        line: 1504
+        line: 1528
         character: 39
     severity: ERROR
     message: |-
@@ -157,10 +157,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1513
+        line: 1537
         character: 20
       end:
-        line: 1513
+        line: 1537
         character: 24
     severity: ERROR
     message: |-
@@ -173,10 +173,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1546
+        line: 1570
         character: 18
       end:
-        line: 1546
+        line: 1570
         character: 24
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'

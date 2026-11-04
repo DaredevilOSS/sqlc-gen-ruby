@@ -198,7 +198,7 @@ class FeaturesTest < Minitest::Test
     assert_includes files.fetch('query_sql.rb'), "require 'tempfile'"
     assert_includes files.fetch('query_sql.rb'), "require 'bigdecimal'"
     assert_includes files.fetch('query_sql.rb'), "require 'date'"
-    assert_includes files.fetch('query_sql.rb'), 'def csv_line(values)'
+    assert_includes files.fetch('query_sql.rb'), 'def csv_line(client, values)'
     assert_equal "# frozen_string_literal: true\n\nsource 'https://rubygems.org'\n\ngem 'bigdecimal'\ngem 'connection_pool'\ngem 'date'\ngem 'mysql2'\n",
                  files.fetch('Gemfile')
   end
