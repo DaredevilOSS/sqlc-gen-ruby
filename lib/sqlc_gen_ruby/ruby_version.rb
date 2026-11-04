@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 module SqlcGenRuby
-  # Port of PluginOptions/RubyVersion.cs. The comparison deliberately mirrors the C# record's
-  # CompareTo, including its handling of omitted minor / patch parts (e.g. "3" compares equal to any
-  # "3.x", while "3.3.5" compares greater than "3.3"). The max-version check ignores the patch part.
+  # The `rubyVersion` option. Every version decision compares the *oldest release it covers*: an omitted minor part
+  # means the oldest supported release of that major ("3" is 3.1, "4" is 4.0) and an omitted patch part means .0, so
+  # "3" is below 3.2 and below 3.3 alike. The max-version check ignores the patch part.
   class RubyVersion
     include Comparable
 
@@ -47,18 +47,9 @@ module SqlcGenRuby
     def <=>(other)
       return 1 if other.nil?
 
-      cmp = major <=> other.major
-      return cmp unless cmp.zero?
-      return cmp if minor.nil?
-
-      cmp = compare_nullable(minor, other.minor)
-      return cmp unless cmp.zero?
-      return cmp if patch.nil?
-
-      compare_nullable(patch, other.patch)
+      oldest_release <=> other.oldest_release
     end
 
-    # Records compare by value in C# (`==`), unlike CompareTo which treats missing parts as "equal".
     def ==(other)
       other.is_a?(RubyVersion) && [major, minor, patch] == [other.major, other.minor, other.patch]
     end
@@ -66,24 +57,25 @@ module SqlcGenRuby
 
     def hash = [major, minor, patch].hash
 
-    # Ruby 3.2 introduced Data.define; older versions have to fall back to Struct. A missing minor part means any
-    # release of that major ("3" includes 3.1), so it counts as .0 here.
-    def immutable_data_supported?
-      RubyVersion.new(major, minor || 0, patch) >= IMMUTABLE_DATA_MIN
+    # [major, minor, patch] of the oldest Ruby release this version covers.
+    def oldest_release
+      [major, minor || (major == MIN_SUPPORTED.major ? MIN_SUPPORTED.minor : 0), patch || 0]
     end
+
+    # Ruby 3.2 introduced Data.define; older versions have to fall back to Struct.
+    def immutable_data_supported? = self >= IMMUTABLE_DATA_MIN
+
+    # Before Ruby 3.3 the default timeout gem (< 0.4) exits a Timeout.timeout block with throw, so generated
+    # transactions cannot tell it apart from a break / throw out of their block.
+    def legacy_timeout? = self < MODERN_TIMEOUT_MIN
 
     def to_s
       [major, minor, patch].compact.join('.')
     end
 
-    # int.CompareTo(int?): a missing value sorts before any number.
-    def compare_nullable(value, other)
-      other.nil? ? 1 : value <=> other
-    end
-    private :compare_nullable
-
     MIN_SUPPORTED = new(3, 1).freeze
     MAX_SUPPORTED = new(4, 0).freeze
     IMMUTABLE_DATA_MIN = new(3, 2).freeze
+    MODERN_TIMEOUT_MIN = new(3, 3).freeze
   end
 end

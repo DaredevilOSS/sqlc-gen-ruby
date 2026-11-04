@@ -56,6 +56,18 @@ sql:
         ruby_type: { type: "Float" }
       - column: "*:note"
         ruby_type: { type: "Time" }
+# rubyVersion "3" means any Ruby 3.x, so it must get everything Ruby 3.1 needs (Struct rows, the Timeout guard).
+- schema: "sqlite_schema.sql"
+  queries:
+  - "sqlite_major_queries/major.sql"
+  engine: "sqlite"
+  codegen:
+  - plugin: ruby
+    out: ".generated/sqlite3_major"
+    options:
+      driver: sqlite3
+      moduleName: Options::SqliteMajor
+      rubyVersion: "3"
 - schema: "pg_schema.sql"
   queries:
   - "pg_queries/first.sql"

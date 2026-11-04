@@ -58,7 +58,7 @@ More: [the generated code for every driver](docs/Examples.md) (it is the plugin'
 | Option | Default | What it does |
 |---|---|---|
 | `driver` | required | `pg`, `mysql2` or `sqlite3`. Must match the sqlc `engine:`. |
-| `rubyVersion` | `3.3` | Oldest Ruby the code must run on, `3.1` – `4.0`. Rows are `Data` classes from 3.2 and `Struct`s below; `3` means any 3.x, so it gets `Struct`s. |
+| `rubyVersion` | `3.3` | Oldest Ruby the code must run on, `3.1` – `4.0`. Rows are `Data` classes from 3.2 and `Struct`s below; `3` means any 3.x, so it gets what Ruby 3.1 needs (`Struct`s, the Timeout handling below 3.3). |
 | `generateTypes` | `true` | Also generate `.rbs` type signatures. |
 | `generateGemfile` | `false` | Also generate a `Gemfile` with the gems the code needs. |
 | `moduleName` | `<Driver>Codegen` | The module the code lives in, e.g. `MyApp::Db`. |
@@ -124,7 +124,9 @@ end
 * Everything in the block runs on one connection. It commits when the block ends (also on `break`, `return`, `throw`)
   and rolls back when it raises or the thread is killed. An interrupt (`Timeout`, `Thread#raise`, `Thread#kill`) that
   arrives while `BEGIN`, `COMMIT` or `ROLLBACK` runs waits for it to finish, and a `BEGIN` / `COMMIT` that raises
-  itself (a stopped `Async` task) is rolled back: the connection never goes back to the pool inside a transaction. On Ruby <3.3 with timeout <0.4, `break`, `return`, and
+  itself (a stopped `Async` task) is rolled back: the connection never goes back to the pool inside a transaction.
+  On MySQL a `Thread#kill` during a query closes that client (mysql2 cannot send `ROLLBACK` while it waits for the
+  query's result), so the server rolls the transaction back and the pool replaces the client. On Ruby <3.3 with timeout <0.4, `break`, `return`, and
   `throw` also roll back because Timeout cannot be told apart; add `gem 'timeout', '>= 0.4'` to the generated Gemfile
   to keep those exits committing. A nested `transaction` rolls back only its own part. With `connection_pool` or
   SQLite, parent-object calls from the same thread reuse the transaction connection; injected `#with` objects must do
@@ -231,6 +233,10 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 * SQLite: sqlc (1.27 – 1.31 at least) misplaces the SQL of a query file that contains a non-ASCII character (in a
   name, literal or comment): that query and the following ones lose characters at the end (`FROM user` instead of
   `FROM users`). This is a sqlc bug, not a plugin one; keep SQLite query files ASCII and pass such values as parameters.
+* MySQL: sqlc lowercases the table name that `sqlc.embed` expands to (`sqlc.embed(MixedItems)` becomes
+  `SELECT mixeditems.itemid, ...`). MySQL table names are case-sensitive on Linux, so a mixed-case table fails with
+  `Unknown column 'mixeditems.itemid'`. This is a sqlc limitation the plugin cannot undo (the request only carries the
+  lowercased name); give the table an alias and embed that: `` SELECT sqlc.embed(m) FROM `MixedItems` AS m ``.
 * Not applicable to Ruby (they exist in the C# plugin): `withAsyncSuffix` / `withCancellationToken` (use the Fiber
   scheduler), `useDapper`, target framework / csproj options (`moduleName` replaces the namespace).
 

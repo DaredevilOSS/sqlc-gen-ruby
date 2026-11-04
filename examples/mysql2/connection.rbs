@@ -2,6 +2,8 @@
 module Mysql2Codegen
   module ConnectionState
     attr_accessor in_transaction: bool
+    def query: (*untyped) -> untyped
+    def query_running?: () -> bool
   end
 
   class TransactionEnded < ::StandardError

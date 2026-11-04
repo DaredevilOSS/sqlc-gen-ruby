@@ -252,7 +252,7 @@ module SqlcGenRuby
       end
 
       def legacy_transaction_template(template, ruby_version, old_condition, guarded_condition)
-        return template unless ruby_version < RubyVersion.new(3, 3)
+        return template unless ruby_version.legacy_timeout?
 
         template = template.sub(/^( +)def transaction\b/) do
           indent = Regexp.last_match(1)
@@ -269,7 +269,7 @@ module SqlcGenRuby
       end
 
       def timeout_exit_methods(ruby_version)
-        return [] unless ruby_version < RubyVersion.new(3, 3)
+        return [] unless ruby_version.legacy_timeout?
 
         [[TIMEOUT_EXIT_HELPER, TIMEOUT_EXIT_HELPER_RBS]]
       end

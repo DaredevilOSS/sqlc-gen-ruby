@@ -51,6 +51,7 @@ class TestOptions < Minitest::Test
       assert_match(/^ *class AdminUsersSql$/, admin)
 
       assert_sqlite_runtime(sqlite_dir)
+      assert_major_version_runtime(File.join(OUTPUT_DIR, 'sqlite3_major'))
       assert_pg_runtime(pg_dir)
     ensure
       FileUtils.rm_rf(OUTPUT_DIR)
@@ -66,12 +67,8 @@ class TestOptions < Minitest::Test
   end
 
   def assert_sqlite_runtime(generated_dir)
-    gemfile = File.join(generated_dir, 'Gemfile')
-    bundle_env = Bundler.unbundled_env.merge(
-      'BUNDLE_BIN_PATH' => nil, 'BUNDLE_PATH' => ENV['BUNDLE_PATH'], 'RUBYOPT' => nil,
-      'BUNDLE_GEMFILE' => gemfile, 'OPTIONS_SQLITE_DIR' => generated_dir,
-      'OPTIONS_SCHEMA' => File.join(OPTIONS_DIR, 'sqlite_schema.sql')
-    )
+    bundle_env = generated_bundle_env(generated_dir, 'OPTIONS_SQLITE_DIR' => generated_dir,
+                                                     'OPTIONS_SCHEMA' => File.join(OPTIONS_DIR, 'sqlite_schema.sql'))
     stdout, stderr, status = Open3.capture3(bundle_env, 'bundle', 'install')
     assert status.success?, "generated-Gemfile bundle install failed:\n#{stdout}\n#{stderr}"
     stdout, stderr, status = Open3.capture3(
@@ -97,6 +94,50 @@ class TestOptions < Minitest::Test
       RUBY
     )
     assert status.success?, "generated-Gemfile SQLite run failed:\n#{stdout}\n#{stderr}"
+  end
+
+  def generated_bundle_env(generated_dir, **env)
+    Bundler.unbundled_env.merge(
+      'BUNDLE_BIN_PATH' => nil, 'BUNDLE_PATH' => ENV['BUNDLE_PATH'], 'RUBYOPT' => nil,
+      'BUNDLE_GEMFILE' => File.join(generated_dir, 'Gemfile'), **env
+    )
+  end
+
+  # rubyVersion "3": the code must also work on Ruby 3.1 / 3.2 with their default timeout gem (< 0.4).
+  def assert_major_version_runtime(generated_dir)
+    assert_match(/^ *\w+ = ::Struct\.new/, File.read(File.join(generated_dir, 'models.rb')))
+    assert_includes File.read(File.join(generated_dir, 'Gemfile')), "gem 'timeout', '>= 0.4'"
+    bundle_env = generated_bundle_env(generated_dir, 'OPTIONS_DIR' => generated_dir,
+                                                     'OPTIONS_SCHEMA' => File.join(OPTIONS_DIR, 'sqlite_schema.sql'))
+    stdout, stderr, status = Open3.capture3(bundle_env, 'bundle', 'install')
+    assert status.success?, "generated-Gemfile bundle install failed:\n#{stdout}\n#{stderr}"
+    stdout, stderr, status = Open3.capture3(
+      bundle_env,
+      'bundle', 'exec', RbConfig.ruby, '-e', <<~'RUBY'
+        require 'timeout'
+        require File.join(ENV.fetch('OPTIONS_DIR'), 'major_sql')
+        db = SQLite3::Database.new(':memory:')
+        db.execute_batch(File.read(ENV.fetch('OPTIONS_SCHEMA')))
+        queries = Options::SqliteMajor::MajorSql.new(db)
+        begin
+          Timeout.timeout(0.2) do
+            queries.transaction do |tx|
+              tx.create_major_article(title: 'partial')
+              sleep 2
+            end
+          end
+          raise 'Timeout did not fire'
+        rescue Timeout::Error
+          nil
+        end
+        total = queries.count_major_articles.total
+        raise "Timeout inside transaction committed #{total} row(s) (timeout #{Timeout::VERSION})" unless total.zero?
+
+        queries.transaction { |tx| tx.create_major_article(title: 'kept') }
+        raise 'transaction did not commit' unless queries.count_major_articles.total == 1
+      RUBY
+    )
+    assert status.success?, "rubyVersion 3 runtime failed:\n#{stdout}\n#{stderr}"
   end
 
   def assert_pg_runtime(generated_dir)

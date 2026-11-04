@@ -36,7 +36,7 @@
         line: 551
         character: 54
       end:
-        line: 599
+        line: 605
         character: 11
     severity: WARNING
     message: The method cannot be called with a block
@@ -73,20 +73,20 @@
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 589
-        character: 27
+        line: 594
+        character: 29
       end:
-        line: 589
-        character: 33
+        line: 594
+        character: 35
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1478
+        line: 1492
         character: 20
       end:
-        line: 1478
+        line: 1492
         character: 38
     severity: ERROR
     message: |-
@@ -99,52 +99,20 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1479
+        line: 1493
         character: 78
       end:
-        line: 1479
+        line: 1493
         character: 84
     severity: ERROR
     message: Type `(::String | nil)` does not have method `match?`
     code: Ruby::NoMethod
   - range:
       start:
-        line: 1481
+        line: 1495
         character: 20
       end:
-        line: 1481
-        character: 39
-    severity: ERROR
-    message: |-
-      Cannot pass a value of type `(::String | nil)` as an argument of type `(::string | ::Integer)`
-        (::String | nil) <: (::string | ::Integer)
-          nil <: (::string | ::Integer)
-            nil <: ::string
-              nil <: (::String | ::_ToStr)
-                nil <: ::String
-    code: Ruby::ArgumentTypeMismatch
-  - range:
-      start:
-        line: 1485
-        character: 20
-      end:
-        line: 1485
-        character: 39
-    severity: ERROR
-    message: |-
-      Cannot pass a value of type `(::String | nil)` as an argument of type `(::string | ::Integer)`
-        (::String | nil) <: (::string | ::Integer)
-          nil <: (::string | ::Integer)
-            nil <: ::string
-              nil <: (::String | ::_ToStr)
-                nil <: ::String
-    code: Ruby::ArgumentTypeMismatch
-  - range:
-      start:
-        line: 1490
-        character: 20
-      end:
-        line: 1490
+        line: 1495
         character: 39
     severity: ERROR
     message: |-
@@ -161,6 +129,38 @@
         character: 20
       end:
         line: 1499
+        character: 39
+    severity: ERROR
+    message: |-
+      Cannot pass a value of type `(::String | nil)` as an argument of type `(::string | ::Integer)`
+        (::String | nil) <: (::string | ::Integer)
+          nil <: (::string | ::Integer)
+            nil <: ::string
+              nil <: (::String | ::_ToStr)
+                nil <: ::String
+    code: Ruby::ArgumentTypeMismatch
+  - range:
+      start:
+        line: 1504
+        character: 20
+      end:
+        line: 1504
+        character: 39
+    severity: ERROR
+    message: |-
+      Cannot pass a value of type `(::String | nil)` as an argument of type `(::string | ::Integer)`
+        (::String | nil) <: (::string | ::Integer)
+          nil <: (::string | ::Integer)
+            nil <: ::string
+              nil <: (::String | ::_ToStr)
+                nil <: ::String
+    code: Ruby::ArgumentTypeMismatch
+  - range:
+      start:
+        line: 1513
+        character: 20
+      end:
+        line: 1513
         character: 24
     severity: ERROR
     message: |-
@@ -173,10 +173,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1532
+        line: 1546
         character: 18
       end:
-        line: 1532
+        line: 1546
         character: 24
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'

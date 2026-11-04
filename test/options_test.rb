@@ -45,6 +45,35 @@ class OptionsTest < Minitest::Test
     assert_operator RubyVersion.parse('3.4.1'), :>, RubyVersion.parse('3.4')
   end
 
+  def test_omitted_parts_mean_the_oldest_covered_release
+    { '3' => [3, 1, 0], '3.1' => [3, 1, 0], '3.2' => [3, 2, 0], '3.2.9' => [3, 2, 9], '3.3' => [3, 3, 0],
+      '4' => [4, 0, 0], '4.0' => [4, 0, 0], '4.0.9' => [4, 0, 9] }.each do |v, oldest|
+      assert_equal oldest, RubyVersion.parse(v).oldest_release, v
+    end
+  end
+
+  def test_version_decisions_agree_for_every_form
+    # [immutable_data_supported?, legacy_timeout?]
+    { '3' => [false, true], '3.1' => [false, true], '3.1.7' => [false, true], '3.2' => [true, true],
+      '3.2.11' => [true, true], '3.3' => [true, false], '3.3.0' => [true, false], '3.4.1' => [true, false],
+      '4' => [true, false], '4.0' => [true, false], '4.0.9' => [true, false] }.each do |v, expected|
+      version = RubyVersion.parse(v)
+      assert_equal expected, [version.immutable_data_supported?, version.legacy_timeout?], v
+      assert_equal version.legacy_timeout?, version < RubyVersion.new(3, 3), v
+      assert_equal version.immutable_data_supported?, version >= RubyVersion.new(3, 2), v
+    end
+  end
+
+  def test_major_only_version_orders_as_its_oldest_release
+    three = RubyVersion.parse('3')
+    assert_equal RubyVersion.parse('3.1'), three.oldest_release.then { |m, n, _| RubyVersion.new(m, n) }
+    assert_operator three, :<, RubyVersion.parse('3.2')
+    assert_operator three, :<, RubyVersion.parse('3.3')
+    assert_operator RubyVersion.parse('3.3.5'), :>, RubyVersion.parse('3.3')
+    assert_equal 0, RubyVersion.parse('3.3') <=> RubyVersion.parse('3.3.0')
+    assert_operator RubyVersion.parse('4'), :>, RubyVersion.parse('3.4.9')
+  end
+
   def test_immutable_data_support
     refute RubyVersion.parse('3.1').immutable_data_supported?
     assert RubyVersion.parse('3.2').immutable_data_supported?

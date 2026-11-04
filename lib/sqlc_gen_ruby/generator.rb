@@ -296,7 +296,7 @@ module SqlcGenRuby
 
     def gemfile(queries)
       gems = (@driver.required_gems + @driver.extra_gems(queries)).uniq.sort.map { |g| "gem '#{g}'" }
-      gems << "gem 'timeout', '>= 0.4'" if @options.ruby_version < RubyVersion.new(3, 3)
+      gems << "gem 'timeout', '>= 0.4'" if @options.ruby_version.legacy_timeout?
       gems.sort!
       gems = gems.join("\n")
       Plugin::File.new(name: 'Gemfile', contents: "# frozen_string_literal: true\n\nsource 'https://rubygems.org'\n\n#{gems}\n")

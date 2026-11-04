@@ -528,18 +528,24 @@ class FeaturesTest < Minitest::Test
 
   def test_legacy_timeout_guard_is_emitted_only_for_pre_33_targets
     %w[pg mysql2 sqlite3].each do |driver|
-      legacy = generate(load_request(driver, rubyVersion: '3.1', generateGemfile: true))
-      rb = legacy.fetch('query_sql.rb')
-      assert_includes rb, 'completed = false'
-      assert_includes rb, '!completed && timeout_exits_with_throw?'
-      assert_includes rb, 'def timeout_exits_with_throw?'
-      assert_includes legacy.fetch('query_sql.rbs'), 'def timeout_exits_with_throw?: () -> bool'
-      assert_includes legacy.fetch('Gemfile'), "gem 'timeout', '>= 0.4'"
+      %w[3 3.1 3.1.7 3.2 3.2.11].each do |version| # "3" covers Ruby 3.1 too
+        legacy = generate(load_request(driver, rubyVersion: version, generateGemfile: true))
+        rb = legacy.fetch('query_sql.rb')
+        assert_includes rb, 'completed = false', version
+        assert_includes rb, '!completed && timeout_exits_with_throw?', version
+        assert_includes rb, 'def timeout_exits_with_throw?', version
+        assert_includes legacy.fetch('query_sql.rbs'), 'def timeout_exits_with_throw?: () -> bool', version
+        assert_includes legacy.fetch('Gemfile'), "gem 'timeout', '>= 0.4'", version
+      end
 
-      modern = generate(load_request(driver, rubyVersion: '3.3')).fetch('query_sql.rb')
-      refute_includes modern, 'completed = false'
-      refute_includes modern, 'timeout_exits_with_throw?'
-      refute_includes modern, 'On Ruby <3.3 with timeout <0.4'
+      %w[3.3 3.3.0 4 4.0.9].each do |version|
+        modern = generate(load_request(driver, rubyVersion: version, generateGemfile: true))
+        rb = modern.fetch('query_sql.rb')
+        refute_includes rb, 'completed = false', version
+        refute_includes rb, 'timeout_exits_with_throw?', version
+        refute_includes rb, 'On Ruby <3.3 with timeout <0.4', version
+        refute_includes modern.fetch('Gemfile'), 'timeout', version
+      end
     end
   end
 
