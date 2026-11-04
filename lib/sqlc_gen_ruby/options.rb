@@ -7,6 +7,7 @@ module SqlcGenRuby
   # Port of PluginOptions/Options.cs + RawOptions.cs: parses the JSON `options:` block of the sqlc config.
   class Options
     DRIVERS = %w[mysql2 pg sqlite3].freeze
+    CORE_MODULES = %w[BasicObject Object Kernel].freeze
     KNOWN = %w[driver generateGemfile generateTypes rubyVersion overrides moduleName preparedStatements rename
                exactTableNames].freeze
     OVERRIDE_KEYS = %w[column db_type ruby_type].freeze
@@ -148,6 +149,9 @@ module SqlcGenRuby
       name = fetch_string(raw, 'moduleName')
       unless name.match?(/\A[A-Z]\w*(::[A-Z]\w*)*\z/)
         raise ArgumentError, "option moduleName must be a Ruby constant path (e.g. MyApp::Db), got #{name.inspect}"
+      end
+      if CORE_MODULES.include?(name.split('::').first)
+        raise ArgumentError, "option moduleName must not reopen #{name.split('::').first} (every object would get the generated constants)"
       end
 
       name

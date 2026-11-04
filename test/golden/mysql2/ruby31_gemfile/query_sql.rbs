@@ -546,6 +546,14 @@ module Mysql2Codegen
 
   TRUNCATE_MYSQL_BINDING_VALUES_SQL: ::String
 
+  class CopyMysqlBindingTimesArgs < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor datetime_value: ::Time?
+    attr_accessor datetime_2: ::Time?
+    def initialize: (  id: ::Integer, datetime_value: ::Time?, datetime_2: ::Time?) -> void
+    def self.new: (  id: ::Integer, datetime_value: ::Time?, datetime_2: ::Time?) -> CopyMysqlBindingTimesArgs
+  end
+
   INSERT_NAME_CASE_SQL: ::String
 
   GET_NAME_CASE_SQL: ::String
@@ -865,6 +873,8 @@ module Mysql2Codegen
 
     def truncate_mysql_binding_values: -> void
 
+    def copy_mysql_binding_times: (::Array[CopyMysqlBindingTimesArgs] rows) -> void
+
     def insert_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, camel_case: ::String, http_server: ::String, initialize: ::String) -> void
 
     def get_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String, initialize: ::String) -> GetNameCaseRow?
@@ -927,9 +937,11 @@ module Mysql2Codegen
 
     def quote: (untyped client, untyped value) -> ::String
 
+    def mysql_time: (untyped client, ::Time | ::DateTime value) -> ::String
+
     def bind_params: (untyped client, ::String sql, ::Array[untyped] params) -> ::String
 
-    def csv_line: (::Array[untyped] values) -> ::String
+    def csv_line: (untyped client, ::Array[untyped] values) -> ::String
 
     def load_data: (untyped client, ::String sql, ?strict: bool) -> void
 

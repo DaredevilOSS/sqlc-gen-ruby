@@ -191,6 +191,10 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   (`uuid[]`, enum arrays, ...) are `Array[String]`, also for types created after the connection was opened (a
   migration run while the application is up). Geometric, range, full-text, `hstore`, `ltree`, `timetz`, `reg*` and
   composite types are `String`s; domains and unknown types are `untyped`.
+* MySQL: a `Time` / `DateTime` parameter (also in `:copyfrom`) keeps its instant whatever its UTC offset: it is written
+  in the zone `mysql2` reads `DATETIME` / `TIMESTAMP` values back in, the process's local zone, or UTC for a client
+  created with `database_timezone: :utc` (`connect(params.merge(database_timezone: :utc))`). The server also converts
+  `TIMESTAMP` columns with the session `time_zone`, so keep that equal to the client's zone.
 * A `String` passed to a PostgreSQL `json` / `jsonb` parameter is JSON text (`'{"a":1}'`): pass `'"hi"'` or
   `'hi'.to_json` for a JSON string. Hashes, Arrays, numbers, `true` / `false` and `nil` are encoded for you.
 * Enums are `String`s, with constants in `models.rb` (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`). Values that
@@ -213,6 +217,9 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 * A parameter used twice is one keyword when named with `sqlc.arg`; repeated `?` / `$n` of one column become `id:`, `id_2:`.
 * Models may be named like Ruby or driver constants (tables `exceptions`, `data`, `threads`, `sets`, ...): the
   generated code and `.rbs` refer to those as `::Exception`, `::Data`, `::Thread`, ... so the models cannot shadow them.
+* SQLite: sqlc before 1.30 (including the pinned 1.27) reports a quoted table name with its quotes, so
+  `CREATE TABLE "Items"` gives the model `Items` there and `Item` with sqlc 1.30 and later (PostgreSQL / MySQL give
+  `Item` with any version). Use `rename` or `exactTableNames` to keep the name when upgrading sqlc.
 * A table `authors` next to a table `author` keeps its plural model name (`Authors`). Query names that would replace
   a generated method (`Transaction`, `Initialize`, ...) are errors.
 

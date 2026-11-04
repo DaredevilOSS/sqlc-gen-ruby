@@ -1768,7 +1768,7 @@ module PgCodegen
 
     def timeout_exits_with_throw?
       !!(defined?(::Timeout::VERSION) &&
-         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?)
+         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]) == -1)
     end
 
     # bytea parameters are sent escaped: binary Strings (NUL bytes, invalid UTF-8) are not valid text.

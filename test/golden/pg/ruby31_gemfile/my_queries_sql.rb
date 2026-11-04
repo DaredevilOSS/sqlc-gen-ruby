@@ -200,7 +200,7 @@ module PgCodegen
 
     def timeout_exits_with_throw?
       !!(defined?(::Timeout::VERSION) &&
-         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?)
+         (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]) == -1)
     end
   end
 end

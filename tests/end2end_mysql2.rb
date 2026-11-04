@@ -92,6 +92,31 @@ class TestMysql2 < Minitest::Test
     @query_sql.truncate_exceptions
   end
 
+  def with_time_zone(zone)
+    saved = ENV.fetch('TZ', nil)
+    ENV['TZ'] = zone
+    yield
+  ensure
+    saved ? ENV['TZ'] = saved : ENV.delete('TZ')
+  end
+
+  # Writes each [datetime_value, datetime_2] pair with a bound :exec and with :copyfrom and reads it back.
+  def assert_times_round_trip(query_sql, pairs)
+    pairs.each_with_index do |(value, value2), i|
+      query_sql.insert_mysql_binding_values(**binding_values(i + 1).merge(datetime_value: value, datetime_2: value2))
+    end
+    query_sql.copy_mysql_binding_times(pairs.each_with_index.map do |(value, value2), i|
+      CopyMysqlBindingTimesArgs.new(id: i + 101, datetime_value: value, datetime_2: value2)
+    end)
+    pairs.each_with_index do |(value, value2), i|
+      [i + 1, i + 101].each do |id|
+        row = query_sql.get_mysql_binding_values(id: id)
+        assert_equal value.to_time, row.datetime_value, "datetime_value of row #{id}"
+        assert_equal value2.to_time, row.datetime_2, "datetime_2 of row #{id}"
+      end
+    end
+  end
+
   def create_author(name, bio = nil)
     @query_sql.create_author_return_id(name: name, bio: bio)
   end
@@ -567,8 +592,8 @@ class TestMysql2 < Minitest::Test
     assert_equal decimal, row.decimal_value
     assert_equal float, row.float_value
     assert_equal Date.new(2024, 2, 3), row.date_value
-    assert_equal time.strftime('%Y-%m-%d %H:%M:%S.%6N'), row.datetime_value.strftime('%Y-%m-%d %H:%M:%S.%6N')
-    assert_equal date_time.strftime('%Y-%m-%d %H:%M:%S.%6N'), row.datetime_2.strftime('%Y-%m-%d %H:%M:%S.%6N')
+    assert_equal time, row.datetime_value
+    assert_equal date_time.to_time, row.datetime_2
     assert_equal 1, row.bool_value
     assert_nil row.nullable_value
     assert_equal [0xAA, 0xAA].pack('C*'), row.bit_value
@@ -583,20 +608,23 @@ class TestMysql2 < Minitest::Test
     end
   end
 
-  def test_time_values_match_mysql2_prepared_statement_storage
-    client = Mysql2::Client.new(mysql2_params)
-    time = ::Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
-    date_time = DateTime.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
-    statement = client.prepare('INSERT INTO mysql_binding_values (id, datetime_value, datetime_2) VALUES (?, ?, ?)')
-    statement.execute(1, time, date_time)
-    statement.close
-    @query_sql.insert_mysql_binding_values(**binding_values(2).merge(datetime_value: time, datetime_2: date_time))
-    prepared = @query_sql.get_mysql_binding_values(id: 1)
-    quoted = @query_sql.get_mysql_binding_values(id: 2)
-    assert_equal prepared.datetime_value, quoted.datetime_value
-    assert_equal prepared.datetime_2, quoted.datetime_2
-  ensure
-    client&.close
+  # mysql2 reads DATETIME values back in its database_timezone (the process zone unless set to :utc), so a Time or
+  # DateTime with another offset must keep its instant, through bound parameters and :copyfrom alike.
+  def test_time_values_keep_their_instant_whatever_their_offset
+    with_time_zone('XYZ-3') do # UTC+3, unlike the values below
+      assert_times_round_trip(@query_sql, [
+                                [::Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30'),
+                                 DateTime.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')],
+                                [::Time.now.utc.round(6), ::Time.now.round(6)]
+                              ])
+    end
+  end
+
+  def test_time_values_follow_a_utc_database_timezone
+    query_sql = QuerySql.connect(mysql2_params.merge('database_timezone' => :utc))
+    with_time_zone('XYZ-3') do
+      assert_times_round_trip(query_sql, [[::Time.now.round(6), DateTime.new(2024, 3, 4, 5, 6, 7, '+05:30')]])
+    end
   end
 
   def test_injection_and_unsupported_parameters_are_safe

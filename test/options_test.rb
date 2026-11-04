@@ -28,6 +28,14 @@ class OptionsTest < Minitest::Test
     assert_equal 'unknown override keys: colum (did you mean column?); supported: column, db_type, ruby_type', err.message
   end
 
+  def test_module_name_must_not_reopen_core_modules
+    %w[Kernel Object Kernel::Db BasicObject::X].each do |name|
+      err = assert_raises(ArgumentError) { opts(driver: 'pg', moduleName: name) }
+      assert_match(/must not reopen/, err.message)
+    end
+    assert_equal 'KernelDb', opts(driver: 'pg', moduleName: 'KernelDb').module_name
+  end
+
   def test_version_bounds
     %w[3.1 3.2 3.3 3.4 4.0 3 4].each { |v| RubyVersion.parse(v) }
     err = assert_raises(ArgumentError) { RubyVersion.parse('4.1') }

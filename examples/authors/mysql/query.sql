@@ -189,6 +189,9 @@ SELECT * FROM mysql_binding_values WHERE id = sqlc.arg(id);
 -- name: TruncateMysqlBindingValues :exec
 TRUNCATE TABLE mysql_binding_values;
 
+-- name: CopyMysqlBindingTimes :copyfrom
+INSERT INTO mysql_binding_values (id, datetime_value, datetime_2) VALUES (?, ?, ?);
+
 -- name: InsertNameCase :exec
 INSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`, `initialize`)
 VALUES (sqlc.arg(id), sqlc.arg(class), sqlc.arg(end_), sqlc.arg(hash), sqlc.arg(method), sqlc.arg(count),

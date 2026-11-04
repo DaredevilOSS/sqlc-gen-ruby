@@ -296,7 +296,7 @@ module SqlcGenRuby
       TIMEOUT_EXIT_HELPER = <<~'RUBY'.chomp
         def timeout_exits_with_throw?
           !!(defined?(::Timeout::VERSION) &&
-             (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]).negative?)
+             (::Timeout::VERSION.split('.').map(&:to_i) <=> [0, 4]) == -1)
         end
       RUBY
       TIMEOUT_EXIT_HELPER_RBS = 'def timeout_exits_with_throw?: () -> bool'

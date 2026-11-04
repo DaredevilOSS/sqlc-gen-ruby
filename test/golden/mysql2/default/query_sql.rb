@@ -404,6 +404,11 @@ module Mysql2Codegen
     TRUNCATE TABLE mysql_binding_values
   SQL
 
+  # rubocop:disable Naming/VariableNumber
+  class CopyMysqlBindingTimesArgs < ::Data.define(:id, :datetime_value, :datetime_2)
+  end
+  # rubocop:enable Naming/VariableNumber
+
   INSERT_NAME_CASE_SQL = <<~'SQL'
     INSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`, `initialize`)
     VALUES (?, ?, ?, ?, ?, ?,
@@ -821,7 +826,7 @@ module Mysql2Codegen
       with_client('copy_authors') do |client|
         ::Tempfile.create(['copy_authors', '.csv']) do |file|
           rows.each do |row|
-            file.write(csv_line([row.name, row.bio]))
+            file.write(csv_line(client, [row.name, row.bio]))
           end
           file.flush
           load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `authors` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`name`, `bio`)") if file.pos.positive?
@@ -974,7 +979,7 @@ module Mysql2Codegen
       with_client('copy_regressions') do |client|
         ::Tempfile.create(['copy_regressions', '.csv']) do |file|
           rows.each do |row|
-            file.write(csv_line([row.order, row.note]))
+            file.write(csv_line(client, [row.order, row.note]))
           end
           file.flush
           load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `regressions` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`order`, `note`)") if file.pos.positive?
@@ -987,7 +992,7 @@ module Mysql2Codegen
       with_client('copy_regression_rows') do |client|
         ::Tempfile.create(['copy_regression_rows', '.csv']) do |file|
           rows.each do |row|
-            file.write(csv_line([row.id, row.order, row.note, row.payload]))
+            file.write(csv_line(client, [row.id, row.order, row.note, row.payload]))
           end
           file.flush
           load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `regressions` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `order`, `note`, `payload`)") if file.pos.positive?
@@ -1059,7 +1064,7 @@ module Mysql2Codegen
       with_client('copy_copy_types') do |client|
         ::Tempfile.create(['copy_copy_types', '.csv']) do |file|
           rows.each do |row|
-            file.write(csv_line([row.id, row.code, row.doc, row.flags, row.amount]))
+            file.write(csv_line(client, [row.id, row.code, row.doc, row.flags, row.amount]))
           end
           file.flush
           load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`, @sqlc_v2, `flags`, `amount`) SET `doc` = CONVERT(@sqlc_v2 USING utf8mb4)") if file.pos.positive?
@@ -1072,7 +1077,7 @@ module Mysql2Codegen
       with_client('copy_copy_types_ignore') do |client|
         ::Tempfile.create(['copy_copy_types_ignore', '.csv']) do |file|
           rows.each do |row|
-            file.write(csv_line([row.id, row.code]))
+            file.write(csv_line(client, [row.id, row.code]))
           end
           file.flush
           load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' IGNORE INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)", strict: false) if file.pos.positive?
@@ -1085,7 +1090,7 @@ module Mysql2Codegen
       with_client('copy_copy_types_replace') do |client|
         ::Tempfile.create(['copy_copy_types_replace', '.csv']) do |file|
           rows.each do |row|
-            file.write(csv_line([row.id, row.code]))
+            file.write(csv_line(client, [row.id, row.code]))
           end
           file.flush
           load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' REPLACE INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)") if file.pos.positive?
@@ -1217,6 +1222,19 @@ module Mysql2Codegen
       end
     end
 
+    def copy_mysql_binding_times(rows)
+      with_client('copy_mysql_binding_times') do |client|
+        ::Tempfile.create(['copy_mysql_binding_times', '.csv']) do |file|
+          rows.each do |row|
+            file.write(csv_line(client, [row.id, row.datetime_value, row.datetime_2]))
+          end
+          file.flush
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `mysql_binding_values` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `datetime_value`, `datetime_2`)") if file.pos.positive?
+        end
+        nil
+      end
+    end
+
     def insert_name_case(id:, class_:, end_:, hash:, method:, count:, camel_case:, http_server:, initialize:)
       with_client('insert_name_case') do |client|
         query_params = [
@@ -1305,7 +1323,7 @@ module Mysql2Codegen
       with_client('copy_mixed_case_copies') do |client|
         ::Tempfile.create(['copy_mixed_case_copies', '.csv']) do |file|
           rows.each do |row|
-            file.write(csv_line([row.id, row.somevalue]))
+            file.write(csv_line(client, [row.id, row.somevalue]))
           end
           file.flush
           load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `MixedCaseCopies` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`Id`, `SomeValue`)") if file.pos.positive?
@@ -1318,7 +1336,7 @@ module Mysql2Codegen
       with_client('copy_mixed_case_copies_unquoted') do |client|
         ::Tempfile.create(['copy_mixed_case_copies_unquoted', '.csv']) do |file|
           rows.each do |row|
-            file.write(csv_line([row.somevalue, row.id]))
+            file.write(csv_line(client, [row.somevalue, row.id]))
           end
           file.flush
           load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `MixedCaseCopies` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`SomeValue`, `Id`)") if file.pos.positive?
@@ -1526,7 +1544,7 @@ module Mysql2Codegen
 
         value.to_s('F')
       when ::DateTime, ::Time
-        "'#{value.strftime('%Y-%m-%d %H:%M:%S.%6N')}'"
+        "'#{mysql_time(client, value)}'"
       when ::Date
         "'#{value.strftime('%Y-%m-%d')}'"
       when ::String
@@ -1538,6 +1556,12 @@ module Mysql2Codegen
       else
         raise ::TypeError, "cannot bind #{value.class} to MySQL"
       end
+    end
+
+    def mysql_time(client, value)
+      time = value.is_a?(::DateTime) ? value.to_time : value
+      time = client.query_options[:database_timezone] == :utc ? time.getutc : time.getlocal
+      time.strftime('%Y-%m-%d %H:%M:%S.%6N')
     end
 
     def bind_params(client, sql, params)
@@ -1595,13 +1619,13 @@ module Mysql2Codegen
     end
 
     # Formats one row for LOAD DATA ... FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'.
-    def csv_line(values)
+    def csv_line(client, values)
       fields = values.map do |value|
         case value
         when nil then '\N'
         when true then '1'
         when false then '0'
-        when ::Time then value.strftime('%Y-%m-%d %H:%M:%S.%6N')
+        when ::Time, ::DateTime then mysql_time(client, value)
         else %("#{value.to_s.b.gsub('\\') { '\\\\' }.gsub('"', '""').gsub("\x1A") { '\Z' }}")
         end
       end

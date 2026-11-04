@@ -91,7 +91,7 @@ module SqlcGenRuby
                                'without ON DUPLICATE KEY UPDATE'
         end
 
-        write = Code.block("#{rows_var}.each do |row|", "file.write(csv_line([#{values.join(', ')}]))")
+        write = Code.block("#{rows_var}.each do |row|", "file.write(csv_line(client, [#{values.join(', ')}]))")
         load_data = format(LOAD_DATA, table: table, **load_columns(columns, sources),
                                       mode: load_mode(verb), strict: verb.split.include?('IGNORE') ? ', strict: false' : '')
         [
@@ -125,8 +125,9 @@ module SqlcGenRuby
 
       def helper_methods(queries)
       helpers = [[QUOTE, 'def quote: (untyped client, untyped value) -> ::String'],
+                 [MYSQL_TIME, 'def mysql_time: (untyped client, ::Time | ::DateTime value) -> ::String'],
                  [BIND_PARAMS, 'def bind_params: (untyped client, ::String sql, ::Array[untyped] params) -> ::String']]
-        helpers.concat([[CSV_LINE, 'def csv_line: (::Array[untyped] values) -> ::String'],
+        helpers.concat([[CSV_LINE, 'def csv_line: (untyped client, ::Array[untyped] values) -> ::String'],
                         [LOAD_DATA_HELPER, 'def load_data: (untyped client, ::String sql, ?strict: bool) -> void']]) if copy_from?(queries)
         helpers
       end
@@ -306,17 +307,27 @@ module SqlcGenRuby
       # library reads the file in text mode on Windows, where a raw Ctrl-Z ends it.
       CSV_LINE = <<~'RUBY'.chomp
         # Formats one row for LOAD DATA ... FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'.
-        def csv_line(values)
+        def csv_line(client, values)
           fields = values.map do |value|
             case value
             when nil then '\N'
             when true then '1'
             when false then '0'
-            when ::Time then value.strftime('%Y-%m-%d %H:%M:%S.%6N')
+            when ::Time, ::DateTime then mysql_time(client, value)
             else %("#{value.to_s.b.gsub('\\') { '\\\\' }.gsub('"', '""').gsub("\x1A") { '\Z' }}")
             end
           end
           "#{fields.join(',')}\n"
+        end
+      RUBY
+
+      # mysql2 reads DATETIME / TIMESTAMP values as wall-clock times in its database_timezone (:local unless the
+      # client was created with database_timezone: :utc), so a Time is written in that zone to keep its instant.
+      MYSQL_TIME = <<~'RUBY'.chomp
+        def mysql_time(client, value)
+          time = value.is_a?(::DateTime) ? value.to_time : value
+          time = client.query_options[:database_timezone] == :utc ? time.getutc : time.getlocal
+          time.strftime('%Y-%m-%d %H:%M:%S.%6N')
         end
       RUBY
 
@@ -337,7 +348,7 @@ module SqlcGenRuby
 
             value.to_s('F')
           when ::DateTime, ::Time
-            "'#{value.strftime('%Y-%m-%d %H:%M:%S.%6N')}'"
+            "'#{mysql_time(client, value)}'"
           when ::Date
             "'#{value.strftime('%Y-%m-%d')}'"
           when ::String

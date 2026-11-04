@@ -42,6 +42,8 @@ module Mysql2Codegen
 
     def quote: (untyped client, untyped value) -> ::String
 
+    def mysql_time: (untyped client, ::Time | ::DateTime value) -> ::String
+
     def bind_params: (untyped client, ::String sql, ::Array[untyped] params) -> ::String
   end
 end
