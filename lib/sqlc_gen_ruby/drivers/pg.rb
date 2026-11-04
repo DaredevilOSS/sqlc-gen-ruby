@@ -125,6 +125,13 @@ module SqlcGenRuby
             end
           end
         RUBY
+        'encode_timestamp' => [<<~'RUBY'.chomp, 'def encode_timestamp: (untyped value) -> untyped'],
+          # timestamp (without time zone) values are read back as local times and PostgreSQL ignores the UTC offset of
+          # a timestamp literal: a Time is written in the local zone, so it keeps its instant whatever its offset.
+          def encode_timestamp(value)
+            value.is_a?(::Time) ? value.getlocal : value
+          end
+        RUBY
         'encode_float' => [<<~'RUBY'.chomp, 'def encode_float: (untyped value) -> untyped'],
           # Float#to_s is the shortest text that reads back as the same Float (the pg gem's encoder drops digits).
           def encode_float(value)
@@ -167,9 +174,17 @@ module SqlcGenRuby
           def prepared_statements
             if @prepared_statements_pid != backend_pid
               @prepared_statements = ::Set[]
+              @stale_statements = ::Set[]
               @prepared_statements_pid = backend_pid
             end
             @prepared_statements
+          end
+
+          # Statements whose result type changed under them (ALTER TABLE ... TYPE in a migration): deallocated before
+          # they are prepared again.
+          def stale_statements
+            prepared_statements
+            @stale_statements
           end
 
           # Set inside #transaction: a lost connection is then not reconnected until the transaction block ends.
@@ -185,8 +200,11 @@ module SqlcGenRuby
         module ConnectionState : _PgConnection
           @prepared_statements: ::Set[::String]
           @prepared_statements_pid: ::Integer
+          @stale_statements: ::Set[::String]
 
           def prepared_statements: () -> ::Set[::String]
+
+          def stale_statements: () -> ::Set[::String]
 
           attr_accessor in_transaction: bool?
         end
@@ -349,17 +367,21 @@ module SqlcGenRuby
 
       RUN_PREPARED = <<~'RUBY'.chomp
         # Executes a statement prepared once per connection. A statement dropped by hand (DEALLOCATE ALL, DISCARD ALL) is
-        # prepared again, and one the server already has (its PREPARE was interrupted after it ran) is used; inside a
-        # transaction the error has already aborted it, so it is raised.
+        # prepared again, and one the server already has (its PREPARE was interrupted after it ran) is used. One whose
+        # result type changed ("cached plan must not change result type") is deallocated and prepared again. Inside a
+        # transaction the error has already aborted it, so it is raised (the next call prepares the statement again).
         def run_prepared(client, name, sql, params = [])
           prepare(client, name, sql) unless client.prepared_statements.include?(name)
-          client.exec_prepared(name, params)
-        rescue ::PG::InvalidSqlStatementName
-          client.prepared_statements.delete(name)
-          raise unless client.transaction_status == ::PG::PQTRANS_IDLE
+          begin
+            client.exec_prepared(name, params)
+          rescue ::PG::InvalidSqlStatementName, ::PG::FeatureNotSupported => e
+            client.prepared_statements.delete(name)
+            client.stale_statements.add(name) if e.is_a?(::PG::FeatureNotSupported)
+            raise unless client.transaction_status == ::PG::PQTRANS_IDLE
 
-          prepare(client, name, sql)
-          client.exec_prepared(name, params)
+            prepare(client, name, sql)
+            client.exec_prepared(name, params)
+          end
         end
 
         # Timeout / Thread#raise wait until the statement is prepared and recorded. An exception raised by PREPARE itself
@@ -367,6 +389,13 @@ module SqlcGenRuby
         # because the statement exists.
         def prepare(client, name, sql)
           ::Thread.handle_interrupt(::Object => :never) do
+            if client.stale_statements.delete?(name)
+              begin
+                client.exec("DEALLOCATE #{client.quote_ident(name)}")
+              rescue ::PG::InvalidSqlStatementName # already dropped (DEALLOCATE ALL)
+                raise unless client.transaction_status == ::PG::PQTRANS_IDLE
+              end
+            end
             client.prepare(name, sql)
             client.prepared_statements.add(name)
           rescue ::PG::DuplicatePstatement
@@ -390,12 +419,20 @@ module SqlcGenRuby
                 client.reset
               end
               configure(client) unless client.is_a?(ConnectionState)
+              done = false
               begin
-                yield client
-              rescue ::Exception # rubocop:disable Lint/RescueException
-                # a query left by Timeout / Thread#raise keeps running: cancel it before the connection is reused
-                client.cancel if client.transaction_status == ::PG::PQTRANS_ACTIVE
-                raise
+                result = yield client
+                done = true
+                result
+              ensure
+                # a query left by Timeout / Thread#raise / Thread#kill keeps running: cancel it and wait for its end, so
+                # the connection goes back to the pool (or on to ROLLBACK) idle
+                if !done && client.transaction_status == ::PG::PQTRANS_ACTIVE
+                  ::Thread.handle_interrupt(::Object => :never) do
+                    client.cancel
+                    client.discard_results
+                  end
+                end
               end
             end
           end
@@ -438,6 +475,7 @@ module SqlcGenRuby
         if column.is_array
           ['encode_array', ({ 'bytea' => 'bytea', 'json' => 'json', 'jsonb' => 'json' }[type])]
         elsif type == 'bytea' then ['encode_bytea']
+        elsif type == 'timestamp' then ['encode_timestamp']
         elsif %w[json jsonb].include?(type) then ['encode_json']
         elsif column_type(column, fallback: nil) == 'Float' then ['encode_float']
         end

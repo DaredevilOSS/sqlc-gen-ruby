@@ -10,9 +10,17 @@ module PgCodegen
     def prepared_statements
       if @prepared_statements_pid != backend_pid
         @prepared_statements = ::Set[]
+        @stale_statements = ::Set[]
         @prepared_statements_pid = backend_pid
       end
       @prepared_statements
+    end
+
+    # Statements whose result type changed under them (ALTER TABLE ... TYPE in a migration): deallocated before
+    # they are prepared again.
+    def stale_statements
+      prepared_statements
+      @stale_statements
     end
 
     # Set inside #transaction: a lost connection is then not reconnected until the transaction block ends.

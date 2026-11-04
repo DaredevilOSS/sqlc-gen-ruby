@@ -65,7 +65,7 @@ More: [the generated code for every driver](docs/Examples.md) (it is the plugin'
 | `overrides` | none | Change the type of columns / parameters, see [below](#overrides). |
 | `rename` | none | Rename tables (model class) and columns (attribute), e.g. `{authors: Writer, bio: biography}`; `schema.table` works too. |
 | `exactTableNames` | `false` | Keep table names as model names (`authors` → `Authors`) instead of singularizing them (`Author`). |
-| `preparedStatements` | `true` | `pg` only (an error with other drivers). `false` sends the SQL with every call instead of preparing it (needed behind pgbouncer in transaction mode). Statements dropped by `DEALLOCATE ALL` / `DISCARD ALL` are prepared again by their next call outside a transaction (inside one, that call raises and the transaction rolls back). Statements are named `Module::Class#method` (with a hash when longer than PostgreSQL's 63 bytes), so classes sharing a pool never run each other's SQL. |
+| `preparedStatements` | `true` | `pg` only (an error with other drivers). `false` sends the SQL with every call instead of preparing it (needed behind pgbouncer in transaction mode). Statements dropped by `DEALLOCATE ALL` / `DISCARD ALL`, and statements PostgreSQL refuses after a migration changed the type of a column they return (`PG::FeatureNotSupported`: cached plan must not change result type), are prepared again by their next call outside a transaction (inside one, that call raises and the transaction rolls back; the next call prepares the statement again). Statements are named `Module::Class#method` (with a hash when longer than PostgreSQL's 63 bytes), so classes sharing a pool never run each other's SQL. |
 
 Unknown or misspelled options are errors, with a hint for near misses (`generate_types` → `generateTypes`).
 Options shared by several `sql:` blocks can go in the top-level `options:` of `sqlc.yaml` under the plugin's name
@@ -125,6 +125,8 @@ end
   and rolls back when it raises or the thread is killed. An interrupt (`Timeout`, `Thread#raise`, `Thread#kill`) that
   arrives while `BEGIN`, `COMMIT` or `ROLLBACK` runs waits for it to finish, and a `BEGIN` / `COMMIT` that raises
   itself (a stopped `Async` task) is rolled back: the connection never goes back to the pool inside a transaction.
+  On PostgreSQL a query interrupted by any of them (inside or outside a transaction) is cancelled at once, so the
+  connection goes back to the pool idle and a killed transaction rolls back without waiting for its query.
   On MySQL a `Thread#kill` during a query closes that client (mysql2 cannot send `ROLLBACK` while it waits for the
   query's result), so the server rolls the transaction back and the pool replaces the client. On Ruby <3.3 with timeout <0.4, `break`, `return`, and
   `throw` also roll back because Timeout cannot be told apart; add `gem 'timeout', '>= 0.4'` to the generated Gemfile
@@ -195,6 +197,10 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   in the zone `mysql2` reads `DATETIME` / `TIMESTAMP` values back in, the process's local zone, or UTC for a client
   created with `database_timezone: :utc` (`connect(params.merge(database_timezone: :utc))`). The server also converts
   `TIMESTAMP` columns with the session `time_zone`, so keep that equal to the client's zone.
+* PostgreSQL: a `Time` parameter of a `timestamp` (without time zone) column (also in `:copyfrom` and batches) keeps
+  its instant whatever its UTC offset: it is written in the process's local zone, the zone the pg gem reads
+  `timestamp` values back in (PostgreSQL itself ignores the offset of a `timestamp` value). Elements of `timestamp[]`
+  arrays are written as given. `timestamptz` keeps the instant anyway.
 * A `String` passed to a PostgreSQL `json` / `jsonb` parameter is JSON text (`'{"a":1}'`): pass `'"hi"'` or
   `'hi'.to_json` for a JSON string. Hashes, Arrays, numbers, `true` / `false` and `nil` are encoded for you.
 * Enums are `String`s, with constants in `models.rb` (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`). Values that

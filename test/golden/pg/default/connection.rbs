@@ -7,8 +7,11 @@ module PgCodegen
   module ConnectionState : _PgConnection
     @prepared_statements: ::Set[::String]
     @prepared_statements_pid: ::Integer
+    @stale_statements: ::Set[::String]
 
     def prepared_statements: () -> ::Set[::String]
+
+    def stale_statements: () -> ::Set[::String]
 
     attr_accessor in_transaction: bool?
   end
