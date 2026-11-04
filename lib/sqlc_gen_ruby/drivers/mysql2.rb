@@ -11,7 +11,9 @@ module SqlcGenRuby
       def module_members
         [
           [CONNECTION_STATE, "module ConnectionState\n  attr_accessor in_transaction: bool\n" \
-                             "  def query: (*untyped) -> untyped\n  def query_running?: () -> bool\nend"],
+                             "  attr_accessor rolled_back_by: untyped\n" \
+                             "  def query: (*untyped) -> untyped\n  def query_running?: () -> bool\n" \
+                             "  def rolled_back_error: () -> untyped\n  def ends_transaction?: (untyped error) -> bool\nend"],
           [TRANSACTION_CONNECTION, TRANSACTION_CONNECTION_RBS],
           [ISOLATION_LEVELS, ISOLATION_RBS]
         ]
@@ -136,19 +138,49 @@ module SqlcGenRuby
         # State kept on every Mysql2::Client the first time it is used.
         module ConnectionState
           attr_accessor :in_transaction
+          # The error with which the server rolled back the whole transaction (a deadlock, or a lock wait timeout with
+          # innodb_rollback_on_timeout): the transaction's later queries raise instead of running in autocommit mode.
+          attr_accessor :rolled_back_by
 
           # Stays true when a Thread#kill interrupts the query (it skips rescue): see #with_client.
           def query(...)
+            raise rolled_back_error if in_transaction && rolled_back_by
+
             @query_running = true
             result = super
             @query_running = false
             result
+          rescue ::Mysql2::Error => e
+            @query_running = false
+            self.rolled_back_by ||= e if in_transaction && ends_transaction?(e)
+            raise
           rescue ::Exception # rubocop:disable Lint/RescueException
             @query_running = false
             raise
           end
 
           def query_running? = @query_running == true
+
+          def rolled_back_error
+            error = rolled_back_by
+            error.class.new("transaction rolled back: #{error.message}", nil, error.error_number, error.sql_state)
+          end
+
+          # ER_LOCK_DEADLOCK always rolls back the whole transaction, ER_LOCK_WAIT_TIMEOUT only with
+          # innodb_rollback_on_timeout (otherwise just the statement).
+          def ends_transaction?(error)
+            return true if error.error_number == 1213
+            return false unless error.error_number == 1205
+
+            if @rollback_on_timeout.nil?
+              @rollback_on_timeout = begin
+                query('SELECT @@innodb_rollback_on_timeout', as: :array).first.first == 1
+              rescue ::Mysql2::Error
+                false
+              end
+            end
+            @rollback_on_timeout
+          end
         end
       RUBY
 
@@ -206,7 +238,7 @@ module SqlcGenRuby
                 failed = true
                 bound&.close
                 begin
-                  client.query(rollback) if started || outermost
+                  client.query(rollback) if (started || outermost) && !client.rolled_back_by
                 rescue ::Mysql2::Error
                   # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone;
                   # an interrupted query closed the connection: the server rolls back
@@ -221,6 +253,10 @@ module SqlcGenRuby
                       # Thread#kill interrupted a query: the client still waits for its result and cannot send
                       # ROLLBACK. Closing it makes the server roll back; #with_client discards it.
                       client.close
+                    elsif client.rolled_back_by
+                      # the server already rolled the whole transaction back (its savepoints too): COMMIT would only
+                      # end the statements run since, so raise instead of reporting a commit
+                      raise client.rolled_back_error if ::Thread.current.status != 'aborting'
                     else
                       commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
                       begin
@@ -238,7 +274,10 @@ module SqlcGenRuby
                     end
                   end
                 ensure
-                  client.in_transaction = false if outermost
+                  if outermost
+                    client.in_transaction = false
+                    client.rolled_back_by = nil
+                  end
                 end
               end
             end
@@ -295,7 +334,7 @@ module SqlcGenRuby
           ensure
             if outermost
               client.query(done ? 'COMMIT' : 'ROLLBACK')
-            else
+            elsif !client.rolled_back_by # a deadlock rolled the whole transaction back, its savepoint too
               client.query(done ? 'RELEASE SAVEPOINT sqlc_copy' : 'ROLLBACK TO SAVEPOINT sqlc_copy')
             end
           end

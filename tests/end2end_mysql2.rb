@@ -1052,6 +1052,108 @@ class TestMysql2 < Minitest::Test
     assert_empty @query_sql.list_authors
   end
 
+  # Authors another connection locks in #deadlock_on so that InnoDB picks the other transaction as the victim.
+  def create_fillers = Array.new(20) { |i| create_author("filler #{i}") }
+
+  # Runs the block (inside a transaction that holds the row `first`) once another connection has locked `second` and
+  # the (more) `fillers`, and waits for `first`: the block's next lock on `second` is a deadlock that rolls back the
+  # block's whole transaction (InnoDB rolls back the transaction that changed fewer rows).
+  def deadlock_on(first, second, fillers)
+    other = Mysql2::Client.new(mysql2_params)
+    watcher = Mysql2::Client.new(mysql2_params)
+    locked = Queue.new
+    blocker = ::Thread.new do
+      other.query('BEGIN')
+      # one primary-key lookup per row: a scan (`id IN (...)` on a small table) would also lock `first`
+      [second, *fillers].each { |id| other.query("UPDATE authors SET bio = 'other' WHERE id = #{id}") }
+      locked << true
+      other.query("UPDATE authors SET bio = 'other' WHERE id = #{first}")
+      other.query('ROLLBACK')
+    end
+    sleep 0.01 while locked.empty? && blocker.alive?
+    blocker.value unless blocker.alive? # raises what stopped it
+    deadline = ::Time.now + 10
+    waiting = 'SELECT COUNT(*) AS n FROM information_schema.innodb_trx ' \
+              "WHERE trx_mysql_thread_id = #{other.thread_id} AND trx_state = 'LOCK WAIT'"
+    sleep 0.01 until watcher.query(waiting).first['n'] == 1 || ::Time.now > deadline
+    yield
+  ensure
+    blocker&.join(10)
+    other&.close
+    watcher&.close
+  end
+
+  def authors_except_fillers
+    @query_sql.list_authors.reject { |author| author.name.start_with?('filler') }.map { |author| [author.name, author.bio] }
+  end
+
+  def test_rescued_deadlock_in_a_transaction_raises_instead_of_committing
+    first, second = %w[a b].map { |name| create_author(name) }
+    fillers = create_fillers
+    after_error = nil
+    error = assert_raises(Mysql2::Error) do
+      @query_sql.transaction do |tx|
+        tx.create_author(name: 'before', bio: nil)
+        tx.update_author(bio: 'mine', id: first)
+        deadlock_on(first, second, fillers) do
+          assert_equal 1213, assert_raises(Mysql2::Error) { tx.update_author(bio: 'mine', id: second) }.error_number
+        end
+        # InnoDB already rolled the whole transaction back: this must not run in autocommit mode
+        after_error = assert_raises(Mysql2::Error) { tx.create_author(name: 'after', bio: nil) }
+        :committed
+      end
+    end
+    assert_equal [1213, 1213], [error.error_number, after_error.error_number]
+    assert_equal [['a', nil], ['b', nil]], authors_except_fillers
+    @query_sql.transaction { |tx| tx.create_author(name: 'later', bio: nil) }
+    assert_includes authors_except_fillers, ['later', nil]
+  end
+
+  def test_rescued_deadlock_in_a_nested_transaction_raises_instead_of_committing
+    first, second = %w[a b].map { |name| create_author(name) }
+    fillers = create_fillers
+    inner_error = nil
+    error = assert_raises(Mysql2::Error) do
+      @query_sql.transaction do |tx|
+        tx.create_author(name: 'before', bio: nil)
+        tx.update_author(bio: 'mine', id: first)
+        inner_error = assert_raises(Mysql2::Error) do
+          tx.transaction { |inner| deadlock_on(first, second, fillers) { inner.update_author(bio: 'mine', id: second) } }
+        end
+        :committed
+      end
+    end
+    assert_equal [1213, 1213], [inner_error.error_number, error.error_number]
+    assert_equal [['a', nil], ['b', nil]], authors_except_fillers
+  end
+
+  def test_rescued_lock_wait_timeout_rolls_back_only_its_statement
+    first = create_author('a')
+    queries = QuerySql.connect(mysql2_params.merge('init_command' => 'SET SESSION innodb_lock_wait_timeout = 1'), size: 1)
+    other = Mysql2::Client.new(mysql2_params)
+    other.query('BEGIN')
+    other.query("UPDATE authors SET bio = 'other' WHERE id = #{first}")
+    whole_transaction = other.query('SELECT @@innodb_rollback_on_timeout AS v').first['v'] == 1
+    run = lambda do
+      queries.transaction do |tx|
+        tx.create_author(name: 'before', bio: nil)
+        assert_equal 1205, assert_raises(Mysql2::Error) { tx.update_author(bio: 'mine', id: first) }.error_number
+        tx.create_author(name: 'after', bio: nil)
+        :committed
+      end
+    end
+    if whole_transaction # innodb_rollback_on_timeout=ON rolls the whole transaction back, like a deadlock
+      assert_equal 1205, assert_raises(Mysql2::Error) { run.call }.error_number
+      assert_equal [['a', nil]], authors_except_fillers
+    else
+      assert_equal :committed, run.call
+      assert_equal [['a', nil], ['after', nil], ['before', nil]], authors_except_fillers
+    end
+  ensure
+    other&.query('ROLLBACK')
+    other&.close
+  end
+
   # Models named like Ruby core / library constants (Exception, Data, Thread, ...) used to shadow the constants the
   # generated code relies on: a raise in a transaction committed, or the code did not even load.
   CORE_NAMED_MODELS = %i[Exception StandardError Thread Process Data Struct Set String Integer Time Encoding Monitor
