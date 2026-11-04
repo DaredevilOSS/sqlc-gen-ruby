@@ -210,3 +210,12 @@ SELECT * FROM authors WHERE id NOT IN (sqlc.slice('ids')) ORDER BY id;
 
 -- name: CreateAuthorOrRollback :exec
 INSERT OR ROLLBACK INTO authors (id, name) VALUES (?, ?);
+
+-- name: CreateTagResult :execresult
+INSERT INTO tags (name, uses) VALUES (?, ?) RETURNING name;
+
+-- name: CreateException :exec
+INSERT INTO exceptions (id) VALUES (NULL);
+
+-- name: CountExceptions :one
+SELECT COUNT(*) AS n FROM exceptions;

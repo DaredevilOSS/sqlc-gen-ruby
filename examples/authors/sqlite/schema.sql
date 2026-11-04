@@ -45,3 +45,20 @@ CREATE TABLE name_cases (
   "camelCase" TEXT NOT NULL,
   "HTTPServer" TEXT NOT NULL
 );
+
+-- Tables whose models share their name with a Ruby core or library constant used by the generated code
+-- (PgCodegen::Exception, ...): generated code refers to those constants as ::Exception, ::Thread, ...
+CREATE TABLE exceptions (id INTEGER PRIMARY KEY);
+CREATE TABLE standard_errors (id INTEGER PRIMARY KEY);
+CREATE TABLE threads (id INTEGER PRIMARY KEY);
+CREATE TABLE processes (id INTEGER PRIMARY KEY);
+CREATE TABLE data (id INTEGER PRIMARY KEY);
+CREATE TABLE structs (id INTEGER PRIMARY KEY);
+CREATE TABLE sets (id INTEGER PRIMARY KEY);
+CREATE TABLE strings (id INTEGER PRIMARY KEY);
+CREATE TABLE integers (id INTEGER PRIMARY KEY);
+CREATE TABLE times (id INTEGER PRIMARY KEY);
+CREATE TABLE encodings (id INTEGER PRIMARY KEY);
+CREATE TABLE monitors (id INTEGER PRIMARY KEY);
+CREATE TABLE mutexes (id INTEGER PRIMARY KEY);
+CREATE TABLE connection_pools (id INTEGER PRIMARY KEY);

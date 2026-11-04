@@ -9,7 +9,7 @@ module PgCodegen
     # (PG::Connection#reset after a failover / terminated backend).
     def prepared_statements
       if @prepared_statements_pid != backend_pid
-        @prepared_statements = Set[]
+        @prepared_statements = ::Set[]
         @prepared_statements_pid = backend_pid
       end
       @prepared_statements
@@ -17,6 +17,93 @@ module PgCodegen
 
     # Set inside #transaction: a lost connection is then not reconnected until the transaction block ends.
     attr_accessor :in_transaction
+  end
+
+  # Raised when the query object yielded by #transaction is used after the transaction ended.
+  class TransactionEnded < ::StandardError; end
+
+  # The connection of one transaction, for the query object #transaction yields: its queries stay in the
+  # transaction from any fiber or thread (an Enumerator, an Async task, a Thread), one at a time, and raise
+  # TransactionEnded once the transaction is over.
+  class TransactionConnection
+    def initialize(client)
+      @client = client
+      @mutex = ::Thread::Mutex.new
+    end
+
+    def with
+      return yield(client) if @mutex.owned?
+
+      @mutex.synchronize { yield client }
+    end
+
+    def synchronize(&block) = with { block.call }
+
+    # While the block of a nested transaction runs, other fibers / threads can use the connection too.
+    def unlocked
+      return yield unless @mutex.owned?
+
+      @mutex.unlock
+      begin
+        yield
+      ensure
+        @mutex.lock
+      end
+    end
+
+    # Waits for a query of another fiber / thread to finish.
+    def close
+      return @client = nil if @mutex.owned?
+
+      @mutex.synchronize { @client = nil }
+    end
+
+    private
+
+    def client = @client || raise(TransactionEnded, 'the transaction that yielded this query object has ended')
+  end
+
+  # Result decoder for types created after a connection was set up (a migration run while the application is
+  # up): looked up once per connection, their arrays become Arrays of Strings, other types Strings.
+  # A module, so connection.rb loads before `pg` does.
+  module NewTypes
+    def self.map(client, known) = (@map ||= ::Class.new(::PG::TypeMapInRuby) { include NewTypes }).new(client, known)
+
+    def self.decoder(oid, category, delimiter)
+      return ::PG::TextDecoder::String.new(oid: oid) unless category == 'A'
+
+      ::PG::TextDecoder::Array.new(oid: oid, delimiter: delimiter, elements_type: ::PG::TextDecoder::String.new)
+    end
+
+    def initialize(client, known)
+      super()
+      @client = client
+      @known = known
+      @decoders = {}
+    end
+
+    def typecast_result_value(result, tuple, field)
+      value = super
+      return value if value.nil? || result.fformat(field) != 0
+
+      decoder = decoder(result.ftype(field))
+      decoder ? decoder.decode(value) : value
+    end
+
+    private
+
+    def decoder(oid)
+      @decoders.fetch(oid) do
+        row = @client.exec("SELECT typcategory, typdelim FROM pg_type WHERE oid = #{Integer(oid)}").tap do |types|
+          types.type_map = ::PG::TypeMapAllStrings.new
+        end.first
+        decoder = row && NewTypes.decoder(oid, row['typcategory'], row['typdelim'])
+        @known.add_coder(decoder) if decoder # later results no longer come here
+        @decoders[oid] = decoder
+      end
+    rescue ::PG::Error # the connection is busy (e.g. COPY): the value stays a String
+      nil
+    end
   end
 
   ISOLATION_LEVELS = {

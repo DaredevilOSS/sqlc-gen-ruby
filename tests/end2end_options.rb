@@ -59,7 +59,7 @@ class TestOptions < Minitest::Test
   private
 
   def assert_model_defined(source, name)
-    assert_match(/(?:^|\n)\s*(?:#{Regexp.escape(name)}\s*=\s*Struct\.new|class\s+#{Regexp.escape(name)}\s*<\s*Data\.define)/,
+    assert_match(/(?:^|\n)\s*(?:#{Regexp.escape(name)}\s*=\s*(?:::)?Struct\.new|class\s+#{Regexp.escape(name)}\s*<\s*(?:::)?Data\.define)/,
                  source)
   end
 

@@ -17,10 +17,10 @@ module Mysql2Codegen
     ALL = [AUTHOR, EDITOR, TRANSLATOR].freeze
   end
 
-  class Author < Data.define(:id, :name, :bio)
+  class Author < ::Data.define(:id, :name, :bio)
   end
 
-  class NodeMysqlType < Data.define(
+  class NodeMysqlType < ::Data.define(
     :c_bit,
     :c_tinyint,
     :c_bool,
@@ -61,16 +61,16 @@ module Mysql2Codegen
   )
   end
 
-  class Book < Data.define(:id, :name, :author_id, :description)
+  class Book < ::Data.define(:id, :name, :author_id, :description)
   end
 
-  class ExtendedBio < Data.define(:author_name, :name, :bio_type, :author_type)
+  class ExtendedBio < ::Data.define(:author_name, :name, :bio_type, :author_type)
   end
 
-  class Regression < Data.define(:id, :order, :note, :payload)
+  class Regression < ::Data.define(:id, :order, :note, :payload)
   end
 
-  class CopyType < Data.define(
+  class CopyType < ::Data.define(
     :id,
     :code,
     :doc,
@@ -80,7 +80,7 @@ module Mysql2Codegen
   end
 
   # rubocop:disable Naming/VariableNumber
-  class MysqlBindingValu < Data.define(
+  class MysqlBindingValu < ::Data.define(
     :id,
     :text_value,
     :blob_value,
@@ -101,7 +101,7 @@ module Mysql2Codegen
   end
   # rubocop:enable Naming/VariableNumber
 
-  class NameCase < Data.define(
+  class NameCase < ::Data.define(
     :id,
     :class_,
     :end,
@@ -111,5 +111,47 @@ module Mysql2Codegen
     :camelcase,
     :httpserver
   )
+  end
+
+  class Exception < ::Data.define(:id)
+  end
+
+  class StandardError < ::Data.define(:id)
+  end
+
+  class Thread < ::Data.define(:id)
+  end
+
+  class Process < ::Data.define(:id)
+  end
+
+  class Data < ::Data.define(:id)
+  end
+
+  class Struct < ::Data.define(:id)
+  end
+
+  class Set < ::Data.define(:id)
+  end
+
+  class String < ::Data.define(:id)
+  end
+
+  class Integer < ::Data.define(:id)
+  end
+
+  class Time < ::Data.define(:id)
+  end
+
+  class Encoding < ::Data.define(:id)
+  end
+
+  class Monitor < ::Data.define(:id)
+  end
+
+  class Mutex < ::Data.define(:id)
+  end
+
+  class ConnectionPool < ::Data.define(:id)
   end
 end

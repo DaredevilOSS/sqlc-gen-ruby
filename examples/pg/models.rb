@@ -11,11 +11,17 @@ module PgCodegen
     ALL = [AUTOBIOGRAPHY, BIOGRAPHY, MEMOIR].freeze
   end
 
-  # People who wrote at least one book.
-  class Author < Data.define(:id, :name, :bio)
+  module LateMood
+    CALM = 'calm'
+    HAPPY = 'happy'
+    ALL = [CALM, HAPPY].freeze
   end
 
-  class NodePostgresType < Data.define(
+  # People who wrote at least one book.
+  class Author < ::Data.define(:id, :name, :bio)
+  end
+
+  class NodePostgresType < ::Data.define(
     :c_bit,
     :c_smallint,
     :c_boolean,
@@ -37,13 +43,13 @@ module PgCodegen
   )
   end
 
-  class Book < Data.define(:id, :name, :author_id, :description)
+  class Book < ::Data.define(:id, :name, :author_id, :description)
   end
 
-  class DeferredBook < Data.define(:id, :author_id)
+  class DeferredBook < ::Data.define(:id, :author_id)
   end
 
-  class PostgresExtraType < Data.define(
+  class PostgresExtraType < ::Data.define(
     :c_uuid,
     :c_jsonb,
     :c_text_array,
@@ -55,7 +61,7 @@ module PgCodegen
   )
   end
 
-  class PostgresRemainingType < Data.define(
+  class PostgresRemainingType < ::Data.define(
     :c_hstore,
     :c_ltree,
     :c_regclass,
@@ -72,13 +78,13 @@ module PgCodegen
   )
   end
 
-  class JsonRoundTrip < Data.define(:id, :json_value, :jsonb_value)
+  class JsonRoundTrip < ::Data.define(:id, :json_value, :jsonb_value)
   end
 
-  class PostgresArrayType < Data.define(:c_uuid_array, :c_bio_type_array, :c_integer_matrix)
+  class PostgresArrayType < ::Data.define(:c_uuid_array, :c_bio_type_array, :c_integer_matrix)
   end
 
-  class PostgresSpecialType < Data.define(
+  class PostgresSpecialType < ::Data.define(
     :c_timetz,
     :c_tsvector,
     :c_point,
@@ -89,7 +95,7 @@ module PgCodegen
   )
   end
 
-  class Regression < Data.define(
+  class Regression < ::Data.define(
     :id,
     :order,
     :payload,
@@ -99,7 +105,7 @@ module PgCodegen
   )
   end
 
-  class BatchType < Data.define(
+  class BatchType < ::Data.define(
     :id,
     :ok,
     :ratio,
@@ -112,7 +118,7 @@ module PgCodegen
   end
 
   # rubocop:disable Naming/MethodName
-  class NameCase < Data.define(
+  class NameCase < ::Data.define(
     :id,
     :class_,
     :end,
@@ -125,6 +131,51 @@ module PgCodegen
   end
   # rubocop:enable Naming/MethodName
 
-  class ExtendedBio < Data.define(:author_name, :name, :bio_type)
+  class Exception < ::Data.define(:id)
+  end
+
+  class StandardError < ::Data.define(:id)
+  end
+
+  class Thread < ::Data.define(:id)
+  end
+
+  class Process < ::Data.define(:id)
+  end
+
+  class Data < ::Data.define(:id)
+  end
+
+  class Struct < ::Data.define(:id)
+  end
+
+  class Set < ::Data.define(:id)
+  end
+
+  class String < ::Data.define(:id)
+  end
+
+  class Integer < ::Data.define(:id)
+  end
+
+  class Time < ::Data.define(:id)
+  end
+
+  class Encoding < ::Data.define(:id)
+  end
+
+  class Monitor < ::Data.define(:id)
+  end
+
+  class Mutex < ::Data.define(:id)
+  end
+
+  class ConnectionPool < ::Data.define(:id)
+  end
+
+  class ExtendedBio < ::Data.define(:author_name, :name, :bio_type)
+  end
+
+  class LateFeeling < ::Data.define(:id, :moods)
   end
 end

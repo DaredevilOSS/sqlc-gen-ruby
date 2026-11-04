@@ -27,7 +27,7 @@ module SqlcGenRuby
     # A sqlc.slice parameter is passed as an Array of the element type.
     def slice_type(column, query_name)
       override = @options.override_for(query_name, column)
-      "Array[#{override ? override.type : driver_type(column, query_name, 'untyped')}]"
+      "::Array[#{override ? override.type : driver_type(column, query_name, 'untyped')}]"
     end
 
     # Rows are Struct (keyword_init) before Ruby 3.2, Data from 3.2.
@@ -39,11 +39,12 @@ module SqlcGenRuby
 
     # int[][] -> Array[Array[Integer]] (sqlc sends array_dims; 0 from older versions means 1)
     def array_of(base, column)
-      [column.array_dims.to_i, 1].max.times.reduce(base) { |type, _| "Array[#{type}]" }
+      [column.array_dims.to_i, 1].max.times.reduce(base) { |type, _| "::Array[#{type}]" }
     end
 
     def driver_type(column, query_name, fallback)
-      @driver.column_type(column, fallback: fallback)
+      type = @driver.column_type(column, fallback: fallback)
+      type.match?(/\A[A-Z]\w*\z/) ? "::#{type}" : type
     rescue ArgumentError => e
       raise ArgumentError, "#{query_name || 'model'}: column #{column.name}: #{e.message}" if query_name
 

@@ -2,224 +2,306 @@
 module PgCodegen
   # Kinds of biographies.
   module ExtendedBioType
-    AUTOBIOGRAPHY: String
-    BIOGRAPHY: String
-    MEMOIR: String
-    ALL: Array[String]
+    AUTOBIOGRAPHY: ::String
+    BIOGRAPHY: ::String
+    MEMOIR: ::String
+    ALL: ::Array[::String]
+  end
+
+  module LateMood
+    CALM: ::String
+    HAPPY: ::String
+    ALL: ::Array[::String]
   end
 
   # People who wrote at least one book.
   class Author
-    attr_reader id: Integer
-    attr_reader name: String
+    attr_reader id: ::Integer
+    attr_reader name: ::String
     # Short biography, NULL when unknown.
-    attr_reader bio: String?
-    def initialize: (  Integer id, String name, String? bio) -> void
+    attr_reader bio: ::String?
+    def initialize: (  ::Integer id, ::String name, ::String? bio) -> void
   end
 
   class NodePostgresType
-    attr_reader c_bit: String?
-    attr_reader c_smallint: Integer?
+    attr_reader c_bit: ::String?
+    attr_reader c_smallint: ::Integer?
     attr_reader c_boolean: bool?
-    attr_reader c_integer: Integer?
-    attr_reader c_bigint: Integer?
-    attr_reader c_serial: Integer?
-    attr_reader c_decimal: BigDecimal?
-    attr_reader c_numeric: BigDecimal?
-    attr_reader c_real: Float?
-    attr_reader c_double_precision: Float?
-    attr_reader c_date: Date?
-    attr_reader c_time: String?
-    attr_reader c_timestamp: Time?
-    attr_reader c_char: String?
-    attr_reader c_varchar: String?
-    attr_reader c_bytea: String?
-    attr_reader c_text: String?
+    attr_reader c_integer: ::Integer?
+    attr_reader c_bigint: ::Integer?
+    attr_reader c_serial: ::Integer?
+    attr_reader c_decimal: ::BigDecimal?
+    attr_reader c_numeric: ::BigDecimal?
+    attr_reader c_real: ::Float?
+    attr_reader c_double_precision: ::Float?
+    attr_reader c_date: ::Date?
+    attr_reader c_time: ::String?
+    attr_reader c_timestamp: ::Time?
+    attr_reader c_char: ::String?
+    attr_reader c_varchar: ::String?
+    attr_reader c_bytea: ::String?
+    attr_reader c_text: ::String?
     attr_reader c_json: untyped
     def initialize: (
-        String? c_bit,
-        Integer? c_smallint,
+        ::String? c_bit,
+        ::Integer? c_smallint,
         bool? c_boolean,
-        Integer? c_integer,
-        Integer? c_bigint,
-        Integer? c_serial,
-        BigDecimal? c_decimal,
-        BigDecimal? c_numeric,
-        Float? c_real,
-        Float? c_double_precision,
-        Date? c_date,
-        String? c_time,
-        Time? c_timestamp,
-        String? c_char,
-        String? c_varchar,
-        String? c_bytea,
-        String? c_text,
+        ::Integer? c_integer,
+        ::Integer? c_bigint,
+        ::Integer? c_serial,
+        ::BigDecimal? c_decimal,
+        ::BigDecimal? c_numeric,
+        ::Float? c_real,
+        ::Float? c_double_precision,
+        ::Date? c_date,
+        ::String? c_time,
+        ::Time? c_timestamp,
+        ::String? c_char,
+        ::String? c_varchar,
+        ::String? c_bytea,
+        ::String? c_text,
         untyped c_json
     ) -> void
   end
 
   class Book
-    attr_reader id: String
-    attr_reader name: String
-    attr_reader author_id: Integer
-    attr_reader description: String?
-    def initialize: (  String id, String name, Integer author_id, String? description) -> void
+    attr_reader id: ::String
+    attr_reader name: ::String
+    attr_reader author_id: ::Integer
+    attr_reader description: ::String?
+    def initialize: (  ::String id, ::String name, ::Integer author_id, ::String? description) -> void
   end
 
   class DeferredBook
-    attr_reader id: Integer
-    attr_reader author_id: Integer
-    def initialize: (  Integer id, Integer author_id) -> void
+    attr_reader id: ::Integer
+    attr_reader author_id: ::Integer
+    def initialize: (  ::Integer id, ::Integer author_id) -> void
   end
 
   class PostgresExtraType
-    attr_reader c_uuid: String?
+    attr_reader c_uuid: ::String?
     attr_reader c_jsonb: untyped
-    attr_reader c_text_array: Array[String]?
-    attr_reader c_integer_array: Array[Integer]?
-    attr_reader c_timestamptz: Time?
-    attr_reader c_inet: IPAddr?
-    attr_reader c_money: String?
-    attr_reader c_not_null: String
+    attr_reader c_text_array: ::Array[::String]?
+    attr_reader c_integer_array: ::Array[::Integer]?
+    attr_reader c_timestamptz: ::Time?
+    attr_reader c_inet: ::IPAddr?
+    attr_reader c_money: ::String?
+    attr_reader c_not_null: ::String
     def initialize: (
-        String? c_uuid,
+        ::String? c_uuid,
         untyped c_jsonb,
-        Array[String]? c_text_array,
-        Array[Integer]? c_integer_array,
-        Time? c_timestamptz,
-        IPAddr? c_inet,
-        String? c_money,
-        String c_not_null
+        ::Array[::String]? c_text_array,
+        ::Array[::Integer]? c_integer_array,
+        ::Time? c_timestamptz,
+        ::IPAddr? c_inet,
+        ::String? c_money,
+        ::String c_not_null
     ) -> void
   end
 
   class PostgresRemainingType
-    attr_reader c_hstore: String?
-    attr_reader c_ltree: String?
-    attr_reader c_regclass: String?
-    attr_reader c_cidr: IPAddr?
-    attr_reader c_macaddr: String?
-    attr_reader c_interval: String?
-    attr_reader c_varbit: String?
-    attr_reader c_xml: String?
-    attr_reader c_numeric: BigDecimal?
-    attr_reader c_bigint: Integer?
-    attr_reader c_timestamp: Time?
-    attr_reader c_timestamptz: Time?
-    attr_reader c_text_matrix: Array[Array[String]]?
+    attr_reader c_hstore: ::String?
+    attr_reader c_ltree: ::String?
+    attr_reader c_regclass: ::String?
+    attr_reader c_cidr: ::IPAddr?
+    attr_reader c_macaddr: ::String?
+    attr_reader c_interval: ::String?
+    attr_reader c_varbit: ::String?
+    attr_reader c_xml: ::String?
+    attr_reader c_numeric: ::BigDecimal?
+    attr_reader c_bigint: ::Integer?
+    attr_reader c_timestamp: ::Time?
+    attr_reader c_timestamptz: ::Time?
+    attr_reader c_text_matrix: ::Array[::Array[::String]]?
     def initialize: (
-        String? c_hstore,
-        String? c_ltree,
-        String? c_regclass,
-        IPAddr? c_cidr,
-        String? c_macaddr,
-        String? c_interval,
-        String? c_varbit,
-        String? c_xml,
-        BigDecimal? c_numeric,
-        Integer? c_bigint,
-        Time? c_timestamp,
-        Time? c_timestamptz,
-        Array[Array[String]]? c_text_matrix
+        ::String? c_hstore,
+        ::String? c_ltree,
+        ::String? c_regclass,
+        ::IPAddr? c_cidr,
+        ::String? c_macaddr,
+        ::String? c_interval,
+        ::String? c_varbit,
+        ::String? c_xml,
+        ::BigDecimal? c_numeric,
+        ::Integer? c_bigint,
+        ::Time? c_timestamp,
+        ::Time? c_timestamptz,
+        ::Array[::Array[::String]]? c_text_matrix
     ) -> void
   end
 
   class JsonRoundTrip
-    attr_reader id: Integer
+    attr_reader id: ::Integer
     attr_reader json_value: untyped
     attr_reader jsonb_value: untyped
-    def initialize: (  Integer id, untyped json_value, untyped jsonb_value) -> void
+    def initialize: (  ::Integer id, untyped json_value, untyped jsonb_value) -> void
   end
 
   class PostgresArrayType
-    attr_reader c_uuid_array: Array[String]?
-    attr_reader c_bio_type_array: Array[String]?
-    attr_reader c_integer_matrix: Array[Array[Integer]]?
-    def initialize: (  Array[String]? c_uuid_array, Array[String]? c_bio_type_array, Array[Array[Integer]]? c_integer_matrix) -> void
+    attr_reader c_uuid_array: ::Array[::String]?
+    attr_reader c_bio_type_array: ::Array[::String]?
+    attr_reader c_integer_matrix: ::Array[::Array[::Integer]]?
+    def initialize: (  ::Array[::String]? c_uuid_array, ::Array[::String]? c_bio_type_array, ::Array[::Array[::Integer]]? c_integer_matrix) -> void
   end
 
   class PostgresSpecialType
-    attr_reader c_timetz: String?
-    attr_reader c_tsvector: String?
-    attr_reader c_point: String?
-    attr_reader c_int4range: String?
-    attr_reader c_oid: Integer?
-    attr_reader c_dimensions: String?
+    attr_reader c_timetz: ::String?
+    attr_reader c_tsvector: ::String?
+    attr_reader c_point: ::String?
+    attr_reader c_int4range: ::String?
+    attr_reader c_oid: ::Integer?
+    attr_reader c_dimensions: ::String?
     attr_reader c_positive: untyped
     def initialize: (
-        String? c_timetz,
-        String? c_tsvector,
-        String? c_point,
-        String? c_int4range,
-        Integer? c_oid,
-        String? c_dimensions,
+        ::String? c_timetz,
+        ::String? c_tsvector,
+        ::String? c_point,
+        ::String? c_int4range,
+        ::Integer? c_oid,
+        ::String? c_dimensions,
         untyped c_positive
     ) -> void
   end
 
   class Regression
-    attr_reader id: Integer
-    attr_reader order: String
-    attr_reader payload: String?
+    attr_reader id: ::Integer
+    attr_reader order: ::String
+    attr_reader payload: ::String?
     attr_reader doc: untyped
-    attr_reader bio_types: Array[String]?
-    attr_reader uids: Array[String]?
+    attr_reader bio_types: ::Array[::String]?
+    attr_reader uids: ::Array[::String]?
     def initialize: (
-        Integer id,
-        String order,
-        String? payload,
+        ::Integer id,
+        ::String order,
+        ::String? payload,
         untyped doc,
-        Array[String]? bio_types,
-        Array[String]? uids
+        ::Array[::String]? bio_types,
+        ::Array[::String]? uids
     ) -> void
   end
 
   class BatchType
-    attr_reader id: Integer
+    attr_reader id: ::Integer
     attr_reader ok: bool?
-    attr_reader ratio: Float?
-    attr_reader blobs: Array[String]?
-    attr_reader docs: Array[untyped]?
-    attr_reader counts: Array[Integer]?
-    attr_reader amounts: Array[BigDecimal]?
-    attr_reader stamps: Array[Time]?
+    attr_reader ratio: ::Float?
+    attr_reader blobs: ::Array[::String]?
+    attr_reader docs: ::Array[untyped]?
+    attr_reader counts: ::Array[::Integer]?
+    attr_reader amounts: ::Array[::BigDecimal]?
+    attr_reader stamps: ::Array[::Time]?
     def initialize: (
-        Integer id,
+        ::Integer id,
         bool? ok,
-        Float? ratio,
-        Array[String]? blobs,
-        Array[untyped]? docs,
-        Array[Integer]? counts,
-        Array[BigDecimal]? amounts,
-        Array[Time]? stamps
+        ::Float? ratio,
+        ::Array[::String]? blobs,
+        ::Array[untyped]? docs,
+        ::Array[::Integer]? counts,
+        ::Array[::BigDecimal]? amounts,
+        ::Array[::Time]? stamps
     ) -> void
   end
 
   class NameCase
-    attr_reader id: Integer
-    attr_reader class_: String
-    attr_reader end: String
-    attr_reader hash_: String
-    attr_reader method_: String
-    attr_reader count: Integer
-    attr_reader camelCase: String
-    attr_reader HTTPServer: String
+    attr_reader id: ::Integer
+    attr_reader class_: ::String
+    attr_reader end: ::String
+    attr_reader hash_: ::String
+    attr_reader method_: ::String
+    attr_reader count: ::Integer
+    attr_reader camelCase: ::String
+    attr_reader HTTPServer: ::String
     def initialize: (
-        Integer id,
-        String class_,
-        String end,
-        String hash_,
-        String method_,
-        Integer count,
-        String camelCase,
-        String HTTPServer
+        ::Integer id,
+        ::String class_,
+        ::String end,
+        ::String hash_,
+        ::String method_,
+        ::Integer count,
+        ::String camelCase,
+        ::String HTTPServer
     ) -> void
   end
 
+  class Exception
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class StandardError
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class Thread
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class Process
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class Data
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class Struct
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class Set
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class String
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class Integer
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class Time
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class Encoding
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class Monitor
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class Mutex
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
+  class ConnectionPool
+    attr_reader id: ::Integer
+    def initialize: (  ::Integer id) -> void
+  end
+
   class ExtendedBio
-    attr_reader author_name: String
-    attr_reader name: String
-    attr_reader bio_type: String?
-    def initialize: (  String author_name, String name, String? bio_type) -> void
+    attr_reader author_name: ::String
+    attr_reader name: ::String
+    attr_reader bio_type: ::String?
+    def initialize: (  ::String author_name, ::String name, ::String? bio_type) -> void
+  end
+
+  class LateFeeling
+    attr_reader id: ::Integer
+    attr_reader moods: ::Array[::String]
+    def initialize: (  ::Integer id, ::Array[::String] moods) -> void
   end
 end

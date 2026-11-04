@@ -1,7 +1,7 @@
 
 
 2
-postgresql›+public"Ù(publicÍ
+postgresqlö2public"/publicÍ
 	authors)
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserial&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextH
@@ -146,7 +146,41 @@ pg_catalogint4.
 name_casesbtext/
 
 HTTPServer0ÿÿÿÿÿÿÿÿÿR
-name_casesbtext"´extendedÔ
+name_casesbtext<
+
+exceptions,
+id0ÿÿÿÿÿÿÿÿÿR
+exceptionsb	bigserialF
+standard_errors1
+id0ÿÿÿÿÿÿÿÿÿRstandard_errorsb	bigserial6
+	threads)
+id0ÿÿÿÿÿÿÿÿÿR	threadsb	bigserial:
+	processes+
+id0ÿÿÿÿÿÿÿÿÿR	processesb	bigserial0
+data&
+id0ÿÿÿÿÿÿÿÿÿRdatab	bigserial6
+	structs)
+id0ÿÿÿÿÿÿÿÿÿR	structsb	bigserial0
+sets&
+id0ÿÿÿÿÿÿÿÿÿRsetsb	bigserial6
+	strings)
+id0ÿÿÿÿÿÿÿÿÿR	stringsb	bigserial8
+
+integers*
+id0ÿÿÿÿÿÿÿÿÿR
+integersb	bigserial2
+times'
+id0ÿÿÿÿÿÿÿÿÿRtimesb	bigserial:
+	encodings+
+id0ÿÿÿÿÿÿÿÿÿR	encodingsb	bigserial8
+
+monitors*
+id0ÿÿÿÿÿÿÿÿÿR
+monitorsb	bigserial6
+	mutexes)
+id0ÿÿÿÿÿÿÿÿÿR	mutexesb	bigserialH
+connection_pools2
+id0ÿÿÿÿÿÿÿÿÿRconnection_poolsb	bigserial"´extendedÔ
 extendedbiosC
 author_name0ÿÿÿÿÿÿÿÿÿRextendedbiosb
 pg_catalogvarchar<
@@ -155,7 +189,12 @@ pg_catalogvarchar=
 bio_type0ÿÿÿÿÿÿÿÿÿRextendedbiosbextendedbio_type"C
 bio_typeAutobiography	BiographyMemoirKinds of biographies.*
 
-dimensionsÒ
+dimensions"¤late†
+latefeelings7
+id0ÿÿÿÿÿÿÿÿÿRlatefeelingsb
+pg_catalogint49
+moods 0ÿÿÿÿÿÿÿÿÿRlatefeelingsblatemoodˆ"
+moodcalmhappyÒ
 7SELECT id, name, bio FROM authors
 WHERE id = $1 LIMIT 1	GetAuthor:one"-
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserialzid",
@@ -647,4 +686,15 @@ name_casesbpg_catalog.int8zid:	query.sql@
 TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sqlb
 SELECT 1, 'two'GetUnnamedColumns:one"0ÿÿÿÿÿÿÿÿÿbint"0ÿÿÿÿÿÿÿÿÿbtext:	query.sqlQ
 SELECT 1 AS "it's"GetQuotedAlias:one"
-it's0ÿÿÿÿÿÿÿÿÿbint:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+it's0ÿÿÿÿÿÿÿÿÿbint:	query.sqlX
+%INSERT INTO exceptions DEFAULT VALUESCreateException:exec:	query.sqlB
+exceptionsf
+$SELECT COUNT(*) AS n FROM exceptionsCountExceptions:one"
+n0ÿÿÿÿÿÿÿÿÿ@bbigint:	query.sql;
+TRUNCATE exceptionsTruncateExceptions:exec:	query.sqló
+5INSERT INTO late.feelings (id, moods) VALUES ($1, $2)CreateLateFeeling:exec*>:
+id0ÿÿÿÿÿÿÿÿÿRlatefeelingsbpg_catalog.int4zid*C?
+moods 0ÿÿÿÿÿÿÿÿÿRlatefeelingsb	late.moodzmoodsˆ:	query.sqlBlatefeelingsÒ
+-SELECT moods FROM late.feelings WHERE id = $1GetLateFeeling:one"@
+moods 0ÿÿÿÿÿÿÿÿÿRlatefeelingsblatemoodzmoodsˆ*>:
+id0ÿÿÿÿÿÿÿÿÿRlatefeelingsbpg_catalog.int4zid:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

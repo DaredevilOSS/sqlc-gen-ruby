@@ -19,7 +19,7 @@ module Mysql2Codegen
     	  WHERE a = 1
   SQL
 
-  class OtherOneRow < Data.define(:c0)
+  class OtherOneRow < ::Data.define(:c0)
   end
 
   COUNT_ROWS_SQL = <<~'SQL'
@@ -29,12 +29,12 @@ module Mysql2Codegen
 
   class OtherSql
     # Raised by the bang variants (get_author!) when the query returns no row.
-    class NotFound < StandardError; end
+    class NotFound < ::StandardError; end
 
     # Opens a pool of connections: QuerySql.connect({ database: 'app' }, size: 5, timeout: 5, logger: Logger.new($stdout))
     # (pool_options go to ConnectionPool.new). To share an existing pool use QuerySql.new(pool).
     def self.connect(mysql2_params, logger: nil, **pool_options)
-      new(ConnectionPool.new(**pool_options) { Mysql2::Client.new(**mysql2_params) }, logger: logger)
+      new(::ConnectionPool.new(**pool_options) { ::Mysql2::Client.new(**mysql2_params) }, logger: logger)
     end
 
     # db: a ConnectionPool (or anything that responds to #with and yields a Mysql2::Client).
@@ -46,11 +46,12 @@ module Mysql2Codegen
 
     # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
     # (also through break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call
-    # becomes a SAVEPOINT. Yields self, bound to that connection.
+    # becomes a SAVEPOINT. Yields a copy of self whose queries run in the transaction, also from other fibers and
+    # threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
     def transaction(isolation: nil)
       with_client('transaction') do |client|
         outermost = !client.in_transaction
-        raise ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
+        raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
 
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         if outermost
@@ -61,24 +62,27 @@ module Mysql2Codegen
           client.query("SAVEPOINT #{savepoint}")
         end
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        bound = TransactionConnection.new(client) unless @db.is_a?(TransactionConnection)
         failed = false
         begin
-          yield self
-        rescue Exception => e # rubocop:disable Lint/RescueException
+          bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
+        rescue ::Exception => e # rubocop:disable Lint/RescueException
           failed = true
+          bound&.close
           begin
             client.query(rollback)
-          rescue Mysql2::Error
+          rescue ::Mysql2::Error
             # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone;
             # an interrupted query closed the connection: the server rolls back
-            raise unless e.is_a?(Mysql2::Error) || client.closed?
+            raise unless e.is_a?(::Mysql2::Error) || client.closed?
           end
           raise
         ensure
+          bound&.close
           begin
             unless failed
               commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-              client.query(Thread.current.status == 'aborting' ? rollback : commit)
+              client.query(::Thread.current.status == 'aborting' ? rollback : commit)
             end
           ensure
             client.in_transaction = false if outermost
@@ -127,11 +131,11 @@ module Mysql2Codegen
     def instrument(name)
       return yield unless @logger
 
-      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       begin
         yield
       ensure
-        elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+        elapsed = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started) * 1000
         @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
       end
     end
@@ -142,7 +146,7 @@ module Mysql2Codegen
           client.extend(ConnectionState) unless client.is_a?(ConnectionState)
           begin
             yield client
-          rescue Exception # rubocop:disable Lint/RescueException
+          rescue ::Exception # rubocop:disable Lint/RescueException
             # a connection closed by the server (restart, KILL, wait_timeout) or by mysql2 when a running query
             # was interrupted (Async task stopped, Thread#raise) is replaced by the pool
             @db.discard_current_connection if client.closed? && @db.respond_to?(:discard_current_connection)
@@ -152,33 +156,36 @@ module Mysql2Codegen
       end
     end
 
+    # A copy of this query object whose queries run on the transaction's connection.
+    def bound_to(connection) = dup.tap { |tx| tx.instance_variable_set(:@db, connection) }
+
     def quote(client, value)
       case value
-      when NilClass then 'NULL'
-      when Symbol then quote(client, value.to_s)
-      when TrueClass then 'TRUE'
-      when FalseClass then 'FALSE'
-      when Integer then value.to_s
-      when Float
-        raise ArgumentError, 'cannot bind a non-finite Float to MySQL' unless value.finite?
+      when ::NilClass then 'NULL'
+      when ::Symbol then quote(client, value.to_s)
+      when ::TrueClass then 'TRUE'
+      when ::FalseClass then 'FALSE'
+      when ::Integer then value.to_s
+      when ::Float
+        raise ::ArgumentError, 'cannot bind a non-finite Float to MySQL' unless value.finite?
 
         value.to_s
-      when BigDecimal
-        raise ArgumentError, 'cannot bind a non-finite BigDecimal to MySQL' unless value.finite?
+      when ::BigDecimal
+        raise ::ArgumentError, 'cannot bind a non-finite BigDecimal to MySQL' unless value.finite?
 
         value.to_s('F')
-      when DateTime, Time
+      when ::DateTime, ::Time
         "'#{value.strftime('%Y-%m-%d %H:%M:%S.%6N')}'"
-      when Date
+      when ::Date
         "'#{value.strftime('%Y-%m-%d')}'"
-      when String
-        if value.encoding == Encoding::BINARY || !value.valid_encoding?
+      when ::String
+        if value.encoding == ::Encoding::BINARY || !value.valid_encoding?
           "X'#{value.unpack1('H*')}'"
         else
           "'#{client.escape(value)}'"
         end
       else
-        raise TypeError, "cannot bind #{value.class} to MySQL"
+        raise ::TypeError, "cannot bind #{value.class} to MySQL"
       end
     end
 
@@ -221,7 +228,7 @@ module Mysql2Codegen
           output << sql[index...finish]
           index = finish
         elsif char == '?'
-          raise ArgumentError, 'more MySQL placeholders than parameters' if parameter >= params.length
+          raise ::ArgumentError, 'more MySQL placeholders than parameters' if parameter >= params.length
 
           output << quote(client, params[parameter])
           parameter += 1
@@ -231,7 +238,7 @@ module Mysql2Codegen
           index += 1
         end
       end
-      raise ArgumentError, 'fewer MySQL placeholders than parameters' unless parameter == params.length
+      raise ::ArgumentError, 'fewer MySQL placeholders than parameters' unless parameter == params.length
 
       output
     end

@@ -15,7 +15,7 @@ module Mysql2Codegen
     WHERE id = ? LIMIT 1
   SQL
 
-  class GetAuthorRow < Data.define(:id, :name, :bio)
+  class GetAuthorRow < ::Data.define(:id, :name, :bio)
   end
 
   LIST_AUTHORS_SQL = <<~'SQL'
@@ -23,7 +23,7 @@ module Mysql2Codegen
     ORDER BY name
   SQL
 
-  class ListAuthorsRow < Data.define(:id, :name, :bio)
+  class ListAuthorsRow < ::Data.define(:id, :name, :bio)
   end
 
   CREATE_AUTHOR_SQL = <<~'SQL'
@@ -58,7 +58,7 @@ module Mysql2Codegen
     LIMIT 1
   SQL
 
-  class TestRow < Data.define(
+  class TestRow < ::Data.define(
     :c_bit,
     :c_tinyint,
     :c_bool,
@@ -105,7 +105,7 @@ module Mysql2Codegen
     LIMIT ? OFFSET ?
   SQL
 
-  class ListAuthorsPagedRow < Data.define(:id, :name, :bio)
+  class ListAuthorsPagedRow < ::Data.define(:id, :name, :bio)
   end
 
   GET_AUTHOR_BY_NAME_PATTERN_SQL = <<~'SQL'
@@ -113,7 +113,7 @@ module Mysql2Codegen
     WHERE name LIKE COALESCE(?, '%')
   SQL
 
-  class GetAuthorByNamePatternRow < Data.define(:id, :name, :bio)
+  class GetAuthorByNamePatternRow < ::Data.define(:id, :name, :bio)
   end
 
   GET_AUTHORS_BY_OPTIONAL_NAME_SQL = <<~'SQL'
@@ -123,14 +123,14 @@ module Mysql2Codegen
     LIMIT ?
   SQL
 
-  class GetAuthorsByOptionalNameRow < Data.define(:id, :name, :bio)
+  class GetAuthorsByOptionalNameRow < ::Data.define(:id, :name, :bio)
   end
 
   PAUSE_QUERY_SQL = <<~'SQL'
     SELECT SLEEP(?)
   SQL
 
-  class PauseQueryRow < Data.define(:sleep)
+  class PauseQueryRow < ::Data.define(:sleep)
   end
 
   UPDATE_AUTHOR_BIOS_SQL = <<~'SQL'
@@ -143,17 +143,17 @@ module Mysql2Codegen
     SELECT id, name, bio FROM authors WHERE id IN (/*SLICE:ids*/?)
   SQL
 
-  class GetAuthorsByIdsRow < Data.define(:id, :name, :bio)
+  class GetAuthorsByIdsRow < ::Data.define(:id, :name, :bio)
   end
 
   GET_AUTHORS_BY_IDS_AND_NAMES_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors WHERE id IN (/*SLICE:ids*/?) AND name IN (/*SLICE:names*/?)
   SQL
 
-  class GetAuthorsByIdsAndNamesRow < Data.define(:id, :name, :bio)
+  class GetAuthorsByIdsAndNamesRow < ::Data.define(:id, :name, :bio)
   end
 
-  class CopyAuthorsArgs < Data.define(:name, :bio)
+  class CopyAuthorsArgs < ::Data.define(:name, :bio)
   end
 
   TRUNCATE_AUTHORS_SQL = <<~'SQL'
@@ -170,7 +170,7 @@ module Mysql2Codegen
     ORDER BY authors.name
   SQL
 
-  class ListAllAuthorsBooksRow < Data.define(:author, :book)
+  class ListAllAuthorsBooksRow < ::Data.define(:author, :book)
   end
 
   GET_DUPLICATE_AUTHORS_SQL = <<~'SQL'
@@ -179,7 +179,7 @@ module Mysql2Codegen
     WHERE authors1.id < authors2.id
   SQL
 
-  class GetDuplicateAuthorsRow < Data.define(:author, :author2)
+  class GetDuplicateAuthorsRow < ::Data.define(:author, :author2)
   end
 
   GET_AUTHORS_BY_BOOK_NAME_SQL = <<~'SQL'
@@ -188,7 +188,7 @@ module Mysql2Codegen
     WHERE books.name = ?
   SQL
 
-  class GetAuthorsByBookNameRow < Data.define(:id, :name, :bio, :book)
+  class GetAuthorsByBookNameRow < ::Data.define(:id, :name, :bio, :book)
   end
 
   CREATE_EXTENDED_BIO_SQL = <<~'SQL'
@@ -199,7 +199,7 @@ module Mysql2Codegen
     SELECT author_name, name, bio_type, author_type FROM extended_bios WHERE bio_type = ? LIMIT 1
   SQL
 
-  class GetFirstExtendedBioByTypeRow < Data.define(:author_name, :name, :bio_type, :author_type)
+  class GetFirstExtendedBioByTypeRow < ::Data.define(:author_name, :name, :bio_type, :author_type)
   end
 
   TRUNCATE_EXTENDED_BIOS_SQL = <<~'SQL'
@@ -214,61 +214,61 @@ module Mysql2Codegen
     INSERT INTO authors (name, bio) VALUES (?, ?)
   SQL
 
-  class CreateAuthorsBatchArgs < Data.define(:name, :bio)
+  class CreateAuthorsBatchArgs < ::Data.define(:name, :bio)
   end
 
   GET_AUTHOR_BATCH_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors WHERE id = ?
   SQL
 
-  class GetAuthorBatchRow < Data.define(:id, :name, :bio)
+  class GetAuthorBatchRow < ::Data.define(:id, :name, :bio)
   end
 
-  class GetAuthorBatchArgs < Data.define(:id)
+  class GetAuthorBatchArgs < ::Data.define(:id)
   end
 
   LIST_AUTHORS_BY_NAME_BATCH_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors WHERE name = ? ORDER BY id
   SQL
 
-  class ListAuthorsByNameBatchRow < Data.define(:id, :name, :bio)
+  class ListAuthorsByNameBatchRow < ::Data.define(:id, :name, :bio)
   end
 
-  class ListAuthorsByNameBatchArgs < Data.define(:name)
+  class ListAuthorsByNameBatchArgs < ::Data.define(:name)
   end
 
   COUNT_REGRESSIONS_BY_TEXT_SQL = <<~'SQL'
     SELECT count(*) FROM regressions WHERE `order` = ? OR note = ?
   SQL
 
-  class CountRegressionsByTextRow < Data.define(:count)
+  class CountRegressionsByTextRow < ::Data.define(:count)
   end
 
   LIST_REGRESSIONS_BY_IDS_SQL = <<~'SQL'
     SELECT id, `order`, note FROM regressions WHERE id IN (?, ?, ?) ORDER BY id
   SQL
 
-  class ListRegressionsByIdsRow < Data.define(:id, :order, :note)
+  class ListRegressionsByIdsRow < ::Data.define(:id, :order, :note)
   end
 
-  class CopyRegressionsArgs < Data.define(:order, :note)
+  class CopyRegressionsArgs < ::Data.define(:order, :note)
   end
 
-  class CopyRegressionRowsArgs < Data.define(:id, :order, :note, :payload)
+  class CopyRegressionRowsArgs < ::Data.define(:id, :order, :note, :payload)
   end
 
   LIST_REGRESSION_PAYLOADS_SQL = <<~'SQL'
     SELECT id, payload FROM regressions ORDER BY id
   SQL
 
-  class ListRegressionPayloadsRow < Data.define(:id, :payload)
+  class ListRegressionPayloadsRow < ::Data.define(:id, :payload)
   end
 
   LIST_REGRESSION_ROWS_SQL = <<~'SQL'
     SELECT id, `order`, note, payload FROM regressions ORDER BY id
   SQL
 
-  class ListRegressionRowsRow < Data.define(:id, :order, :note, :payload)
+  class ListRegressionRowsRow < ::Data.define(:id, :order, :note, :payload)
   end
 
   LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL = <<~'SQL'
@@ -278,14 +278,14 @@ module Mysql2Codegen
     ORDER BY authors.id
   SQL
 
-  class ListAuthorsWithOptionalBookRow < Data.define(:author, :book)
+  class ListAuthorsWithOptionalBookRow < ::Data.define(:author, :book)
   end
 
   TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
     TRUNCATE TABLE regressions
   SQL
 
-  class CopyCopyTypesArgs < Data.define(
+  class CopyCopyTypesArgs < ::Data.define(
     :id,
     :code,
     :doc,
@@ -294,28 +294,28 @@ module Mysql2Codegen
   )
   end
 
-  class CopyCopyTypesIgnoreArgs < Data.define(:id, :code)
+  class CopyCopyTypesIgnoreArgs < ::Data.define(:id, :code)
   end
 
-  class CopyCopyTypesReplaceArgs < Data.define(:id, :code)
+  class CopyCopyTypesReplaceArgs < ::Data.define(:id, :code)
   end
 
   CREATE_COPY_TYPES_BATCH_SQL = <<~'SQL'
     INSERT INTO copy_types (id, code, flags, amount) VALUES (?, ?, ?, ?)
   SQL
 
-  class CreateCopyTypesBatchArgs < Data.define(:id, :code, :flags, :amount)
+  class CreateCopyTypesBatchArgs < ::Data.define(:id, :code, :flags, :amount)
   end
 
   COUNT_COPY_TYPES_BY_CODES_SQL = <<~'SQL'
     SELECT count(*) AS matches FROM copy_types WHERE code = ? OR code = ?
   SQL
 
-  class CountCopyTypesByCodesRow < Data.define(:matches)
+  class CountCopyTypesByCodesRow < ::Data.define(:matches)
   end
 
   # rubocop:disable Naming/VariableNumber
-  class CountCopyTypesByCodesArgs < Data.define(:code, :code_2)
+  class CountCopyTypesByCodesArgs < ::Data.define(:code, :code_2)
   end
   # rubocop:enable Naming/VariableNumber
 
@@ -323,7 +323,7 @@ module Mysql2Codegen
     SELECT id, code, doc, flags, amount FROM copy_types ORDER BY id
   SQL
 
-  class ListCopyTypesRow < Data.define(
+  class ListCopyTypesRow < ::Data.define(
     :id,
     :code,
     :doc,
@@ -340,7 +340,7 @@ module Mysql2Codegen
     SELECT id FROM authors WHERE name = ?
   SQL
 
-  class FindAuthorsByExactNameRow < Data.define(:id)
+  class FindAuthorsByExactNameRow < ::Data.define(:id)
   end
 
   GET_AUTHOR_WITH_QUESTION_MARKS_SQL = <<~'SQL'
@@ -349,7 +349,7 @@ module Mysql2Codegen
     ORDER BY id
   SQL
 
-  class GetAuthorWithQuestionMarksRow < Data.define(:id)
+  class GetAuthorWithQuestionMarksRow < ::Data.define(:id)
   end
 
   INSERT_MYSQL_BINDING_VALUES_SQL = <<~'SQL'
@@ -368,7 +368,7 @@ module Mysql2Codegen
   SQL
 
   # rubocop:disable Naming/VariableNumber
-  class GetMysqlBindingValuesRow < Data.define(
+  class GetMysqlBindingValuesRow < ::Data.define(
     :id,
     :text_value,
     :blob_value,
@@ -406,7 +406,7 @@ module Mysql2Codegen
       AND `HTTPServer` = ? AND `camelCase` = ?
   SQL
 
-  class GetNameCaseRow < Data.define(
+  class GetNameCaseRow < ::Data.define(
     :id,
     :class_,
     :end,
@@ -422,7 +422,7 @@ module Mysql2Codegen
     SELECT id, class, end, hash, method, count, camelcase, httpserver FROM name_cases WHERE id = ?
   SQL
 
-  class GetHTTPServerRow < Data.define(
+  class GetHTTPServerRow < ::Data.define(
     :id,
     :class_,
     :end,
@@ -443,7 +443,7 @@ module Mysql2Codegen
   SQL
 
   # rubocop:disable Naming/VariableNumber
-  class GetUnnamedColumnsRow < Data.define(:column_1, :column_2)
+  class GetUnnamedColumnsRow < ::Data.define(:column_1, :column_2)
   end
   # rubocop:enable Naming/VariableNumber
 
@@ -451,22 +451,37 @@ module Mysql2Codegen
     SELECT 1 AS `it's`
   SQL
 
-  class GetQuotedAliasRow < Data.define(:it_s)
+  class GetQuotedAliasRow < ::Data.define(:it_s)
   end
 
   GET_AUTHORS_NOT_IN_IDS_SQL = <<~'SQL'
     SELECT id, name, bio FROM authors WHERE id NOT IN (/*SLICE:ids*/?) ORDER BY id
   SQL
 
-  class GetAuthorsNotInIdsRow < Data.define(:id, :name, :bio)
+  class GetAuthorsNotInIdsRow < ::Data.define(:id, :name, :bio)
   end
+
+  CREATE_EXCEPTION_SQL = <<~'SQL'
+    INSERT INTO exceptions (id) VALUES (NULL)
+  SQL
+
+  COUNT_EXCEPTIONS_SQL = <<~'SQL'
+    SELECT COUNT(*) AS n FROM exceptions
+  SQL
+
+  class CountExceptionsRow < ::Data.define(:n)
+  end
+
+  TRUNCATE_EXCEPTIONS_SQL = <<~'SQL'
+    TRUNCATE TABLE exceptions
+  SQL
 
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
   SQL
 
-  class ManyParamsRow < Data.define(:c0, :c1)
+  class ManyParamsRow < ::Data.define(:c0, :c1)
   end
 
   MANY_ROWS_SQL = <<~'SQL'
@@ -474,7 +489,7 @@ module Mysql2Codegen
     	  WHERE a = ?
   SQL
 
-  class ManyRowsRow < Data.define(
+  class ManyRowsRow < ::Data.define(
     :c0,
     :c1,
     :c2,
@@ -488,17 +503,17 @@ module Mysql2Codegen
     	  WHERE a = 1
   SQL
 
-  class FourColsRow < Data.define(:c0, :c1, :c2, :c3)
+  class FourColsRow < ::Data.define(:c0, :c1, :c2, :c3)
   end
 
   class QuerySql
     # Raised by the bang variants (get_author!) when the query returns no row.
-    class NotFound < StandardError; end
+    class NotFound < ::StandardError; end
 
     # Opens a pool of connections: QuerySql.connect({ database: 'app' }, size: 5, timeout: 5, logger: Logger.new($stdout))
     # (pool_options go to ConnectionPool.new). To share an existing pool use QuerySql.new(pool).
     def self.connect(mysql2_params, logger: nil, **pool_options)
-      new(ConnectionPool.new(**pool_options) { Mysql2::Client.new(**mysql2_params) }, logger: logger)
+      new(::ConnectionPool.new(**pool_options) { ::Mysql2::Client.new(**mysql2_params) }, logger: logger)
     end
 
     # db: a ConnectionPool (or anything that responds to #with and yields a Mysql2::Client).
@@ -510,11 +525,12 @@ module Mysql2Codegen
 
     # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
     # (also through break / return / throw), ROLLBACK when it raises or the thread is killed. A nested call
-    # becomes a SAVEPOINT. Yields self, bound to that connection.
+    # becomes a SAVEPOINT. Yields a copy of self whose queries run in the transaction, also from other fibers and
+    # threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
     def transaction(isolation: nil)
       with_client('transaction') do |client|
         outermost = !client.in_transaction
-        raise ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
+        raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
 
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
         if outermost
@@ -525,24 +541,27 @@ module Mysql2Codegen
           client.query("SAVEPOINT #{savepoint}")
         end
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        bound = TransactionConnection.new(client) unless @db.is_a?(TransactionConnection)
         failed = false
         begin
-          yield self
-        rescue Exception => e # rubocop:disable Lint/RescueException
+          bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
+        rescue ::Exception => e # rubocop:disable Lint/RescueException
           failed = true
+          bound&.close
           begin
             client.query(rollback)
-          rescue Mysql2::Error
+          rescue ::Mysql2::Error
             # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone;
             # an interrupted query closed the connection: the server rolls back
-            raise unless e.is_a?(Mysql2::Error) || client.closed?
+            raise unless e.is_a?(::Mysql2::Error) || client.closed?
           end
           raise
         ensure
+          bound&.close
           begin
             unless failed
               commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-              client.query(Thread.current.status == 'aborting' ? rollback : commit)
+              client.query(::Thread.current.status == 'aborting' ? rollback : commit)
             end
           ensure
             client.in_transaction = false if outermost
@@ -551,7 +570,7 @@ module Mysql2Codegen
       end
     end
 
-    class ExecResult < Data.define(:rows_affected, :last_insert_id)
+    class ExecResult < ::Data.define(:rows_affected, :last_insert_id)
     end
 
     # Returns the author with the given id, or nil when there is none.
@@ -736,7 +755,7 @@ module Mysql2Codegen
       with_client('copy_authors') do |client|
         return if rows.empty?
 
-        Tempfile.create(['copy_authors', '.csv']) do |file|
+        ::Tempfile.create(['copy_authors', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.name, row.bio]))
           end
@@ -891,7 +910,7 @@ module Mysql2Codegen
       with_client('copy_regressions') do |client|
         return if rows.empty?
 
-        Tempfile.create(['copy_regressions', '.csv']) do |file|
+        ::Tempfile.create(['copy_regressions', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.order, row.note]))
           end
@@ -906,7 +925,7 @@ module Mysql2Codegen
       with_client('copy_regression_rows') do |client|
         return if rows.empty?
 
-        Tempfile.create(['copy_regression_rows', '.csv']) do |file|
+        ::Tempfile.create(['copy_regression_rows', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.id, row.order, row.note, row.payload]))
           end
@@ -958,7 +977,7 @@ module Mysql2Codegen
       with_client('copy_copy_types') do |client|
         return if rows.empty?
 
-        Tempfile.create(['copy_copy_types', '.csv']) do |file|
+        ::Tempfile.create(['copy_copy_types', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.id, row.code, row.doc, row.flags, row.amount]))
           end
@@ -973,7 +992,7 @@ module Mysql2Codegen
       with_client('copy_copy_types_ignore') do |client|
         return if rows.empty?
 
-        Tempfile.create(['copy_copy_types_ignore', '.csv']) do |file|
+        ::Tempfile.create(['copy_copy_types_ignore', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.id, row.code]))
           end
@@ -988,7 +1007,7 @@ module Mysql2Codegen
       with_client('copy_copy_types_replace') do |client|
         return if rows.empty?
 
-        Tempfile.create(['copy_copy_types_replace', '.csv']) do |file|
+        ::Tempfile.create(['copy_copy_types_replace', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.id, row.code]))
           end
@@ -1238,6 +1257,33 @@ module Mysql2Codegen
       end
     end
 
+    def create_exception
+      with_client('create_exception') do |client|
+        client.query(bind_params(client, CREATE_EXCEPTION_SQL, []))
+        nil
+      end
+    end
+
+    def count_exceptions
+      with_client('count_exceptions') do |client|
+        result = client.query(bind_params(client, COUNT_EXCEPTIONS_SQL, []), as: :array)
+        row = result.first
+        row && CountExceptionsRow.new(row[0])
+      end
+    end
+
+    # Like #count_exceptions, but raises NotFound when there is no row.
+    def count_exceptions!(...)
+      count_exceptions(...) || raise(NotFound, 'CountExceptions returned no row')
+    end
+
+    def truncate_exceptions
+      with_client('truncate_exceptions') do |client|
+        client.query(bind_params(client, TRUNCATE_EXCEPTIONS_SQL, []))
+        nil
+      end
+    end
+
     def many_params(c0:, c1:, c2:, c3:, c4:)
       with_client('many_params') do |client|
         query_params = [
@@ -1288,11 +1334,11 @@ module Mysql2Codegen
     def instrument(name)
       return yield unless @logger
 
-      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       begin
         yield
       ensure
-        elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+        elapsed = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started) * 1000
         @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
       end
     end
@@ -1303,7 +1349,7 @@ module Mysql2Codegen
           client.extend(ConnectionState) unless client.is_a?(ConnectionState)
           begin
             yield client
-          rescue Exception # rubocop:disable Lint/RescueException
+          rescue ::Exception # rubocop:disable Lint/RescueException
             # a connection closed by the server (restart, KILL, wait_timeout) or by mysql2 when a running query
             # was interrupted (Async task stopped, Thread#raise) is replaced by the pool
             @db.discard_current_connection if client.closed? && @db.respond_to?(:discard_current_connection)
@@ -1313,33 +1359,36 @@ module Mysql2Codegen
       end
     end
 
+    # A copy of this query object whose queries run on the transaction's connection.
+    def bound_to(connection) = dup.tap { |tx| tx.instance_variable_set(:@db, connection) }
+
     def quote(client, value)
       case value
-      when NilClass then 'NULL'
-      when Symbol then quote(client, value.to_s)
-      when TrueClass then 'TRUE'
-      when FalseClass then 'FALSE'
-      when Integer then value.to_s
-      when Float
-        raise ArgumentError, 'cannot bind a non-finite Float to MySQL' unless value.finite?
+      when ::NilClass then 'NULL'
+      when ::Symbol then quote(client, value.to_s)
+      when ::TrueClass then 'TRUE'
+      when ::FalseClass then 'FALSE'
+      when ::Integer then value.to_s
+      when ::Float
+        raise ::ArgumentError, 'cannot bind a non-finite Float to MySQL' unless value.finite?
 
         value.to_s
-      when BigDecimal
-        raise ArgumentError, 'cannot bind a non-finite BigDecimal to MySQL' unless value.finite?
+      when ::BigDecimal
+        raise ::ArgumentError, 'cannot bind a non-finite BigDecimal to MySQL' unless value.finite?
 
         value.to_s('F')
-      when DateTime, Time
+      when ::DateTime, ::Time
         "'#{value.strftime('%Y-%m-%d %H:%M:%S.%6N')}'"
-      when Date
+      when ::Date
         "'#{value.strftime('%Y-%m-%d')}'"
-      when String
-        if value.encoding == Encoding::BINARY || !value.valid_encoding?
+      when ::String
+        if value.encoding == ::Encoding::BINARY || !value.valid_encoding?
           "X'#{value.unpack1('H*')}'"
         else
           "'#{client.escape(value)}'"
         end
       else
-        raise TypeError, "cannot bind #{value.class} to MySQL"
+        raise ::TypeError, "cannot bind #{value.class} to MySQL"
       end
     end
 
@@ -1382,7 +1431,7 @@ module Mysql2Codegen
           output << sql[index...finish]
           index = finish
         elsif char == '?'
-          raise ArgumentError, 'more MySQL placeholders than parameters' if parameter >= params.length
+          raise ::ArgumentError, 'more MySQL placeholders than parameters' if parameter >= params.length
 
           output << quote(client, params[parameter])
           parameter += 1
@@ -1392,7 +1441,7 @@ module Mysql2Codegen
           index += 1
         end
       end
-      raise ArgumentError, 'fewer MySQL placeholders than parameters' unless parameter == params.length
+      raise ::ArgumentError, 'fewer MySQL placeholders than parameters' unless parameter == params.length
 
       output
     end
@@ -1404,7 +1453,7 @@ module Mysql2Codegen
         when nil then '\N'
         when true then '1'
         when false then '0'
-        when Time then value.strftime('%Y-%m-%d %H:%M:%S.%6N')
+        when ::Time then value.strftime('%Y-%m-%d %H:%M:%S.%6N')
         else %("#{value.to_s.b.gsub('\\') { '\\\\' }.gsub('"', '""').gsub("\x1A") { '\Z' }}")
         end
       end
@@ -1421,7 +1470,7 @@ module Mysql2Codegen
         client.query(sql)
         if strict && !client.warning_count.zero?
           warnings = client.query('SHOW WARNINGS', as: :array).reject { |level, *| level == 'Note' }
-          raise Mysql2::Error, "LOAD DATA: #{warnings.map { |w| w[2] }.join('; ')}" unless warnings.empty?
+          raise ::Mysql2::Error, "LOAD DATA: #{warnings.map { |w| w[2] }.join('; ')}" unless warnings.empty?
         end
         done = true
       ensure
@@ -1434,7 +1483,7 @@ module Mysql2Codegen
     end
 
     def slice_placeholders(values)
-      values.empty? ? 'SELECT NULL WHERE FALSE' : Array.new(values.size, '?').join(', ')
+      values.empty? ? 'SELECT NULL WHERE FALSE' : ::Array.new(values.size, '?').join(', ')
     end
   end
 end

@@ -124,6 +124,10 @@ end
   to keep those exits committing. A nested `transaction` rolls back only its own part. With `connection_pool` or
   SQLite, parent-object calls from the same thread reuse the transaction connection; injected `#with` objects must do
   the same.
+* `tx` is a copy of the query object bound to the transaction: its queries stay in the transaction from any fiber or
+  thread (an `Enumerator`, an `Async` task, a `Thread`), one at a time, and raise `TransactionEnded` once the
+  transaction is over. Other query objects (the parent `queries`, another generated class sharing the pool) used from
+  another fiber or thread check out their own connection and run outside the transaction: pass `tx` instead.
 * `isolation:` (`pg`, `mysql2`) takes `:read_uncommitted`, `:read_committed`, `:repeatable_read`, `:serializable`;
   `mode:` (`sqlite3`) takes `:deferred`, `:immediate`, `:exclusive`. Other values raise before anything runs, and so
   do `isolation:` / `mode:` on a nested `transaction` (a savepoint cannot change them).
@@ -174,7 +178,8 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 * Types follow what the drivers return: `Integer`, `Float`, `BigDecimal` (`numeric` / `decimal`), `String`, `Date`, `Time`,
   `IPAddr`, `true` / `false`; `json` / `jsonb` are parsed (`untyped`); nullable columns and parameters are `T?`.
 * PostgreSQL arrays are `Array[T]` (`Array[Array[T]]` for `T[][]`); arrays of types the pg gem does not decode
-  (`uuid[]`, enum arrays, ...) are `Array[String]`. Geometric, range, full-text, `hstore`, `ltree`, `timetz`, `reg*` and
+  (`uuid[]`, enum arrays, ...) are `Array[String]`, also for types created after the connection was opened (a
+  migration run while the application is up). Geometric, range, full-text, `hstore`, `ltree`, `timetz`, `reg*` and
   composite types are `String`s; domains and unknown types are `untyped`.
 * Enums are `String`s, with constants in `models.rb` (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`).
 * SQLite follows its [type affinity rules](https://www.sqlite.org/datatype3.html#determination_of_column_affinity)
@@ -188,6 +193,8 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   PostgreSQL and SQLite keep `"camelCase"` as `:camelCase`, while MySQL reports it as `:camelcase`. A column named
   `end` is the row member `:end` but the argument `end_:`.
 * A parameter used twice is one keyword when named with `sqlc.arg`; repeated `?` / `$n` of one column become `id:`, `id_2:`.
+* Models may be named like Ruby or driver constants (tables `exceptions`, `data`, `threads`, `sets`, ...): the
+  generated code and `.rbs` refer to those as `::Exception`, `::Data`, `::Thread`, ... so the models cannot shadow them.
 * A table `authors` next to a table `author` keeps its plural model name (`Authors`). Query names that would replace
   a generated method (`Transaction`, `Initialize`, ...) are errors.
 
@@ -199,7 +206,7 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   reports fewer parameters than there are `?`), so such queries are generation errors. Use `excluded.<column>`
   (`DO UPDATE SET n = counters.n + excluded.n`) or move the value into `VALUES`.
 * SQLite transactions belong to the thread that opened them; fibers sharing the same database take turns, and a
-  transaction holds it until it ends.
+  transaction holds it until it ends. Only the yielded `tx` runs inside the transaction from other fibers / threads.
 * Not applicable to Ruby (they exist in the C# plugin): `withAsyncSuffix` / `withCancellationToken` (use the Fiber
   scheduler), `useDapper`, target framework / csproj options (`moduleName` replaces the namespace).
 

@@ -37,7 +37,8 @@ They `require` the generated code from `examples/` and run it against a real dat
   connect without a password (`DB_PASS` is only used for PostgreSQL), so use a user without one.
   Or run everything in Docker: `rake run_end2end_tests` (docker-compose).
 * They cover every query command (batches with encoded `bytea` / `json` values too), transactions (nested,
-  isolation, `break` / `throw`, a rescued failed statement on PostgreSQL, SQLite threads sharing a database), pool
+  isolation, `break` / `throw`, a rescued failed statement on PostgreSQL, SQLite threads sharing a database, the
+  yielded `tx` used from other fibers / threads), models named like Ruby constants (`Exception`, `Data`, ...), pool
   injection, logging, bang finders, `:copyfrom` with awkward and binary values and its all-or-nothing behaviour,
   Fiber-scheduler concurrency (`async` gem) and statement-leak checks.
 

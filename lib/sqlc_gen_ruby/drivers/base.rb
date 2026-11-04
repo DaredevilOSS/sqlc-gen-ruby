@@ -93,7 +93,7 @@ module SqlcGenRuby
       def encode_param(expr, _column) = expr
 
       # :execresult -> [*statements, rows_affected expression, last_insert_id expression]
-      def exec_result_lines(_exec) = raise(NotImplementedError)
+      def exec_result_lines(_exec, _query) = raise(NotImplementedError)
 
       # Private helper methods the class needs for these queries: [[code, rbs], ...]
       def helper_methods(_queries) = []
@@ -144,29 +144,103 @@ module SqlcGenRuby
         def instrument(name)
           return yield unless @logger
 
-          started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
           begin
             yield
           ensure
-            elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+            elapsed = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started) * 1000
             @logger.debug { format('%<class>s#%<name>s (%<ms>.1fms)', class: self.class.name, name: name, ms: elapsed) }
           end
         end
       RUBY
 
-      INSTRUMENT_RBS = 'def instrument: [T] (String name) { () -> T } -> T'
+      INSTRUMENT_RBS = 'def instrument: [T] (::String name) { () -> T } -> T'
+
+      # What the query object yielded by #transaction runs its queries on (see #bound_to).
+      TRANSACTION_CONNECTION = <<~'RUBY'.chomp
+        # Raised when the query object yielded by #transaction is used after the transaction ended.
+        class TransactionEnded < ::StandardError; end
+
+        # The connection of one transaction, for the query object #transaction yields: its queries stay in the
+        # transaction from any fiber or thread (an Enumerator, an Async task, a Thread), one at a time, and raise
+        # TransactionEnded once the transaction is over.
+        class TransactionConnection
+          def initialize(client)
+            @client = client
+            @mutex = ::Thread::Mutex.new
+          end
+
+          def with
+            return yield(client) if @mutex.owned?
+
+            @mutex.synchronize { yield client }
+          end
+
+          def synchronize(&block) = with { block.call }
+
+          # While the block of a nested transaction runs, other fibers / threads can use the connection too.
+          def unlocked
+            return yield unless @mutex.owned?
+
+            @mutex.unlock
+            begin
+              yield
+            ensure
+              @mutex.lock
+            end
+          end
+
+          # Waits for a query of another fiber / thread to finish.
+          def close
+            return @client = nil if @mutex.owned?
+
+            @mutex.synchronize { @client = nil }
+          end
+
+          private
+
+          def client = @client || raise(TransactionEnded, 'the transaction that yielded this query object has ended')
+        end
+      RUBY
+
+      TRANSACTION_CONNECTION_RBS = <<~'RBS'.chomp
+        class TransactionEnded < ::StandardError
+        end
+
+        class TransactionConnection
+          @client: untyped
+          @mutex: ::Thread::Mutex
+
+          def initialize: (untyped client) -> void
+          def with: [T] () { (untyped) -> T } -> T
+          def synchronize: [T] () { () -> T } -> T
+          def unlocked: [T] () { () -> T } -> T
+          def close: () -> void
+
+          private
+
+          def client: () -> untyped
+        end
+      RBS
 
       NOT_FOUND = <<~'RUBY'.chomp
         # Raised by the bang variants (get_author!) when the query returns no row.
-        class NotFound < StandardError; end
+        class NotFound < ::StandardError; end
       RUBY
 
-      ISOLATION_RBS = 'ISOLATION_LEVELS: Hash[Symbol, String]'
+      ISOLATION_RBS = 'ISOLATION_LEVELS: ::Hash[::Symbol, ::String]'
 
       TRANSACTION_RBS = 'def transaction: [T] (?isolation: (:read_uncommitted | :read_committed | :repeatable_read | ' \
                         ':serializable)?) { (self) -> T } -> T'
 
       private
+
+      # A copy of the query object whose queries run on a transaction's connection (ivar: where it gets it from).
+      def bound_to_method(ivar)
+        ["# A copy of this query object whose queries run on the transaction's connection.\n" \
+         "def bound_to(connection) = dup.tap { |tx| tx.instance_variable_set(:#{ivar}, connection) }",
+         'def bound_to: (TransactionConnection connection) -> self']
+      end
 
       def legacy_transaction_template(template, ruby_version, old_condition, guarded_condition)
         return template unless ruby_version < RubyVersion.new(3, 3)
@@ -176,12 +250,13 @@ module SqlcGenRuby
           "#{indent}# On Ruby <3.3 with timeout <0.4, break / return / throw roll back because Timeout cannot be told apart.\n" \
             "#{indent}# Add gem 'timeout', '>= 0.4' to keep these exits committing.\n#{indent}def transaction"
         end
-        template = template.sub(/^( +)failed = false\n\1begin\n( +)yield self\n/) do
+        template = template.sub(/^( +)failed = false\n\1begin\n( +)(.*\byield\b.*)\n/) do
           indent = Regexp.last_match(1)
           yield_indent = Regexp.last_match(2)
           "#{indent}failed = false\n#{indent}completed = false\n#{indent}begin\n" \
-            "#{yield_indent}result = yield self\n#{yield_indent}completed = true\n#{yield_indent}result\n"
+            "#{yield_indent}result = #{Regexp.last_match(3)}\n#{yield_indent}completed = true\n#{yield_indent}result\n"
         end
+        raise 'transaction template without a yield' unless template.include?('completed = true')
         template.sub(old_condition, guarded_condition)
       end
 

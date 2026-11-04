@@ -1,7 +1,7 @@
 
 
 
-2mysql»!public"°!public€
+2mysqlÅ'public"º'public€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
@@ -135,7 +135,41 @@ name_casesbint.
 name_casesbtext/
 
 httpserver0ÿÿÿÿÿÿÿÿÿR
-name_casesbtext":
+name_casesbtext9
+
+exceptions)
+id0ÿÿÿÿÿÿÿÿÿR
+exceptionsbbigintC
+standard_errors.
+id0ÿÿÿÿÿÿÿÿÿRstandard_errorsbbigint3
+	threads&
+id0ÿÿÿÿÿÿÿÿÿR	threadsbbigint7
+	processes(
+id0ÿÿÿÿÿÿÿÿÿR	processesbbigint-
+data#
+id0ÿÿÿÿÿÿÿÿÿRdatabbigint3
+	structs&
+id0ÿÿÿÿÿÿÿÿÿR	structsbbigint-
+sets#
+id0ÿÿÿÿÿÿÿÿÿRsetsbbigint3
+	strings&
+id0ÿÿÿÿÿÿÿÿÿR	stringsbbigint5
+
+integers'
+id0ÿÿÿÿÿÿÿÿÿR
+integersbbigint/
+times$
+id0ÿÿÿÿÿÿÿÿÿRtimesbbigint7
+	encodings(
+id0ÿÿÿÿÿÿÿÿÿR	encodingsbbigint5
+
+monitors'
+id0ÿÿÿÿÿÿÿÿÿR
+monitorsbbigint3
+	mutexes&
+id0ÿÿÿÿÿÿÿÿÿR	mutexesbbigintE
+connection_pools/
+id0ÿÿÿÿÿÿÿÿÿRconnection_poolsbbigint":
 extended_bios_bio_typeAutobiography	BiographyMemoir"7
 extended_bios_author_typeAuthorEditor
 TranslatorË
@@ -593,4 +627,9 @@ NSELECT id, name, bio FROM authors WHERE id NOT IN (/*SLICE:ids*/?) ORDER BY id
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigintzid",
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextzname"(
 bio0ÿÿÿÿÿÿÿÿÿR	authorsbtextzbio*3/
-ids0ÿÿÿÿÿÿÿÿÿ8R	authorsbbiginthzid:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+ids0ÿÿÿÿÿÿÿÿÿ8R	authorsbbiginthzid:	query.sql\
+)INSERT INTO exceptions (id) VALUES (NULL)CreateException:exec:	query.sqlB
+exceptionsf
+$SELECT COUNT(*) AS n FROM exceptionsCountExceptions:one"
+n0ÿÿÿÿÿÿÿÿÿ@bbigint:	query.sqlA
+TRUNCATE TABLE exceptionsTruncateExceptions:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

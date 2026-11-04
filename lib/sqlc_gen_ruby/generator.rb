@@ -144,7 +144,7 @@ module SqlcGenRuby
     def query_members(query, method_gen)
       members = []
       unless query.cmd == ':copyfrom' # copied rows are written by generated code, there is no SQL constant to run
-        members << [@driver.query_text_constant(query), "#{Code.sql_constant(query.name)}: String"]
+        members << [@driver.query_text_constant(query), "#{Code.sql_constant(query.name)}: ::String"]
       end
       members << dataclass("#{Code.upcase_first(query.name)}Row", row_pairs(query)) unless query.columns.empty?
       if MethodGen::ROWS_COMMANDS.include?(query.cmd)
@@ -161,7 +161,7 @@ module SqlcGenRuby
       members = @driver.class_methods(@options.ruby_version).dup
       if queries.any? { |q| q.cmd == ':execresult' }
         # last_insert_id is nil on PostgreSQL (use RETURNING)
-        members << dataclass('ExecResult', [%w[rows_affected Integer], ['last_insert_id', 'Integer?']])
+        members << dataclass('ExecResult', [%w[rows_affected ::Integer], ['last_insert_id', '::Integer?']])
       end
       helpers = @driver.private_methods(@options.ruby_version) + method_gen.helper_methods(queries)
       check_method_names(queries, (members + helpers).flat_map { |code, _| code.scan(/^def (?:self\.)?([\w?!]+)/) }.flatten +
@@ -211,7 +211,7 @@ module SqlcGenRuby
 
     def data_define(name, pairs, attr_docs = {})
       attrs = Code.comma_join(pairs.map { |n, _| ":#{n}" })
-      code = "class #{name} < Data.define(#{attrs})\nend"
+      code = "class #{name} < ::Data.define(#{attrs})\nend"
       readers = Code.indent(attribute_lines(pairs, attr_docs, 'attr_reader'))
       init_args = Code.indent(Code.comma_join(pairs.map { |n, t| "#{t} #{n}" }))
       init = Code.indent("def initialize: (#{init_args}) -> void")
@@ -221,7 +221,7 @@ module SqlcGenRuby
     # Ruby < 3.2: keyword_init so that rows are built like Data rows (`Row.new(id: 1, name: 'x')`).
     def new_struct(name, pairs, attr_docs = {})
       attrs = Code.comma_join(pairs.map { |n, _| ":#{n}" } + ['keyword_init: true'])
-      code = "#{name} = Struct.new(#{attrs})"
+      code = "#{name} = ::Struct.new(#{attrs})"
       accessors = Code.indent(attribute_lines(pairs, attr_docs, 'attr_accessor'))
       init_args = Code.indent(Code.comma_join(pairs.map { |n, t| "#{n}: #{t}" }))
       init = Code.indent("def initialize: (#{init_args}) -> void")
@@ -271,8 +271,8 @@ module SqlcGenRuby
       consts = unique_constants(values)
       code = consts.map { |const, value| "#{const} = #{quote(value)}" }
       code << "ALL = [#{consts.map(&:first).join(', ')}].freeze"
-      rbs = consts.map { |const, _| "#{const}: String" }
-      rbs << 'ALL: Array[String]'
+      rbs = consts.map { |const, _| "#{const}: ::String" }
+      rbs << 'ALL: ::Array[::String]'
       doc = Code.comment(comment)
       doc = doc.empty? ? '' : "#{doc}\n"
       ["#{doc}#{Code.block("module #{name}", code.join("\n"))}", "#{doc}#{Code.block("module #{name}", rbs.join("\n"))}"]

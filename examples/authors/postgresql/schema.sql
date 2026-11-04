@@ -143,3 +143,25 @@ CREATE TABLE name_cases (
     "camelCase" TEXT NOT NULL,
     "HTTPServer" TEXT NOT NULL
 );
+
+-- Tables whose models share their name with a Ruby core or library constant used by the generated code
+-- (PgCodegen::Exception, ...): generated code refers to those constants as ::Exception, ::Thread, ...
+CREATE TABLE exceptions (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE standard_errors (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE threads (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE processes (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE data (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE structs (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE sets (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE strings (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE integers (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE times (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE encodings (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE monitors (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE mutexes (id BIGSERIAL PRIMARY KEY);
+CREATE TABLE connection_pools (id BIGSERIAL PRIMARY KEY);
+
+-- Dropped and recreated by the E2E tests while connections are open (a migration run with the application up).
+CREATE SCHEMA late;
+CREATE TYPE late.mood AS ENUM ('calm', 'happy');
+CREATE TABLE late.feelings (id INTEGER PRIMARY KEY, moods late.mood[] NOT NULL);
