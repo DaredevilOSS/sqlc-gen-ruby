@@ -126,6 +126,8 @@ module Mysql2Codegen
   )
   # rubocop:enable Naming/VariableNumber
 
+  Mixedcasecopy = ::Struct.new(:id, :somevalue, keyword_init: true)
+
   NameCase = ::Struct.new(
     :id,
     :class_,

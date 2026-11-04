@@ -137,6 +137,8 @@ CREATE TABLE batch_types (
   stamps  timestamptz[]
 );
 
+CREATE TABLE "MixedCaseCopies" ("Id" BIGINT NOT NULL PRIMARY KEY, "SomeValue" TEXT);
+
 CREATE TABLE name_cases (
     id BIGINT PRIMARY KEY,
     "class" TEXT NOT NULL,

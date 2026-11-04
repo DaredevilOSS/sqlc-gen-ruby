@@ -214,6 +214,12 @@ module PgCodegen
     ) -> void
   end
 
+  class MixedCaseCopy
+    attr_reader Id: ::Integer
+    attr_reader SomeValue: ::String?
+    def initialize: (  ::Integer Id, ::String? SomeValue) -> void
+  end
+
   class NameCase
     attr_reader id: ::Integer
     attr_reader class_: ::String

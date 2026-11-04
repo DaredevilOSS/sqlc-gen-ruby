@@ -35,6 +35,8 @@ CREATE TABLE tags (
     uses INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE "MixedCaseCopies" ("Id" INTEGER NOT NULL PRIMARY KEY, "SomeValue" TEXT);
+
 CREATE TABLE name_cases (
   id INTEGER PRIMARY KEY,
   "class" TEXT NOT NULL,

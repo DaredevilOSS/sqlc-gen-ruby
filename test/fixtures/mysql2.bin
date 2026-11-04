@@ -1,7 +1,7 @@
 
 
 
-2mysql×(public"Ì(public€
+2mysqlÏ)public"Ä)public€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
@@ -117,7 +117,10 @@ year_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbyear.
 
 time_value0
 Rmysql_binding_valuesbtime9
-json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjson¤
+json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjsonv
+mixedcasecopies.
+id0ÿÿÿÿÿÿÿÿÿRmixedcasecopiesbbigint1
+	somevalue0ÿÿÿÿÿÿÿÿÿRmixedcasecopiesbtext¤
 
 name_cases)
 id0ÿÿÿÿÿÿÿÿÿR
@@ -648,7 +651,17 @@ name_casesbtextz
 initialize*3/
 id0ÿÿÿÿÿÿÿÿÿ8R
 name_casesbbigintzid:	query.sql@
-TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sqlb
+TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sqlü
+?INSERT INTO `MixedCaseCopies` (`Id`, `SomeValue`) VALUES (?, ?)CopyMixedCaseCopies	:copyfrom*>:
+id0ÿÿÿÿÿÿÿÿÿRpublicmixedcasecopiesbbigintzid*HD
+	somevalue0ÿÿÿÿÿÿÿÿÿRpublicmixedcasecopiesbtextz	somevalue2q MySQL table names are case-sensitive on Linux: LOAD DATA must use `MixedCaseCopies`, not sqlc's lowercased name.:	query.sqlBmixedcasecopies‹
+9INSERT INTO MixedCaseCopies (SomeValue, Id) VALUES (?, ?)CopyMixedCaseCopiesUnquoted	:copyfrom*HD
+	somevalue0ÿÿÿÿÿÿÿÿÿRpublicmixedcasecopiesbtextz	somevalue*>:
+id0ÿÿÿÿÿÿÿÿÿRpublicmixedcasecopiesbbigintzid:	query.sqlBmixedcasecopiesÔ
+9SELECT id, somevalue FROM `MixedCaseCopies` ORDER BY `Id`ListMixedCaseCopies:many"2
+id0ÿÿÿÿÿÿÿÿÿRmixedcasecopiesbbigintzid"<
+	somevalue0ÿÿÿÿÿÿÿÿÿRmixedcasecopiesbtextz	somevalue:	query.sqlM
+ TRUNCATE TABLE `MixedCaseCopies`TruncateMixedCaseCopies:exec:	query.sqlb
 SELECT 1, 'two'GetUnnamedColumns:one"0ÿÿÿÿÿÿÿÿÿbint"0ÿÿÿÿÿÿÿÿÿbtext:	query.sqlQ
 SELECT 1 AS `it's`GetQuotedAlias:one"
 it's0ÿÿÿÿÿÿÿÿÿbint:	query.sql¯

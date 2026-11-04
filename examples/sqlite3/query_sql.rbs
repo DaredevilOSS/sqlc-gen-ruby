@@ -375,6 +375,20 @@ module Sqlite3Codegen
 
   TRUNCATE_NAME_CASES_SQL: ::String
 
+  class CopyMixedCaseCopiesArgs
+    attr_reader id: ::Integer
+    attr_reader some_value: ::String?
+    def initialize: (  ::Integer id, ::String? some_value) -> void
+  end
+
+  LIST_MIXED_CASE_COPIES_SQL: ::String
+
+  class ListMixedCaseCopiesRow
+    attr_reader Id: ::Integer
+    attr_reader SomeValue: ::String?
+    def initialize: (  ::Integer Id, ::String? SomeValue) -> void
+  end
+
   GET_UNNAMED_COLUMNS_SQL: ::String
 
   class GetUnnamedColumnsRow
@@ -543,6 +557,10 @@ module Sqlite3Codegen
     def get_http_server!: (id: ::Integer) -> GetHTTPServerRow
 
     def truncate_name_cases: -> void
+
+    def copy_mixed_case_copies: (::Array[CopyMixedCaseCopiesArgs] rows) -> void
+
+    def list_mixed_case_copies: -> ::Array[ListMixedCaseCopiesRow]
 
     def get_unnamed_columns: -> GetUnnamedColumnsRow?
 

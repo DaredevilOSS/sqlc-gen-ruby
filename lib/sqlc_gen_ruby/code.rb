@@ -170,7 +170,7 @@ module SqlcGenRuby
 
     # GetAuthor => GET_AUTHOR_SQL
     # Single-quoted Ruby String literal of any text (`it's` -> 'it\\'s').
-    def string_literal(text) = "'#{text.gsub(/['\\\\]/) { |c| "\\#{c}" }}'"
+    def string_literal(text) = "'#{text.gsub(/['\\]/) { |c| "\\#{c}" }}'"
 
     def sql_constant(query_name) = "#{snake_case(query_name).upcase}_SQL"
 

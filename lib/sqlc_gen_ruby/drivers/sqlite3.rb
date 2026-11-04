@@ -203,6 +203,19 @@ module SqlcGenRuby
         ["result = #{exec}", 'row = result.first', 'row && row[0]']
       end
 
+      # sqlc (1.27 at least) keeps the quotes of a quoted SQLite name (`"MixedCase"`): quote the bare name once.
+      def copy_target(_sql, table, columns)
+        names = [table.schema, table.name].reject { |n| n.to_s.empty? }.map { |n| quote_identifier(unquote_identifier(n)) }
+        [names.join('.'), columns.map { |c| quote_identifier(unquote_identifier(c)) }]
+      end
+
+      def unquote_identifier(name)
+        return name[1...-1] if name.start_with?('[') && name.end_with?(']')
+        return name unless name.length > 1 && %w[" `].include?(name[0]) && name.end_with?(name[0])
+
+        name[1...-1].gsub(name[0] * 2, name[0])
+      end
+
       # One multi-row `INSERT ... VALUES (?, ?), (?, ?), ...` per batch.
       # The conflict clause is kept: INSERT OR REPLACE / OR IGNORE, REPLACE, ON CONFLICT ... DO ... (without parameters).
       def copy_from_lines(rows_var, table, columns, values, _label, query_name:, sources:, verb:, tail:)

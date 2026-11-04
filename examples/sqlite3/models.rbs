@@ -48,6 +48,12 @@ module Sqlite3Codegen
     def initialize: (  ::String name, ::Integer uses) -> void
   end
 
+  class MixedCaseCopies
+    attr_reader Id: ::Integer
+    attr_reader SomeValue: ::String?
+    def initialize: (  ::Integer Id, ::String? SomeValue) -> void
+  end
+
   class NameCase
     attr_reader id: ::Integer
     attr_reader class_: ::String

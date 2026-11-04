@@ -539,6 +539,22 @@ module PgCodegen
     TRUNCATE TABLE name_cases
   SQL
 
+  class CopyMixedCaseCopiesArgs < ::Data.define(:id, :some_value)
+  end
+
+  LIST_MIXED_CASE_COPIES_SQL = <<~'SQL'
+    SELECT "Id", "SomeValue" FROM "MixedCaseCopies" ORDER BY "Id"
+  SQL
+
+  # rubocop:disable Naming/MethodName
+  class ListMixedCaseCopiesRow < ::Data.define(:Id, :SomeValue)
+  end
+  # rubocop:enable Naming/MethodName
+
+  TRUNCATE_MIXED_CASE_COPIES_SQL = <<~'SQL'
+    TRUNCATE TABLE "MixedCaseCopies"
+  SQL
+
   GET_UNNAMED_COLUMNS_SQL = <<~'SQL'
     SELECT 1, 'two'
   SQL
@@ -610,6 +626,8 @@ module PgCodegen
     # becomes a SAVEPOINT. Yields a copy of self whose queries run in the transaction, also from other fibers and
     # threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
     def transaction(isolation: nil)
+      raise ::ArgumentError, "unknown isolation level: #{isolation.inspect}" unless isolation.nil? || ISOLATION_LEVELS.key?(isolation)
+
       with_client('transaction') do |client|
         outermost = client.transaction_status == ::PG::PQTRANS_IDLE
         raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
@@ -1455,6 +1473,34 @@ module PgCodegen
     def truncate_name_cases
       with_client('truncate_name_cases') do |client|
         run_prepared(client, 'PgCodegen::QuerySql#truncate_name_cases', TRUNCATE_NAME_CASES_SQL)
+        nil
+      end
+    end
+
+    def copy_mixed_case_copies(rows)
+      with_client('copy_mixed_case_copies') do |client|
+        encoder = ::PG::TextEncoder::CopyRow.new(type_map: client.type_map_for_queries)
+        client.copy_data('COPY "MixedCaseCopies" ("Id", "SomeValue") FROM STDIN', encoder) do
+          rows.each do |row|
+            client.put_copy_data([row.id, row.some_value])
+          end
+        end
+        nil
+      end
+    end
+
+    def list_mixed_case_copies
+      with_client('list_mixed_case_copies') do |client|
+        result = run_prepared(client, 'PgCodegen::QuerySql#list_mixed_case_copies', LIST_MIXED_CASE_COPIES_SQL)
+        result.map do |row|
+          ListMixedCaseCopiesRow.new(row['Id'], row['SomeValue'])
+        end
+      end
+    end
+
+    def truncate_mixed_case_copies
+      with_client('truncate_mixed_case_copies') do |client|
+        run_prepared(client, 'PgCodegen::QuerySql#truncate_mixed_case_copies', TRUNCATE_MIXED_CASE_COPIES_SQL)
         nil
       end
     end

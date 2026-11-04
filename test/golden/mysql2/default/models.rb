@@ -117,6 +117,9 @@ module Mysql2Codegen
   end
   # rubocop:enable Naming/VariableNumber
 
+  class Mixedcasecopy < ::Data.define(:id, :somevalue)
+  end
+
   class NameCase < ::Data.define(
     :id,
     :class_,

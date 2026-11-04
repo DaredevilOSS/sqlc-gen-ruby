@@ -57,6 +57,25 @@ module SqlcGenRuby
 
       def quote_identifier(name) = "`#{name.gsub('`', '``')}`"
 
+      IDENTIFIER = /`(?:[^`]|``)*`|[^\s`.,()]+/
+
+      # sqlc lowercases MySQL identifiers, but table names are case-sensitive on Linux: LOAD DATA names the table
+      # and columns as the INSERT writes them (`MixedCase`).
+      def copy_target(sql, table, columns)
+        target = sql.gsub(%r{--[^\n]*|/\*.*?\*/}m, ' ')
+                    .match(/\bINTO\s+(#{IDENTIFIER}(?:\s*\.\s*#{IDENTIFIER})?)\s*\(([^)]*)\)/i)
+        return super unless target
+
+        *schema, name = target[1].scan(IDENTIFIER).map { |i| unquote_identifier(i) }
+        return super unless name.casecmp?(table.name)
+
+        written = target[2].scan(IDENTIFIER).to_h { |c| [unquote_identifier(c).downcase, unquote_identifier(c)] }
+        [[*schema, name].map { |n| quote_identifier(n) }.join('.'),
+         columns.map { |c| quote_identifier(written.fetch(c.downcase, c)) }]
+      end
+
+      def unquote_identifier(identifier) = identifier.start_with?('`') ? identifier[1...-1].gsub('``', '`') : identifier
+
       def exec_rows_lines(exec, _query) = [exec, 'client.affected_rows']
 
       def exec_last_id_lines(exec, _query) = [exec, 'client.last_id']
@@ -141,6 +160,8 @@ module SqlcGenRuby
         # becomes a SAVEPOINT. Yields a copy of self whose queries run in the transaction, also from other fibers and
         # threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
         def transaction(isolation: nil)
+          raise ::ArgumentError, "unknown isolation level: #{isolation.inspect}" unless isolation.nil? || ISOLATION_LEVELS.key?(isolation)
+
           with_client('transaction') do |client|
             outermost = !client.in_transaction
             raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost

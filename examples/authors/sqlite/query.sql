@@ -200,6 +200,12 @@ SELECT * FROM name_cases WHERE id = sqlc.arg(id);
 -- name: TruncateNameCases :exec
 DELETE FROM name_cases;
 
+-- name: CopyMixedCaseCopies :copyfrom
+INSERT INTO "MixedCaseCopies" ("Id", "SomeValue") VALUES (?, ?);
+
+-- name: ListMixedCaseCopies :many
+SELECT * FROM "MixedCaseCopies" ORDER BY "Id";
+
 -- name: GetUnnamedColumns :one
 SELECT 1, 'two';
 

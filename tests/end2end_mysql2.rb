@@ -88,6 +88,7 @@ class TestMysql2 < Minitest::Test
     @query_sql.truncate_copy_types
     @query_sql.truncate_mysql_binding_values
     @query_sql.truncate_name_cases
+    @query_sql.truncate_mixed_case_copies
     @query_sql.truncate_exceptions
   end
 
@@ -261,6 +262,13 @@ class TestMysql2 < Minitest::Test
     assert_empty @query_sql.list_authors
     @query_sql.copy_authors((1..2500).map { |i| CopyAuthorsArgs.new(name: "author #{i}", bio: nil) })
     assert_equal 2500, @query_sql.list_authors.size
+  end
+
+  # sqlc lowercases MySQL names, but table names are case-sensitive on Linux: LOAD DATA must name `MixedCaseCopies`
+  def test_copyfrom_keeps_the_case_of_table_and_column_names
+    @query_sql.copy_mixed_case_copies([CopyMixedCaseCopiesArgs.new(id: 1, somevalue: 'a'), CopyMixedCaseCopiesArgs.new(id: 2, somevalue: nil)])
+    @query_sql.copy_mixed_case_copies_unquoted([CopyMixedCaseCopiesUnquotedArgs.new(somevalue: 'c', id: 3)])
+    assert_equal [[1, 'a'], [2, nil], [3, 'c']], @query_sql.list_mixed_case_copies.map { |r| r.to_h.values }
   end
 
   def test_copyfrom_takes_any_enumerable
@@ -449,7 +457,7 @@ class TestMysql2 < Minitest::Test
       end
       assert_equal ['SERIALIZABLE', 'ACTIVE'], row.values
     end
-    assert_raises(KeyError) { @query_sql.transaction(isolation: :bogus) { nil } }
+    assert_raises(ArgumentError) { @query_sql.transaction(isolation: :bogus) { flunk } }
     @query_sql.instance_variable_get(:@db).with do |client|
       rows = client.query(<<~SQL)
         SELECT STATE
