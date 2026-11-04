@@ -496,6 +496,28 @@ module Mysql2Codegen
 
   TRUNCATE_NAME_CASES_SQL: ::String
 
+  class CopyMixedCaseCopiesArgs
+    attr_reader id: ::Integer
+    attr_reader somevalue: ::String?
+    def initialize: (  ::Integer id, ::String? somevalue) -> void
+  end
+
+  class CopyMixedCaseCopiesUnquotedArgs
+    attr_reader somevalue: ::String?
+    attr_reader id: ::Integer
+    def initialize: (  ::String? somevalue, ::Integer id) -> void
+  end
+
+  LIST_MIXED_CASE_COPIES_SQL: ::String
+
+  class ListMixedCaseCopiesRow
+    attr_reader id: ::Integer
+    attr_reader somevalue: ::String?
+    def initialize: (  ::Integer id, ::String? somevalue) -> void
+  end
+
+  TRUNCATE_MIXED_CASE_COPIES_SQL: ::String
+
   GET_UNNAMED_COLUMNS_SQL: ::String
 
   class GetUnnamedColumnsRow
@@ -710,6 +732,14 @@ module Mysql2Codegen
     def get_http_server!: (id: ::Integer) -> GetHTTPServerRow
 
     def truncate_name_cases: -> void
+
+    def copy_mixed_case_copies: (::Array[CopyMixedCaseCopiesArgs] rows) -> void
+
+    def copy_mixed_case_copies_unquoted: (::Array[CopyMixedCaseCopiesUnquotedArgs] rows) -> void
+
+    def list_mixed_case_copies: -> ::Array[ListMixedCaseCopiesRow]
+
+    def truncate_mixed_case_copies: -> void
 
     def get_unnamed_columns: -> GetUnnamedColumnsRow?
 

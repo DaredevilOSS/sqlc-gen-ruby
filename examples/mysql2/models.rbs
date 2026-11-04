@@ -193,6 +193,12 @@ module Mysql2Codegen
     ) -> void
   end
 
+  class Mixedcasecopy
+    attr_reader id: ::Integer
+    attr_reader somevalue: ::String?
+    def initialize: (  ::Integer id, ::String? somevalue) -> void
+  end
+
   class NameCase
     attr_reader id: ::Integer
     attr_reader class_: ::String

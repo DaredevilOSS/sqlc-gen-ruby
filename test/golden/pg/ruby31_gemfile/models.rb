@@ -131,6 +131,10 @@ module PgCodegen
   )
 
   # rubocop:disable Naming/MethodName
+  MixedCaseCopy = ::Struct.new(:Id, :SomeValue, keyword_init: true)
+  # rubocop:enable Naming/MethodName
+
+  # rubocop:disable Naming/MethodName
   NameCase = ::Struct.new(
     :id,
     :class_,

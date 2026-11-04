@@ -100,6 +100,8 @@ CREATE TABLE mysql_binding_values (
   json_unicode JSON
 );
 
+CREATE TABLE `MixedCaseCopies` (`Id` BIGINT NOT NULL PRIMARY KEY, `SomeValue` TEXT);
+
 CREATE TABLE name_cases (
   id BIGINT NOT NULL PRIMARY KEY,
   `class` TEXT NOT NULL,

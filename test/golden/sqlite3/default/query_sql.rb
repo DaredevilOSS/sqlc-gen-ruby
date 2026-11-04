@@ -376,6 +376,18 @@ module Sqlite3Codegen
     DELETE FROM name_cases
   SQL
 
+  class CopyMixedCaseCopiesArgs < ::Data.define(:id, :some_value)
+  end
+
+  LIST_MIXED_CASE_COPIES_SQL = <<~'SQL'
+    SELECT Id, SomeValue FROM "MixedCaseCopies" ORDER BY "Id"
+  SQL
+
+  # rubocop:disable Naming/MethodName
+  class ListMixedCaseCopiesRow < ::Data.define(:Id, :SomeValue)
+  end
+  # rubocop:enable Naming/MethodName
+
   GET_UNNAMED_COLUMNS_SQL = <<~'SQL'
     SELECT 1, 'two'
   SQL
@@ -1274,6 +1286,32 @@ module Sqlite3Codegen
         begin
           execute_statement(stmt)
           nil
+        ensure
+          stmt.close
+        end
+      end
+    end
+
+    def copy_mixed_case_copies(rows)
+      with_client('copy_mixed_case_copies') do |client|
+        atomically(client) do
+          rows.each_slice(499) do |batch|
+            sql = %(INSERT INTO """MixedCaseCopies""" ("Id", "SomeValue") VALUES #{::Array.new(batch.size, '(?, ?)').join(', ')})
+            client.execute(sql, batch.flat_map { |row| [row.id, row.some_value] })
+          end
+        end
+        nil
+      end
+    end
+
+    def list_mixed_case_copies
+      with_client('list_mixed_case_copies') do |client|
+        stmt = client.prepare(LIST_MIXED_CASE_COPIES_SQL)
+        begin
+          result = execute_statement(stmt)
+          result.map do |row|
+            ListMixedCaseCopiesRow.new(row[0], row[1])
+          end
         ensure
           stmt.close
         end

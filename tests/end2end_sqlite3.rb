@@ -309,6 +309,11 @@ class TestSqlite3 < Minitest::Test
     assert_equal 2500, @query_sql.list_authors.size
   end
 
+  def test_copyfrom_keeps_the_case_of_table_and_column_names
+    @query_sql.copy_mixed_case_copies([CopyMixedCaseCopiesArgs.new(id: 1, some_value: 'a'), CopyMixedCaseCopiesArgs.new(id: 2, some_value: nil)])
+    assert_equal [[1, 'a'], [2, nil]], @query_sql.list_mixed_case_copies.map { |r| r.to_h.values }
+  end
+
   def test_copyfrom_takes_any_enumerable
     @query_sql.copy_authors([].lazy)
     assert_empty @query_sql.list_authors

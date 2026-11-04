@@ -449,6 +449,20 @@ module Mysql2Codegen
     TRUNCATE TABLE name_cases
   SQL
 
+  CopyMixedCaseCopiesArgs = ::Struct.new(:id, :somevalue, keyword_init: true)
+
+  CopyMixedCaseCopiesUnquotedArgs = ::Struct.new(:somevalue, :id, keyword_init: true)
+
+  LIST_MIXED_CASE_COPIES_SQL = <<~'SQL'
+    SELECT id, somevalue FROM `MixedCaseCopies` ORDER BY `Id`
+  SQL
+
+  ListMixedCaseCopiesRow = ::Struct.new(:id, :somevalue, keyword_init: true)
+
+  TRUNCATE_MIXED_CASE_COPIES_SQL = <<~'SQL'
+    TRUNCATE TABLE `MixedCaseCopies`
+  SQL
+
   GET_UNNAMED_COLUMNS_SQL = <<~'SQL'
     SELECT 1, 'two'
   SQL
@@ -545,6 +559,8 @@ module Mysql2Codegen
     # becomes a SAVEPOINT. Yields a copy of self whose queries run in the transaction, also from other fibers and
     # threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
     def transaction(isolation: nil)
+      raise ::ArgumentError, "unknown isolation level: #{isolation.inspect}" unless isolation.nil? || ISOLATION_LEVELS.key?(isolation)
+
       with_client('transaction') do |client|
         outermost = !client.in_transaction
         raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
@@ -1284,6 +1300,49 @@ module Mysql2Codegen
     def truncate_name_cases
       with_client('truncate_name_cases') do |client|
         client.query(bind_params(client, TRUNCATE_NAME_CASES_SQL, []))
+        nil
+      end
+    end
+
+    # MySQL table names are case-sensitive on Linux: LOAD DATA must use `MixedCaseCopies`, not sqlc's lowercased name.
+    def copy_mixed_case_copies(rows)
+      with_client('copy_mixed_case_copies') do |client|
+        ::Tempfile.create(['copy_mixed_case_copies', '.csv']) do |file|
+          rows.each do |row|
+            file.write(csv_line([row.id, row.somevalue]))
+          end
+          file.flush
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `MixedCaseCopies` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`Id`, `SomeValue`)") if file.pos.positive?
+        end
+        nil
+      end
+    end
+
+    def copy_mixed_case_copies_unquoted(rows)
+      with_client('copy_mixed_case_copies_unquoted') do |client|
+        ::Tempfile.create(['copy_mixed_case_copies_unquoted', '.csv']) do |file|
+          rows.each do |row|
+            file.write(csv_line([row.somevalue, row.id]))
+          end
+          file.flush
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `MixedCaseCopies` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`SomeValue`, `Id`)") if file.pos.positive?
+        end
+        nil
+      end
+    end
+
+    def list_mixed_case_copies
+      with_client('list_mixed_case_copies') do |client|
+        result = client.query(bind_params(client, LIST_MIXED_CASE_COPIES_SQL, []), as: :array)
+        result.map do |row|
+          ListMixedCaseCopiesRow.new(id: row[0], somevalue: row[1])
+        end
+      end
+    end
+
+    def truncate_mixed_case_copies
+      with_client('truncate_mixed_case_copies') do |client|
+        client.query(bind_params(client, TRUNCATE_MIXED_CASE_COPIES_SQL, []))
         nil
       end
     end

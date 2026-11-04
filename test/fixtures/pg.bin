@@ -1,7 +1,7 @@
 
 
 2
-postgresql†4public"0publicÍ
+postgresql‰5public" 1publicÍ
 	authors)
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserial&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextH
@@ -126,7 +126,11 @@ pg_catalogbool+
 pg_catalogint4ˆ?
 amounts 0ÿÿÿÿÿÿÿÿÿRbatch_typesb
 pg_catalognumericˆ6
-stamps 0ÿÿÿÿÿÿÿÿÿRbatch_typesbtimestamptzˆ»
+stamps 0ÿÿÿÿÿÿÿÿÿRbatch_typesbtimestamptzˆ€
+MixedCaseCopies8
+Id0ÿÿÿÿÿÿÿÿÿRMixedCaseCopiesb
+pg_catalogint81
+	SomeValue0ÿÿÿÿÿÿÿÿÿRMixedCaseCopiesbtext»
 
 name_cases3
 id0ÿÿÿÿÿÿÿÿÿR
@@ -712,7 +716,15 @@ name_casesbtextz
 initialize*<8
 id0ÿÿÿÿÿÿÿÿÿ8R
 name_casesbpg_catalog.int8zid:	query.sql@
-TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sqlb
+TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sql”
+AINSERT INTO "MixedCaseCopies" ("Id", "SomeValue") VALUES ($1, $2)CopyMixedCaseCopies	:copyfrom*GC
+Id0ÿÿÿÿÿÿÿÿÿRpublicMixedCaseCopiesbpg_catalog.int8zId*HD
+	SomeValue0ÿÿÿÿÿÿÿÿÿRpublicMixedCaseCopiesbtextz	SomeValue:	query.sqlBMixedCaseCopiesâ
+=SELECT "Id", "SomeValue" FROM "MixedCaseCopies" ORDER BY "Id"ListMixedCaseCopies:many"<
+Id0ÿÿÿÿÿÿÿÿÿRMixedCaseCopiesb
+pg_catalogint8zId"<
+	SomeValue0ÿÿÿÿÿÿÿÿÿRMixedCaseCopiesbtextz	SomeValue:	query.sqlM
+ TRUNCATE TABLE "MixedCaseCopies"TruncateMixedCaseCopies:exec:	query.sqlb
 SELECT 1, 'two'GetUnnamedColumns:one"0ÿÿÿÿÿÿÿÿÿbint"0ÿÿÿÿÿÿÿÿÿbtext:	query.sqlQ
 SELECT 1 AS "it's"GetQuotedAlias:one"
 it's0ÿÿÿÿÿÿÿÿÿbint:	query.sqlX

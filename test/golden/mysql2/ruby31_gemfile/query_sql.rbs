@@ -622,6 +622,31 @@ module Mysql2Codegen
 
   TRUNCATE_NAME_CASES_SQL: ::String
 
+  class CopyMixedCaseCopiesArgs < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor somevalue: ::String?
+    def initialize: (  id: ::Integer, somevalue: ::String?) -> void
+    def self.new: (  id: ::Integer, somevalue: ::String?) -> CopyMixedCaseCopiesArgs
+  end
+
+  class CopyMixedCaseCopiesUnquotedArgs < ::Struct[untyped]
+    attr_accessor somevalue: ::String?
+    attr_accessor id: ::Integer
+    def initialize: (  somevalue: ::String?, id: ::Integer) -> void
+    def self.new: (  somevalue: ::String?, id: ::Integer) -> CopyMixedCaseCopiesUnquotedArgs
+  end
+
+  LIST_MIXED_CASE_COPIES_SQL: ::String
+
+  class ListMixedCaseCopiesRow < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor somevalue: ::String?
+    def initialize: (  id: ::Integer, somevalue: ::String?) -> void
+    def self.new: (  id: ::Integer, somevalue: ::String?) -> ListMixedCaseCopiesRow
+  end
+
+  TRUNCATE_MIXED_CASE_COPIES_SQL: ::String
+
   GET_UNNAMED_COLUMNS_SQL: ::String
 
   class GetUnnamedColumnsRow < ::Struct[untyped]
@@ -851,6 +876,14 @@ module Mysql2Codegen
     def get_http_server!: (id: ::Integer) -> GetHTTPServerRow
 
     def truncate_name_cases: -> void
+
+    def copy_mixed_case_copies: (::Array[CopyMixedCaseCopiesArgs] rows) -> void
+
+    def copy_mixed_case_copies_unquoted: (::Array[CopyMixedCaseCopiesUnquotedArgs] rows) -> void
+
+    def list_mixed_case_copies: -> ::Array[ListMixedCaseCopiesRow]
+
+    def truncate_mixed_case_copies: -> void
 
     def get_unnamed_columns: -> GetUnnamedColumnsRow?
 

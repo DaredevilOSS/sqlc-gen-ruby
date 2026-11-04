@@ -163,12 +163,10 @@ module SqlcGenRuby
     def copy_statements(query, params)
       raise ArgumentError, "#{query.name}: :copyfrom without a target table" if query.insert_into_table.nil?
 
-      table = query.insert_into_table
-      name = table.schema.to_s.empty? ? '' : "#{@driver.quote_identifier(table.schema)}."
-      name += @driver.quote_identifier(table.name)
+      table, columns = @driver.copy_target(query.text, query.insert_into_table, params.map { |p| p.column.name })
       values = params.map { |p| @driver.encode_param("row.#{p.name}", p.column) }
       verb, tail = insert_clauses(query.text)
-      @driver.copy_from_lines('rows', name, params.map { |p| @driver.quote_identifier(p.column.name) }, values,
+      @driver.copy_from_lines('rows', table, columns, values,
                               Code.snake_case(query.name),
                               query_name: query.name, sources: params.map(&:column), verb: verb, tail: tail)
     end

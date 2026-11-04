@@ -134,7 +134,7 @@ end
   transaction is over. Other query objects (the parent `queries`, another generated class sharing the pool) used from
   another fiber or thread check out their own connection and run outside the transaction: pass `tx` instead.
 * `isolation:` (`pg`, `mysql2`) takes `:read_uncommitted`, `:read_committed`, `:repeatable_read`, `:serializable`;
-  `mode:` (`sqlite3`) takes `:deferred`, `:immediate`, `:exclusive`. Other values raise before anything runs, and so
+  `mode:` (`sqlite3`) takes `:deferred`, `:immediate`, `:exclusive`. Other values raise `ArgumentError` before anything runs, and so
   do `isolation:` / `mode:` on a nested `transaction` (a savepoint cannot change them).
 * PostgreSQL: if a statement fails and the block rescues the error, PostgreSQL still rolls the whole transaction
   back, so `transaction` raises `PG::InFailedSqlTransaction` instead of pretending it committed. In a nested
@@ -166,6 +166,8 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 `INSERT OR REPLACE` / `OR IGNORE` / `ON CONFLICT ... DO ...` on SQLite, `INSERT IGNORE` (duplicates skipped) and
 `REPLACE` on MySQL. Clauses `COPY` / `LOAD DATA` cannot express (`ON CONFLICT` / `RETURNING` on PostgreSQL,
 `ON DUPLICATE KEY UPDATE` on MySQL) are generation errors; use `:batchexec` for those.
+* MySQL: `LOAD DATA` names the table and columns as the `INSERT` writes them (`` `MixedCase` ``): sqlc reports MySQL
+  names in lowercase, but table names are case-sensitive on Linux.
 * MySQL: `LOAD DATA` commits an open transaction that was started with raw SQL (`BEGIN`); call `:copyfrom` inside
   `transaction` instead.
 
@@ -195,14 +197,17 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 * SQLite follows its [type affinity rules](https://www.sqlite.org/datatype3.html#determination_of_column_affinity)
   (`VARCHAR(255)` → `String`, `DECIMAL(10,5)` → `Float`, `UNSIGNED BIG INT` → `Integer`); `JSON` and `UUID` columns are `String`s,
   also when SQLite stored numeric-looking text as a number (`'42'` → `"42"`, in SQLite's spelling: `'1.50'` → `"1.5"`).
-  The generated SQLite code uses `Monitor`: if you run Steep, add `library "monitor"` to your `Steepfile`.
+  The generated SQLite code uses `Monitor`: if you run Steep, add `library "monitor"` to your `Steepfile`. Code
+  generated for a `rubyVersion` below 3.3 also uses `Timeout` (see [Transactions](#transactions)): add `library "timeout"` too.
 
 ### Names
 * Query methods and keyword arguments are snake_cased, with acronyms kept together (`MIN_ID` → `min_id`,
   `HTTPServer` → `http_server`); Ruby keywords get a trailing `_` (`end_:`). Row members use the column spelling
   reported by sqlc for the engine, except names that conflict with row methods, including the private ones `Data` / `Struct` call while building and copying rows (`class_`, `hash_`, `initialize_`):
   PostgreSQL and SQLite keep `"camelCase"` as `:camelCase`, while MySQL reports it as `:camelcase`. A column named
-  `end` is the row member `:end` but the argument `end_:`.
+  `end` is the row member `:end` but the argument `end_:`. `Struct` rows (`rubyVersion` below 3.2) have more methods
+  than `Data` rows, so more names get the `_`: a column `count` is `:count` from 3.2 but `:count_` below
+  (`Struct#count` would otherwise be `Enumerable#count`); check the generated `.rbs` when changing `rubyVersion`.
 * A parameter used twice is one keyword when named with `sqlc.arg`; repeated `?` / `$n` of one column become `id:`, `id_2:`.
 * Models may be named like Ruby or driver constants (tables `exceptions`, `data`, `threads`, `sets`, ...): the
   generated code and `.rbs` refer to those as `::Exception`, `::Data`, `::Thread`, ... so the models cannot shadow them.
@@ -212,6 +217,9 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 ### Limitations
 * Two result columns with the same name (e.g. `a.id, b.id`) are an error: alias one (`b.id AS book_id`) or use `sqlc.embed`.
 * SQLite's `NUMERIC` affinity can return an `Integer` where `Float` is declared.
+* SQLite: a statement takes at most 32,766 parameters (`SQLITE_MAX_VARIABLE_NUMBER`), so a `sqlc.slice` with more
+  elements raises `SQLite3::SQLException: too many SQL variables`; on MySQL the limit is the server's
+  `max_allowed_packet`. Load larger sets into a table (`:copyfrom`) and join it instead.
 * `:batchexec` / `:batchone` / `:batchmany` are not atomic on their own: wrap them in `transaction` for all-or-nothing.
 * SQLite: sqlc does not see parameters in `ON CONFLICT ... DO UPDATE SET` (it leaves `sqlc.arg(...)` in the SQL or
   reports fewer parameters than there are `?`), so such queries are generation errors. Use `excluded.<column>`

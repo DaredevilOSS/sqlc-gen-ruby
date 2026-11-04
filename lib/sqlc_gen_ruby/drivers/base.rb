@@ -89,6 +89,12 @@ module SqlcGenRuby
       # SQL identifier quoting for the statements the plugin writes itself (:copyfrom).
       def quote_identifier(name) = %("#{name.gsub('"', '""')}")
 
+      # Quoted table and column names of a :copyfrom statement (table: sqlc's Identifier of the INSERT target).
+      def copy_target(_sql, table, columns)
+        name = table.schema.to_s.empty? ? '' : "#{quote_identifier(table.schema)}."
+        [name + quote_identifier(table.name), columns.map { |c| quote_identifier(c) }]
+      end
+
       # Ruby expression that turns a parameter value into what the driver can bind (e.g. bytea escaping).
       def encode_param(expr, _column) = expr
 

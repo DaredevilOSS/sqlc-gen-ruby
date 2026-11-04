@@ -35,6 +35,8 @@ module PgCodegen
     # becomes a SAVEPOINT. Yields a copy of self whose queries run in the transaction, also from other fibers and
     # threads (Enumerator, Async tasks); it raises TransactionEnded when used after the transaction.
     def transaction(isolation: nil)
+      raise ::ArgumentError, "unknown isolation level: #{isolation.inspect}" unless isolation.nil? || ISOLATION_LEVELS.key?(isolation)
+
       with_client('transaction') do |client|
         outermost = client.transaction_status == ::PG::PQTRANS_IDLE
         raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost

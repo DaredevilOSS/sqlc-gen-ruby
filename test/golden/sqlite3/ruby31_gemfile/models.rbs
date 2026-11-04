@@ -61,6 +61,13 @@ module Sqlite3Codegen
     def self.new: (  name: ::String, uses: ::Integer) -> Tag
   end
 
+  class MixedCaseCopies < ::Struct[untyped]
+    attr_accessor Id: ::Integer
+    attr_accessor SomeValue: ::String?
+    def initialize: (  Id: ::Integer, SomeValue: ::String?) -> void
+    def self.new: (  Id: ::Integer, SomeValue: ::String?) -> MixedCaseCopies
+  end
+
   class NameCase < ::Struct[untyped]
     attr_accessor id: ::Integer
     attr_accessor class_: ::String

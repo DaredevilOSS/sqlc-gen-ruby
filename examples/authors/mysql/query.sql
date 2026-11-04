@@ -207,6 +207,19 @@ SELECT * FROM name_cases WHERE id = sqlc.arg(id);
 -- name: TruncateNameCases :exec
 TRUNCATE TABLE name_cases;
 
+-- name: CopyMixedCaseCopies :copyfrom
+-- MySQL table names are case-sensitive on Linux: LOAD DATA must use `MixedCaseCopies`, not sqlc's lowercased name.
+INSERT INTO `MixedCaseCopies` (`Id`, `SomeValue`) VALUES (?, ?);
+
+-- name: CopyMixedCaseCopiesUnquoted :copyfrom
+INSERT INTO MixedCaseCopies (SomeValue, Id) VALUES (?, ?);
+
+-- name: ListMixedCaseCopies :many
+SELECT * FROM `MixedCaseCopies` ORDER BY `Id`;
+
+-- name: TruncateMixedCaseCopies :exec
+TRUNCATE TABLE `MixedCaseCopies`;
+
 -- name: GetUnnamedColumns :one
 SELECT 1, 'two';
 

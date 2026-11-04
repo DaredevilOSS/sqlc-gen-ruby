@@ -27,6 +27,11 @@ module Sqlite3Codegen
   end
 
   # rubocop:disable Naming/MethodName
+  class MixedCaseCopies < ::Data.define(:Id, :SomeValue)
+  end
+  # rubocop:enable Naming/MethodName
+
+  # rubocop:disable Naming/MethodName
   class NameCase < ::Data.define(
     :id,
     :class_,

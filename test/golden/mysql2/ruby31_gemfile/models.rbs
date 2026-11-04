@@ -267,6 +267,13 @@ module Mysql2Codegen
     ) -> MysqlBindingValu
   end
 
+  class Mixedcasecopy < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor somevalue: ::String?
+    def initialize: (  id: ::Integer, somevalue: ::String?) -> void
+    def self.new: (  id: ::Integer, somevalue: ::String?) -> Mixedcasecopy
+  end
+
   class NameCase < ::Struct[untyped]
     attr_accessor id: ::Integer
     attr_accessor class_: ::String
