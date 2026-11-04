@@ -27,6 +27,7 @@ module PgCodegen
     def string_arrays: (untyped client) -> untyped
 
     def run_prepared: (untyped client, ::String name, ::String sql, ?::Array[untyped] params) -> untyped
+    def prepare: (untyped client, ::String name, ::String sql) -> void
 
     def timeout_exits_with_throw?: () -> bool
   end

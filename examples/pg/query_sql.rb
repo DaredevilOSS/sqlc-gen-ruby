@@ -581,6 +581,13 @@ module PgCodegen
   class GetLateFeelingRow < ::Data.define(:moods)
   end
 
+  HAS_AUTHORS_SQL = <<~'SQL'
+    SELECT EXISTS (SELECT 1 FROM authors) AS has_any
+  SQL
+
+  class HasAuthorsRow < ::Data.define(:has_any)
+  end
+
   class QuerySql
     # Raised by the bang variants (get_author!) when the query returns no row.
     class NotFound < ::StandardError; end
@@ -1527,6 +1534,23 @@ module PgCodegen
       get_late_feeling(...) || raise(NotFound, 'GetLateFeeling returned no row')
     end
 
+    # rubocop:disable Naming/PredicatePrefix
+    def has_authors
+      with_client('has_authors') do |client|
+        result = run_prepared(client, 'PgCodegen::QuerySql#has_authors', HAS_AUTHORS_SQL)
+        row = result.first
+        row && HasAuthorsRow.new(row['has_any'])
+      end
+    end
+    # rubocop:enable Naming/PredicatePrefix
+
+    # rubocop:disable Naming/PredicatePrefix
+    # Like #has_authors, but raises NotFound when there is no row.
+    def has_authors!(...)
+      has_authors(...) || raise(NotFound, 'HasAuthors returned no row')
+    end
+    # rubocop:enable Naming/PredicatePrefix
+
     private
 
     def instrument(name)
@@ -1589,20 +1613,30 @@ module PgCodegen
     end
 
     # Executes a statement prepared once per connection. A statement dropped by hand (DEALLOCATE ALL, DISCARD ALL) is
-    # prepared again; inside a transaction the error has already aborted it, so it is raised.
+    # prepared again, and one the server already has (its PREPARE was interrupted after it ran) is used; inside a
+    # transaction the error has already aborted it, so it is raised.
     def run_prepared(client, name, sql, params = [])
-      unless client.prepared_statements.include?(name)
-        client.prepare(name, sql)
-        client.prepared_statements.add(name)
-      end
+      prepare(client, name, sql) unless client.prepared_statements.include?(name)
       client.exec_prepared(name, params)
     rescue ::PG::InvalidSqlStatementName
       client.prepared_statements.delete(name)
       raise unless client.transaction_status == ::PG::PQTRANS_IDLE
 
-      client.prepare(name, sql)
-      client.prepared_statements.add(name)
+      prepare(client, name, sql)
       client.exec_prepared(name, params)
+    end
+
+    # Timeout / Thread#raise wait until the statement is prepared and recorded. An exception raised by PREPARE itself
+    # (a stopped Async task) can still leave the statement prepared on the server: it is recorded when PREPARE fails
+    # because the statement exists.
+    def prepare(client, name, sql)
+      ::Thread.handle_interrupt(::Object => :never) do
+        client.prepare(name, sql)
+        client.prepared_statements.add(name)
+      rescue ::PG::DuplicatePstatement
+        client.prepared_statements.add(name)
+        raise unless client.transaction_status == ::PG::PQTRANS_IDLE
+      end
     end
 
     # bytea parameters are sent escaped: binary Strings (NUL bytes, invalid UTF-8) are not valid text.

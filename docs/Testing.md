@@ -40,7 +40,8 @@ They `require` the generated code from `examples/` and run it against a real dat
   isolation, `break` / `throw`, a rescued failed statement on PostgreSQL, SQLite threads sharing a database, the
   yielded `tx` used from other fibers / threads), models named like Ruby constants (`Exception`, `Data`, ...), pool
   injection, logging, bang finders, row members named like row methods (`initialize`), MySQL changed vs. matched
-  rows, SQLite busy waiting, `:copyfrom` with awkward and binary values and its all-or-nothing behaviour,
+  rows, SQLite busy waiting, `:copyfrom` with awkward and binary values, lazy enumerators and its all-or-nothing behaviour,
+  PostgreSQL `PREPARE`s interrupted after the server ran them, SQLite JSON / UUID text that looks numeric,
   Fiber-scheduler concurrency (`async` gem) and statement-leak checks.
 
 ## CI workflows (`.github/workflows/`)

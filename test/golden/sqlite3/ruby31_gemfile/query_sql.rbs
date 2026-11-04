@@ -489,6 +489,14 @@ module Sqlite3Codegen
     def self.new: (  n: ::Integer) -> CountExceptionsRow
   end
 
+  HAS_AUTHORS_SQL: ::String
+
+  class HasAuthorsRow < ::Struct[untyped]
+    attr_accessor has_any: ::Integer
+    def initialize: (  has_any: ::Integer) -> void
+    def self.new: (  has_any: ::Integer) -> HasAuthorsRow
+  end
+
   MANY_PARAMS_SQL: ::String
 
   class ManyParamsRow < ::Struct[untyped]
@@ -673,6 +681,10 @@ module Sqlite3Codegen
     def count_exceptions: -> CountExceptionsRow?
 
     def count_exceptions!: -> CountExceptionsRow
+
+    def has_authors: -> HasAuthorsRow?
+
+    def has_authors!: -> HasAuthorsRow
 
     def many_params: (c0: ::Integer, c1: ::String, c2: ::Float, c3: ::String, c4: ::Integer) -> ManyParamsRow?
 

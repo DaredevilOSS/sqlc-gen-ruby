@@ -490,6 +490,13 @@ module Mysql2Codegen
     TRUNCATE TABLE exceptions
   SQL
 
+  HAS_AUTHORS_SQL = <<~'SQL'
+    SELECT EXISTS (SELECT 1 FROM authors) AS has_any
+  SQL
+
+  class HasAuthorsRow < ::Data.define(:has_any)
+  end
+
   class QuerySql
     # Raised by the bang variants (get_author!) when the query returns no row.
     class NotFound < ::StandardError; end
@@ -757,14 +764,12 @@ module Mysql2Codegen
     # Bulk insert: pass an Array of CopyAuthorsArgs.
     def copy_authors(rows)
       with_client('copy_authors') do |client|
-        return if rows.empty?
-
         ::Tempfile.create(['copy_authors', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.name, row.bio]))
           end
           file.flush
-          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `authors` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`name`, `bio`)")
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `authors` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`name`, `bio`)") if file.pos.positive?
         end
         nil
       end
@@ -912,14 +917,12 @@ module Mysql2Codegen
 
     def copy_regressions(rows)
       with_client('copy_regressions') do |client|
-        return if rows.empty?
-
         ::Tempfile.create(['copy_regressions', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.order, row.note]))
           end
           file.flush
-          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `regressions` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`order`, `note`)")
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `regressions` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`order`, `note`)") if file.pos.positive?
         end
         nil
       end
@@ -927,14 +930,12 @@ module Mysql2Codegen
 
     def copy_regression_rows(rows)
       with_client('copy_regression_rows') do |client|
-        return if rows.empty?
-
         ::Tempfile.create(['copy_regression_rows', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.id, row.order, row.note, row.payload]))
           end
           file.flush
-          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `regressions` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `order`, `note`, `payload`)")
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `regressions` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `order`, `note`, `payload`)") if file.pos.positive?
         end
         nil
       end
@@ -1001,14 +1002,12 @@ module Mysql2Codegen
 
     def copy_copy_types(rows)
       with_client('copy_copy_types') do |client|
-        return if rows.empty?
-
         ::Tempfile.create(['copy_copy_types', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.id, row.code, row.doc, row.flags, row.amount]))
           end
           file.flush
-          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`, @sqlc_v2, `flags`, `amount`) SET `doc` = CONVERT(@sqlc_v2 USING utf8mb4)")
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`, @sqlc_v2, `flags`, `amount`) SET `doc` = CONVERT(@sqlc_v2 USING utf8mb4)") if file.pos.positive?
         end
         nil
       end
@@ -1016,14 +1015,12 @@ module Mysql2Codegen
 
     def copy_copy_types_ignore(rows)
       with_client('copy_copy_types_ignore') do |client|
-        return if rows.empty?
-
         ::Tempfile.create(['copy_copy_types_ignore', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.id, row.code]))
           end
           file.flush
-          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' IGNORE INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)", strict: false)
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' IGNORE INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)", strict: false) if file.pos.positive?
         end
         nil
       end
@@ -1031,14 +1028,12 @@ module Mysql2Codegen
 
     def copy_copy_types_replace(rows)
       with_client('copy_copy_types_replace') do |client|
-        return if rows.empty?
-
         ::Tempfile.create(['copy_copy_types_replace', '.csv']) do |file|
           rows.each do |row|
             file.write(csv_line([row.id, row.code]))
           end
           file.flush
-          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' REPLACE INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)")
+          load_data(client, "LOAD DATA LOCAL INFILE '#{client.escape(file.path)}' REPLACE INTO TABLE `copy_types` CHARACTER SET binary FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `code`)") if file.pos.positive?
         end
         nil
       end
@@ -1313,6 +1308,23 @@ module Mysql2Codegen
         nil
       end
     end
+
+    # rubocop:disable Naming/PredicatePrefix
+    def has_authors
+      with_client('has_authors') do |client|
+        result = client.query(bind_params(client, HAS_AUTHORS_SQL, []), as: :array)
+        row = result.first
+        row && HasAuthorsRow.new(row[0])
+      end
+    end
+    # rubocop:enable Naming/PredicatePrefix
+
+    # rubocop:disable Naming/PredicatePrefix
+    # Like #has_authors, but raises NotFound when there is no row.
+    def has_authors!(...)
+      has_authors(...) || raise(NotFound, 'HasAuthors returned no row')
+    end
+    # rubocop:enable Naming/PredicatePrefix
 
     private
 

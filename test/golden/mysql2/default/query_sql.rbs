@@ -531,6 +531,13 @@ module Mysql2Codegen
 
   TRUNCATE_EXCEPTIONS_SQL: ::String
 
+  HAS_AUTHORS_SQL: ::String
+
+  class HasAuthorsRow
+    attr_reader has_any: untyped
+    def initialize: (  untyped has_any) -> void
+  end
+
   MANY_PARAMS_SQL: ::String
 
   class ManyParamsRow
@@ -721,6 +728,10 @@ module Mysql2Codegen
     def count_exceptions!: -> CountExceptionsRow
 
     def truncate_exceptions: -> void
+
+    def has_authors: -> HasAuthorsRow?
+
+    def has_authors!: -> HasAuthorsRow
 
     def many_params: (c0: ::Integer, c1: ::String, c2: ::Float, c3: ::String, c4: ::Integer) -> ManyParamsRow?
 

@@ -263,3 +263,6 @@ INSERT INTO late.feelings (id, moods) VALUES ($1, $2);
 
 -- name: GetLateFeeling :one
 SELECT moods FROM late.feelings WHERE id = $1;
+
+-- name: HasAuthors :one
+SELECT EXISTS (SELECT 1 FROM authors) AS has_any;

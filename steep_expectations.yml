@@ -3,90 +3,90 @@
   diagnostics:
   - range:
       start:
-        line: 500
+        line: 507
         character: 12
       end:
-        line: 500
+        line: 507
         character: 26
     severity: WARNING
     message: 'Cannot find the declaration of constant: `ConnectionPool`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 500
+        line: 507
         character: 51
       end:
-        line: 500
+        line: 507
         character: 57
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 500
+        line: 507
         character: 70
       end:
-        line: 500
+        line: 507
         character: 85
     severity: WARNING
     message: Empty kwargs doesn't have type annotation
     code: Ruby::UnannotatedEmptyCollection
   - range:
       start:
-        line: 525
+        line: 532
         character: 54
       end:
-        line: 573
+        line: 580
         character: 11
     severity: WARNING
     message: The method cannot be called with a block
     code: Ruby::UnexpectedBlockGiven
   - range:
       start:
-        line: 537
+        line: 544
         character: 62
       end:
-        line: 539
+        line: 546
         character: 15
     severity: WARNING
     message: The method cannot be called with a block
     code: Ruby::UnexpectedBlockGiven
   - range:
       start:
-        line: 545
+        line: 552
         character: 21
       end:
-        line: 545
+        line: 552
         character: 27
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 548
+        line: 555
         character: 37
       end:
-        line: 548
+        line: 555
         character: 43
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 563
+        line: 570
         character: 27
       end:
-        line: 563
+        line: 570
         character: 33
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1404
+        line: 1416
         character: 20
       end:
-        line: 1404
+        line: 1416
         character: 38
     severity: ERROR
     message: |-
@@ -99,20 +99,20 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1405
+        line: 1417
         character: 78
       end:
-        line: 1405
+        line: 1417
         character: 84
     severity: ERROR
     message: Type `(::String | nil)` does not have method `match?`
     code: Ruby::NoMethod
   - range:
       start:
-        line: 1407
+        line: 1419
         character: 20
       end:
-        line: 1407
+        line: 1419
         character: 39
     severity: ERROR
     message: |-
@@ -125,10 +125,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1411
+        line: 1423
         character: 20
       end:
-        line: 1411
+        line: 1423
         character: 39
     severity: ERROR
     message: |-
@@ -141,10 +141,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1416
+        line: 1428
         character: 20
       end:
-        line: 1416
+        line: 1428
         character: 39
     severity: ERROR
     message: |-
@@ -157,10 +157,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1425
+        line: 1437
         character: 20
       end:
-        line: 1425
+        line: 1437
         character: 24
     severity: ERROR
     message: |-
@@ -173,10 +173,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1458
+        line: 1470
         character: 18
       end:
-        line: 1458
+        line: 1470
         character: 24
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
@@ -247,380 +247,410 @@
   diagnostics:
   - range:
       start:
-        line: 591
+        line: 598
         character: 12
       end:
-        line: 591
+        line: 598
         character: 26
     severity: WARNING
     message: 'Cannot find the declaration of constant: `ConnectionPool`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 591
+        line: 598
         character: 51
       end:
-        line: 591
+        line: 598
         character: 53
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 591
+        line: 598
         character: 62
       end:
-        line: 591
+        line: 598
         character: 73
     severity: WARNING
     message: Empty kwargs doesn't have type annotation
     code: Ruby::UnannotatedEmptyCollection
   - range:
       start:
-        line: 607
+        line: 614
         character: 51
       end:
-        line: 607
+        line: 614
         character: 53
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 620
+        line: 627
         character: 54
       end:
-        line: 664
+        line: 671
         character: 11
     severity: WARNING
     message: The method cannot be called with a block
     code: Ruby::UnexpectedBlockGiven
   - range:
       start:
-        line: 628
+        line: 635
         character: 62
       end:
-        line: 630
+        line: 637
         character: 15
     severity: WARNING
     message: The method cannot be called with a block
     code: Ruby::UnexpectedBlockGiven
   - range:
       start:
-        line: 634
+        line: 641
         character: 60
       end:
-        line: 634
+        line: 641
         character: 62
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 636
+        line: 643
         character: 76
       end:
-        line: 636
+        line: 643
         character: 78
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 637
+        line: 644
         character: 65
       end:
-        line: 637
+        line: 644
         character: 67
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 644
+        line: 651
         character: 37
       end:
-        line: 644
+        line: 651
         character: 39
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 646
+        line: 653
         character: 22
       end:
-        line: 646
+        line: 653
         character: 24
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 649
+        line: 656
         character: 55
       end:
-        line: 649
+        line: 656
         character: 57
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 655
+        line: 662
         character: 64
       end:
-        line: 655
+        line: 662
         character: 66
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 656
+        line: 663
         character: 42
       end:
-        line: 656
+        line: 663
         character: 44
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 656
+        line: 663
         character: 95
       end:
-        line: 656
+        line: 663
         character: 97
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 661
+        line: 668
         character: 22
       end:
-        line: 661
+        line: 668
         character: 24
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 865
+        line: 872
         character: 20
       end:
-        line: 865
+        line: 872
         character: 22
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1243
+        line: 1250
         character: 20
       end:
-        line: 1243
+        line: 1250
         character: 22
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1323
+        line: 1330
         character: 20
       end:
-        line: 1323
+        line: 1330
         character: 22
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1547
+        line: 1571
         character: 32
       end:
-        line: 1547
+        line: 1571
         character: 34
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1549
+        line: 1573
         character: 20
       end:
-        line: 1549
+        line: 1573
         character: 22
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1558
+        line: 1582
         character: 60
       end:
-        line: 1558
+        line: 1582
         character: 62
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1570
+        line: 1594
         character: 19
       end:
-        line: 1570
+        line: 1594
         character: 21
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1573
+        line: 1597
         character: 18
       end:
-        line: 1573
+        line: 1597
         character: 20
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1575
+        line: 1599
         character: 55
       end:
-        line: 1575
+        line: 1599
         character: 57
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1582
+        line: 1606
         character: 18
       end:
-        line: 1582
+        line: 1606
         character: 20
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1583
+        line: 1607
         character: 16
       end:
-        line: 1583
+        line: 1607
         character: 18
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1584
+        line: 1608
         character: 68
       end:
-        line: 1584
+        line: 1608
         character: 70
     severity: WARNING
     message: Empty array doesn't have type annotation
     code: Ruby::UnannotatedEmptyCollection
   - range:
       start:
-        line: 1599
+        line: 1621
         character: 13
       end:
-        line: 1599
+        line: 1621
         character: 15
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1601
+        line: 1623
         character: 50
       end:
-        line: 1601
+        line: 1623
         character: 52
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1610
+        line: 1633
+        character: 52
+      end:
+        line: 1639
+        character: 9
+    severity: WARNING
+    message: The method cannot be called with a block
+    code: Ruby::UnexpectedBlockGiven
+  - range:
+      start:
+        line: 1636
+        character: 15
+      end:
+        line: 1636
         character: 17
-      end:
-        line: 1610
-        character: 19
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1617
-        character: 53
-      end:
-        line: 1617
-        character: 55
-    severity: WARNING
-    message: 'Cannot find the declaration of constant: `PG`'
-    code: Ruby::UnknownConstant
-  - range:
-      start:
-        line: 1633
-        character: 8
-      end:
-        line: 1633
-        character: 10
-    severity: WARNING
-    message: 'Cannot find the declaration of constant: `PG`'
-    code: Ruby::UnknownConstant
-  - range:
-      start:
-        line: 1633
+        line: 1638
         character: 52
       end:
-        line: 1633
+        line: 1638
         character: 54
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1640
+        line: 1644
+        character: 17
+      end:
+        line: 1644
+        character: 19
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `PG`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 1651
+        character: 53
+      end:
+        line: 1651
+        character: 55
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `PG`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 1667
+        character: 8
+      end:
+        line: 1667
+        character: 10
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `PG`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 1667
+        character: 52
+      end:
+        line: 1667
+        character: 54
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `PG`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 1674
         character: 44
       end:
-        line: 1640
+        line: 1674
         character: 46
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1641
+        line: 1675
         character: 27
       end:
-        line: 1641
+        line: 1675
         character: 29
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1642
+        line: 1676
         character: 46
       end:
-        line: 1642
+        line: 1676
         character: 48
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1643
+        line: 1677
         character: 27
       end:
-        line: 1643
+        line: 1677
         character: 29
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
@@ -629,30 +659,30 @@
   diagnostics:
   - range:
       start:
-        line: 454
+        line: 461
         character: 56
       end:
-        line: 482
+        line: 489
         character: 13
     severity: WARNING
     message: The method cannot be called with a block
     code: Ruby::UnexpectedBlockGiven
   - range:
       start:
-        line: 460
+        line: 467
         character: 64
       end:
-        line: 462
+        line: 469
         character: 17
     severity: WARNING
     message: The method cannot be called with a block
     code: Ruby::UnexpectedBlockGiven
   - range:
       start:
-        line: 1378
+        line: 1407
         character: 17
       end:
-        line: 1378
+        line: 1407
         character: 24
     severity: WARNING
     message: 'Cannot find the declaration of constant: `SQLite3`'

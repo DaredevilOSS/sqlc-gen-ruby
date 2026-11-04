@@ -417,6 +417,13 @@ module Sqlite3Codegen
     def initialize: (  ::Integer n) -> void
   end
 
+  HAS_AUTHORS_SQL: ::String
+
+  class HasAuthorsRow
+    attr_reader has_any: ::Integer
+    def initialize: (  ::Integer has_any) -> void
+  end
+
   class QuerySql
     class NotFound < ::StandardError
     end
@@ -556,6 +563,10 @@ module Sqlite3Codegen
     def count_exceptions: -> CountExceptionsRow?
 
     def count_exceptions!: -> CountExceptionsRow
+
+    def has_authors: -> HasAuthorsRow?
+
+    def has_authors!: -> HasAuthorsRow
 
     private
 

@@ -16,6 +16,8 @@ module SqlcGenRuby
     BATCH_COMMANDS = { ':batchexec' => ':exec', ':batchone' => ':one', ':batchmany' => ':many' }.freeze
     # commands whose method takes `rows` (an Array of <Query>Args) instead of keyword arguments
     ROWS_COMMANDS = [':copyfrom', *BATCH_COMMANDS.keys].freeze
+    # Naming/PredicatePrefix's default NamePrefix
+    PREDICATE_PREFIX = /\A(is|has|have)_/
 
     # optional: nullable and named by the user (sqlc.arg / sqlc.narg) -> keyword argument defaulting to nil
     # reused: a later occurrence of a named parameter (MySQL sends one parameter per `?`): bound, not a keyword
@@ -77,9 +79,11 @@ module SqlcGenRuby
       cops = Code.naming_cops(params: method_params)
       # Struct rows (Ruby < 3.2) are built with keywords: row_1: (unnamed columns, repeated names)
       cops << 'Naming/VariableNumber' if keyword_row_names(query).any? { |n| n.match?(/_\d+\z/) } && !cops.include?('Naming/VariableNumber')
-      method = Code.without_cops(method, cops)
+      # HasAuthor -> has_author, IsActive -> is_active: names the query author chose
+      predicate = func.match?(PREDICATE_PREFIX) ? ['Naming/PredicatePrefix'] : []
+      method = Code.without_cops(method, cops + predicate)
       method = "#{doc}\n#{method}" unless doc.empty?
-      query.cmd == ':one' ? "#{method}\n\n#{bang_method(query, func)}" : method
+      query.cmd == ':one' ? "#{method}\n\n#{Code.without_cops(bang_method(query, func), predicate)}" : method
     end
 
     # get_author! raises NotFound instead of returning nil (like find_by vs find!)
@@ -289,14 +293,14 @@ module SqlcGenRuby
       index = 0
       args = @layout.entries(query).map do |entry|
         value = if entry.table
-                  values = entry.table.columns.each_index.map { |i| "row[#{index + i}]" }
+                  values = entry.table.columns.each_with_index.map { |c, i| @driver.decode_value("row[#{index + i}]", c) }
                   index += values.size
                   names = entry.table.columns.map { |c| @types.member_name(c.name) }
                   model = "#{entry.table.model_name}.new(#{constructor_args(names, values).join(', ')})"
                   entry.optional ? "#{missing_row_check(entry.table, values)} ? nil : #{model}" : model
                 else
                   index += 1
-                  array ? "row[#{index - 1}]" : "row[#{Code.string_literal(entry.column.name)}]"
+                  @driver.decode_value(array ? "row[#{index - 1}]" : "row[#{Code.string_literal(entry.column.name)}]", entry.column)
                 end
         [entry.attr, value]
       end

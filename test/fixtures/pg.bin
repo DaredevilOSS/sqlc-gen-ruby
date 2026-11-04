@@ -726,4 +726,7 @@ $SELECT COUNT(*) AS n FROM exceptionsCountExceptions:one"
 moods 0ÿÿÿÿÿÿÿÿÿRlatefeelingsb	late.moodzmoodsˆ:	query.sqlBlatefeelingsÒ
 -SELECT moods FROM late.feelings WHERE id = $1GetLateFeeling:one"@
 moods 0ÿÿÿÿÿÿÿÿÿRlatefeelingsblatemoodzmoodsˆ*>:
-id0ÿÿÿÿÿÿÿÿÿRlatefeelingsbpg_catalog.int4zid:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+id0ÿÿÿÿÿÿÿÿÿRlatefeelingsbpg_catalog.int4zid:	query.sqlo
+0SELECT EXISTS (SELECT 1 FROM authors) AS has_any
+HasAuthors:one"
+has_any0ÿÿÿÿÿÿÿÿÿbbool:	query.sql"v1.27.0*P{"driver":"pg","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
