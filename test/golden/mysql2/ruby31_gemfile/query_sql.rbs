@@ -559,6 +559,7 @@ module Mysql2Codegen
     attr_accessor count_: ::Integer
     attr_accessor camelcase: ::String
     attr_accessor httpserver: ::String
+    attr_accessor initialize_: ::String
     def initialize: (
         id: ::Integer,
         class_: ::String,
@@ -567,7 +568,8 @@ module Mysql2Codegen
         method_: ::String,
         count_: ::Integer,
         camelcase: ::String,
-        httpserver: ::String
+        httpserver: ::String,
+        initialize_: ::String
     ) -> void
     def self.new: (
         id: ::Integer,
@@ -577,7 +579,8 @@ module Mysql2Codegen
         method_: ::String,
         count_: ::Integer,
         camelcase: ::String,
-        httpserver: ::String
+        httpserver: ::String,
+        initialize_: ::String
     ) -> GetNameCaseRow
   end
 
@@ -592,6 +595,7 @@ module Mysql2Codegen
     attr_accessor count_: ::Integer
     attr_accessor camelcase: ::String
     attr_accessor httpserver: ::String
+    attr_accessor initialize_: ::String
     def initialize: (
         id: ::Integer,
         class_: ::String,
@@ -600,7 +604,8 @@ module Mysql2Codegen
         method_: ::String,
         count_: ::Integer,
         camelcase: ::String,
-        httpserver: ::String
+        httpserver: ::String,
+        initialize_: ::String
     ) -> void
     def self.new: (
         id: ::Integer,
@@ -610,7 +615,8 @@ module Mysql2Codegen
         method_: ::String,
         count_: ::Integer,
         camelcase: ::String,
-        httpserver: ::String
+        httpserver: ::String,
+        initialize_: ::String
     ) -> GetHTTPServerRow
   end
 
@@ -826,11 +832,11 @@ module Mysql2Codegen
 
     def truncate_mysql_binding_values: -> void
 
-    def insert_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, camel_case: ::String, http_server: ::String) -> void
+    def insert_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, camel_case: ::String, http_server: ::String, initialize: ::String) -> void
 
-    def get_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String) -> GetNameCaseRow?
+    def get_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String, initialize: ::String) -> GetNameCaseRow?
 
-    def get_name_case!: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String) -> GetNameCaseRow
+    def get_name_case!: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String, initialize: ::String) -> GetNameCaseRow
 
     def get_http_server: (id: ::Integer) -> GetHTTPServerRow?
 

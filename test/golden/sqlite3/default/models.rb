@@ -35,7 +35,8 @@ module Sqlite3Codegen
     :method_,
     :count,
     :camelCase,
-    :HTTPServer
+    :HTTPServer,
+    :initialize_
   )
   end
   # rubocop:enable Naming/MethodName

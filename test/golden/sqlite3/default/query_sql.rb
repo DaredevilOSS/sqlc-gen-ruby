@@ -325,16 +325,17 @@ module Sqlite3Codegen
   end
 
   INSERT_NAME_CASE_SQL = <<~'SQL'
-    INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer")
+    INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer", "initialize")
     VALUES (?, ?, ?, ?, ?, ?,
-            ?, ?)
+            ?, ?, ?)
   SQL
 
   GET_NAME_CASE_SQL = <<~'SQL'
-    SELECT id, class, "end", hash, method, count, camelCase, HTTPServer FROM name_cases
+    SELECT id, class, "end", hash, method, count, camelCase, HTTPServer, initialize FROM name_cases
     WHERE id = ? AND "class" = ? AND "end" = ? AND "hash" = ?
       AND "method" = ? AND "count" = ?
       AND "HTTPServer" = ? AND "camelCase" = ?
+      AND "initialize" = ?
   SQL
 
   # rubocop:disable Naming/MethodName
@@ -346,13 +347,14 @@ module Sqlite3Codegen
     :method_,
     :count,
     :camelCase,
-    :HTTPServer
+    :HTTPServer,
+    :initialize_
   )
   end
   # rubocop:enable Naming/MethodName
 
   GET_HTTP_SERVER_SQL = <<~'SQL'
-    SELECT id, class, "end", hash, method, count, camelCase, HTTPServer FROM name_cases WHERE id = ?
+    SELECT id, class, "end", hash, method, count, camelCase, HTTPServer, initialize FROM name_cases WHERE id = ?
   SQL
 
   # rubocop:disable Naming/MethodName
@@ -364,7 +366,8 @@ module Sqlite3Codegen
     :method_,
     :count,
     :camelCase,
-    :HTTPServer
+    :HTTPServer,
+    :initialize_
   )
   end
   # rubocop:enable Naming/MethodName
@@ -1167,7 +1170,7 @@ module Sqlite3Codegen
       end
     end
 
-    def insert_name_case(id:, class_:, end_:, hash:, method:, count:, camel_case:, http_server:)
+    def insert_name_case(id:, class_:, end_:, hash:, method:, count:, camel_case:, http_server:, initialize:)
       with_client('insert_name_case') do |client|
         query_params = [
           id,
@@ -1177,7 +1180,8 @@ module Sqlite3Codegen
           method,
           count,
           camel_case,
-          http_server
+          http_server,
+          initialize
         ]
         stmt = client.prepare(INSERT_NAME_CASE_SQL)
         begin
@@ -1189,7 +1193,7 @@ module Sqlite3Codegen
       end
     end
 
-    def get_name_case(id:, class_:, end_:, hash:, method:, count:, http_server:, camel_case:)
+    def get_name_case(id:, class_:, end_:, hash:, method:, count:, http_server:, camel_case:, initialize:)
       with_client('get_name_case') do |client|
         query_params = [
           id,
@@ -1199,7 +1203,8 @@ module Sqlite3Codegen
           method,
           count,
           http_server,
-          camel_case
+          camel_case,
+          initialize
         ]
         stmt = client.prepare(GET_NAME_CASE_SQL)
         begin
@@ -1213,7 +1218,8 @@ module Sqlite3Codegen
             row[4],
             row[5],
             row[6],
-            row[7]
+            row[7],
+            row[8]
           )
         ensure
           stmt.close
@@ -1241,7 +1247,8 @@ module Sqlite3Codegen
             row[4],
             row[5],
             row[6],
-            row[7]
+            row[7],
+            row[8]
           )
         ensure
           stmt.close

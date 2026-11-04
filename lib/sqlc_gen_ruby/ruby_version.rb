@@ -66,9 +66,10 @@ module SqlcGenRuby
 
     def hash = [major, minor, patch].hash
 
-    # Ruby 3.2 introduced Data.define; older versions have to fall back to Struct.
+    # Ruby 3.2 introduced Data.define; older versions have to fall back to Struct. A missing minor part means any
+    # release of that major ("3" includes 3.1), so it counts as .0 here.
     def immutable_data_supported?
-      self >= IMMUTABLE_DATA_MIN
+      RubyVersion.new(major, minor || 0, patch) >= IMMUTABLE_DATA_MIN
     end
 
     def to_s

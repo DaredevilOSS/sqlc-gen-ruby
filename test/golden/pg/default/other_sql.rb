@@ -118,14 +118,14 @@ module PgCodegen
           encode_float(c3),
           encode_bytea(c4)
         ]
-        run_prepared(client, 'pg_codegen_other_sql_no_cols', NO_COLS_SQL, query_params)
+        run_prepared(client, 'PgCodegen::OtherSql#no_cols', NO_COLS_SQL, query_params)
         nil
       end
     end
 
     def other_one
       with_client('other_one') do |client|
-        result = run_prepared(client, 'pg_codegen_other_sql_other_one', OTHER_ONE_SQL)
+        result = run_prepared(client, 'PgCodegen::OtherSql#other_one', OTHER_ONE_SQL)
         row = result.first
         row && OtherOneRow.new(row['c0'])
       end
@@ -139,7 +139,7 @@ module PgCodegen
     def count_rows(c0:)
       with_client('count_rows') do |client|
         query_params = [c0]
-        result = run_prepared(client, 'pg_codegen_other_sql_count_rows', COUNT_ROWS_SQL, query_params)
+        result = run_prepared(client, 'PgCodegen::OtherSql#count_rows', COUNT_ROWS_SQL, query_params)
         result.cmd_tuples
       end
     end

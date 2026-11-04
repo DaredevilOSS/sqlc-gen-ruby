@@ -256,9 +256,45 @@ class FeaturesTest < Minitest::Test
 
   def test_statements_are_named_after_the_module_and_query_class
     rb = generate(load_request('pg')).fetch('query_sql.rb')
-    assert_includes rb, "run_prepared(client, 'pg_codegen_query_sql_get_author', GET_AUTHOR_SQL, query_params)"
+    assert_includes rb, "run_prepared(client, 'PgCodegen::QuerySql#get_author', GET_AUTHOR_SQL, query_params)"
     rb = generate(load_request('pg', moduleName: 'Shop::DB')).fetch('query_sql.rb')
-    assert_includes rb, "run_prepared(client, 'shop_db_query_sql_get_author', GET_AUTHOR_SQL, query_params)"
+    assert_includes rb, "run_prepared(client, 'Shop::DB::QuerySql#get_author', GET_AUTHOR_SQL, query_params)"
+  end
+
+  def test_statement_names_of_different_classes_never_collide
+    names = [%w[App::DbV2::QSql get_thing], %w[AppDb::V2::QSql get_thing], %w[Shop::Db::AdminUsersSql get_thing],
+             %w[Shop::Db::Admin::UsersSql get_thing], %w[Shop::Db::Admin_usersSql get_thing],
+             %w[A::B c_d], %w[A::BC d], %w[A::B_c d]].map { |klass, method| SqlcGenRuby::Code.statement_name(klass, method) }
+    assert_equal names.size, names.uniq.size
+    long = "Options::PgLongModuleNameThatPushesStatementNamesPastTheLimit#{'X' * 20}"
+    a = SqlcGenRuby::Code.statement_name("#{long}A::FirstSql", 'get_pg_option_author')
+    b = SqlcGenRuby::Code.statement_name("#{long}B::FirstSql", 'get_pg_option_author')
+    refute_equal a, b
+    assert_operator a.bytesize, :<=, 63
+    assert_operator SqlcGenRuby::Code.statement_name("Ünïcödé::#{'Ä' * 40}Sql", 'get').bytesize, :<=, 63
+    assert SqlcGenRuby::Code.statement_name("Ünïcödé::#{'Ä' * 40}Sql", 'get').valid_encoding?
+    assert_equal a, SqlcGenRuby::Code.statement_name("#{long}A::FirstSql", 'get_pg_option_author')
+  end
+
+  # Every method a row inherits (public or private) keeps working when a column has its name.
+  def test_columns_named_like_row_methods_still_build_and_read_rows
+    row_classes = [::Struct]
+    row_classes << ::Data if defined?(::Data)
+    names = row_classes.flat_map { |k| k.instance_methods + k.private_instance_methods }.map(&:to_s).uniq
+    names = names.grep(/\A[a-z_][a-zA-Z0-9_]*\z/)
+    row_classes.each do |base|
+      struct = base == ::Struct
+      names.each do |name|
+        member = SqlcGenRuby::Code.member_name(name, struct: struct).to_sym
+        klass = struct ? Class.new(::Struct.new(member, :other, keyword_init: true)) : Class.new(::Data.define(member, :other))
+        row = klass.new(member => 'value', other: 1)
+        assert_equal ['value', 1], [row.public_send(member), row.other], "#{base} member #{member} (column #{name})"
+        assert_equal({ member => 'value', other: 1 }, row.to_h)
+        assert_equal row, row.dup
+        assert_equal row, row.clone
+        assert_equal 2, row.with(other: 2).other unless struct
+      end
+    end
   end
 
   def test_pg_can_skip_prepared_statements
@@ -342,11 +378,23 @@ class FeaturesTest < Minitest::Test
     assert_equal 0, ruby_syntax_check(files.fetch('user_queries_sql.rb'))
   end
 
+  def test_query_file_names_become_camel_case_classes
+    { 'admin_users.sql' => %w[admin_users_sql AdminUsersSql], 'v2_api_queries.sql' => %w[v2_api_queries_sql V2ApiQueriesSql],
+      '2024_report.sql' => %w[q2024_report_sql Q2024ReportSql], 'userQueries.sql' => %w[user_queries_sql UserQueriesSql] }
+      .each do |filename, (file, klass)|
+        request = load_request('sqlite3')
+        request.queries.each { |q| q.filename = filename }
+        rb = generate(request).fetch("#{file}.rb")
+        assert_includes rb, "class #{klass}\n"
+      end
+  end
+
   def test_query_files_writing_the_same_file_are_rejected
     request = load_request('sqlite3')
     request.queries.first.filename = 'user-queries.sql'
     request.queries.last.filename = 'user_queries.sql'
-    assert_raises(RuntimeError) { generate(request) }
+    error = assert_raises(RuntimeError) { generate(request) }
+    assert_includes error.message, 'query files user-queries.sql and user_queries.sql would both generate user_queries_sql.rb'
   end
 
 

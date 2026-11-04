@@ -135,6 +135,7 @@ module Mysql2Codegen
     :count_,
     :camelcase,
     :httpserver,
+    :initialize_,
     keyword_init: true
   )
 

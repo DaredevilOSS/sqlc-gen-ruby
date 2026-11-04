@@ -659,6 +659,7 @@ module PgCodegen
     attr_accessor count_: ::Integer
     attr_accessor camelCase: ::String
     attr_accessor HTTPServer: ::String
+    attr_accessor initialize_: ::String
     def initialize: (
         id: ::Integer,
         class_: ::String,
@@ -667,7 +668,8 @@ module PgCodegen
         method_: ::String,
         count_: ::Integer,
         camelCase: ::String,
-        HTTPServer: ::String
+        HTTPServer: ::String,
+        initialize_: ::String
     ) -> void
     def self.new: (
         id: ::Integer,
@@ -677,7 +679,8 @@ module PgCodegen
         method_: ::String,
         count_: ::Integer,
         camelCase: ::String,
-        HTTPServer: ::String
+        HTTPServer: ::String,
+        initialize_: ::String
     ) -> GetNameCaseRow
   end
 
@@ -692,6 +695,7 @@ module PgCodegen
     attr_accessor count_: ::Integer
     attr_accessor camelCase: ::String
     attr_accessor HTTPServer: ::String
+    attr_accessor initialize_: ::String
     def initialize: (
         id: ::Integer,
         class_: ::String,
@@ -700,7 +704,8 @@ module PgCodegen
         method_: ::String,
         count_: ::Integer,
         camelCase: ::String,
-        HTTPServer: ::String
+        HTTPServer: ::String,
+        initialize_: ::String
     ) -> void
     def self.new: (
         id: ::Integer,
@@ -710,7 +715,8 @@ module PgCodegen
         method_: ::String,
         count_: ::Integer,
         camelCase: ::String,
-        HTTPServer: ::String
+        HTTPServer: ::String,
+        initialize_: ::String
     ) -> GetHTTPServerRow
   end
 
@@ -956,11 +962,11 @@ module PgCodegen
 
     def truncate_batch_types: -> void
 
-    def insert_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, camel_case: ::String, http_server: ::String) -> void
+    def insert_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, camel_case: ::String, http_server: ::String, initialize: ::String) -> void
 
-    def get_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String) -> GetNameCaseRow?
+    def get_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String, initialize: ::String) -> GetNameCaseRow?
 
-    def get_name_case!: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String) -> GetNameCaseRow
+    def get_name_case!: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String, initialize: ::String) -> GetNameCaseRow
 
     def get_http_server: (id: ::Integer) -> GetHTTPServerRow?
 

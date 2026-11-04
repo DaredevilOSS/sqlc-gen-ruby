@@ -24,13 +24,13 @@ module SqlcGenRuby
     # Locals of the generated query methods; parameters with these names get a trailing underscore.
     GENERATED_LOCALS = %w[client query_params sql stmt result row].freeze
 
-    # layout: RowLayout, types: TypeResolver, class_name: the generated query class with its module (prefixes
-    # statement names, which must differ between modules that share a connection)
+    # layout: RowLayout, types: TypeResolver, class_name: the generated query class with its module (names the
+    # prepared statements, which must differ between classes that share a connection)
     def initialize(driver, layout, types, class_name)
       @driver = driver
       @layout = layout
       @types = types
-      @statement_prefix = class_name.split('::').map { |part| Code.snake_case(part) }.join('_')
+      @class_name = class_name
     end
 
     # `created_at > $1 AND created_at < $2` -> created_at:, created_at_2:
@@ -209,7 +209,7 @@ module SqlcGenRuby
         statements << slice_sql(const, params)
         const = 'sql'
       end
-      stmt_name = "#{@statement_prefix}_#{func}"
+      stmt_name = Code.statement_name(@class_name, func)
       prepare = @driver.prepare_stmt(stmt_name, const)
       statements << prepare if prepare
       commands = command_statements(query, stmt_name, const, !params.empty?)
@@ -226,7 +226,7 @@ module SqlcGenRuby
       raise ArgumentError, "#{query.name}: sqlc.slice cannot be used in #{query.cmd}" if slice?(query)
 
       const = Code.sql_constant(query.name)
-      stmt_name = "#{@statement_prefix}_#{func}"
+      stmt_name = Code.statement_name(@class_name, func)
       prepare = @driver.prepare_stmt(stmt_name, const)
       cmd = BATCH_COMMANDS.fetch(query.cmd)
       body = []

@@ -223,6 +223,7 @@ module PgCodegen
     attr_reader count: ::Integer
     attr_reader camelCase: ::String
     attr_reader HTTPServer: ::String
+    attr_reader initialize_: ::String
     def initialize: (
         ::Integer id,
         ::String class_,
@@ -231,7 +232,8 @@ module PgCodegen
         ::String method_,
         ::Integer count,
         ::String camelCase,
-        ::String HTTPServer
+        ::String HTTPServer,
+        ::String initialize_
     ) -> void
   end
 

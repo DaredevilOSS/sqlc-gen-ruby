@@ -71,12 +71,18 @@ module SqlcGenRuby
 
     LOCAL = /\A[\p{Ll}_][\p{Word}]*\z/.freeze
 
-    # Public methods of every row object (Object + Data): a column with one of these names would override it.
-    OBJECT_METHODS = %w[__id__ __send__ class clone deconstruct deconstruct_keys define_singleton_method display dup
-                        enum_for eql? equal? extend freeze frozen? hash inspect instance_of? instance_variable_defined?
-                        instance_variable_get instance_variable_set instance_variables is_a? itself kind_of? members
-                        method methods nil? object_id public_method public_send respond_to? send singleton_class
-                        singleton_method singleton_methods tap then to_enum to_h to_s with yield_self].freeze
+    # Private hooks that building, copying and cloning a row call: a member with one of these names breaks them
+    # (a column named `initialize` would make every row raise ArgumentError when it is built).
+    CONSTRUCTION_METHODS = %w[initialize initialize_clone initialize_copy initialize_dup method_missing
+                              respond_to_missing?].freeze
+
+    # Methods of every row object (Object + Data): a column with one of these names would override it.
+    OBJECT_METHODS = (%w[__id__ __send__ class clone deconstruct deconstruct_keys define_singleton_method display dup
+                         enum_for eql? equal? extend freeze frozen? hash inspect instance_of? instance_variable_defined?
+                         instance_variable_get instance_variable_set instance_variables is_a? itself kind_of? members
+                         method methods nil? object_id public_method public_send respond_to? send singleton_class
+                         singleton_method singleton_methods tap then to_enum to_h to_s with yield_self] +
+                      CONSTRUCTION_METHODS).freeze
     KERNEL_METHODS = %w[format raise rand].freeze
 
     # Struct (rows on Ruby < 3.2) also has Enumerable and accessors such as #size / #values.
@@ -122,14 +128,37 @@ module SqlcGenRuby
       name.match?(/\A\p{Digit}/) ? "_#{name}" : name
     end
 
-    # 'user-queries' => User_queries is invalid; runs of characters that are not valid in a constant start a new word:
-    # 'user-queries' => UserQueries, 'my_queries' => My_queries (unchanged), '2024' => Q2024
+    # A file name as a CamelCase constant: underscores and other characters that are not valid in a constant start a
+    # new word. 'admin_users' => AdminUsers, 'user-queries' => UserQueries, 'userQueries' => UserQueries,
+    # '2024' => Q2024
     def constant_part(str)
-      words = str.split(/[^A-Za-z0-9_]+/).reject(&:empty?)
-      raise ArgumentError, "#{str.inspect} has no characters usable in a Ruby constant" if words.empty?
+      name = camelize(str)
+      raise ArgumentError, "#{str.inspect} has no characters usable in a Ruby constant" if name.empty?
 
-      name = words.map { |w| upcase_first(w) }.join
-      name.match?(/\A[0-9_]/) ? "Q#{name}" : name
+      name.match?(/\A[0-9]/) ? "Q#{name}" : name
+    end
+
+    # PostgreSQL keeps the first 63 bytes of a prepared statement name (NAMEDATALEN - 1).
+    STATEMENT_NAME_BYTES = 63
+
+    # Prepared statement name of a generated method, unique for every method of every class that can share a
+    # connection: `Module::Class#method` cannot be spelled by another class or method (`::` and `#` never occur
+    # inside a constant or method name). Names PostgreSQL would truncate become a prefix plus a 64-bit FNV-1a hash of
+    # the full name after a `~`, which no full name contains.
+    def statement_name(class_name, method)
+      name = "#{class_name}##{method}"
+      return name if name.bytesize <= STATEMENT_NAME_BYTES
+
+      prefix = name.byteslice(0, STATEMENT_NAME_BYTES - 17).scrub('')
+      "#{prefix}~#{fnv1a64(name)}"
+    end
+
+    FNV_OFFSET = 0xcbf29ce484222325
+    FNV_PRIME = 0x100000001b3
+    UINT64 = 0xffff_ffff_ffff_ffff
+
+    def fnv1a64(text)
+      text.each_byte.reduce(FNV_OFFSET) { |hash, byte| ((hash ^ byte) * FNV_PRIME) & UINT64 }.to_s(16).rjust(16, '0')
     end
 
     # "Line 1\nLine 2" => "# Line 1\n# Line 2" ('' for no comment)

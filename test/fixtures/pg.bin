@@ -1,7 +1,7 @@
 
 
 2
-postgresqlÕ3public"ì/publicÍ
+postgresql†4public"0publicÍ
 	authors)
 id0ÿÿÿÿÿÿÿÿÿR	authorsb	bigserial&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtextH
@@ -126,7 +126,7 @@ pg_catalogbool+
 pg_catalogint4ˆ?
 amounts 0ÿÿÿÿÿÿÿÿÿRbatch_typesb
 pg_catalognumericˆ6
-stamps 0ÿÿÿÿÿÿÿÿÿRbatch_typesbtimestamptzˆŠ
+stamps 0ÿÿÿÿÿÿÿÿÿRbatch_typesbtimestamptzˆ»
 
 name_cases3
 id0ÿÿÿÿÿÿÿÿÿR
@@ -147,6 +147,9 @@ pg_catalogint4.
 name_casesbtext/
 
 HTTPServer0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext/
+
+initialize0ÿÿÿÿÿÿÿÿÿR
 name_casesbtext<
 
 exceptions,
@@ -603,10 +606,10 @@ pg_catalognumericzamountsˆ">
 .SELECT count(*) FROM batch_types WHERE id > $1CountBatchTypesAbove:one" 
 count0ÿÿÿÿÿÿÿÿÿ@bbigint*A=
 min_id0ÿÿÿÿÿÿÿÿÿ8Rbatch_typesbpg_catalog.int8zid:	query.sqlB
-TRUNCATE TABLE batch_typesTruncateBatchTypes:exec:	query.sqlí
-‘INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer")
+TRUNCATE TABLE batch_typesTruncateBatchTypes:exec:	query.sqlÊ
+£INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer", "initialize")
 VALUES ($1, $2, $3, $4, $5, $6,
-        $7, $8)InsertNameCase:exec*D@
+        $7, $8, $9)InsertNameCase:exec*D@
 id0ÿÿÿÿÿÿÿÿÿ8Rpublic
 name_casesbpg_catalog.int8zid*?;
 class0ÿÿÿÿÿÿÿÿÿ8Rpublic
@@ -624,12 +627,18 @@ camel_case0ÿÿÿÿÿÿÿÿÿ8Rpublic
 name_casesbtextz	camelCase*JF
 http_server0ÿÿÿÿÿÿÿÿÿ8Rpublic
 name_casesbtextz
-HTTPServer:	query.sqlB
-name_cases©	
-çSELECT id, class, "end", hash, method, count, "camelCase", "HTTPServer" FROM name_cases
+HTTPServer*I	E
+
+initialize0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextz
+initialize:	query.sqlB
+name_casesÍ
+
+‹SELECT id, class, "end", hash, method, count, "camelCase", "HTTPServer", initialize FROM name_cases
 WHERE id = $1 AND "class" = $2 AND "end" = $3 AND "hash" = $4
   AND "method" = $5 AND "count" = $6
-  AND "HTTPServer" = $7 AND "camelCase" = $8GetNameCase:one"7
+  AND "HTTPServer" = $7 AND "camelCase" = $8
+  AND "initialize" = $9GetNameCase:one"7
 id0ÿÿÿÿÿÿÿÿÿR
 name_casesb
 pg_catalogint8zid"1
@@ -649,7 +658,11 @@ name_casesbtextz	camelCase";
 
 HTTPServer0ÿÿÿÿÿÿÿÿÿR
 name_casesbtextz
-HTTPServer*<8
+HTTPServer";
+
+initialize0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz
+initialize*<8
 id0ÿÿÿÿÿÿÿÿÿ8R
 name_casesbpg_catalog.int8zid*73
 class0ÿÿÿÿÿÿÿÿÿ8R
@@ -667,8 +680,12 @@ name_casesbtextz
 HTTPServer*@<
 
 camel_case0ÿÿÿÿÿÿÿÿÿ8R
-name_casesbtextz	camelCase:	query.sqlı
-eSELECT id, class, "end", hash, method, count, "camelCase", "HTTPServer" FROM name_cases WHERE id = $1GetHTTPServer:one"7
+name_casesbtextz	camelCase*A	=
+
+initialize0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextz
+initialize:	query.sqlÆ
+qSELECT id, class, "end", hash, method, count, "camelCase", "HTTPServer", initialize FROM name_cases WHERE id = $1GetHTTPServer:one"7
 id0ÿÿÿÿÿÿÿÿÿR
 name_casesb
 pg_catalogint8zid"1
@@ -688,7 +705,11 @@ name_casesbtextz	camelCase";
 
 HTTPServer0ÿÿÿÿÿÿÿÿÿR
 name_casesbtextz
-HTTPServer*<8
+HTTPServer";
+
+initialize0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz
+initialize*<8
 id0ÿÿÿÿÿÿÿÿÿ8R
 name_casesbpg_catalog.int8zid:	query.sql@
 TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sqlb

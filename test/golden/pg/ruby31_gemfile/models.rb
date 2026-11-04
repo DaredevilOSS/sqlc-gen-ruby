@@ -140,6 +140,7 @@ module PgCodegen
     :count_,
     :camelCase,
     :HTTPServer,
+    :initialize_,
     keyword_init: true
   )
   # rubocop:enable Naming/MethodName

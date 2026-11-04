@@ -29,8 +29,8 @@ class TestOptions < Minitest::Test
       assert system('sqlc', 'generate', '-f', config_path, chdir: ROOT)
       sqlite_dir = File.join(OUTPUT_DIR, 'sqlite3')
       pg_dir = File.join(OUTPUT_DIR, 'pg')
-      assert_equal %w[first_sql.rb first_sql.rbs second_sql.rb second_sql.rbs models.rb models.rbs connection.rb connection.rbs
-                     Gemfile].sort,
+      assert_equal %w[admin_users_sql.rb admin_users_sql.rbs first_sql.rb first_sql.rbs second_sql.rb second_sql.rbs models.rb
+                     models.rbs connection.rb connection.rbs Gemfile].sort,
                    Dir.children(sqlite_dir).sort
       refute Dir.children(pg_dir).any? { |file| file.end_with?('.rbs') }
       assert File.file?(File.join(pg_dir, 'Gemfile'))
@@ -47,6 +47,8 @@ class TestOptions < Minitest::Test
       assert_match(/id: String\b/, rbs)
       assert_match(/class GetBothModelsRow\b/, rbs)
       assert File.file?(File.join(sqlite_dir, 'second_sql.rbs'))
+      admin = File.read(File.join(sqlite_dir, 'admin_users_sql.rb'))
+      assert_match(/^ *class AdminUsersSql$/, admin)
 
       assert_sqlite_runtime(sqlite_dir)
       assert_pg_runtime(pg_dir)
@@ -77,6 +79,7 @@ class TestOptions < Minitest::Test
       'bundle', 'exec', RbConfig.ruby, '-e', <<~'RUBY'
         require File.join(ENV.fetch('OPTIONS_SQLITE_DIR'), 'first_sql')
         require File.join(ENV.fetch('OPTIONS_SQLITE_DIR'), 'second_sql')
+        require File.join(ENV.fetch('OPTIONS_SQLITE_DIR'), 'admin_users_sql')
         db = SQLite3::Database.new(':memory:')
         db.execute_batch(File.read(ENV.fetch('OPTIONS_SCHEMA')))
         db.execute("INSERT INTO option_items VALUES (1, 'note', 'tag', 'extra')")
@@ -90,6 +93,7 @@ class TestOptions < Minitest::Test
         joined = options::FirstSql.new(db).get_both_models(id: 1)
         raise 'embedded models were not renamed as expected' unless [joined.author.name, joined.author2.name] == %w[singular plural]
         raise 'exactTableNames did not preserve the plural table model' unless options::FirstSql.new(db).list_option_articles.first.title == 'article'
+        raise 'admin_users.sql did not become AdminUsersSql' unless options::AdminUsersSql.new(db).count_option_articles.total == 1
       RUBY
     )
     assert status.success?, "generated-Gemfile SQLite run failed:\n#{stdout}\n#{stderr}"
@@ -116,6 +120,18 @@ class TestOptions < Minitest::Test
       assert_equal 1, first.get_pg_option_author(id: 1).id
       assert_equal 'second module', second.get_pg_option_author(id: 1).label
     end
+    long = 'Options::PgLongModuleNameThatPushesStatementNamesPastTheLimit'
+    [%w[pg_v2 pg_nested_v2 Options::PgV2 Options::Pg::V2], ['pg_long_a', 'pg_long_b', "#{long}A", "#{long}B"]]
+      .each do |first_dir, second_dir, first_module, second_module|
+        require File.join(OUTPUT_DIR, first_dir, 'first_sql.rb')
+        require File.join(OUTPUT_DIR, second_dir, 'first_sql.rb')
+        first = Object.const_get("#{first_module}::FirstSql").new(pool)
+        second = Object.const_get("#{second_module}::FirstSql").new(pool)
+        2.times do
+          assert_equal 1, first.get_pg_option_author(id: 1).id, first_module
+          assert_equal 'second module', second.get_pg_option_author(id: 1).label, second_module
+        end
+      end
   ensure
     pool&.shutdown(&:close)
     conn&.exec('DROP SCHEMA IF EXISTS options_audit CASCADE')

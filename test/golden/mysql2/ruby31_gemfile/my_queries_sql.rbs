@@ -2,7 +2,7 @@
 module Mysql2Codegen
   WITH_NUMBERS2_GO_SQL: ::String
 
-  class My_queriesSql
+  class MyQueriesSql
     class NotFound < ::StandardError
     end
 

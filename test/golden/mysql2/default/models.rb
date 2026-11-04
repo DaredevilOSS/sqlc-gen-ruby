@@ -125,7 +125,8 @@ module Mysql2Codegen
     :method_,
     :count,
     :camelcase,
-    :httpserver
+    :httpserver,
+    :initialize_
   )
   end
 

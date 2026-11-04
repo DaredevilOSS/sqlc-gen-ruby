@@ -527,6 +527,7 @@ module PgCodegen
     attr_reader count: ::Integer
     attr_reader camelCase: ::String
     attr_reader HTTPServer: ::String
+    attr_reader initialize_: ::String
     def initialize: (
         ::Integer id,
         ::String class_,
@@ -535,7 +536,8 @@ module PgCodegen
         ::String method_,
         ::Integer count,
         ::String camelCase,
-        ::String HTTPServer
+        ::String HTTPServer,
+        ::String initialize_
     ) -> void
   end
 
@@ -550,6 +552,7 @@ module PgCodegen
     attr_reader count: ::Integer
     attr_reader camelCase: ::String
     attr_reader HTTPServer: ::String
+    attr_reader initialize_: ::String
     def initialize: (
         ::Integer id,
         ::String class_,
@@ -558,7 +561,8 @@ module PgCodegen
         ::String method_,
         ::Integer count,
         ::String camelCase,
-        ::String HTTPServer
+        ::String HTTPServer,
+        ::String initialize_
     ) -> void
   end
 
@@ -790,11 +794,11 @@ module PgCodegen
 
     def truncate_batch_types: -> void
 
-    def insert_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, camel_case: ::String, http_server: ::String) -> void
+    def insert_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, camel_case: ::String, http_server: ::String, initialize: ::String) -> void
 
-    def get_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String) -> GetNameCaseRow?
+    def get_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String, initialize: ::String) -> GetNameCaseRow?
 
-    def get_name_case!: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String) -> GetNameCaseRow
+    def get_name_case!: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String, initialize: ::String) -> GetNameCaseRow
 
     def get_http_server: (id: ::Integer) -> GetHTTPServerRow?
 

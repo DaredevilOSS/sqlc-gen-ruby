@@ -43,7 +43,8 @@ CREATE TABLE name_cases (
   "method" TEXT NOT NULL,
   "count" INTEGER NOT NULL,
   "camelCase" TEXT NOT NULL,
-  "HTTPServer" TEXT NOT NULL
+  "HTTPServer" TEXT NOT NULL,
+  "initialize" TEXT NOT NULL
 );
 
 -- Tables whose models share their name with a Ruby core or library constant used by the generated code
