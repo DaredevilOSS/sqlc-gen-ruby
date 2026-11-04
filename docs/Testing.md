@@ -39,7 +39,8 @@ They `require` the generated code from `examples/` and run it against a real dat
 * They cover every query command (batches with encoded `bytea` / `json` values too), transactions (nested,
   isolation, `break` / `throw`, a rescued failed statement on PostgreSQL, SQLite threads sharing a database, the
   yielded `tx` used from other fibers / threads), models named like Ruby constants (`Exception`, `Data`, ...), pool
-  injection, logging, bang finders, `:copyfrom` with awkward and binary values and its all-or-nothing behaviour,
+  injection, logging, bang finders, row members named like row methods (`initialize`), MySQL changed vs. matched
+  rows, SQLite busy waiting, `:copyfrom` with awkward and binary values and its all-or-nothing behaviour,
   Fiber-scheduler concurrency (`async` gem) and statement-leak checks.
 
 ## CI workflows (`.github/workflows/`)

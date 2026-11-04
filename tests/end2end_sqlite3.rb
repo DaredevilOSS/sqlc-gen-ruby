@@ -409,6 +409,27 @@ class TestSqlite3 < Minitest::Test
     assert_equal 1, @query_sql.transaction(mode: :immediate) { 1 }
   end
 
+  def test_busy_handler_timeout_waits_for_another_connection_without_blocking_threads
+    Tempfile.create('sqlite-busy-test') do |file|
+      first = SQLite3::Database.new(file.path)
+      first.execute_batch(SCHEMA)
+      second = SQLite3::Database.new(file.path)
+      second.busy_handler_timeout = 10_000
+      first.execute('BEGIN IMMEDIATE')
+      writer = ::Thread.new { QuerySql.new(second).create_author_return_id(name: 'waited', bio: nil) }
+      ticks = 0
+      ticks += 1 while writer.join(0.01).nil? && ticks < 20
+      assert_equal 20, ticks, 'other threads keep running while the write waits'
+      first.execute('COMMIT')
+      refute_nil writer.value
+      assert_equal 1, first.execute('SELECT COUNT(*) FROM authors').first.first
+    ensure
+      writer&.join
+      second&.close
+      first&.close
+    end
+  end
+
   def test_immediate_and_exclusive_transactions_block_a_second_connection
     Tempfile.create('sqlite-lock-test') do |file|
       first = SQLite3::Database.new(file.path)

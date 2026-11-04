@@ -192,6 +192,14 @@ class TestMysql2 < Minitest::Test
     assert_equal 2, @query_sql.update_author_bios(bio: 'new bio')
   end
 
+  def test_execrows_counts_changed_rows_unless_found_rows_is_set
+    create_author('same bio', 'same')
+    create_author('other bio', 'other')
+    assert_equal 1, @query_sql.update_author_bios(bio: 'same')
+    found_rows = QuerySql.connect(mysql2_params.merge('flags' => Mysql2::Client::FOUND_ROWS))
+    assert_equal 2, found_rows.update_author_bios(bio: 'same')
+  end
+
   # ---- sqlc.arg / sqlc.narg --------------------------------------------------------------------------------------
 
   def test_positional_args_limit_and_offset
