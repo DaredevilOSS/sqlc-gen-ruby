@@ -657,60 +657,60 @@
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1738
+        line: 1743
         character: 8
       end:
-        line: 1738
+        line: 1743
         character: 10
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1738
+        line: 1743
         character: 52
       end:
-        line: 1738
+        line: 1743
         character: 54
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1745
+        line: 1750
         character: 44
       end:
-        line: 1745
+        line: 1750
         character: 46
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1746
+        line: 1751
         character: 27
       end:
-        line: 1746
+        line: 1751
         character: 29
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1747
+        line: 1752
         character: 46
       end:
-        line: 1747
+        line: 1752
         character: 48
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1748
+        line: 1753
         character: 27
       end:
-        line: 1748
+        line: 1753
         character: 29
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'

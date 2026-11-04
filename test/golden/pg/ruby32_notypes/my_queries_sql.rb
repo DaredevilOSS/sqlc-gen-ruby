@@ -94,7 +94,7 @@ module PgCodegen
                 raise
               end
               client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
-              raise ::PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && ::Thread.current.status != 'aborting'
+              raise ::PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && ::Thread.current.status != 'aborting' && (completed || !timeout_exits_with_throw?)
             end
           end
         end

@@ -130,7 +130,8 @@ end
   On MySQL a `Thread#kill` during a query closes that client (mysql2 cannot send `ROLLBACK` while it waits for the
   query's result), so the server rolls the transaction back and the pool replaces the client. On Ruby <3.3 with timeout <0.4, `break`, `return`, and
   `throw` also roll back because Timeout cannot be told apart; add `gem 'timeout', '>= 0.4'` to the generated Gemfile
-  to keep those exits committing. A nested `transaction` rolls back only its own part. With `connection_pool` or
+  to keep those exits committing; an old `Timeout` that interrupts a PostgreSQL query in a transaction still
+  raises `Timeout::Error` (not the `PG::InFailedSqlTransaction` of the cancelled query) after rolling back. A nested `transaction` rolls back only its own part. With `connection_pool` or
   SQLite, parent-object calls from the same thread reuse the transaction connection; injected `#with` objects must do
   the same.
 * `tx` is a copy of the query object bound to the transaction: its queries stay in the transaction from any fiber or
@@ -197,10 +198,15 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   in the zone `mysql2` reads `DATETIME` / `TIMESTAMP` values back in, the process's local zone, or UTC for a client
   created with `database_timezone: :utc` (`connect(params.merge(database_timezone: :utc))`). The server also converts
   `TIMESTAMP` columns with the session `time_zone`, so keep that equal to the client's zone.
-* PostgreSQL: a `Time` parameter of a `timestamp` (without time zone) column (also in `:copyfrom` and batches) keeps
-  its instant whatever its UTC offset: it is written in the process's local zone, the zone the pg gem reads
-  `timestamp` values back in (PostgreSQL itself ignores the offset of a `timestamp` value). Elements of `timestamp[]`
-  arrays are written as given. `timestamptz` keeps the instant anyway.
+* PostgreSQL: a `Time` or `DateTime` parameter of a `timestamp` (without time zone) column (also in `:copyfrom` and
+  batches) keeps its instant whatever its UTC offset: it is written in the process's local zone, the zone the pg gem
+  reads `timestamp` values back in (PostgreSQL itself ignores the offset of a `timestamp` value). A `DateTime` of a
+  `timestamptz` column keeps its instant too (the pg gem alone would send its date only); the RBS still declares
+  `::Time`, the type the rows return. Elements of `timestamp[]` arrays are written as given.
+* A column without a time zone (PostgreSQL `timestamp`, MySQL `DATETIME`) stores the local wall-clock time, so an
+  instant in the hour repeated when the local zone falls back from daylight saving time (e.g. 02:30 on the last
+  Sunday of October in Europe/Berlin happens twice) reads back as the first of the two, one hour off for the second.
+  Use `timestamptz` / `TIMESTAMP`, or run the process in UTC (`TZ=UTC`), to keep every instant.
 * A `String` passed to a PostgreSQL `json` / `jsonb` parameter is JSON text (`'{"a":1}'`): pass `'"hi"'` or
   `'hi'.to_json` for a JSON string. Hashes, Arrays, numbers, `true` / `false` and `nil` are encoded for you.
 * Enums are `String`s, with constants in `models.rb` (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`). Values that

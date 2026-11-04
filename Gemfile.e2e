@@ -4,7 +4,15 @@ source 'https://rubygems.org'
 
 examples_dir = ENV.fetch('EXAMPLES_DIR') { raise 'EXAMPLES_DIR must point at generated scratch examples' }
 driver = ENV.fetch('EXAMPLES_DRIVER') { raise 'EXAMPLES_DRIVER must be set for E2E bundling' }
-eval_gemfile File.join(examples_dir, driver, 'Gemfile')
+generated = File.join(examples_dir, driver, 'Gemfile')
+timeout = ENV.fetch('E2E_TIMEOUT_GEM', '')
+if !timeout.empty?
+  # run against an older timeout gem (Ruby 3.1 bundles 0.2.0) instead of the generated Gemfile's '>= 0.4'
+  eval_gemfile generated, File.read(generated).lines.grep_v(/^gem 'timeout'/).join
+  gem 'timeout', timeout
+else
+  eval_gemfile generated
+end
 
 gem 'bigdecimal' # tests/; bundled (not default) gems since Ruby 3.4 / 4.0
 gem 'logger'

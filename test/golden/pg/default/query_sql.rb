@@ -1025,7 +1025,7 @@ module PgCodegen
           encode_json(c_jsonb),
           encode_array(c_text_array),
           encode_array(c_integer_array),
-          c_timestamptz,
+          encode_timestamp(c_timestamptz),
           c_inet,
           c_money,
           c_not_null
@@ -1078,7 +1078,7 @@ module PgCodegen
           c_numeric,
           c_bigint,
           encode_timestamp(c_timestamp),
-          c_timestamptz,
+          encode_timestamp(c_timestamptz),
           encode_array(c_text_matrix)
         ]
         run_prepared(client, 'PgCodegen::QuerySql#insert_remaining_types', INSERT_REMAINING_TYPES_SQL, query_params)
@@ -1795,9 +1795,14 @@ module PgCodegen
     end
 
     # timestamp (without time zone) values are read back as local times and PostgreSQL ignores the UTC offset of
-    # a timestamp literal: a Time is written in the local zone, so it keeps its instant whatever its offset.
+    # a timestamp literal: a Time is written in the local zone, so it keeps its instant whatever its offset. A
+    # DateTime is converted too (the pg gem would encode it as a Date, dropping its time).
     def encode_timestamp(value)
-      value.is_a?(::Time) ? value.getlocal : value
+      case value
+      when ::Time then value.getlocal
+      when ::DateTime then value.to_time.getlocal
+      else value
+      end
     end
 
     # Float#to_s is the shortest text that reads back as the same Float (the pg gem's encoder drops digits).
