@@ -597,7 +597,7 @@ module Mysql2Codegen
             failed = true
             bound&.close
             begin
-              client.query(rollback) if started || outermost
+              client.query(rollback) if (started || outermost) && !client.rolled_back_by
             rescue ::Mysql2::Error
               # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone;
               # an interrupted query closed the connection: the server rolls back
@@ -612,6 +612,10 @@ module Mysql2Codegen
                   # Thread#kill interrupted a query: the client still waits for its result and cannot send
                   # ROLLBACK. Closing it makes the server roll back; #with_client discards it.
                   client.close
+                elsif client.rolled_back_by
+                  # the server already rolled the whole transaction back (its savepoints too): COMMIT would only
+                  # end the statements run since, so raise instead of reporting a commit
+                  raise client.rolled_back_error if ::Thread.current.status != 'aborting'
                 else
                   commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
                   begin
@@ -629,7 +633,10 @@ module Mysql2Codegen
                 end
               end
             ensure
-              client.in_transaction = false if outermost
+              if outermost
+                client.in_transaction = false
+                client.rolled_back_by = nil
+              end
             end
           end
         end
@@ -1664,7 +1671,7 @@ module Mysql2Codegen
       ensure
         if outermost
           client.query(done ? 'COMMIT' : 'ROLLBACK')
-        else
+        elsif !client.rolled_back_by # a deadlock rolled the whole transaction back, its savepoint too
           client.query(done ? 'RELEASE SAVEPOINT sqlc_copy' : 'ROLLBACK TO SAVEPOINT sqlc_copy')
         end
       end

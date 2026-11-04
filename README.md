@@ -144,6 +144,11 @@ end
 * PostgreSQL: if a statement fails and the block rescues the error, PostgreSQL still rolls the whole transaction
   back, so `transaction` raises `PG::InFailedSqlTransaction` instead of pretending it committed. In a nested
   `transaction` only the savepoint is rolled back: the outer block can rescue that error and go on.
+* MySQL: a deadlock (or a lock wait timeout with `innodb_rollback_on_timeout`) rolls the whole transaction back on
+  the server, its savepoints too. If the block rescues that error, every later query in the transaction and
+  `transaction` itself raise it again (a `Mysql2::Error` with the same `error_number`, its message prefixed with
+  `transaction rolled back:`) instead of running in autocommit mode and reporting a commit; retry the whole
+  `transaction`. A lock wait timeout without that setting fails only its statement: the block can rescue it and go on.
 * A connection the server closed (restart, failover, killed backend) is reconnected (`pg`) or replaced in the pool
   (`mysql2`) the next time it is checked out; the call that hit the dead connection still raises. Inside `transaction`
   a lost `pg` connection is not reconnected: every later call in the block and `transaction` itself raise

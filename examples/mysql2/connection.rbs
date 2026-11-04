@@ -2,8 +2,11 @@
 module Mysql2Codegen
   module ConnectionState
     attr_accessor in_transaction: bool
+    attr_accessor rolled_back_by: untyped
     def query: (*untyped) -> untyped
     def query_running?: () -> bool
+    def rolled_back_error: () -> untyped
+    def ends_transaction?: (untyped error) -> bool
   end
 
   class TransactionEnded < ::StandardError

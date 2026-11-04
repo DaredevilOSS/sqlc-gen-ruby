@@ -1,4 +1,26 @@
 ---
+- file: examples/mysql2/connection.rb
+  diagnostics:
+  - range:
+      start:
+        line: 21
+        character: 13
+      end:
+        line: 21
+        character: 19
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `Mysql2`'
+    code: Ruby::UnknownConstant
+  - range:
+      start:
+        line: 46
+        character: 17
+      end:
+        line: 46
+        character: 23
+    severity: WARNING
+    message: 'Cannot find the declaration of constant: `Mysql2`'
+    code: Ruby::UnknownConstant
 - file: examples/mysql2/query_sql.rb
   diagnostics:
   - range:
@@ -36,7 +58,7 @@
         line: 556
         character: 54
       end:
-        line: 610
+        line: 617
         character: 11
     severity: WARNING
     message: The method cannot be called with a block
@@ -73,20 +95,20 @@
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 599
+        line: 603
         character: 29
       end:
-        line: 599
+        line: 603
         character: 35
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 1516
+        line: 1523
         character: 20
       end:
-        line: 1516
+        line: 1523
         character: 38
     severity: ERROR
     message: |-
@@ -99,20 +121,20 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1517
+        line: 1524
         character: 78
       end:
-        line: 1517
+        line: 1524
         character: 84
     severity: ERROR
     message: Type `(::String | nil)` does not have method `match?`
     code: Ruby::NoMethod
   - range:
       start:
-        line: 1519
+        line: 1526
         character: 20
       end:
-        line: 1519
+        line: 1526
         character: 39
     severity: ERROR
     message: |-
@@ -125,10 +147,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1523
+        line: 1530
         character: 20
       end:
-        line: 1523
+        line: 1530
         character: 39
     severity: ERROR
     message: |-
@@ -141,10 +163,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1528
+        line: 1535
         character: 20
       end:
-        line: 1528
+        line: 1535
         character: 39
     severity: ERROR
     message: |-
@@ -157,10 +179,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1537
+        line: 1544
         character: 20
       end:
-        line: 1537
+        line: 1544
         character: 24
     severity: ERROR
     message: |-
@@ -173,10 +195,10 @@
     code: Ruby::ArgumentTypeMismatch
   - range:
       start:
-        line: 1570
+        line: 1577
         character: 18
       end:
-        line: 1570
+        line: 1577
         character: 24
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'

@@ -6,19 +6,49 @@ module Mysql2Codegen
   # State kept on every Mysql2::Client the first time it is used.
   module ConnectionState
     attr_accessor :in_transaction
+    # The error with which the server rolled back the whole transaction (a deadlock, or a lock wait timeout with
+    # innodb_rollback_on_timeout): the transaction's later queries raise instead of running in autocommit mode.
+    attr_accessor :rolled_back_by
 
     # Stays true when a Thread#kill interrupts the query (it skips rescue): see #with_client.
     def query(...)
+      raise rolled_back_error if in_transaction && rolled_back_by
+
       @query_running = true
       result = super
       @query_running = false
       result
+    rescue ::Mysql2::Error => e
+      @query_running = false
+      self.rolled_back_by ||= e if in_transaction && ends_transaction?(e)
+      raise
     rescue ::Exception # rubocop:disable Lint/RescueException
       @query_running = false
       raise
     end
 
     def query_running? = @query_running == true
+
+    def rolled_back_error
+      error = rolled_back_by
+      error.class.new("transaction rolled back: #{error.message}", nil, error.error_number, error.sql_state)
+    end
+
+    # ER_LOCK_DEADLOCK always rolls back the whole transaction, ER_LOCK_WAIT_TIMEOUT only with
+    # innodb_rollback_on_timeout (otherwise just the statement).
+    def ends_transaction?(error)
+      return true if error.error_number == 1213
+      return false unless error.error_number == 1205
+
+      if @rollback_on_timeout.nil?
+        @rollback_on_timeout = begin
+          query('SELECT @@innodb_rollback_on_timeout', as: :array).first.first == 1
+        rescue ::Mysql2::Error
+          false
+        end
+      end
+      @rollback_on_timeout
+    end
   end
 
   # Raised when the query object yielded by #transaction is used after the transaction ended.
