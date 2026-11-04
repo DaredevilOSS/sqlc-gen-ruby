@@ -14,7 +14,7 @@ module Mysql2Codegen
     	  WHERE a = ?
   SQL
 
-  class My_queriesSql
+  class MyQueriesSql
     # Raised by the bang variants (get_author!) when the query returns no row.
     class NotFound < ::StandardError; end
 

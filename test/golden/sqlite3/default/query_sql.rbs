@@ -334,6 +334,7 @@ module Sqlite3Codegen
     attr_reader count: ::Integer
     attr_reader camelCase: ::String
     attr_reader HTTPServer: ::String
+    attr_reader initialize_: ::String
     def initialize: (
         ::Integer id,
         ::String class_,
@@ -342,7 +343,8 @@ module Sqlite3Codegen
         ::String method_,
         ::Integer count,
         ::String camelCase,
-        ::String HTTPServer
+        ::String HTTPServer,
+        ::String initialize_
     ) -> void
   end
 
@@ -357,6 +359,7 @@ module Sqlite3Codegen
     attr_reader count: ::Integer
     attr_reader camelCase: ::String
     attr_reader HTTPServer: ::String
+    attr_reader initialize_: ::String
     def initialize: (
         ::Integer id,
         ::String class_,
@@ -365,7 +368,8 @@ module Sqlite3Codegen
         ::String method_,
         ::Integer count,
         ::String camelCase,
-        ::String HTTPServer
+        ::String HTTPServer,
+        ::String initialize_
     ) -> void
   end
 
@@ -556,11 +560,11 @@ module Sqlite3Codegen
 
     def list_authors_with_optional_book: -> ::Array[ListAuthorsWithOptionalBookRow]
 
-    def insert_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, camel_case: ::String, http_server: ::String) -> void
+    def insert_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, camel_case: ::String, http_server: ::String, initialize: ::String) -> void
 
-    def get_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String) -> GetNameCaseRow?
+    def get_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String, initialize: ::String) -> GetNameCaseRow?
 
-    def get_name_case!: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String) -> GetNameCaseRow
+    def get_name_case!: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String, initialize: ::String) -> GetNameCaseRow
 
     def get_http_server: (id: ::Integer) -> GetHTTPServerRow?
 

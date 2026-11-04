@@ -192,6 +192,14 @@ class TestMysql2 < Minitest::Test
     assert_equal 2, @query_sql.update_author_bios(bio: 'new bio')
   end
 
+  def test_execrows_counts_changed_rows_unless_found_rows_is_set
+    create_author('same bio', 'same')
+    create_author('other bio', 'other')
+    assert_equal 1, @query_sql.update_author_bios(bio: 'same')
+    found_rows = QuerySql.connect(mysql2_params.merge('flags' => Mysql2::Client::FOUND_ROWS))
+    assert_equal 2, found_rows.update_author_bios(bio: 'same')
+  end
+
   # ---- sqlc.arg / sqlc.narg --------------------------------------------------------------------------------------
 
   def test_positional_args_limit_and_offset
@@ -628,12 +636,14 @@ class TestMysql2 < Minitest::Test
 
   def test_keyword_and_method_names_keep_distinct_row_and_argument_names
     args = { id: 1, class_: 'class', end_: 'end', hash: 'hash', method: 'method', count: 7,
-             camel_case: 'camel', http_server: 'server' }
+             camel_case: 'camel', http_server: 'server', initialize: 'init' }
     @query_sql.insert_name_case(**args)
     row = @query_sql.get_name_case(**args)
     count_member = row.is_a?(::Struct) ? :count_ : :count
-    assert_equal %i[id class_ end hash_ method_].concat([count_member, :camelcase, :httpserver]), row.class.members
+    assert_equal %i[id class_ end hash_ method_].concat([count_member, :camelcase, :httpserver, :initialize_]), row.class.members
     assert_equal %w[class end hash method], %i[class_ end hash_ method_].map { |member| row.public_send(member) }
+    assert_equal 'init', row.initialize_
+    assert_equal row, row.with(id: 1) unless row.is_a?(::Struct)
     assert_equal 7, row.public_send(count_member)
     assert_equal 'camel', row.public_send(:camelcase)
     assert_equal 'server', row.public_send(:httpserver)

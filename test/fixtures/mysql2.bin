@@ -1,7 +1,7 @@
 
 
 
-2mysql¦(public"›(public€
+2mysql×(public"Ì(public€
 	authors&
 id0ÿÿÿÿÿÿÿÿÿR	authorsbbigint&
 name0ÿÿÿÿÿÿÿÿÿR	authorsbtext#
@@ -117,7 +117,7 @@ year_value0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbyear.
 
 time_value0
 Rmysql_binding_valuesbtime9
-json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjsonó
+json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjson¤
 
 name_cases)
 id0ÿÿÿÿÿÿÿÿÿR
@@ -136,6 +136,9 @@ name_casesbint.
 name_casesbtext/
 
 httpserver0ÿÿÿÿÿÿÿÿÿR
+name_casesbtext/
+
+initialize0ÿÿÿÿÿÿÿÿÿR
 name_casesbtext9
 
 exceptions)
@@ -543,10 +546,10 @@ Rmysql_binding_valuesbtimez
 time_value"G
 json_unicode0ÿÿÿÿÿÿÿÿÿRmysql_binding_valuesbjsonzjson_unicode*=9
 id0ÿÿÿÿÿÿÿÿÿ8Rmysql_binding_valuesbbigintzid:	query.sqlS
-#TRUNCATE TABLE mysql_binding_valuesTruncateMysqlBindingValues:exec:	query.sqlÐ
-‰INSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`)
+#TRUNCATE TABLE mysql_binding_valuesTruncateMysqlBindingValues:exec:	query.sql¬
+šINSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`, `initialize`)
 VALUES (?, ?, ?, ?, ?, ?,
-        ?, ?)InsertNameCase:exec*;7
+        ?, ?, ?)InsertNameCase:exec*;7
 id0ÿÿÿÿÿÿÿÿÿ8Rpublic
 name_casesbbigintzid*?;
 class0ÿÿÿÿÿÿÿÿÿ8Rpublic
@@ -564,12 +567,18 @@ camel_case0ÿÿÿÿÿÿÿÿÿ8Rpublic
 name_casesbtextz	camelcase*JF
 http_server0ÿÿÿÿÿÿÿÿÿ8Rpublic
 name_casesbtextz
-httpserver:	query.sqlB
-name_casesï
-ÙSELECT id, class, end, hash, method, count, camelcase, httpserver FROM name_cases
+httpserver*I	E
+
+initialize0ÿÿÿÿÿÿÿÿÿ8Rpublic
+name_casesbtextz
+initialize:	query.sqlB
+name_cases’
+
+üSELECT id, class, end, hash, method, count, camelcase, httpserver, initialize FROM name_cases
 WHERE id = ? AND `class` = ? AND `end` = ? AND `hash` = ?
   AND `method` = ? AND `count` = ?
-  AND `HTTPServer` = ? AND `camelCase` = ?GetNameCase:one"-
+  AND `HTTPServer` = ? AND `camelCase` = ?
+  AND `initialize` = ?GetNameCase:one"-
 id0ÿÿÿÿÿÿÿÿÿR
 name_casesbbigintzid"1
 class0ÿÿÿÿÿÿÿÿÿR
@@ -587,7 +596,11 @@ name_casesbtextz	camelcase";
 
 httpserver0ÿÿÿÿÿÿÿÿÿR
 name_casesbtextz
-httpserver*3/
+httpserver";
+
+initialize0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz
+initialize*3/
 id0ÿÿÿÿÿÿÿÿÿ8R
 name_casesbbigintzid*73
 class0ÿÿÿÿÿÿÿÿÿ8R
@@ -605,8 +618,12 @@ name_casesbtextz
 httpserver*@<
 
 camel_case0ÿÿÿÿÿÿÿÿÿ8R
-name_casesbtextz	camelcase:	query.sqlÖ
-^SELECT id, class, end, hash, method, count, camelcase, httpserver FROM name_cases WHERE id = ?GetHTTPServer:one"-
+name_casesbtextz	camelcase*A	=
+
+initialize0ÿÿÿÿÿÿÿÿÿ8R
+name_casesbtextz
+initialize:	query.sqlŸ
+jSELECT id, class, end, hash, method, count, camelcase, httpserver, initialize FROM name_cases WHERE id = ?GetHTTPServer:one"-
 id0ÿÿÿÿÿÿÿÿÿR
 name_casesbbigintzid"1
 class0ÿÿÿÿÿÿÿÿÿR
@@ -624,7 +641,11 @@ name_casesbtextz	camelcase";
 
 httpserver0ÿÿÿÿÿÿÿÿÿR
 name_casesbtextz
-httpserver*3/
+httpserver";
+
+initialize0ÿÿÿÿÿÿÿÿÿR
+name_casesbtextz
+initialize*3/
 id0ÿÿÿÿÿÿÿÿÿ8R
 name_casesbbigintzid:	query.sql@
 TRUNCATE TABLE name_casesTruncateNameCases:exec:	query.sqlb

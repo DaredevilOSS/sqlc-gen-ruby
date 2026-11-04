@@ -12,7 +12,7 @@ module PgCodegen
     	  WHERE a = ?
   SQL
 
-  class My_queriesSql
+  class MyQueriesSql
     # Raised by the bang variants (get_author!) when the query returns no row.
     class NotFound < ::StandardError; end
 
@@ -102,7 +102,7 @@ module PgCodegen
     def with_numbers2_go(c0:)
       with_client('with_numbers2_go') do |client|
         query_params = [c0]
-        run_prepared(client, 'pg_codegen_my_queries_sql_with_numbers2_go', WITH_NUMBERS2_GO_SQL, query_params)
+        run_prepared(client, 'PgCodegen::MyQueriesSql#with_numbers2_go', WITH_NUMBERS2_GO_SQL, query_params)
         nil
       end
     end

@@ -58,14 +58,14 @@ More: [the generated code for every driver](docs/Examples.md) (it is the plugin'
 | Option | Default | What it does |
 |---|---|---|
 | `driver` | required | `pg`, `mysql2` or `sqlite3`. Must match the sqlc `engine:`. |
-| `rubyVersion` | `3.3` | Oldest Ruby the code must run on, `3.1` – `4.0`. Rows are `Data` classes from 3.2 and `Struct`s below. |
+| `rubyVersion` | `3.3` | Oldest Ruby the code must run on, `3.1` – `4.0`. Rows are `Data` classes from 3.2 and `Struct`s below; `3` means any 3.x, so it gets `Struct`s. |
 | `generateTypes` | `true` | Also generate `.rbs` type signatures. |
 | `generateGemfile` | `false` | Also generate a `Gemfile` with the gems the code needs. |
 | `moduleName` | `<Driver>Codegen` | The module the code lives in, e.g. `MyApp::Db`. |
 | `overrides` | none | Change the type of columns / parameters, see [below](#overrides). |
 | `rename` | none | Rename tables (model class) and columns (attribute), e.g. `{authors: Writer, bio: biography}`; `schema.table` works too. |
 | `exactTableNames` | `false` | Keep table names as model names (`authors` → `Authors`) instead of singularizing them (`Author`). |
-| `preparedStatements` | `true` | `pg` only (an error with other drivers). `false` sends the SQL with every call instead of preparing it (needed behind pgbouncer in transaction mode). Statements dropped by `DEALLOCATE ALL` / `DISCARD ALL` are prepared again by their next call outside a transaction (inside one, that call raises and the transaction rolls back). |
+| `preparedStatements` | `true` | `pg` only (an error with other drivers). `false` sends the SQL with every call instead of preparing it (needed behind pgbouncer in transaction mode). Statements dropped by `DEALLOCATE ALL` / `DISCARD ALL` are prepared again by their next call outside a transaction (inside one, that call raises and the transaction rolls back). Statements are named `Module::Class#method` (with a hash when longer than PostgreSQL's 63 bytes), so classes sharing a pool never run each other's SQL. |
 
 Unknown or misspelled options are errors, with a hint for near misses (`generate_types` → `generateTypes`).
 Options shared by several `sql:` blocks can go in the top-level `options:` of `sqlc.yaml` under the plugin's name
@@ -87,7 +87,8 @@ The first match wins in this order: `<query>:<column>`, `<table>.<column>`, `*:<
 Overrides only change the RBS types; the values are whatever the driver returns. Unknown keys are errors.
 
 ## The generated code
-For each query file you get `query_sql.rb` with a `QuerySql` class (one method per query), plus `models.rb` (one class
+For each query file you get `query_sql.rb` with a `QuerySql` class (one method per query; the file name in CamelCase:
+`admin_users.sql` → `AdminUsersSql` in `admin_users_sql.rb`), plus `models.rb` (one class
 per table, one module of constants per enum), `connection.rb` (shared helpers) and the matching `.rbs` files.
 
 * **Arguments** are keywords named after the parameters (`get_author(id:)`); `sqlc.arg(name)` names them yourself.
@@ -151,7 +152,7 @@ end
 | `:one` | the row or `nil` | plus a bang finder (`get_author!`) |
 | `:many` | `Array` of rows | |
 | `:exec` | `nil` | |
-| `:execrows` | number of affected rows | |
+| `:execrows` | number of affected rows | MySQL: rows changed, not rows matched; connect with `flags: Mysql2::Client::FOUND_ROWS` to count matched rows |
 | `:execlastid` | the new id | PostgreSQL / SQLite: needs `RETURNING id`; MySQL: the auto-increment id |
 | `:execresult` | `ExecResult` (`rows_affected`, `last_insert_id`) | `last_insert_id` is `nil` on PostgreSQL (use `RETURNING`) |
 | `:batchexec` / `:batchone` / `:batchmany` | `nil` / `Array` of rows or `nil` / `Array` of `Array`s of rows | take an `Array` of `<Query>Args` and run the query once per element, on one connection |
@@ -184,6 +185,8 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   (`uuid[]`, enum arrays, ...) are `Array[String]`, also for types created after the connection was opened (a
   migration run while the application is up). Geometric, range, full-text, `hstore`, `ltree`, `timetz`, `reg*` and
   composite types are `String`s; domains and unknown types are `untyped`.
+* A `String` passed to a PostgreSQL `json` / `jsonb` parameter is JSON text (`'{"a":1}'`): pass `'"hi"'` or
+  `'hi'.to_json` for a JSON string. Hashes, Arrays, numbers, `true` / `false` and `nil` are encoded for you.
 * Enums are `String`s, with constants in `models.rb` (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`). Values that
   are not valid constant names still get one: `'end'` → `END_`, `'all'` → `ALL_`, `'2x'` → `VALUE_2X`, `'a b'` → `A_B`;
   values that end up with the same name get `_2`, `_3`, ...
@@ -194,7 +197,7 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 ### Names
 * Query methods and keyword arguments are snake_cased, with acronyms kept together (`MIN_ID` → `min_id`,
   `HTTPServer` → `http_server`); Ruby keywords get a trailing `_` (`end_:`). Row members use the column spelling
-  reported by sqlc for the engine, except names that conflict with generated row methods (`class_`, `hash_`):
+  reported by sqlc for the engine, except names that conflict with row methods, including the private ones `Data` / `Struct` call while building and copying rows (`class_`, `hash_`, `initialize_`):
   PostgreSQL and SQLite keep `"camelCase"` as `:camelCase`, while MySQL reports it as `:camelcase`. A column named
   `end` is the row member `:end` but the argument `end_:`.
 * A parameter used twice is one keyword when named with `sqlc.arg`; repeated `?` / `$n` of one column become `id:`, `id_2:`.
@@ -210,6 +213,8 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 * SQLite: sqlc does not see parameters in `ON CONFLICT ... DO UPDATE SET` (it leaves `sqlc.arg(...)` in the SQL or
   reports fewer parameters than there are `?`), so such queries are generation errors. Use `excluded.<column>`
   (`DO UPDATE SET n = counters.n + excluded.n`) or move the value into `VALUES`.
+* SQLite: `busy_timeout=` makes the sqlite3 gem wait for a locked database while holding Ruby's GVL, so other threads
+  and fibers stop too; `busy_handler_timeout=` waits without blocking them.
 * SQLite transactions belong to the thread that opened them; fibers sharing the same database take turns, and a
   transaction holds it until it ends. Only the yielded `tx` runs inside the transaction from other fibers / threads.
 * Not applicable to Ruby (they exist in the C# plugin): `withAsyncSuffix` / `withCancellationToken` (use the Fiber

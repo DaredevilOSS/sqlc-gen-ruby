@@ -50,6 +50,8 @@ class OptionsTest < Minitest::Test
     assert RubyVersion.parse('3.2').immutable_data_supported?
     assert RubyVersion.parse('3.3').immutable_data_supported?
     assert RubyVersion.parse(' 3.2 ').immutable_data_supported?
+    refute RubyVersion.parse('3').immutable_data_supported?, '"3" includes Ruby 3.1, which has no Data'
+    assert RubyVersion.parse('4').immutable_data_supported?
   end
 
   def test_option_types_are_validated

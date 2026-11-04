@@ -276,6 +276,7 @@ module Mysql2Codegen
     attr_accessor count_: ::Integer
     attr_accessor camelcase: ::String
     attr_accessor httpserver: ::String
+    attr_accessor initialize_: ::String
     def initialize: (
         id: ::Integer,
         class_: ::String,
@@ -284,7 +285,8 @@ module Mysql2Codegen
         method_: ::String,
         count_: ::Integer,
         camelcase: ::String,
-        httpserver: ::String
+        httpserver: ::String,
+        initialize_: ::String
     ) -> void
     def self.new: (
         id: ::Integer,
@@ -294,7 +296,8 @@ module Mysql2Codegen
         method_: ::String,
         count_: ::Integer,
         camelcase: ::String,
-        httpserver: ::String
+        httpserver: ::String,
+        initialize_: ::String
     ) -> NameCase
   end
 

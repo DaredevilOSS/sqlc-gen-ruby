@@ -183,12 +183,14 @@ class TestSqlite3 < Minitest::Test
 
   def test_keyword_and_method_names_keep_distinct_row_and_argument_names
     args = { id: 1, class_: 'class', end_: 'end', hash: 'hash', method: 'method', count: 7,
-             camel_case: 'camel', http_server: 'server' }
+             camel_case: 'camel', http_server: 'server', initialize: 'init' }
     @query_sql.insert_name_case(**args)
     row = @query_sql.get_name_case(**args)
     count_member = row.is_a?(::Struct) ? :count_ : :count
-    assert_equal %i[id class_ end hash_ method_].concat([count_member, :camelCase, :HTTPServer]), row.class.members
+    assert_equal %i[id class_ end hash_ method_].concat([count_member, :camelCase, :HTTPServer, :initialize_]), row.class.members
     assert_equal %w[class end hash method], %i[class_ end hash_ method_].map { |member| row.public_send(member) }
+    assert_equal 'init', row.initialize_
+    assert_equal row, row.with(id: 1) unless row.is_a?(::Struct)
     assert_equal 7, row.public_send(count_member)
     assert_equal 'camel', row.public_send(:camelCase)
     assert_equal 'server', row.public_send(:HTTPServer)
@@ -405,6 +407,27 @@ class TestSqlite3 < Minitest::Test
 
   def test_transaction_mode
     assert_equal 1, @query_sql.transaction(mode: :immediate) { 1 }
+  end
+
+  def test_busy_handler_timeout_waits_for_another_connection_without_blocking_threads
+    Tempfile.create('sqlite-busy-test') do |file|
+      first = SQLite3::Database.new(file.path)
+      first.execute_batch(SCHEMA)
+      second = SQLite3::Database.new(file.path)
+      second.busy_handler_timeout = 10_000
+      first.execute('BEGIN IMMEDIATE')
+      writer = ::Thread.new { QuerySql.new(second).create_author_return_id(name: 'waited', bio: nil) }
+      ticks = 0
+      ticks += 1 while writer.join(0.01).nil? && ticks < 20
+      assert_equal 20, ticks, 'other threads keep running while the write waits'
+      first.execute('COMMIT')
+      refute_nil writer.value
+      assert_equal 1, first.execute('SELECT COUNT(*) FROM authors').first.first
+    ensure
+      writer&.join
+      second&.close
+      first&.close
+    end
   end
 
   def test_immediate_and_exclusive_transactions_block_a_second_connection

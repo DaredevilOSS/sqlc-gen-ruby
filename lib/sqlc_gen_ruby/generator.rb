@@ -33,7 +33,7 @@ module SqlcGenRuby
       models = models_files
       connection = connection_files
       by_class = request.queries.group_by { |q| class_name_for(q.filename) }
-      reject_colliding_files(by_class.keys)
+      reject_colliding_files(by_class)
       files = by_class.flat_map do |class_name, queries|
         generate_files(queries, class_name, with_models: !models.empty?, with_connection: !connection.empty?)
       end
@@ -102,10 +102,11 @@ module SqlcGenRuby
       Code.constant_part(File.basename(filename, ext)) + Code.constant_part(ext[1..])
     end
 
-    # user-queries.sql and user_queries.sql would both write user_queries_sql.rb
-    def reject_colliding_files(class_names)
-      class_names.group_by { |c| Code.snake_case(c) }.each do |base, names|
-        raise ArgumentError, "query files #{names.join(' and ')} would both generate #{base}.rb" if names.size > 1
+    # user-queries.sql and user_queries.sql would both be UserQueriesSql in user_queries_sql.rb
+    def reject_colliding_files(by_class)
+      by_class.group_by { |class_name, _| Code.snake_case(class_name) }.each do |base, classes|
+        files = classes.flat_map { |_, queries| queries.map(&:filename) }.uniq
+        raise ArgumentError, "query files #{files.join(' and ')} would both generate #{base}.rb" if files.size > 1
       end
     end
 

@@ -202,6 +202,7 @@ module Mysql2Codegen
     attr_reader count: ::Integer
     attr_reader camelcase: ::String
     attr_reader httpserver: ::String
+    attr_reader initialize_: ::String
     def initialize: (
         ::Integer id,
         ::String class_,
@@ -210,7 +211,8 @@ module Mysql2Codegen
         ::String method_,
         ::Integer count,
         ::String camelcase,
-        ::String httpserver
+        ::String httpserver,
+        ::String initialize_
     ) -> void
   end
 

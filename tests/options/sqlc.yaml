@@ -37,6 +37,7 @@ sql:
   queries:
   - "sqlite_queries/first.sql"
   - "sqlite_queries/second.sql"
+  - "sqlite_queries/admin_users.sql"
   engine: "sqlite"
   codegen:
   - plugin: ruby
@@ -91,4 +92,50 @@ sql:
     options:
       driver: pg
       moduleName: Options::PgSecond
+      generateTypes: false
+# Module paths that snake_case to the same name (options_pg_v2_first_sql) and module paths whose statement names
+# share their first 63 bytes (PostgreSQL truncates longer names): their prepared statements must stay distinct.
+- schema: "pg_schema.sql"
+  queries:
+  - "pg_queries/first.sql"
+  engine: "postgresql"
+  codegen:
+  - plugin: ruby
+    out: ".generated/pg_v2"
+    options:
+      driver: pg
+      moduleName: Options::PgV2
+      generateTypes: false
+- schema: "pg_schema.sql"
+  queries:
+  - "pg_second_queries/first.sql"
+  engine: "postgresql"
+  codegen:
+  - plugin: ruby
+    out: ".generated/pg_nested_v2"
+    options:
+      driver: pg
+      moduleName: Options::Pg::V2
+      generateTypes: false
+- schema: "pg_schema.sql"
+  queries:
+  - "pg_queries/first.sql"
+  engine: "postgresql"
+  codegen:
+  - plugin: ruby
+    out: ".generated/pg_long_a"
+    options:
+      driver: pg
+      moduleName: Options::PgLongModuleNameThatPushesStatementNamesPastTheLimitA
+      generateTypes: false
+- schema: "pg_schema.sql"
+  queries:
+  - "pg_second_queries/first.sql"
+  engine: "postgresql"
+  codegen:
+  - plugin: ruby
+    out: ".generated/pg_long_b"
+    options:
+      driver: pg
+      moduleName: Options::PgLongModuleNameThatPushesStatementNamesPastTheLimitB
       generateTypes: false

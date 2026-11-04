@@ -405,16 +405,17 @@ module Mysql2Codegen
   SQL
 
   INSERT_NAME_CASE_SQL = <<~'SQL'
-    INSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`)
+    INSERT INTO name_cases (id, `class`, `end`, `hash`, `method`, `count`, `camelCase`, `HTTPServer`, `initialize`)
     VALUES (?, ?, ?, ?, ?, ?,
-            ?, ?)
+            ?, ?, ?)
   SQL
 
   GET_NAME_CASE_SQL = <<~'SQL'
-    SELECT id, class, end, hash, method, count, camelcase, httpserver FROM name_cases
+    SELECT id, class, end, hash, method, count, camelcase, httpserver, initialize FROM name_cases
     WHERE id = ? AND `class` = ? AND `end` = ? AND `hash` = ?
       AND `method` = ? AND `count` = ?
       AND `HTTPServer` = ? AND `camelCase` = ?
+      AND `initialize` = ?
   SQL
 
   class GetNameCaseRow < ::Data.define(
@@ -425,12 +426,13 @@ module Mysql2Codegen
     :method_,
     :count,
     :camelcase,
-    :httpserver
+    :httpserver,
+    :initialize_
   )
   end
 
   GET_HTTP_SERVER_SQL = <<~'SQL'
-    SELECT id, class, end, hash, method, count, camelcase, httpserver FROM name_cases WHERE id = ?
+    SELECT id, class, end, hash, method, count, camelcase, httpserver, initialize FROM name_cases WHERE id = ?
   SQL
 
   class GetHTTPServerRow < ::Data.define(
@@ -441,7 +443,8 @@ module Mysql2Codegen
     :method_,
     :count,
     :camelcase,
-    :httpserver
+    :httpserver,
+    :initialize_
   )
   end
 
@@ -1164,7 +1167,7 @@ module Mysql2Codegen
       end
     end
 
-    def insert_name_case(id:, class_:, end_:, hash:, method:, count:, camel_case:, http_server:)
+    def insert_name_case(id:, class_:, end_:, hash:, method:, count:, camel_case:, http_server:, initialize:)
       with_client('insert_name_case') do |client|
         query_params = [
           id,
@@ -1174,14 +1177,15 @@ module Mysql2Codegen
           method,
           count,
           camel_case,
-          http_server
+          http_server,
+          initialize
         ]
         client.query(bind_params(client, INSERT_NAME_CASE_SQL, query_params))
         nil
       end
     end
 
-    def get_name_case(id:, class_:, end_:, hash:, method:, count:, http_server:, camel_case:)
+    def get_name_case(id:, class_:, end_:, hash:, method:, count:, http_server:, camel_case:, initialize:)
       with_client('get_name_case') do |client|
         query_params = [
           id,
@@ -1191,7 +1195,8 @@ module Mysql2Codegen
           method,
           count,
           http_server,
-          camel_case
+          camel_case,
+          initialize
         ]
         result = client.query(bind_params(client, GET_NAME_CASE_SQL, query_params), as: :array)
         row = result.first
@@ -1203,7 +1208,8 @@ module Mysql2Codegen
           row[4],
           row[5],
           row[6],
-          row[7]
+          row[7],
+          row[8]
         )
       end
     end
@@ -1226,7 +1232,8 @@ module Mysql2Codegen
           row[4],
           row[5],
           row[6],
-          row[7]
+          row[7],
+          row[8]
         )
       end
     end

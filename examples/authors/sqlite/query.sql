@@ -183,15 +183,16 @@ LEFT JOIN books ON authors.id = books.author_id
 ORDER BY authors.id;
 
 -- name: InsertNameCase :exec
-INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer")
+INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer", "initialize")
 VALUES (sqlc.arg(id), sqlc.arg(class), sqlc.arg(end_), sqlc.arg(hash), sqlc.arg(method), sqlc.arg(count),
-        sqlc.arg(camel_case), sqlc.arg(http_server));
+        sqlc.arg(camel_case), sqlc.arg(http_server), sqlc.arg(initialize));
 
 -- name: GetNameCase :one
 SELECT * FROM name_cases
 WHERE id = sqlc.arg(id) AND "class" = sqlc.arg(class) AND "end" = sqlc.arg(end_) AND "hash" = sqlc.arg(hash)
   AND "method" = sqlc.arg(method) AND "count" = sqlc.arg(count)
-  AND "HTTPServer" = sqlc.arg(http_server) AND "camelCase" = sqlc.arg(camel_case);
+  AND "HTTPServer" = sqlc.arg(http_server) AND "camelCase" = sqlc.arg(camel_case)
+  AND "initialize" = sqlc.arg(initialize);
 
 -- name: GetHTTPServer :one
 SELECT * FROM name_cases WHERE id = sqlc.arg(id);
