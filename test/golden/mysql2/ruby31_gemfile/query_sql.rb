@@ -604,18 +604,24 @@ module Mysql2Codegen
             bound&.close
             begin
               unless failed
-                commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-                begin
-                  client.query(::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
-                rescue ::Exception # rubocop:disable Lint/RescueException
-                  # COMMIT did not run: roll back instead of leaving the transaction open (a closed client is
-                  # discarded and the server rolls back)
+                if ::Thread.current.status == 'aborting' && client.query_running?
+                  # Thread#kill interrupted a query: the client still waits for its result and cannot send
+                  # ROLLBACK. Closing it makes the server roll back; #with_client discards it.
+                  client.close
+                else
+                  commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
                   begin
-                    client.query('ROLLBACK') if outermost && !client.closed?
-                  rescue ::Mysql2::Error
-                    nil
+                    client.query(::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
+                  rescue ::Exception # rubocop:disable Lint/RescueException
+                    # COMMIT did not run: roll back instead of leaving the transaction open (a closed client is
+                    # discarded and the server rolls back)
+                    begin
+                      client.query('ROLLBACK') if outermost && !client.closed?
+                    rescue ::Mysql2::Error
+                      nil
+                    end
+                    raise
                   end
-                  raise
                 end
               end
             ensure
@@ -1500,6 +1506,14 @@ module Mysql2Codegen
             # was interrupted (Async task stopped, Thread#raise) is replaced by the pool
             @db.discard_current_connection if client.closed? && @db.respond_to?(:discard_current_connection)
             raise
+          ensure
+            # Thread#kill skips rescue: a query it interrupted leaves the client waiting for a result nobody reads
+            # (every later query raises) and its transaction open. Closing it makes the server roll back once the
+            # statement ends, and the pool replaces it.
+            if ::Thread.current.status == 'aborting' && (client.query_running? || client.closed?)
+              client.close
+              @db.discard_current_connection if @db.respond_to?(:discard_current_connection)
+            end
           end
         end
       end

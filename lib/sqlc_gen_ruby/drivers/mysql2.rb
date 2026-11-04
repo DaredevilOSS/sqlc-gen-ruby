@@ -10,7 +10,8 @@ module SqlcGenRuby
 
       def module_members
         [
-          [CONNECTION_STATE, "module ConnectionState\n  attr_accessor in_transaction: bool\nend"],
+          [CONNECTION_STATE, "module ConnectionState\n  attr_accessor in_transaction: bool\n" \
+                             "  def query: (*untyped) -> untyped\n  def query_running?: () -> bool\nend"],
           [TRANSACTION_CONNECTION, TRANSACTION_CONNECTION_RBS],
           [ISOLATION_LEVELS, ISOLATION_RBS]
         ]
@@ -134,6 +135,19 @@ module SqlcGenRuby
         # State kept on every Mysql2::Client the first time it is used.
         module ConnectionState
           attr_accessor :in_transaction
+
+          # Stays true when a Thread#kill interrupts the query (it skips rescue): see #with_client.
+          def query(...)
+            @query_running = true
+            result = super
+            @query_running = false
+            result
+          rescue ::Exception # rubocop:disable Lint/RescueException
+            @query_running = false
+            raise
+          end
+
+          def query_running? = @query_running == true
         end
       RUBY
 
@@ -202,18 +216,24 @@ module SqlcGenRuby
                 bound&.close
                 begin
                   unless failed
-                    commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-                    begin
-                      client.query(::Thread.current.status == 'aborting' ? rollback : commit)
-                    rescue ::Exception # rubocop:disable Lint/RescueException
-                      # COMMIT did not run: roll back instead of leaving the transaction open (a closed client is
-                      # discarded and the server rolls back)
+                    if ::Thread.current.status == 'aborting' && client.query_running?
+                      # Thread#kill interrupted a query: the client still waits for its result and cannot send
+                      # ROLLBACK. Closing it makes the server roll back; #with_client discards it.
+                      client.close
+                    else
+                      commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
                       begin
-                        client.query('ROLLBACK') if outermost && !client.closed?
-                      rescue ::Mysql2::Error
-                        nil
+                        client.query(::Thread.current.status == 'aborting' ? rollback : commit)
+                      rescue ::Exception # rubocop:disable Lint/RescueException
+                        # COMMIT did not run: roll back instead of leaving the transaction open (a closed client is
+                        # discarded and the server rolls back)
+                        begin
+                          client.query('ROLLBACK') if outermost && !client.closed?
+                        rescue ::Mysql2::Error
+                          nil
+                        end
+                        raise
                       end
-                      raise
                     end
                   end
                 ensure
@@ -237,6 +257,14 @@ module SqlcGenRuby
                 # was interrupted (Async task stopped, Thread#raise) is replaced by the pool
                 @db.discard_current_connection if client.closed? && @db.respond_to?(:discard_current_connection)
                 raise
+              ensure
+                # Thread#kill skips rescue: a query it interrupted leaves the client waiting for a result nobody reads
+                # (every later query raises) and its transaction open. Closing it makes the server roll back once the
+                # statement ends, and the pool replaces it.
+                if ::Thread.current.status == 'aborting' && (client.query_running? || client.closed?)
+                  client.close
+                  @db.discard_current_connection if @db.respond_to?(:discard_current_connection)
+                end
               end
             end
           end

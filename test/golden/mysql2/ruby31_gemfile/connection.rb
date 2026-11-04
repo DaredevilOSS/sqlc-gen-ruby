@@ -6,6 +6,19 @@ module Mysql2Codegen
   # State kept on every Mysql2::Client the first time it is used.
   module ConnectionState
     attr_accessor :in_transaction
+
+    # Stays true when a Thread#kill interrupts the query (it skips rescue): see #with_client.
+    def query(...)
+      @query_running = true
+      result = super
+      @query_running = false
+      result
+    rescue ::Exception # rubocop:disable Lint/RescueException
+      @query_running = false
+      raise
+    end
+
+    def query_running? = @query_running == true
   end
 
   # Raised when the query object yielded by #transaction is used after the transaction ended.
