@@ -6,6 +6,7 @@ require 'stringio'
 require 'async'
 require 'async/barrier'
 require 'bigdecimal'
+require 'date'
 require 'ipaddr'
 require 'securerandom'
 require 'timeout'
@@ -755,13 +756,19 @@ class TestPg < Minitest::Test
     assert_equal expected, @query_sql.list_authors.map(&:name).sort
   end
 
+  # Also with Ruby 3.1's bundled timeout 0.2.0 (CI variant bundled-timeout), whose Timeout leaves the block with throw:
+  # the cancelled query must not replace Timeout::Error with PG::InFailedSqlTransaction.
   def test_transaction_timeout_rolls_back_and_keeps_connection_usable
-    [:database, :ruby_sleep].each do |kind|
+    %i[database ruby_sleep nested_database].each do |kind|
       assert_raises(Timeout::Error) do
         Timeout.timeout(0.05) do
           @query_sql.transaction do |tx|
             tx.create_author_return_id(name: kind.to_s, bio: nil)
-            kind == :database ? tx.pause_query(seconds: 0.2) : sleep(0.2)
+            case kind
+            when :database then tx.pause_query(seconds: 0.2)
+            when :ruby_sleep then sleep(0.2)
+            else tx.transaction { |inner| inner.pause_query(seconds: 0.2) }
+            end
           end
         end
       end
@@ -1280,6 +1287,24 @@ class TestPg < Minitest::Test
   ensure
     admin&.exec('ALTER TABLE authors ALTER COLUMN name TYPE text')
     admin&.close
+  end
+
+  # A DateTime is written as the instant it stands for (the pg gem alone would encode it as a Date: midnight).
+  def test_datetime_parameters_keep_their_instant
+    saved = ENV.fetch('TZ', nil)
+    ENV['TZ'] = 'XYZ-3' # UTC+3, also on Windows
+    [::DateTime.new(2024, 1, 1, 10, 0, Rational(61, 2), '+02:00'), ::DateTime.new(2024, 7, 1, 23, 30, 0, '-07:00')].each do |datetime|
+      @query_sql.insert_remaining_types(
+        c_hstore: nil, c_ltree: nil, c_regclass: nil, c_cidr: nil, c_macaddr: nil, c_interval: nil, c_varbit: nil,
+        c_xml: nil, c_numeric: nil, c_bigint: nil, c_timestamp: datetime, c_timestamptz: datetime, c_text_matrix: nil
+      )
+      row = @query_sql.get_remaining_types
+      assert_equal datetime.to_time, row.c_timestamp, datetime.inspect
+      assert_equal datetime.to_time, row.c_timestamptz, datetime.inspect
+      @query_sql.truncate_remaining_types
+    end
+  ensure
+    saved ? ENV['TZ'] = saved : ENV.delete('TZ')
   end
 
   # A Time with any UTC offset keeps its instant in a `timestamp` (without time zone) column, read back as a local

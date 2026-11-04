@@ -28,6 +28,12 @@ module SqlcGenRuby
           "rescued || ::Thread.current.status == 'aborting' ? rollback : commit",
           "rescued || ::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit"
         )
+        # an old Timeout leaves the block with throw after its query was cancelled: keep the throw (Timeout::Error)
+        if ruby_version.legacy_timeout?
+          raise 'transaction template without the InFailedSqlTransaction raise' unless transaction.include?(IN_FAILED_RAISE)
+
+          transaction = transaction.sub(IN_FAILED_RAISE, "#{IN_FAILED_RAISE} && (completed || !timeout_exits_with_throw?)")
+        end
         [
           [NOT_FOUND, "class NotFound < ::StandardError\nend"],
           [CONNECT, 'def self.connect: (::Hash[untyped, untyped] pg_params, ?logger: untyped, **untyped pool_options) -> instance'],
@@ -127,9 +133,14 @@ module SqlcGenRuby
         RUBY
         'encode_timestamp' => [<<~'RUBY'.chomp, 'def encode_timestamp: (untyped value) -> untyped'],
           # timestamp (without time zone) values are read back as local times and PostgreSQL ignores the UTC offset of
-          # a timestamp literal: a Time is written in the local zone, so it keeps its instant whatever its offset.
+          # a timestamp literal: a Time is written in the local zone, so it keeps its instant whatever its offset. A
+          # DateTime is converted too (the pg gem would encode it as a Date, dropping its time).
           def encode_timestamp(value)
-            value.is_a?(::Time) ? value.getlocal : value
+            case value
+            when ::Time then value.getlocal
+            when ::DateTime then value.to_time.getlocal
+            else value
+            end
           end
         RUBY
         'encode_float' => [<<~'RUBY'.chomp, 'def encode_float: (untyped value) -> untyped'],
@@ -293,6 +304,8 @@ module SqlcGenRuby
           new(::ConnectionPool.new(**pool_options) { ::PG.connect(**pg_params) }, logger: logger)
         end
       RUBY
+
+      IN_FAILED_RAISE = "raise ::PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && ::Thread.current.status != 'aborting'"
 
       TRANSACTION = <<~'RUBY'.chomp
         # Runs the block in a transaction on one connection and returns its value: COMMIT when the block returns
@@ -475,7 +488,7 @@ module SqlcGenRuby
         if column.is_array
           ['encode_array', ({ 'bytea' => 'bytea', 'json' => 'json', 'jsonb' => 'json' }[type])]
         elsif type == 'bytea' then ['encode_bytea']
-        elsif type == 'timestamp' then ['encode_timestamp']
+        elsif %w[timestamp timestamptz].include?(type) then ['encode_timestamp']
         elsif %w[json jsonb].include?(type) then ['encode_json']
         elsif column_type(column, fallback: nil) == 'Float' then ['encode_float']
         end
