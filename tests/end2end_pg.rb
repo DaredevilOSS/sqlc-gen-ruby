@@ -1181,11 +1181,16 @@ class TestPg < Minitest::Test
       assert_equal ['kept'], query_sql.list_authors.map(&:name), sql
     end
     # inside a transaction the failed statement has already aborted it: it rolls back, later calls prepare again
-    assert_raises(PG::InvalidSqlStatementName) do
+    deallocated = lambda do
       query_sql.transaction do |tx|
         client.exec('DEALLOCATE ALL')
-        tx.list_authors
+        tx.list_authors.map(&:name)
       end
+    end
+    if ENV['PREPARED_STATEMENTS'] == 'false'
+      assert_equal ['kept'], deallocated.call
+    else
+      assert_raises(PG::InvalidSqlStatementName, &deallocated)
     end
     assert_equal ['kept'], query_sql.list_authors.map(&:name)
   ensure
