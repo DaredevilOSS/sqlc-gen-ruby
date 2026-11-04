@@ -30,47 +30,6 @@ module Mysql2Codegen
   class Author < ::Data.define(:id, :name, :bio)
   end
 
-  class NodeMysqlType < ::Data.define(
-    :c_bit,
-    :c_tinyint,
-    :c_bool,
-    :c_boolean,
-    :c_smallint,
-    :c_mediumint,
-    :c_int,
-    :c_integer,
-    :c_bigint,
-    :c_serial,
-    :c_decimal,
-    :c_dec,
-    :c_numeric,
-    :c_fixed,
-    :c_float,
-    :c_double,
-    :c_double_precision,
-    :c_date,
-    :c_time,
-    :c_datetime,
-    :c_timestamp,
-    :c_year,
-    :c_char,
-    :c_nchar,
-    :c_national_char,
-    :c_varchar,
-    :c_binary,
-    :c_varbinary,
-    :c_tinyblob,
-    :c_tinytext,
-    :c_blob,
-    :c_text,
-    :c_mediumblob,
-    :c_mediumtext,
-    :c_longblob,
-    :c_longtext,
-    :c_json
-  )
-  end
-
   class Book < ::Data.define(:id, :name, :author_id, :description)
   end
 
@@ -82,40 +41,13 @@ module Mysql2Codegen
     :order,
     :note,
     :payload,
-    :step
-  )
-  end
-
-  class CopyType < ::Data.define(
-    :id,
+    :step,
     :code,
     :doc,
     :flags,
     :amount
   )
   end
-
-  # rubocop:disable Naming/VariableNumber
-  class MysqlBindingValu < ::Data.define(
-    :id,
-    :text_value,
-    :blob_value,
-    :signed_value,
-    :unsigned_value,
-    :decimal_value,
-    :float_value,
-    :date_value,
-    :datetime_value,
-    :datetime_2,
-    :bool_value,
-    :nullable_value,
-    :bit_value,
-    :year_value,
-    :time_value,
-    :json_unicode
-  )
-  end
-  # rubocop:enable Naming/VariableNumber
 
   class Mixedcasecopy < ::Data.define(:id, :somevalue)
   end
@@ -174,4 +106,69 @@ module Mysql2Codegen
 
   class ConnectionPool < ::Data.define(:id)
   end
+
+  class MysqlNumericType < ::Data.define(
+    :id,
+    :c_bool,
+    :c_boolean,
+    :c_tinyint,
+    :c_smallint,
+    :c_mediumint,
+    :c_int,
+    :c_integer,
+    :c_bigint,
+    :c_bigint_unsigned,
+    :c_serial,
+    :c_decimal,
+    :c_dec,
+    :c_numeric,
+    :c_fixed,
+    :c_decimal_wide,
+    :c_float,
+    :c_double,
+    :c_double_precision
+  )
+  end
+
+  class MysqlStringType < ::Data.define(
+    :id,
+    :c_char,
+    :c_nchar,
+    :c_national_char,
+    :c_varchar,
+    :c_tinytext,
+    :c_text,
+    :c_mediumtext,
+    :c_longtext,
+    :c_json
+  )
+  end
+
+  # rubocop:disable Naming/VariableNumber
+  class MysqlDatetimeType < ::Data.define(
+    :id,
+    :c_date,
+    :c_time,
+    :c_datetime,
+    :c_datetime_6,
+    :c_timestamp,
+    :c_year
+  )
+  end
+  # rubocop:enable Naming/VariableNumber
+
+  # rubocop:disable Naming/VariableNumber
+  class MysqlBinaryType < ::Data.define(
+    :id,
+    :c_bit,
+    :c_bit_16,
+    :c_binary,
+    :c_varbinary,
+    :c_tinyblob,
+    :c_blob,
+    :c_mediumblob,
+    :c_longblob
+  )
+  end
+  # rubocop:enable Naming/VariableNumber
 end

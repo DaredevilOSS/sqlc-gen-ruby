@@ -32,12 +32,13 @@ module PgCodegen
 
   DELETE_AUTHOR_SQL: ::String
 
-  TEST_SQL: ::String
+  INSERT_POSTGRES_NUMERIC_TYPES_SQL: ::String
 
-  class TestRow < ::Struct[untyped]
-    attr_accessor c_bit: ::String?
-    attr_accessor c_smallint: ::Integer?
+  GET_POSTGRES_NUMERIC_TYPES_SQL: ::String
+
+  class GetPostgresNumericTypesRow < ::Struct[untyped]
     attr_accessor c_boolean: bool?
+    attr_accessor c_smallint: ::Integer?
     attr_accessor c_integer: ::Integer?
     attr_accessor c_bigint: ::Integer?
     attr_accessor c_serial: ::Integer?
@@ -45,18 +46,12 @@ module PgCodegen
     attr_accessor c_numeric: ::BigDecimal?
     attr_accessor c_real: ::Float?
     attr_accessor c_double_precision: ::Float?
-    attr_accessor c_date: ::Date?
-    attr_accessor c_time: ::String?
-    attr_accessor c_timestamp: ::Time?
-    attr_accessor c_char: ::String?
-    attr_accessor c_varchar: ::String?
-    attr_accessor c_bytea: ::String?
-    attr_accessor c_text: ::String?
-    attr_accessor c_json: untyped
+    attr_accessor c_money: ::String?
+    attr_accessor c_oid: ::Integer?
+    attr_accessor c_positive: untyped
     def initialize: (
-        c_bit: ::String?,
-        c_smallint: ::Integer?,
         c_boolean: bool?,
+        c_smallint: ::Integer?,
         c_integer: ::Integer?,
         c_bigint: ::Integer?,
         c_serial: ::Integer?,
@@ -64,19 +59,13 @@ module PgCodegen
         c_numeric: ::BigDecimal?,
         c_real: ::Float?,
         c_double_precision: ::Float?,
-        c_date: ::Date?,
-        c_time: ::String?,
-        c_timestamp: ::Time?,
-        c_char: ::String?,
-        c_varchar: ::String?,
-        c_bytea: ::String?,
-        c_text: ::String?,
-        c_json: untyped
+        c_money: ::String?,
+        c_oid: ::Integer?,
+        c_positive: untyped
     ) -> void
     def self.new: (
-        c_bit: ::String?,
-        c_smallint: ::Integer?,
         c_boolean: bool?,
+        c_smallint: ::Integer?,
         c_integer: ::Integer?,
         c_bigint: ::Integer?,
         c_serial: ::Integer?,
@@ -84,31 +73,256 @@ module PgCodegen
         c_numeric: ::BigDecimal?,
         c_real: ::Float?,
         c_double_precision: ::Float?,
-        c_date: ::Date?,
-        c_time: ::String?,
-        c_timestamp: ::Time?,
+        c_money: ::String?,
+        c_oid: ::Integer?,
+        c_positive: untyped
+    ) -> GetPostgresNumericTypesRow
+  end
+
+  INSERT_POSTGRES_STRING_TYPES_SQL: ::String
+
+  GET_POSTGRES_STRING_TYPES_SQL: ::String
+
+  class GetPostgresStringTypesRow < ::Struct[untyped]
+    attr_accessor c_char: ::String?
+    attr_accessor c_varchar: ::String?
+    attr_accessor c_text: ::String?
+    attr_accessor c_not_null: ::String
+    attr_accessor c_xml: ::String?
+    attr_accessor c_tsvector: ::String?
+    attr_accessor c_ltree: ::String?
+    attr_accessor c_hstore: ::String?
+    attr_accessor c_regclass: ::String?
+    def initialize: (
         c_char: ::String?,
         c_varchar: ::String?,
-        c_bytea: ::String?,
         c_text: ::String?,
-        c_json: untyped
-    ) -> TestRow
+        c_not_null: ::String,
+        c_xml: ::String?,
+        c_tsvector: ::String?,
+        c_ltree: ::String?,
+        c_hstore: ::String?,
+        c_regclass: ::String?
+    ) -> void
+    def self.new: (
+        c_char: ::String?,
+        c_varchar: ::String?,
+        c_text: ::String?,
+        c_not_null: ::String,
+        c_xml: ::String?,
+        c_tsvector: ::String?,
+        c_ltree: ::String?,
+        c_hstore: ::String?,
+        c_regclass: ::String?
+    ) -> GetPostgresStringTypesRow
   end
 
-  SET_JSON_ROUND_TRIP_SQL: ::String
+  INSERT_POSTGRES_DATETIME_TYPES_SQL: ::String
 
-  GET_JSON_ROUND_TRIP_SQL: ::String
+  GET_POSTGRES_DATETIME_TYPES_SQL: ::String
 
-  class GetJSONRoundTripRow < ::Struct[untyped]
-    attr_accessor json_value: untyped
-    attr_accessor jsonb_value: untyped
-    def initialize: (  json_value: untyped, jsonb_value: untyped) -> void
-    def self.new: (  json_value: untyped, jsonb_value: untyped) -> GetJSONRoundTripRow
+  class GetPostgresDatetimeTypesRow < ::Struct[untyped]
+    attr_accessor c_date: ::Date?
+    attr_accessor c_time: ::String?
+    attr_accessor c_timetz: ::String?
+    attr_accessor c_timestamp: ::Time?
+    attr_accessor c_timestamptz: ::Time?
+    attr_accessor c_interval: ::String?
+    def initialize: (
+        c_date: ::Date?,
+        c_time: ::String?,
+        c_timetz: ::String?,
+        c_timestamp: ::Time?,
+        c_timestamptz: ::Time?,
+        c_interval: ::String?
+    ) -> void
+    def self.new: (
+        c_date: ::Date?,
+        c_time: ::String?,
+        c_timetz: ::String?,
+        c_timestamp: ::Time?,
+        c_timestamptz: ::Time?,
+        c_interval: ::String?
+    ) -> GetPostgresDatetimeTypesRow
   end
 
-  TOGGLE_JSONB_ROUND_TRIP_SQL: ::String
+  INSERT_POSTGRES_JSON_TYPES_SQL: ::String
 
-  TRUNCATE_JSON_ROUND_TRIPS_SQL: ::String
+  GET_POSTGRES_JSON_TYPES_SQL: ::String
+
+  class GetPostgresJSONTypesRow < ::Struct[untyped]
+    attr_accessor c_json: untyped
+    attr_accessor c_jsonb: untyped
+    def initialize: (  c_json: untyped, c_jsonb: untyped) -> void
+    def self.new: (  c_json: untyped, c_jsonb: untyped) -> GetPostgresJSONTypesRow
+  end
+
+  TOGGLE_POSTGRES_JSONB_TYPE_SQL: ::String
+
+  INSERT_POSTGRES_ARRAY_TYPES_SQL: ::String
+
+  LIST_POSTGRES_ARRAY_TYPES_SQL: ::String
+
+  class ListPostgresArrayTypesRow < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor c_boolean: bool?
+    attr_accessor c_double_precision: ::Float?
+    attr_accessor c_text_array: ::Array[::String]?
+    attr_accessor c_integer_array: ::Array[::Integer]?
+    attr_accessor c_uuid_array: ::Array[::String]?
+    attr_accessor c_bio_type_array: ::Array[::String]?
+    attr_accessor c_bytea_array: ::Array[::String]?
+    attr_accessor c_jsonb_array: ::Array[untyped]?
+    attr_accessor c_numeric_array: ::Array[::BigDecimal]?
+    attr_accessor c_timestamptz_array: ::Array[::Time]?
+    attr_accessor c_integer_matrix: ::Array[::Array[::Integer]]?
+    attr_accessor c_text_matrix: ::Array[::Array[::String]]?
+    def initialize: (
+        id: ::Integer,
+        c_boolean: bool?,
+        c_double_precision: ::Float?,
+        c_text_array: ::Array[::String]?,
+        c_integer_array: ::Array[::Integer]?,
+        c_uuid_array: ::Array[::String]?,
+        c_bio_type_array: ::Array[::String]?,
+        c_bytea_array: ::Array[::String]?,
+        c_jsonb_array: ::Array[untyped]?,
+        c_numeric_array: ::Array[::BigDecimal]?,
+        c_timestamptz_array: ::Array[::Time]?,
+        c_integer_matrix: ::Array[::Array[::Integer]]?,
+        c_text_matrix: ::Array[::Array[::String]]?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        c_boolean: bool?,
+        c_double_precision: ::Float?,
+        c_text_array: ::Array[::String]?,
+        c_integer_array: ::Array[::Integer]?,
+        c_uuid_array: ::Array[::String]?,
+        c_bio_type_array: ::Array[::String]?,
+        c_bytea_array: ::Array[::String]?,
+        c_jsonb_array: ::Array[untyped]?,
+        c_numeric_array: ::Array[::BigDecimal]?,
+        c_timestamptz_array: ::Array[::Time]?,
+        c_integer_matrix: ::Array[::Array[::Integer]]?,
+        c_text_matrix: ::Array[::Array[::String]]?
+    ) -> ListPostgresArrayTypesRow
+  end
+
+  INSERT_POSTGRES_ARRAY_TYPES_BATCH_SQL: ::String
+
+  class InsertPostgresArrayTypesBatchArgs < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor c_boolean: bool?
+    attr_accessor c_double_precision: ::Float?
+    attr_accessor c_bytea_array: ::Array[::String]?
+    attr_accessor c_jsonb_array: ::Array[untyped]?
+    attr_accessor c_integer_array: ::Array[::Integer]?
+    attr_accessor c_numeric_array: ::Array[::BigDecimal]?
+    attr_accessor c_timestamptz_array: ::Array[::Time]?
+    def initialize: (
+        id: ::Integer,
+        c_boolean: bool?,
+        c_double_precision: ::Float?,
+        c_bytea_array: ::Array[::String]?,
+        c_jsonb_array: ::Array[untyped]?,
+        c_integer_array: ::Array[::Integer]?,
+        c_numeric_array: ::Array[::BigDecimal]?,
+        c_timestamptz_array: ::Array[::Time]?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        c_boolean: bool?,
+        c_double_precision: ::Float?,
+        c_bytea_array: ::Array[::String]?,
+        c_jsonb_array: ::Array[untyped]?,
+        c_integer_array: ::Array[::Integer]?,
+        c_numeric_array: ::Array[::BigDecimal]?,
+        c_timestamptz_array: ::Array[::Time]?
+    ) -> InsertPostgresArrayTypesBatchArgs
+  end
+
+  class CopyPostgresArrayTypesArgs < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor c_boolean: bool?
+    attr_accessor c_double_precision: ::Float?
+    attr_accessor c_bytea_array: ::Array[::String]?
+    attr_accessor c_jsonb_array: ::Array[untyped]?
+    attr_accessor c_integer_array: ::Array[::Integer]?
+    attr_accessor c_numeric_array: ::Array[::BigDecimal]?
+    attr_accessor c_timestamptz_array: ::Array[::Time]?
+    def initialize: (
+        id: ::Integer,
+        c_boolean: bool?,
+        c_double_precision: ::Float?,
+        c_bytea_array: ::Array[::String]?,
+        c_jsonb_array: ::Array[untyped]?,
+        c_integer_array: ::Array[::Integer]?,
+        c_numeric_array: ::Array[::BigDecimal]?,
+        c_timestamptz_array: ::Array[::Time]?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        c_boolean: bool?,
+        c_double_precision: ::Float?,
+        c_bytea_array: ::Array[::String]?,
+        c_jsonb_array: ::Array[untyped]?,
+        c_integer_array: ::Array[::Integer]?,
+        c_numeric_array: ::Array[::BigDecimal]?,
+        c_timestamptz_array: ::Array[::Time]?
+    ) -> CopyPostgresArrayTypesArgs
+  end
+
+  COUNT_POSTGRES_ARRAY_TYPES_ABOVE_SQL: ::String
+
+  class CountPostgresArrayTypesAboveRow < ::Struct[untyped]
+    attr_accessor count_: ::Integer
+    def initialize: (  count_: ::Integer) -> void
+    def self.new: (  count_: ::Integer) -> CountPostgresArrayTypesAboveRow
+  end
+
+  INSERT_POSTGRES_SPECIAL_TYPES_SQL: ::String
+
+  GET_POSTGRES_SPECIAL_TYPES_SQL: ::String
+
+  class GetPostgresSpecialTypesRow < ::Struct[untyped]
+    attr_accessor c_bytea: ::String?
+    attr_accessor c_bit: ::String?
+    attr_accessor c_varbit: ::String?
+    attr_accessor c_uuid: ::String?
+    attr_accessor c_inet: ::IPAddr?
+    attr_accessor c_cidr: ::IPAddr?
+    attr_accessor c_macaddr: ::String?
+    attr_accessor c_point: ::String?
+    attr_accessor c_int4range: ::String?
+    attr_accessor c_dimensions: ::String?
+    def initialize: (
+        c_bytea: ::String?,
+        c_bit: ::String?,
+        c_varbit: ::String?,
+        c_uuid: ::String?,
+        c_inet: ::IPAddr?,
+        c_cidr: ::IPAddr?,
+        c_macaddr: ::String?,
+        c_point: ::String?,
+        c_int4range: ::String?,
+        c_dimensions: ::String?
+    ) -> void
+    def self.new: (
+        c_bytea: ::String?,
+        c_bit: ::String?,
+        c_varbit: ::String?,
+        c_uuid: ::String?,
+        c_inet: ::IPAddr?,
+        c_cidr: ::IPAddr?,
+        c_macaddr: ::String?,
+        c_point: ::String?,
+        c_int4range: ::String?,
+        c_dimensions: ::String?
+    ) -> GetPostgresSpecialTypesRow
+  end
+
+  TRUNCATE_TEST_TABLES_SQL: ::String
 
   PAUSE_QUERY_SQL: ::String
 
@@ -197,8 +411,6 @@ module PgCodegen
 
   CREATE_DEFERRED_BOOK_SQL: ::String
 
-  TRUNCATE_DEFERRED_BOOKS_SQL: ::String
-
   LIST_ALL_AUTHORS_BOOKS_SQL: ::String
 
   class ListAllAuthorsBooksRow < ::Struct[untyped]
@@ -240,111 +452,6 @@ module PgCodegen
     def self.new: (  author_name: ::String, name: ::String, bio_type: ::String?) -> GetFirstExtendedBioByTypeRow
   end
 
-  TRUNCATE_EXTENDED_BIOS_SQL: ::String
-
-  INSERT_EXTRA_TYPES_SQL: ::String
-
-  GET_EXTRA_TYPES_SQL: ::String
-
-  class GetExtraTypesRow < ::Struct[untyped]
-    attr_accessor c_uuid: ::String?
-    attr_accessor c_jsonb: untyped
-    attr_accessor c_text_array: ::Array[::String]?
-    attr_accessor c_integer_array: ::Array[::Integer]?
-    attr_accessor c_timestamptz: ::Time?
-    attr_accessor c_inet: ::IPAddr?
-    attr_accessor c_money: ::String?
-    attr_accessor c_not_null: ::String
-    def initialize: (
-        c_uuid: ::String?,
-        c_jsonb: untyped,
-        c_text_array: ::Array[::String]?,
-        c_integer_array: ::Array[::Integer]?,
-        c_timestamptz: ::Time?,
-        c_inet: ::IPAddr?,
-        c_money: ::String?,
-        c_not_null: ::String
-    ) -> void
-    def self.new: (
-        c_uuid: ::String?,
-        c_jsonb: untyped,
-        c_text_array: ::Array[::String]?,
-        c_integer_array: ::Array[::Integer]?,
-        c_timestamptz: ::Time?,
-        c_inet: ::IPAddr?,
-        c_money: ::String?,
-        c_not_null: ::String
-    ) -> GetExtraTypesRow
-  end
-
-  TRUNCATE_EXTRA_TYPES_SQL: ::String
-
-  INSERT_REMAINING_TYPES_SQL: ::String
-
-  GET_REMAINING_TYPES_SQL: ::String
-
-  class GetRemainingTypesRow < ::Struct[untyped]
-    attr_accessor c_hstore: ::String?
-    attr_accessor c_ltree: ::String?
-    attr_accessor c_regclass: ::String?
-    attr_accessor c_cidr: ::IPAddr?
-    attr_accessor c_macaddr: ::String?
-    attr_accessor c_interval: ::String?
-    attr_accessor c_varbit: ::String?
-    attr_accessor c_xml: ::String?
-    attr_accessor c_numeric: ::BigDecimal?
-    attr_accessor c_bigint: ::Integer?
-    attr_accessor c_timestamp: ::Time?
-    attr_accessor c_timestamptz: ::Time?
-    attr_accessor c_text_matrix: ::Array[::Array[::String]]?
-    def initialize: (
-        c_hstore: ::String?,
-        c_ltree: ::String?,
-        c_regclass: ::String?,
-        c_cidr: ::IPAddr?,
-        c_macaddr: ::String?,
-        c_interval: ::String?,
-        c_varbit: ::String?,
-        c_xml: ::String?,
-        c_numeric: ::BigDecimal?,
-        c_bigint: ::Integer?,
-        c_timestamp: ::Time?,
-        c_timestamptz: ::Time?,
-        c_text_matrix: ::Array[::Array[::String]]?
-    ) -> void
-    def self.new: (
-        c_hstore: ::String?,
-        c_ltree: ::String?,
-        c_regclass: ::String?,
-        c_cidr: ::IPAddr?,
-        c_macaddr: ::String?,
-        c_interval: ::String?,
-        c_varbit: ::String?,
-        c_xml: ::String?,
-        c_numeric: ::BigDecimal?,
-        c_bigint: ::Integer?,
-        c_timestamp: ::Time?,
-        c_timestamptz: ::Time?,
-        c_text_matrix: ::Array[::Array[::String]]?
-    ) -> GetRemainingTypesRow
-  end
-
-  TRUNCATE_REMAINING_TYPES_SQL: ::String
-
-  INSERT_ARRAY_TYPES_SQL: ::String
-
-  GET_ARRAY_TYPES_SQL: ::String
-
-  class GetArrayTypesRow < ::Struct[untyped]
-    attr_accessor c_uuid_array: ::Array[::String]?
-    attr_accessor c_bio_type_array: ::Array[::String]?
-    attr_accessor c_integer_matrix: ::Array[::Array[::Integer]]?
-    def initialize: (  c_uuid_array: ::Array[::String]?, c_bio_type_array: ::Array[::String]?, c_integer_matrix: ::Array[::Array[::Integer]]?) -> void
-    def self.new: (  c_uuid_array: ::Array[::String]?, c_bio_type_array: ::Array[::String]?, c_integer_matrix: ::Array[::Array[::Integer]]?) -> GetArrayTypesRow
-  end
-
-  TRUNCATE_ARRAY_TYPES_SQL: ::String
-
   LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL: ::String
 
   class ListAuthorsWithOptionalBookRow < ::Struct[untyped]
@@ -363,40 +470,6 @@ module PgCodegen
     def initialize: (  id: ::Integer, name: ::String, bio: ::String?) -> void
     def self.new: (  id: ::Integer, name: ::String, bio: ::String?) -> ListAuthorsBetweenIdsRow
   end
-
-  INSERT_SPECIAL_TYPES_SQL: ::String
-
-  GET_SPECIAL_TYPES_SQL: ::String
-
-  class GetSpecialTypesRow < ::Struct[untyped]
-    attr_accessor c_timetz: ::String?
-    attr_accessor c_tsvector: ::String?
-    attr_accessor c_point: ::String?
-    attr_accessor c_int4range: ::String?
-    attr_accessor c_oid: ::Integer?
-    attr_accessor c_dimensions: ::String?
-    attr_accessor c_positive: untyped
-    def initialize: (
-        c_timetz: ::String?,
-        c_tsvector: ::String?,
-        c_point: ::String?,
-        c_int4range: ::String?,
-        c_oid: ::Integer?,
-        c_dimensions: ::String?,
-        c_positive: untyped
-    ) -> void
-    def self.new: (
-        c_timetz: ::String?,
-        c_tsvector: ::String?,
-        c_point: ::String?,
-        c_int4range: ::String?,
-        c_oid: ::Integer?,
-        c_dimensions: ::String?,
-        c_positive: untyped
-    ) -> GetSpecialTypesRow
-  end
-
-  TRUNCATE_SPECIAL_TYPES_SQL: ::String
 
   CREATE_AUTHOR_RESULT_SQL: ::String
 
@@ -537,115 +610,6 @@ module PgCodegen
     def self.new: (  step: ::String?) -> SetRegressionStepRow
   end
 
-  TRUNCATE_REGRESSIONS_SQL: ::String
-
-  CREATE_BATCH_TYPES_BATCH_SQL: ::String
-
-  class CreateBatchTypesBatchArgs < ::Struct[untyped]
-    attr_accessor id: ::Integer
-    attr_accessor ok: bool?
-    attr_accessor ratio: ::Float?
-    attr_accessor blobs: ::Array[::String]?
-    attr_accessor docs: ::Array[untyped]?
-    attr_accessor counts: ::Array[::Integer]?
-    attr_accessor amounts: ::Array[::BigDecimal]?
-    attr_accessor stamps: ::Array[::Time]?
-    def initialize: (
-        id: ::Integer,
-        ok: bool?,
-        ratio: ::Float?,
-        blobs: ::Array[::String]?,
-        docs: ::Array[untyped]?,
-        counts: ::Array[::Integer]?,
-        amounts: ::Array[::BigDecimal]?,
-        stamps: ::Array[::Time]?
-    ) -> void
-    def self.new: (
-        id: ::Integer,
-        ok: bool?,
-        ratio: ::Float?,
-        blobs: ::Array[::String]?,
-        docs: ::Array[untyped]?,
-        counts: ::Array[::Integer]?,
-        amounts: ::Array[::BigDecimal]?,
-        stamps: ::Array[::Time]?
-    ) -> CreateBatchTypesBatchArgs
-  end
-
-  class CopyBatchTypesArgs < ::Struct[untyped]
-    attr_accessor id: ::Integer
-    attr_accessor ok: bool?
-    attr_accessor ratio: ::Float?
-    attr_accessor blobs: ::Array[::String]?
-    attr_accessor docs: ::Array[untyped]?
-    attr_accessor counts: ::Array[::Integer]?
-    attr_accessor amounts: ::Array[::BigDecimal]?
-    attr_accessor stamps: ::Array[::Time]?
-    def initialize: (
-        id: ::Integer,
-        ok: bool?,
-        ratio: ::Float?,
-        blobs: ::Array[::String]?,
-        docs: ::Array[untyped]?,
-        counts: ::Array[::Integer]?,
-        amounts: ::Array[::BigDecimal]?,
-        stamps: ::Array[::Time]?
-    ) -> void
-    def self.new: (
-        id: ::Integer,
-        ok: bool?,
-        ratio: ::Float?,
-        blobs: ::Array[::String]?,
-        docs: ::Array[untyped]?,
-        counts: ::Array[::Integer]?,
-        amounts: ::Array[::BigDecimal]?,
-        stamps: ::Array[::Time]?
-    ) -> CopyBatchTypesArgs
-  end
-
-  LIST_BATCH_TYPES_SQL: ::String
-
-  class ListBatchTypesRow < ::Struct[untyped]
-    attr_accessor id: ::Integer
-    attr_accessor ok: bool?
-    attr_accessor ratio: ::Float?
-    attr_accessor blobs: ::Array[::String]?
-    attr_accessor docs: ::Array[untyped]?
-    attr_accessor counts: ::Array[::Integer]?
-    attr_accessor amounts: ::Array[::BigDecimal]?
-    attr_accessor stamps: ::Array[::Time]?
-    def initialize: (
-        id: ::Integer,
-        ok: bool?,
-        ratio: ::Float?,
-        blobs: ::Array[::String]?,
-        docs: ::Array[untyped]?,
-        counts: ::Array[::Integer]?,
-        amounts: ::Array[::BigDecimal]?,
-        stamps: ::Array[::Time]?
-    ) -> void
-    def self.new: (
-        id: ::Integer,
-        ok: bool?,
-        ratio: ::Float?,
-        blobs: ::Array[::String]?,
-        docs: ::Array[untyped]?,
-        counts: ::Array[::Integer]?,
-        amounts: ::Array[::BigDecimal]?,
-        stamps: ::Array[::Time]?
-    ) -> ListBatchTypesRow
-  end
-
-  COUNT_BATCH_TYPES_ABOVE_SQL: ::String
-
-  class CountBatchTypesAboveRow < ::Struct[untyped]
-    attr_accessor count_: ::Integer
-    def initialize: (  count_: ::Integer) -> void
-    def self.new: (  count_: ::Integer) -> CountBatchTypesAboveRow
-  end
-
-  TRUNCATE_BATCH_TYPES_SQL: ::String
-
   INSERT_NAME_CASE_SQL: ::String
 
   GET_NAME_CASE_SQL: ::String
@@ -720,8 +684,6 @@ module PgCodegen
     ) -> GetHTTPServerRow
   end
 
-  TRUNCATE_NAME_CASES_SQL: ::String
-
   class CopyMixedCaseCopiesArgs < ::Struct[untyped]
     attr_accessor id: ::Integer
     attr_accessor some_value: ::String?
@@ -737,8 +699,6 @@ module PgCodegen
     def initialize: (  Id: ::Integer, SomeValue: ::String?) -> void
     def self.new: (  Id: ::Integer, SomeValue: ::String?) -> ListMixedCaseCopiesRow
   end
-
-  TRUNCATE_MIXED_CASE_COPIES_SQL: ::String
 
   GET_UNNAMED_COLUMNS_SQL: ::String
 
@@ -860,19 +820,51 @@ module PgCodegen
 
     def delete_author: (id: ::Integer) -> void
 
-    def test: -> TestRow?
+    def insert_postgres_numeric_types: (c_boolean: bool?, c_smallint: ::Integer?, c_integer: ::Integer?, c_bigint: ::Integer?, c_decimal: ::BigDecimal?, c_numeric: ::BigDecimal?, c_real: ::Float?, c_double_precision: ::Float?, c_money: ::String?, c_oid: ::Integer?, c_positive: untyped) -> void
 
-    def test!: -> TestRow
+    def get_postgres_numeric_types: -> GetPostgresNumericTypesRow?
 
-    def set_json_round_trip: (id: ::Integer, json_value: untyped, jsonb_value: untyped) -> void
+    def get_postgres_numeric_types!: -> GetPostgresNumericTypesRow
 
-    def get_json_round_trip: (id: ::Integer) -> GetJSONRoundTripRow?
+    def insert_postgres_string_types: (c_char: ::String?, c_varchar: ::String?, c_text: ::String?, c_not_null: ::String, c_xml: ::String?, c_tsvector: ::String?, c_ltree: ::String?, c_hstore: ::String?, c_regclass: ::String?) -> void
 
-    def get_json_round_trip!: (id: ::Integer) -> GetJSONRoundTripRow
+    def get_postgres_string_types: -> GetPostgresStringTypesRow?
 
-    def toggle_jsonb_round_trip: (id: ::Integer) -> void
+    def get_postgres_string_types!: -> GetPostgresStringTypesRow
 
-    def truncate_json_round_trips: -> void
+    def insert_postgres_datetime_types: (c_date: ::Date?, c_time: ::String?, c_timetz: ::String?, c_timestamp: ::Time?, c_timestamptz: ::Time?, c_interval: ::String?) -> void
+
+    def get_postgres_datetime_types: -> GetPostgresDatetimeTypesRow?
+
+    def get_postgres_datetime_types!: -> GetPostgresDatetimeTypesRow
+
+    def insert_postgres_json_types: (id: ::Integer, c_json: untyped, c_jsonb: untyped) -> void
+
+    def get_postgres_json_types: (id: ::Integer) -> GetPostgresJSONTypesRow?
+
+    def get_postgres_json_types!: (id: ::Integer) -> GetPostgresJSONTypesRow
+
+    def toggle_postgres_jsonb_type: (id: ::Integer) -> void
+
+    def insert_postgres_array_types: (id: ::Integer, c_boolean: bool?, c_double_precision: ::Float?, c_text_array: ::Array[::String]?, c_integer_array: ::Array[::Integer]?, c_uuid_array: ::Array[::String]?, c_bio_type_array: ::Array[::String]?, c_bytea_array: ::Array[::String]?, c_jsonb_array: ::Array[untyped]?, c_numeric_array: ::Array[::BigDecimal]?, c_timestamptz_array: ::Array[::Time]?, c_integer_matrix: ::Array[::Array[::Integer]]?, c_text_matrix: ::Array[::Array[::String]]?) -> void
+
+    def list_postgres_array_types: -> ::Array[ListPostgresArrayTypesRow]
+
+    def insert_postgres_array_types_batch: (::Array[InsertPostgresArrayTypesBatchArgs] rows) -> void
+
+    def copy_postgres_array_types: (::Array[CopyPostgresArrayTypesArgs] rows) -> void
+
+    def count_postgres_array_types_above: (min_id: ::Integer) -> CountPostgresArrayTypesAboveRow?
+
+    def count_postgres_array_types_above!: (min_id: ::Integer) -> CountPostgresArrayTypesAboveRow
+
+    def insert_postgres_special_types: (c_bytea: ::String?, c_bit: ::String?, c_varbit: ::String?, c_uuid: ::String?, c_inet: ::IPAddr?, c_cidr: ::IPAddr?, c_macaddr: ::String?, c_point: ::String?, c_int4range: ::String?, c_dimensions: ::String?) -> void
+
+    def get_postgres_special_types: -> GetPostgresSpecialTypesRow?
+
+    def get_postgres_special_types!: -> GetPostgresSpecialTypesRow
+
+    def truncate_test_tables: -> void
 
     def pause_query: (seconds: ::Float) -> void
 
@@ -898,8 +890,6 @@ module PgCodegen
 
     def create_deferred_book: (author_id: ::Integer) -> void
 
-    def truncate_deferred_books: -> void
-
     def list_all_authors_books: -> ::Array[ListAllAuthorsBooksRow]
 
     def get_duplicate_authors: -> ::Array[GetDuplicateAuthorsRow]
@@ -912,43 +902,9 @@ module PgCodegen
 
     def get_first_extended_bio_by_type!: (bio_type: ::String?) -> GetFirstExtendedBioByTypeRow
 
-    def truncate_extended_bios: -> void
-
-    def insert_extra_types: (c_uuid: ::String?, c_jsonb: untyped, c_text_array: ::Array[::String]?, c_integer_array: ::Array[::Integer]?, c_timestamptz: ::Time?, c_inet: ::IPAddr?, c_money: ::String?, c_not_null: ::String) -> void
-
-    def get_extra_types: -> GetExtraTypesRow?
-
-    def get_extra_types!: -> GetExtraTypesRow
-
-    def truncate_extra_types: -> void
-
-    def insert_remaining_types: (c_hstore: ::String?, c_ltree: ::String?, c_regclass: ::String?, c_cidr: ::IPAddr?, c_macaddr: ::String?, c_interval: ::String?, c_varbit: ::String?, c_xml: ::String?, c_numeric: ::BigDecimal?, c_bigint: ::Integer?, c_timestamp: ::Time?, c_timestamptz: ::Time?, c_text_matrix: ::Array[::Array[::String]]?) -> void
-
-    def get_remaining_types: -> GetRemainingTypesRow?
-
-    def get_remaining_types!: -> GetRemainingTypesRow
-
-    def truncate_remaining_types: -> void
-
-    def insert_array_types: (c_uuid_array: ::Array[::String]?, c_bio_type_array: ::Array[::String]?, c_integer_matrix: ::Array[::Array[::Integer]]?) -> void
-
-    def get_array_types: -> GetArrayTypesRow?
-
-    def get_array_types!: -> GetArrayTypesRow
-
-    def truncate_array_types: -> void
-
     def list_authors_with_optional_book: -> ::Array[ListAuthorsWithOptionalBookRow]
 
     def list_authors_between_ids: (id: ::Integer, id_2: ::Integer) -> ::Array[ListAuthorsBetweenIdsRow]
-
-    def insert_special_types: (c_timetz: ::String?, c_tsvector: ::String?, c_point: ::String?, c_int4range: ::String?, c_oid: ::Integer?, c_dimensions: ::String?, c_positive: untyped) -> void
-
-    def get_special_types: -> GetSpecialTypesRow?
-
-    def get_special_types!: -> GetSpecialTypesRow
-
-    def truncate_special_types: -> void
 
     def create_author_result: (name: ::String, bio: ::String?) -> ExecResult
 
@@ -974,20 +930,6 @@ module PgCodegen
 
     def set_regression_step!: (id: ::Integer, step: ::String?) -> SetRegressionStepRow
 
-    def truncate_regressions: -> void
-
-    def create_batch_types_batch: (::Array[CreateBatchTypesBatchArgs] rows) -> void
-
-    def copy_batch_types: (::Array[CopyBatchTypesArgs] rows) -> void
-
-    def list_batch_types: -> ::Array[ListBatchTypesRow]
-
-    def count_batch_types_above: (min_id: ::Integer) -> CountBatchTypesAboveRow?
-
-    def count_batch_types_above!: (min_id: ::Integer) -> CountBatchTypesAboveRow
-
-    def truncate_batch_types: -> void
-
     def insert_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, camel_case: ::String, http_server: ::String, initialize: ::String) -> void
 
     def get_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, http_server: ::String, camel_case: ::String, initialize: ::String) -> GetNameCaseRow?
@@ -998,13 +940,9 @@ module PgCodegen
 
     def get_http_server!: (id: ::Integer) -> GetHTTPServerRow
 
-    def truncate_name_cases: -> void
-
     def copy_mixed_case_copies: (::Array[CopyMixedCaseCopiesArgs] rows) -> void
 
     def list_mixed_case_copies: -> ::Array[ListMixedCaseCopiesRow]
-
-    def truncate_mixed_case_copies: -> void
 
     def get_unnamed_columns: -> GetUnnamedColumnsRow?
 

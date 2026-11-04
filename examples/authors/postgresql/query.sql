@@ -19,23 +19,80 @@ RETURNING *;
 DELETE FROM authors
 WHERE id = $1;
 
--- name: Test :one
-SELECT * FROM node_postgres_types
-LIMIT 1;
+-- name: InsertPostgresNumericTypes :exec
+INSERT INTO postgres_numeric_types (
+  c_boolean, c_smallint, c_integer, c_bigint, c_decimal, c_numeric, c_real, c_double_precision, c_money, c_oid, c_positive
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+);
 
--- name: SetJSONRoundTrip :exec
-INSERT INTO json_round_trips (id, json_value, jsonb_value) VALUES ($1, $2, $3);
+-- name: GetPostgresNumericTypes :one
+SELECT * FROM postgres_numeric_types LIMIT 1;
 
--- name: GetJSONRoundTrip :one
-SELECT json_value, jsonb_value FROM json_round_trips WHERE id = $1;
+-- name: InsertPostgresStringTypes :exec
+INSERT INTO postgres_string_types (
+  c_char, c_varchar, c_text, c_not_null, c_xml, c_tsvector, c_ltree, c_hstore, c_regclass
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9
+);
 
--- name: ToggleJSONBRoundTrip :exec
-UPDATE json_round_trips
-SET jsonb_value = to_jsonb(NOT (jsonb_value #>> '{}')::boolean)
+-- name: GetPostgresStringTypes :one
+SELECT * FROM postgres_string_types LIMIT 1;
+
+-- name: InsertPostgresDatetimeTypes :exec
+INSERT INTO postgres_datetime_types (
+  c_date, c_time, c_timetz, c_timestamp, c_timestamptz, c_interval
+) VALUES (
+  $1, $2, $3, $4, $5, $6
+);
+
+-- name: GetPostgresDatetimeTypes :one
+SELECT * FROM postgres_datetime_types LIMIT 1;
+
+-- name: InsertPostgresJSONTypes :exec
+INSERT INTO postgres_json_types (id, c_json, c_jsonb) VALUES ($1, $2, $3);
+
+-- name: GetPostgresJSONTypes :one
+SELECT c_json, c_jsonb FROM postgres_json_types WHERE id = $1;
+
+-- name: TogglePostgresJSONBType :exec
+UPDATE postgres_json_types
+SET c_jsonb = to_jsonb(NOT (c_jsonb #>> '{}')::boolean)
 WHERE id = $1;
 
--- name: TruncateJSONRoundTrips :exec
-TRUNCATE TABLE json_round_trips;
+-- name: InsertPostgresArrayTypes :exec
+INSERT INTO postgres_array_types (
+  id, c_boolean, c_double_precision, c_text_array, c_integer_array, c_uuid_array, c_bio_type_array, c_bytea_array, c_jsonb_array, c_numeric_array, c_timestamptz_array, c_integer_matrix, c_text_matrix
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+);
+
+-- name: ListPostgresArrayTypes :many
+SELECT * FROM postgres_array_types ORDER BY id;
+
+-- name: InsertPostgresArrayTypesBatch :batchexec
+INSERT INTO postgres_array_types (id, c_boolean, c_double_precision, c_bytea_array, c_jsonb_array, c_integer_array, c_numeric_array, c_timestamptz_array) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+
+-- name: CopyPostgresArrayTypes :copyfrom
+INSERT INTO postgres_array_types (id, c_boolean, c_double_precision, c_bytea_array, c_jsonb_array, c_integer_array, c_numeric_array, c_timestamptz_array) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+
+-- name: CountPostgresArrayTypesAbove :one
+SELECT count(*) FROM postgres_array_types WHERE id > sqlc.arg(MIN_ID);
+
+-- name: InsertPostgresSpecialTypes :exec
+INSERT INTO postgres_special_types (
+  c_bytea, c_bit, c_varbit, c_uuid, c_inet, c_cidr, c_macaddr, c_point, c_int4range, c_dimensions
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+);
+
+-- name: GetPostgresSpecialTypes :one
+SELECT * FROM postgres_special_types LIMIT 1;
+
+-- name: TruncateTestTables :exec
+TRUNCATE TABLE
+  postgres_numeric_types, postgres_string_types, postgres_datetime_types, postgres_json_types, postgres_array_types,
+  postgres_special_types, extended.bios, regressions, name_cases, "MixedCaseCopies", deferred_books;
 
 -- name: PauseQuery :exec
 SELECT pg_sleep(sqlc.arg(seconds)::double precision);
@@ -86,9 +143,6 @@ INSERT INTO books (name, author_id) VALUES ($1, $2) RETURNING id;
 -- name: CreateDeferredBook :exec
 INSERT INTO deferred_books (author_id) VALUES ($1);
 
--- name: TruncateDeferredBooks :exec
-TRUNCATE TABLE deferred_books;
-
 -- name: ListAllAuthorsBooks :many
 SELECT
     sqlc.embed(authors),
@@ -118,42 +172,6 @@ INSERT INTO extended.bios (author_name, name, bio_type) VALUES ($1, $2, $3);
 -- name: GetFirstExtendedBioByType :one
 SELECT * FROM extended.bios WHERE bio_type = $1 LIMIT 1;
 
--- name: TruncateExtendedBios :exec
-TRUNCATE TABLE extended.bios;
-
--- name: InsertExtraTypes :exec
-INSERT INTO postgres_extra_types (c_uuid, c_jsonb, c_text_array, c_integer_array, c_timestamptz, c_inet, c_money, c_not_null)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
-
--- name: GetExtraTypes :one
-SELECT * FROM postgres_extra_types LIMIT 1;
-
--- name: TruncateExtraTypes :exec
-TRUNCATE TABLE postgres_extra_types;
-
--- name: InsertRemainingTypes :exec
-INSERT INTO postgres_remaining_types (
-  c_hstore, c_ltree, c_regclass, c_cidr, c_macaddr, c_interval, c_varbit, c_xml,
-  c_numeric, c_bigint, c_timestamp, c_timestamptz, c_text_matrix
-) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
-);
-
--- name: GetRemainingTypes :one
-SELECT * FROM postgres_remaining_types LIMIT 1;
-
--- name: TruncateRemainingTypes :exec
-TRUNCATE TABLE postgres_remaining_types;
-
--- name: InsertArrayTypes :exec
-INSERT INTO postgres_array_types (c_uuid_array, c_bio_type_array, c_integer_matrix) VALUES ($1, $2, $3);
-
--- name: GetArrayTypes :one
-SELECT * FROM postgres_array_types LIMIT 1;
-
--- name: TruncateArrayTypes :exec
-TRUNCATE TABLE postgres_array_types;
-
 -- name: ListAuthorsWithOptionalBook :many
 SELECT
     sqlc.embed(authors),
@@ -166,16 +184,6 @@ ORDER BY authors.name;
 SELECT * FROM authors
 WHERE id > $1 AND id < $2
 ORDER BY id;
-
--- name: InsertSpecialTypes :exec
-INSERT INTO postgres_special_types (c_timetz, c_tsvector, c_point, c_int4range, c_oid, c_dimensions, c_positive)
-VALUES ($1, $2, $3, $4, $5, $6, $7);
-
--- name: GetSpecialTypes :one
-SELECT * FROM postgres_special_types LIMIT 1;
-
--- name: TruncateSpecialTypes :exec
-TRUNCATE TABLE postgres_special_types;
 
 -- name: CreateAuthorResult :execresult
 INSERT INTO authors (name, bio) VALUES ($1, $2);
@@ -207,24 +215,6 @@ SELECT * FROM regressions WHERE (sqlc.narg(order_name)::text IS NULL OR "order" 
 -- name: SetRegressionStep :one
 UPDATE regressions SET step = $2 WHERE id = $1 RETURNING step;
 
--- name: TruncateRegressions :exec
-TRUNCATE TABLE regressions;
-
--- name: CreateBatchTypesBatch :batchexec
-INSERT INTO batch_types (id, ok, ratio, blobs, docs, counts, amounts, stamps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
-
--- name: CopyBatchTypes :copyfrom
-INSERT INTO batch_types (id, ok, ratio, blobs, docs, counts, amounts, stamps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
-
--- name: ListBatchTypes :many
-SELECT * FROM batch_types ORDER BY id;
-
--- name: CountBatchTypesAbove :one
-SELECT count(*) FROM batch_types WHERE id > sqlc.arg(MIN_ID);
-
--- name: TruncateBatchTypes :exec
-TRUNCATE TABLE batch_types;
-
 -- name: InsertNameCase :exec
 INSERT INTO name_cases (id, "class", "end", "hash", "method", "count", "camelCase", "HTTPServer", "initialize")
 VALUES (sqlc.arg(id), sqlc.arg(class), sqlc.arg(end_), sqlc.arg(hash), sqlc.arg(method), sqlc.arg(count),
@@ -240,17 +230,11 @@ WHERE id = sqlc.arg(id) AND "class" = sqlc.arg(class) AND "end" = sqlc.arg(end_)
 -- name: GetHTTPServer :one
 SELECT * FROM name_cases WHERE id = sqlc.arg(id);
 
--- name: TruncateNameCases :exec
-TRUNCATE TABLE name_cases;
-
 -- name: CopyMixedCaseCopies :copyfrom
 INSERT INTO "MixedCaseCopies" ("Id", "SomeValue") VALUES ($1, $2);
 
 -- name: ListMixedCaseCopies :many
 SELECT * FROM "MixedCaseCopies" ORDER BY "Id";
-
--- name: TruncateMixedCaseCopies :exec
-TRUNCATE TABLE "MixedCaseCopies";
 
 -- name: GetUnnamedColumns :one
 SELECT 1, 'two';

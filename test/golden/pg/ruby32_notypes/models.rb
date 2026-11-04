@@ -32,10 +32,15 @@ module PgCodegen
   class Author < ::Data.define(:id, :name, :bio)
   end
 
-  class NodePostgresType < ::Data.define(
-    :c_bit,
-    :c_smallint,
+  class Book < ::Data.define(:id, :name, :author_id, :description)
+  end
+
+  class DeferredBook < ::Data.define(:id, :author_id)
+  end
+
+  class PostgresNumericType < ::Data.define(
     :c_boolean,
+    :c_smallint,
     :c_integer,
     :c_bigint,
     :c_serial,
@@ -43,66 +48,66 @@ module PgCodegen
     :c_numeric,
     :c_real,
     :c_double_precision,
-    :c_date,
-    :c_time,
-    :c_timestamp,
+    :c_money,
+    :c_oid,
+    :c_positive
+  )
+  end
+
+  class PostgresStringType < ::Data.define(
     :c_char,
     :c_varchar,
-    :c_bytea,
     :c_text,
-    :c_json
-  )
-  end
-
-  class Book < ::Data.define(:id, :name, :author_id, :description)
-  end
-
-  class DeferredBook < ::Data.define(:id, :author_id)
-  end
-
-  class PostgresExtraType < ::Data.define(
-    :c_uuid,
-    :c_jsonb,
-    :c_text_array,
-    :c_integer_array,
-    :c_timestamptz,
-    :c_inet,
-    :c_money,
-    :c_not_null
-  )
-  end
-
-  class PostgresRemainingType < ::Data.define(
-    :c_hstore,
-    :c_ltree,
-    :c_regclass,
-    :c_cidr,
-    :c_macaddr,
-    :c_interval,
-    :c_varbit,
+    :c_not_null,
     :c_xml,
-    :c_numeric,
-    :c_bigint,
+    :c_tsvector,
+    :c_ltree,
+    :c_hstore,
+    :c_regclass
+  )
+  end
+
+  class PostgresDatetimeType < ::Data.define(
+    :c_date,
+    :c_time,
+    :c_timetz,
     :c_timestamp,
     :c_timestamptz,
+    :c_interval
+  )
+  end
+
+  class PostgresJsonType < ::Data.define(:id, :c_json, :c_jsonb)
+  end
+
+  class PostgresArrayType < ::Data.define(
+    :id,
+    :c_boolean,
+    :c_double_precision,
+    :c_text_array,
+    :c_integer_array,
+    :c_uuid_array,
+    :c_bio_type_array,
+    :c_bytea_array,
+    :c_jsonb_array,
+    :c_numeric_array,
+    :c_timestamptz_array,
+    :c_integer_matrix,
     :c_text_matrix
   )
   end
 
-  class JsonRoundTrip < ::Data.define(:id, :json_value, :jsonb_value)
-  end
-
-  class PostgresArrayType < ::Data.define(:c_uuid_array, :c_bio_type_array, :c_integer_matrix)
-  end
-
   class PostgresSpecialType < ::Data.define(
-    :c_timetz,
-    :c_tsvector,
+    :c_bytea,
+    :c_bit,
+    :c_varbit,
+    :c_uuid,
+    :c_inet,
+    :c_cidr,
+    :c_macaddr,
     :c_point,
     :c_int4range,
-    :c_oid,
-    :c_dimensions,
-    :c_positive
+    :c_dimensions
   )
   end
 
@@ -114,18 +119,6 @@ module PgCodegen
     :bio_types,
     :uids,
     :step
-  )
-  end
-
-  class BatchType < ::Data.define(
-    :id,
-    :ok,
-    :ratio,
-    :blobs,
-    :docs,
-    :counts,
-    :amounts,
-    :stamps
   )
   end
 

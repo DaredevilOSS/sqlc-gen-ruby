@@ -34,47 +34,6 @@ module PgCodegen
     def initialize: (  ::Integer id, ::String name, ::String? bio) -> void
   end
 
-  class NodePostgresType
-    attr_reader c_bit: ::String?
-    attr_reader c_smallint: ::Integer?
-    attr_reader c_boolean: bool?
-    attr_reader c_integer: ::Integer?
-    attr_reader c_bigint: ::Integer?
-    attr_reader c_serial: ::Integer?
-    attr_reader c_decimal: ::BigDecimal?
-    attr_reader c_numeric: ::BigDecimal?
-    attr_reader c_real: ::Float?
-    attr_reader c_double_precision: ::Float?
-    attr_reader c_date: ::Date?
-    attr_reader c_time: ::String?
-    attr_reader c_timestamp: ::Time?
-    attr_reader c_char: ::String?
-    attr_reader c_varchar: ::String?
-    attr_reader c_bytea: ::String?
-    attr_reader c_text: ::String?
-    attr_reader c_json: untyped
-    def initialize: (
-        ::String? c_bit,
-        ::Integer? c_smallint,
-        bool? c_boolean,
-        ::Integer? c_integer,
-        ::Integer? c_bigint,
-        ::Integer? c_serial,
-        ::BigDecimal? c_decimal,
-        ::BigDecimal? c_numeric,
-        ::Float? c_real,
-        ::Float? c_double_precision,
-        ::Date? c_date,
-        ::String? c_time,
-        ::Time? c_timestamp,
-        ::String? c_char,
-        ::String? c_varchar,
-        ::String? c_bytea,
-        ::String? c_text,
-        untyped c_json
-    ) -> void
-  end
-
   class Book
     attr_reader id: ::String
     attr_reader name: ::String
@@ -89,88 +48,135 @@ module PgCodegen
     def initialize: (  ::Integer id, ::Integer author_id) -> void
   end
 
-  class PostgresExtraType
-    attr_reader c_uuid: ::String?
-    attr_reader c_jsonb: untyped
-    attr_reader c_text_array: ::Array[::String]?
-    attr_reader c_integer_array: ::Array[::Integer]?
-    attr_reader c_timestamptz: ::Time?
-    attr_reader c_inet: ::IPAddr?
+  class PostgresNumericType
+    attr_reader c_boolean: bool?
+    attr_reader c_smallint: ::Integer?
+    attr_reader c_integer: ::Integer?
+    attr_reader c_bigint: ::Integer?
+    attr_reader c_serial: ::Integer?
+    attr_reader c_decimal: ::BigDecimal?
+    attr_reader c_numeric: ::BigDecimal?
+    attr_reader c_real: ::Float?
+    attr_reader c_double_precision: ::Float?
     attr_reader c_money: ::String?
-    attr_reader c_not_null: ::String
+    attr_reader c_oid: ::Integer?
+    attr_reader c_positive: untyped
     def initialize: (
-        ::String? c_uuid,
-        untyped c_jsonb,
-        ::Array[::String]? c_text_array,
-        ::Array[::Integer]? c_integer_array,
-        ::Time? c_timestamptz,
-        ::IPAddr? c_inet,
+        bool? c_boolean,
+        ::Integer? c_smallint,
+        ::Integer? c_integer,
+        ::Integer? c_bigint,
+        ::Integer? c_serial,
+        ::BigDecimal? c_decimal,
+        ::BigDecimal? c_numeric,
+        ::Float? c_real,
+        ::Float? c_double_precision,
         ::String? c_money,
-        ::String c_not_null
+        ::Integer? c_oid,
+        untyped c_positive
     ) -> void
   end
 
-  class PostgresRemainingType
-    attr_reader c_hstore: ::String?
-    attr_reader c_ltree: ::String?
-    attr_reader c_regclass: ::String?
-    attr_reader c_cidr: ::IPAddr?
-    attr_reader c_macaddr: ::String?
-    attr_reader c_interval: ::String?
-    attr_reader c_varbit: ::String?
+  class PostgresStringType
+    attr_reader c_char: ::String?
+    attr_reader c_varchar: ::String?
+    attr_reader c_text: ::String?
+    attr_reader c_not_null: ::String
     attr_reader c_xml: ::String?
-    attr_reader c_numeric: ::BigDecimal?
-    attr_reader c_bigint: ::Integer?
+    attr_reader c_tsvector: ::String?
+    attr_reader c_ltree: ::String?
+    attr_reader c_hstore: ::String?
+    attr_reader c_regclass: ::String?
+    def initialize: (
+        ::String? c_char,
+        ::String? c_varchar,
+        ::String? c_text,
+        ::String c_not_null,
+        ::String? c_xml,
+        ::String? c_tsvector,
+        ::String? c_ltree,
+        ::String? c_hstore,
+        ::String? c_regclass
+    ) -> void
+  end
+
+  class PostgresDatetimeType
+    attr_reader c_date: ::Date?
+    attr_reader c_time: ::String?
+    attr_reader c_timetz: ::String?
     attr_reader c_timestamp: ::Time?
     attr_reader c_timestamptz: ::Time?
-    attr_reader c_text_matrix: ::Array[::Array[::String]]?
+    attr_reader c_interval: ::String?
     def initialize: (
-        ::String? c_hstore,
-        ::String? c_ltree,
-        ::String? c_regclass,
-        ::IPAddr? c_cidr,
-        ::String? c_macaddr,
-        ::String? c_interval,
-        ::String? c_varbit,
-        ::String? c_xml,
-        ::BigDecimal? c_numeric,
-        ::Integer? c_bigint,
+        ::Date? c_date,
+        ::String? c_time,
+        ::String? c_timetz,
         ::Time? c_timestamp,
         ::Time? c_timestamptz,
+        ::String? c_interval
+    ) -> void
+  end
+
+  class PostgresJsonType
+    attr_reader id: ::Integer
+    attr_reader c_json: untyped
+    attr_reader c_jsonb: untyped
+    def initialize: (  ::Integer id, untyped c_json, untyped c_jsonb) -> void
+  end
+
+  class PostgresArrayType
+    attr_reader id: ::Integer
+    attr_reader c_boolean: bool?
+    attr_reader c_double_precision: ::Float?
+    attr_reader c_text_array: ::Array[::String]?
+    attr_reader c_integer_array: ::Array[::Integer]?
+    attr_reader c_uuid_array: ::Array[::String]?
+    attr_reader c_bio_type_array: ::Array[::String]?
+    attr_reader c_bytea_array: ::Array[::String]?
+    attr_reader c_jsonb_array: ::Array[untyped]?
+    attr_reader c_numeric_array: ::Array[::BigDecimal]?
+    attr_reader c_timestamptz_array: ::Array[::Time]?
+    attr_reader c_integer_matrix: ::Array[::Array[::Integer]]?
+    attr_reader c_text_matrix: ::Array[::Array[::String]]?
+    def initialize: (
+        ::Integer id,
+        bool? c_boolean,
+        ::Float? c_double_precision,
+        ::Array[::String]? c_text_array,
+        ::Array[::Integer]? c_integer_array,
+        ::Array[::String]? c_uuid_array,
+        ::Array[::String]? c_bio_type_array,
+        ::Array[::String]? c_bytea_array,
+        ::Array[untyped]? c_jsonb_array,
+        ::Array[::BigDecimal]? c_numeric_array,
+        ::Array[::Time]? c_timestamptz_array,
+        ::Array[::Array[::Integer]]? c_integer_matrix,
         ::Array[::Array[::String]]? c_text_matrix
     ) -> void
   end
 
-  class JsonRoundTrip
-    attr_reader id: ::Integer
-    attr_reader json_value: untyped
-    attr_reader jsonb_value: untyped
-    def initialize: (  ::Integer id, untyped json_value, untyped jsonb_value) -> void
-  end
-
-  class PostgresArrayType
-    attr_reader c_uuid_array: ::Array[::String]?
-    attr_reader c_bio_type_array: ::Array[::String]?
-    attr_reader c_integer_matrix: ::Array[::Array[::Integer]]?
-    def initialize: (  ::Array[::String]? c_uuid_array, ::Array[::String]? c_bio_type_array, ::Array[::Array[::Integer]]? c_integer_matrix) -> void
-  end
-
   class PostgresSpecialType
-    attr_reader c_timetz: ::String?
-    attr_reader c_tsvector: ::String?
+    attr_reader c_bytea: ::String?
+    attr_reader c_bit: ::String?
+    attr_reader c_varbit: ::String?
+    attr_reader c_uuid: ::String?
+    attr_reader c_inet: ::IPAddr?
+    attr_reader c_cidr: ::IPAddr?
+    attr_reader c_macaddr: ::String?
     attr_reader c_point: ::String?
     attr_reader c_int4range: ::String?
-    attr_reader c_oid: ::Integer?
     attr_reader c_dimensions: ::String?
-    attr_reader c_positive: untyped
     def initialize: (
-        ::String? c_timetz,
-        ::String? c_tsvector,
+        ::String? c_bytea,
+        ::String? c_bit,
+        ::String? c_varbit,
+        ::String? c_uuid,
+        ::IPAddr? c_inet,
+        ::IPAddr? c_cidr,
+        ::String? c_macaddr,
         ::String? c_point,
         ::String? c_int4range,
-        ::Integer? c_oid,
-        ::String? c_dimensions,
-        untyped c_positive
+        ::String? c_dimensions
     ) -> void
   end
 
@@ -190,27 +196,6 @@ module PgCodegen
         ::Array[::String]? bio_types,
         ::Array[::String]? uids,
         ::String? step
-    ) -> void
-  end
-
-  class BatchType
-    attr_reader id: ::Integer
-    attr_reader ok: bool?
-    attr_reader ratio: ::Float?
-    attr_reader blobs: ::Array[::String]?
-    attr_reader docs: ::Array[untyped]?
-    attr_reader counts: ::Array[::Integer]?
-    attr_reader amounts: ::Array[::BigDecimal]?
-    attr_reader stamps: ::Array[::Time]?
-    def initialize: (
-        ::Integer id,
-        bool? ok,
-        ::Float? ratio,
-        ::Array[::String]? blobs,
-        ::Array[untyped]? docs,
-        ::Array[::Integer]? counts,
-        ::Array[::BigDecimal]? amounts,
-        ::Array[::Time]? stamps
     ) -> void
   end
 

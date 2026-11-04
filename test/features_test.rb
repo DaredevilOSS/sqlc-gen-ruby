@@ -596,8 +596,8 @@ class FeaturesTest < Minitest::Test
     assert_includes sqlite, 'INSERT OR REPLACE INTO "tags"'
     assert_includes sqlite, 'ON CONFLICT (name) DO UPDATE SET uses = tags.uses + excluded.uses'
     mysql = generate(load_request('mysql2')).fetch('query_sql.rb')
-    assert_includes mysql, "IGNORE INTO TABLE `copy_types`"
-    assert_includes mysql, "REPLACE INTO TABLE `copy_types`"
+    assert_includes mysql, "IGNORE INTO TABLE `regressions`"
+    assert_includes mysql, "REPLACE INTO TABLE `regressions`"
     { 'pg' => ' ON CONFLICT DO NOTHING', 'mysql2' => ' ON DUPLICATE KEY UPDATE bio = bio',
       'sqlite3' => ' ON CONFLICT (name) DO UPDATE SET bio = ?' }.each do |driver, tail|
       request = load_request(driver)
@@ -616,9 +616,9 @@ class FeaturesTest < Minitest::Test
 
   def test_pg_encodes_float_and_array_parameters_as_text
     rb = generate(load_request('pg')).fetch('query_sql.rb')
-    assert_includes rb, 'encode_float(args.ratio)'
-    assert_includes rb, 'encode_array(args.blobs, :bytea)'
-    assert_includes rb, 'encode_array(args.docs, :json)'
+    assert_includes rb, 'encode_float(args.c_double_precision)'
+    assert_includes rb, 'encode_array(args.c_bytea_array, :bytea)'
+    assert_includes rb, 'encode_array(args.c_jsonb_array, :json)'
     assert_includes rb, 'queries[::TrueClass] = queries[::FalseClass] = ::PG::TextEncoder::Boolean.new(oid: 16)'
   end
 

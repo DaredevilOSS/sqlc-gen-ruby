@@ -28,124 +28,190 @@ module Mysql2Codegen
 
   DELETE_AUTHOR_SQL: ::String
 
-  TEST_SQL: ::String
+  INSERT_MYSQL_NUMERIC_TYPES_SQL: ::String
 
-  class TestRow < ::Struct[untyped]
-    attr_accessor c_bit: ::String?
-    attr_accessor c_tinyint: ::Integer?
+  GET_MYSQL_NUMERIC_TYPES_SQL: ::String
+
+  class GetMysqlNumericTypesRow < ::Struct[untyped]
+    attr_accessor id: ::Integer
     attr_accessor c_bool: ::Integer?
     attr_accessor c_boolean: ::Integer?
+    attr_accessor c_tinyint: ::Integer?
     attr_accessor c_smallint: ::Integer?
     attr_accessor c_mediumint: ::Integer?
     attr_accessor c_int: ::Integer?
     attr_accessor c_integer: ::Integer?
     attr_accessor c_bigint: ::Integer?
+    attr_accessor c_bigint_unsigned: ::Integer?
     attr_accessor c_serial: ::Integer
     attr_accessor c_decimal: ::BigDecimal?
     attr_accessor c_dec: ::BigDecimal?
     attr_accessor c_numeric: ::BigDecimal?
     attr_accessor c_fixed: ::BigDecimal?
+    attr_accessor c_decimal_wide: ::BigDecimal?
     attr_accessor c_float: ::Float?
     attr_accessor c_double: ::Float?
     attr_accessor c_double_precision: ::Float?
-    attr_accessor c_date: ::Date?
-    attr_accessor c_time: ::Time?
-    attr_accessor c_datetime: ::Time?
-    attr_accessor c_timestamp: ::Time?
-    attr_accessor c_year: ::Integer?
+    def initialize: (
+        id: ::Integer,
+        c_bool: ::Integer?,
+        c_boolean: ::Integer?,
+        c_tinyint: ::Integer?,
+        c_smallint: ::Integer?,
+        c_mediumint: ::Integer?,
+        c_int: ::Integer?,
+        c_integer: ::Integer?,
+        c_bigint: ::Integer?,
+        c_bigint_unsigned: ::Integer?,
+        c_serial: ::Integer,
+        c_decimal: ::BigDecimal?,
+        c_dec: ::BigDecimal?,
+        c_numeric: ::BigDecimal?,
+        c_fixed: ::BigDecimal?,
+        c_decimal_wide: ::BigDecimal?,
+        c_float: ::Float?,
+        c_double: ::Float?,
+        c_double_precision: ::Float?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        c_bool: ::Integer?,
+        c_boolean: ::Integer?,
+        c_tinyint: ::Integer?,
+        c_smallint: ::Integer?,
+        c_mediumint: ::Integer?,
+        c_int: ::Integer?,
+        c_integer: ::Integer?,
+        c_bigint: ::Integer?,
+        c_bigint_unsigned: ::Integer?,
+        c_serial: ::Integer,
+        c_decimal: ::BigDecimal?,
+        c_dec: ::BigDecimal?,
+        c_numeric: ::BigDecimal?,
+        c_fixed: ::BigDecimal?,
+        c_decimal_wide: ::BigDecimal?,
+        c_float: ::Float?,
+        c_double: ::Float?,
+        c_double_precision: ::Float?
+    ) -> GetMysqlNumericTypesRow
+  end
+
+  INSERT_MYSQL_STRING_TYPES_SQL: ::String
+
+  GET_MYSQL_STRING_TYPES_SQL: ::String
+
+  class GetMysqlStringTypesRow < ::Struct[untyped]
+    attr_accessor id: ::Integer
     attr_accessor c_char: ::String?
     attr_accessor c_nchar: ::String?
     attr_accessor c_national_char: ::String?
     attr_accessor c_varchar: ::String?
-    attr_accessor c_binary: ::String?
-    attr_accessor c_varbinary: ::String?
-    attr_accessor c_tinyblob: ::String?
     attr_accessor c_tinytext: ::String?
-    attr_accessor c_blob: ::String?
     attr_accessor c_text: ::String?
-    attr_accessor c_mediumblob: ::String?
     attr_accessor c_mediumtext: ::String?
-    attr_accessor c_longblob: ::String?
     attr_accessor c_longtext: ::String?
     attr_accessor c_json: ::String?
     def initialize: (
-        c_bit: ::String?,
-        c_tinyint: ::Integer?,
-        c_bool: ::Integer?,
-        c_boolean: ::Integer?,
-        c_smallint: ::Integer?,
-        c_mediumint: ::Integer?,
-        c_int: ::Integer?,
-        c_integer: ::Integer?,
-        c_bigint: ::Integer?,
-        c_serial: ::Integer,
-        c_decimal: ::BigDecimal?,
-        c_dec: ::BigDecimal?,
-        c_numeric: ::BigDecimal?,
-        c_fixed: ::BigDecimal?,
-        c_float: ::Float?,
-        c_double: ::Float?,
-        c_double_precision: ::Float?,
-        c_date: ::Date?,
-        c_time: ::Time?,
-        c_datetime: ::Time?,
-        c_timestamp: ::Time?,
-        c_year: ::Integer?,
+        id: ::Integer,
         c_char: ::String?,
         c_nchar: ::String?,
         c_national_char: ::String?,
         c_varchar: ::String?,
-        c_binary: ::String?,
-        c_varbinary: ::String?,
-        c_tinyblob: ::String?,
         c_tinytext: ::String?,
-        c_blob: ::String?,
         c_text: ::String?,
-        c_mediumblob: ::String?,
         c_mediumtext: ::String?,
-        c_longblob: ::String?,
         c_longtext: ::String?,
         c_json: ::String?
     ) -> void
     def self.new: (
-        c_bit: ::String?,
-        c_tinyint: ::Integer?,
-        c_bool: ::Integer?,
-        c_boolean: ::Integer?,
-        c_smallint: ::Integer?,
-        c_mediumint: ::Integer?,
-        c_int: ::Integer?,
-        c_integer: ::Integer?,
-        c_bigint: ::Integer?,
-        c_serial: ::Integer,
-        c_decimal: ::BigDecimal?,
-        c_dec: ::BigDecimal?,
-        c_numeric: ::BigDecimal?,
-        c_fixed: ::BigDecimal?,
-        c_float: ::Float?,
-        c_double: ::Float?,
-        c_double_precision: ::Float?,
-        c_date: ::Date?,
-        c_time: ::Time?,
-        c_datetime: ::Time?,
-        c_timestamp: ::Time?,
-        c_year: ::Integer?,
+        id: ::Integer,
         c_char: ::String?,
         c_nchar: ::String?,
         c_national_char: ::String?,
         c_varchar: ::String?,
+        c_tinytext: ::String?,
+        c_text: ::String?,
+        c_mediumtext: ::String?,
+        c_longtext: ::String?,
+        c_json: ::String?
+    ) -> GetMysqlStringTypesRow
+  end
+
+  INSERT_MYSQL_DATETIME_TYPES_SQL: ::String
+
+  GET_MYSQL_DATETIME_TYPES_SQL: ::String
+
+  class GetMysqlDatetimeTypesRow < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor c_date: ::Date?
+    attr_accessor c_time: ::Time?
+    attr_accessor c_datetime: ::Time?
+    attr_accessor c_datetime_6: ::Time?
+    attr_accessor c_timestamp: ::Time?
+    attr_accessor c_year: ::Integer?
+    def initialize: (
+        id: ::Integer,
+        c_date: ::Date?,
+        c_time: ::Time?,
+        c_datetime: ::Time?,
+        c_datetime_6: ::Time?,
+        c_timestamp: ::Time?,
+        c_year: ::Integer?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        c_date: ::Date?,
+        c_time: ::Time?,
+        c_datetime: ::Time?,
+        c_datetime_6: ::Time?,
+        c_timestamp: ::Time?,
+        c_year: ::Integer?
+    ) -> GetMysqlDatetimeTypesRow
+  end
+
+  class CopyMysqlDatetimeTypesArgs < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor c_datetime_6: ::Time?
+    def initialize: (  id: ::Integer, c_datetime_6: ::Time?) -> void
+    def self.new: (  id: ::Integer, c_datetime_6: ::Time?) -> CopyMysqlDatetimeTypesArgs
+  end
+
+  INSERT_MYSQL_BINARY_TYPES_SQL: ::String
+
+  GET_MYSQL_BINARY_TYPES_SQL: ::String
+
+  class GetMysqlBinaryTypesRow < ::Struct[untyped]
+    attr_accessor id: ::Integer
+    attr_accessor c_bit: ::String?
+    attr_accessor c_bit_16: ::String?
+    attr_accessor c_binary: ::String?
+    attr_accessor c_varbinary: ::String?
+    attr_accessor c_tinyblob: ::String?
+    attr_accessor c_blob: ::String?
+    attr_accessor c_mediumblob: ::String?
+    attr_accessor c_longblob: ::String?
+    def initialize: (
+        id: ::Integer,
+        c_bit: ::String?,
+        c_bit_16: ::String?,
         c_binary: ::String?,
         c_varbinary: ::String?,
         c_tinyblob: ::String?,
-        c_tinytext: ::String?,
         c_blob: ::String?,
-        c_text: ::String?,
         c_mediumblob: ::String?,
-        c_mediumtext: ::String?,
-        c_longblob: ::String?,
-        c_longtext: ::String?,
-        c_json: ::String?
-    ) -> TestRow
+        c_longblob: ::String?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        c_bit: ::String?,
+        c_bit_16: ::String?,
+        c_binary: ::String?,
+        c_varbinary: ::String?,
+        c_tinyblob: ::String?,
+        c_blob: ::String?,
+        c_mediumblob: ::String?,
+        c_longblob: ::String?
+    ) -> GetMysqlBinaryTypesRow
   end
 
   LIST_AUTHORS_PAGED_SQL: ::String
@@ -350,15 +416,6 @@ module Mysql2Codegen
     def self.new: (  step: ::String?) -> GetRegressionStepRow
   end
 
-  LIST_REGRESSION_PAYLOADS_SQL: ::String
-
-  class ListRegressionPayloadsRow < ::Struct[untyped]
-    attr_accessor id: ::Integer
-    attr_accessor payload: ::String?
-    def initialize: (  id: ::Integer, payload: ::String?) -> void
-    def self.new: (  id: ::Integer, payload: ::String?) -> ListRegressionPayloadsRow
-  end
-
   LIST_REGRESSION_ROWS_SQL: ::String
 
   class ListRegressionRowsRow < ::Struct[untyped]
@@ -366,8 +423,30 @@ module Mysql2Codegen
     attr_accessor order: ::String
     attr_accessor note: ::String?
     attr_accessor payload: ::String?
-    def initialize: (  id: ::Integer, order: ::String, note: ::String?, payload: ::String?) -> void
-    def self.new: (  id: ::Integer, order: ::String, note: ::String?, payload: ::String?) -> ListRegressionRowsRow
+    attr_accessor code: ::String?
+    attr_accessor doc: ::String?
+    attr_accessor flags: ::String?
+    attr_accessor amount: ::Integer?
+    def initialize: (
+        id: ::Integer,
+        order: ::String,
+        note: ::String?,
+        payload: ::String?,
+        code: ::String?,
+        doc: ::String?,
+        flags: ::String?,
+        amount: ::Integer?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        order: ::String,
+        note: ::String?,
+        payload: ::String?,
+        code: ::String?,
+        doc: ::String?,
+        flags: ::String?,
+        amount: ::Integer?
+    ) -> ListRegressionRowsRow
   end
 
   LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL: ::String
@@ -381,93 +460,67 @@ module Mysql2Codegen
 
   TRUNCATE_REGRESSIONS_SQL: ::String
 
-  class CopyCopyTypesArgs < ::Struct[untyped]
+  class CopyRegressionTypesArgs < ::Struct[untyped]
     attr_accessor id: ::Integer
-    attr_accessor code: ::String
+    attr_accessor code: ::String?
     attr_accessor doc: ::String?
     attr_accessor flags: ::String?
     attr_accessor amount: ::Integer?
     def initialize: (
         id: ::Integer,
-        code: ::String,
+        code: ::String?,
         doc: ::String?,
         flags: ::String?,
         amount: ::Integer?
     ) -> void
     def self.new: (
         id: ::Integer,
-        code: ::String,
+        code: ::String?,
         doc: ::String?,
         flags: ::String?,
         amount: ::Integer?
-    ) -> CopyCopyTypesArgs
+    ) -> CopyRegressionTypesArgs
   end
 
-  class CopyCopyTypesIgnoreArgs < ::Struct[untyped]
+  class CopyRegressionsIgnoreArgs < ::Struct[untyped]
     attr_accessor id: ::Integer
-    attr_accessor code: ::String
-    def initialize: (  id: ::Integer, code: ::String) -> void
-    def self.new: (  id: ::Integer, code: ::String) -> CopyCopyTypesIgnoreArgs
+    attr_accessor code: ::String?
+    def initialize: (  id: ::Integer, code: ::String?) -> void
+    def self.new: (  id: ::Integer, code: ::String?) -> CopyRegressionsIgnoreArgs
   end
 
-  class CopyCopyTypesReplaceArgs < ::Struct[untyped]
+  class CopyRegressionsReplaceArgs < ::Struct[untyped]
     attr_accessor id: ::Integer
-    attr_accessor code: ::String
-    def initialize: (  id: ::Integer, code: ::String) -> void
-    def self.new: (  id: ::Integer, code: ::String) -> CopyCopyTypesReplaceArgs
+    attr_accessor code: ::String?
+    def initialize: (  id: ::Integer, code: ::String?) -> void
+    def self.new: (  id: ::Integer, code: ::String?) -> CopyRegressionsReplaceArgs
   end
 
-  CREATE_COPY_TYPES_BATCH_SQL: ::String
+  CREATE_REGRESSIONS_BATCH_SQL: ::String
 
-  class CreateCopyTypesBatchArgs < ::Struct[untyped]
+  class CreateRegressionsBatchArgs < ::Struct[untyped]
     attr_accessor id: ::Integer
-    attr_accessor code: ::String
+    attr_accessor code: ::String?
     attr_accessor flags: ::String?
     attr_accessor amount: ::Integer?
-    def initialize: (  id: ::Integer, code: ::String, flags: ::String?, amount: ::Integer?) -> void
-    def self.new: (  id: ::Integer, code: ::String, flags: ::String?, amount: ::Integer?) -> CreateCopyTypesBatchArgs
+    def initialize: (  id: ::Integer, code: ::String?, flags: ::String?, amount: ::Integer?) -> void
+    def self.new: (  id: ::Integer, code: ::String?, flags: ::String?, amount: ::Integer?) -> CreateRegressionsBatchArgs
   end
 
-  COUNT_COPY_TYPES_BY_CODES_SQL: ::String
+  COUNT_REGRESSIONS_BY_CODES_SQL: ::String
 
-  class CountCopyTypesByCodesRow < ::Struct[untyped]
+  class CountRegressionsByCodesRow < ::Struct[untyped]
     attr_accessor matches: ::Integer
     def initialize: (  matches: ::Integer) -> void
-    def self.new: (  matches: ::Integer) -> CountCopyTypesByCodesRow
+    def self.new: (  matches: ::Integer) -> CountRegressionsByCodesRow
   end
 
-  class CountCopyTypesByCodesArgs < ::Struct[untyped]
-    attr_accessor code: ::String
-    attr_accessor code_2: ::String
-    def initialize: (  code: ::String, code_2: ::String) -> void
-    def self.new: (  code: ::String, code_2: ::String) -> CountCopyTypesByCodesArgs
+  class CountRegressionsByCodesArgs < ::Struct[untyped]
+    attr_accessor code: ::String?
+    attr_accessor code_2: ::String?
+    def initialize: (  code: ::String?, code_2: ::String?) -> void
+    def self.new: (  code: ::String?, code_2: ::String?) -> CountRegressionsByCodesArgs
   end
-
-  LIST_COPY_TYPES_SQL: ::String
-
-  class ListCopyTypesRow < ::Struct[untyped]
-    attr_accessor id: ::Integer
-    attr_accessor code: ::String
-    attr_accessor doc: ::String?
-    attr_accessor flags: ::String?
-    attr_accessor amount: ::Integer?
-    def initialize: (
-        id: ::Integer,
-        code: ::String,
-        doc: ::String?,
-        flags: ::String?,
-        amount: ::Integer?
-    ) -> void
-    def self.new: (
-        id: ::Integer,
-        code: ::String,
-        doc: ::String?,
-        flags: ::String?,
-        amount: ::Integer?
-    ) -> ListCopyTypesRow
-  end
-
-  TRUNCATE_COPY_TYPES_SQL: ::String
 
   FIND_AUTHORS_BY_EXACT_NAME_SQL: ::String
 
@@ -483,75 +536,6 @@ module Mysql2Codegen
     attr_accessor id: ::Integer
     def initialize: (  id: ::Integer) -> void
     def self.new: (  id: ::Integer) -> GetAuthorWithQuestionMarksRow
-  end
-
-  INSERT_MYSQL_BINDING_VALUES_SQL: ::String
-
-  GET_MYSQL_BINDING_VALUES_SQL: ::String
-
-  class GetMysqlBindingValuesRow < ::Struct[untyped]
-    attr_accessor id: ::Integer
-    attr_accessor text_value: ::String?
-    attr_accessor blob_value: ::String?
-    attr_accessor signed_value: ::Integer?
-    attr_accessor unsigned_value: ::Integer?
-    attr_accessor decimal_value: ::BigDecimal?
-    attr_accessor float_value: ::Float?
-    attr_accessor date_value: ::Date?
-    attr_accessor datetime_value: ::Time?
-    attr_accessor datetime_2: ::Time?
-    attr_accessor bool_value: ::Integer?
-    attr_accessor nullable_value: ::String?
-    attr_accessor bit_value: ::String?
-    attr_accessor year_value: ::Integer?
-    attr_accessor time_value: ::Time?
-    attr_accessor json_unicode: ::String?
-    def initialize: (
-        id: ::Integer,
-        text_value: ::String?,
-        blob_value: ::String?,
-        signed_value: ::Integer?,
-        unsigned_value: ::Integer?,
-        decimal_value: ::BigDecimal?,
-        float_value: ::Float?,
-        date_value: ::Date?,
-        datetime_value: ::Time?,
-        datetime_2: ::Time?,
-        bool_value: ::Integer?,
-        nullable_value: ::String?,
-        bit_value: ::String?,
-        year_value: ::Integer?,
-        time_value: ::Time?,
-        json_unicode: ::String?
-    ) -> void
-    def self.new: (
-        id: ::Integer,
-        text_value: ::String?,
-        blob_value: ::String?,
-        signed_value: ::Integer?,
-        unsigned_value: ::Integer?,
-        decimal_value: ::BigDecimal?,
-        float_value: ::Float?,
-        date_value: ::Date?,
-        datetime_value: ::Time?,
-        datetime_2: ::Time?,
-        bool_value: ::Integer?,
-        nullable_value: ::String?,
-        bit_value: ::String?,
-        year_value: ::Integer?,
-        time_value: ::Time?,
-        json_unicode: ::String?
-    ) -> GetMysqlBindingValuesRow
-  end
-
-  TRUNCATE_MYSQL_BINDING_VALUES_SQL: ::String
-
-  class CopyMysqlBindingTimesArgs < ::Struct[untyped]
-    attr_accessor id: ::Integer
-    attr_accessor datetime_value: ::Time?
-    attr_accessor datetime_2: ::Time?
-    def initialize: (  id: ::Integer, datetime_value: ::Time?, datetime_2: ::Time?) -> void
-    def self.new: (  id: ::Integer, datetime_value: ::Time?, datetime_2: ::Time?) -> CopyMysqlBindingTimesArgs
   end
 
   INSERT_NAME_CASE_SQL: ::String
@@ -777,9 +761,31 @@ module Mysql2Codegen
 
     def delete_author: (id: ::Integer) -> void
 
-    def test: -> TestRow?
+    def insert_mysql_numeric_types: (id: ::Integer, c_bool: ::Integer?, c_boolean: ::Integer?, c_tinyint: ::Integer?, c_smallint: ::Integer?, c_mediumint: ::Integer?, c_int: ::Integer?, c_integer: ::Integer?, c_bigint: ::Integer?, c_bigint_unsigned: ::Integer?, c_decimal: ::BigDecimal?, c_dec: ::BigDecimal?, c_numeric: ::BigDecimal?, c_fixed: ::BigDecimal?, c_decimal_wide: ::BigDecimal?, c_float: ::Float?, c_double: ::Float?, c_double_precision: ::Float?) -> void
 
-    def test!: -> TestRow
+    def get_mysql_numeric_types: (id: ::Integer) -> GetMysqlNumericTypesRow?
+
+    def get_mysql_numeric_types!: (id: ::Integer) -> GetMysqlNumericTypesRow
+
+    def insert_mysql_string_types: (id: ::Integer, c_char: ::String?, c_nchar: ::String?, c_national_char: ::String?, c_varchar: ::String?, c_tinytext: ::String?, c_text: ::String?, c_mediumtext: ::String?, c_longtext: ::String?, c_json: ::String?) -> void
+
+    def get_mysql_string_types: (id: ::Integer) -> GetMysqlStringTypesRow?
+
+    def get_mysql_string_types!: (id: ::Integer) -> GetMysqlStringTypesRow
+
+    def insert_mysql_datetime_types: (id: ::Integer, c_date: ::Date?, c_time: ::Time?, c_datetime: ::Time?, c_datetime_6: ::Time?, c_timestamp: ::Time?, c_year: ::Integer?) -> void
+
+    def get_mysql_datetime_types: (id: ::Integer) -> GetMysqlDatetimeTypesRow?
+
+    def get_mysql_datetime_types!: (id: ::Integer) -> GetMysqlDatetimeTypesRow
+
+    def copy_mysql_datetime_types: (::Array[CopyMysqlDatetimeTypesArgs] rows) -> void
+
+    def insert_mysql_binary_types: (id: ::Integer, c_bit: ::String?, c_bit_16: ::String?, c_binary: ::String?, c_varbinary: ::String?, c_tinyblob: ::String?, c_blob: ::String?, c_mediumblob: ::String?, c_longblob: ::String?) -> void
+
+    def get_mysql_binary_types: (id: ::Integer) -> GetMysqlBinaryTypesRow?
+
+    def get_mysql_binary_types!: (id: ::Integer) -> GetMysqlBinaryTypesRow
 
     def list_authors_paged: (limit: ::Integer, offset: ::Integer) -> ::Array[ListAuthorsPagedRow]
 
@@ -839,41 +845,25 @@ module Mysql2Codegen
 
     def get_regression_step!: (id: ::Integer) -> GetRegressionStepRow
 
-    def list_regression_payloads: -> ::Array[ListRegressionPayloadsRow]
-
     def list_regression_rows: -> ::Array[ListRegressionRowsRow]
 
     def list_authors_with_optional_book: -> ::Array[ListAuthorsWithOptionalBookRow]
 
     def truncate_regressions: -> void
 
-    def copy_copy_types: (::Array[CopyCopyTypesArgs] rows) -> void
+    def copy_regression_types: (::Array[CopyRegressionTypesArgs] rows) -> void
 
-    def copy_copy_types_ignore: (::Array[CopyCopyTypesIgnoreArgs] rows) -> void
+    def copy_regressions_ignore: (::Array[CopyRegressionsIgnoreArgs] rows) -> void
 
-    def copy_copy_types_replace: (::Array[CopyCopyTypesReplaceArgs] rows) -> void
+    def copy_regressions_replace: (::Array[CopyRegressionsReplaceArgs] rows) -> void
 
-    def create_copy_types_batch: (::Array[CreateCopyTypesBatchArgs] rows) -> void
+    def create_regressions_batch: (::Array[CreateRegressionsBatchArgs] rows) -> void
 
-    def count_copy_types_by_codes: (::Array[CountCopyTypesByCodesArgs] rows) -> ::Array[CountCopyTypesByCodesRow?]
-
-    def list_copy_types: -> ::Array[ListCopyTypesRow]
-
-    def truncate_copy_types: -> void
+    def count_regressions_by_codes: (::Array[CountRegressionsByCodesArgs] rows) -> ::Array[CountRegressionsByCodesRow?]
 
     def find_authors_by_exact_name: (name: ::String) -> ::Array[FindAuthorsByExactNameRow]
 
     def get_author_with_question_marks: (name: ::String) -> ::Array[GetAuthorWithQuestionMarksRow]
-
-    def insert_mysql_binding_values: (id: ::Integer, ?text_value: ::String?, ?blob_value: ::String?, ?signed_value: ::Integer?, ?unsigned_value: ::Integer?, ?decimal_value: ::BigDecimal?, ?float_value: ::Float?, ?date_value: ::Date?, ?datetime_value: ::Time?, ?datetime_2: ::Time?, ?bool_value: ::Integer?, ?nullable_value: ::String?) -> void
-
-    def get_mysql_binding_values: (id: ::Integer) -> GetMysqlBindingValuesRow?
-
-    def get_mysql_binding_values!: (id: ::Integer) -> GetMysqlBindingValuesRow
-
-    def truncate_mysql_binding_values: -> void
-
-    def copy_mysql_binding_times: (::Array[CopyMysqlBindingTimesArgs] rows) -> void
 
     def insert_name_case: (id: ::Integer, class_: ::String, end_: ::String, hash: ::String, method: ::String, count: ::Integer, camel_case: ::String, http_server: ::String, initialize: ::String) -> void
 

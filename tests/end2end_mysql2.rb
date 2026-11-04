@@ -80,13 +80,16 @@ class TestMysql2 < Minitest::Test
     }.compact
   end
 
+  TYPE_TABLES = %w[mysql_numeric_types mysql_string_types mysql_datetime_types mysql_binary_types].freeze
+
   def setup
     @query_sql = QuerySql.connect(mysql2_params)
     @query_sql.truncate_authors # cascades to books
     @query_sql.truncate_extended_bios
     @query_sql.truncate_regressions
-    @query_sql.truncate_copy_types
-    @query_sql.truncate_mysql_binding_values
+    @query_sql.instance_variable_get(:@db).with do |client|
+      TYPE_TABLES.each { |table| client.query("TRUNCATE TABLE #{table}") }
+    end
     @query_sql.truncate_name_cases
     @query_sql.truncate_mixed_case_copies
     @query_sql.truncate_exceptions
@@ -101,18 +104,17 @@ class TestMysql2 < Minitest::Test
   end
 
   # Writes each [datetime_value, datetime_2] pair with a bound :exec and with :copyfrom and reads it back.
-  def assert_times_round_trip(query_sql, pairs)
-    pairs.each_with_index do |(value, value2), i|
-      query_sql.insert_mysql_binding_values(**binding_values(i + 1).merge(datetime_value: value, datetime_2: value2))
+  # Writes each value with a bound :exec and with :copyfrom and reads it back.
+  def assert_times_round_trip(query_sql, values)
+    values.each_with_index do |value, i|
+      query_sql.insert_mysql_datetime_types(**datetime_values(i + 1).merge(c_datetime_6: value))
     end
-    query_sql.copy_mysql_binding_times(pairs.each_with_index.map do |(value, value2), i|
-      CopyMysqlBindingTimesArgs.new(id: i + 101, datetime_value: value, datetime_2: value2)
+    query_sql.copy_mysql_datetime_types(values.each_with_index.map do |value, i|
+      CopyMysqlDatetimeTypesArgs.new(id: i + 101, c_datetime_6: value)
     end)
-    pairs.each_with_index do |(value, value2), i|
+    values.each_with_index do |value, i|
       [i + 1, i + 101].each do |id|
-        row = query_sql.get_mysql_binding_values(id: id)
-        assert_equal value.to_time, row.datetime_value, "datetime_value of row #{id}"
-        assert_equal value2.to_time, row.datetime_2, "datetime_2 of row #{id}"
+        assert_equal value.to_time, query_sql.get_mysql_datetime_types(id: id).c_datetime_6, "c_datetime_6 of row #{id}"
       end
     end
   end
@@ -121,12 +123,28 @@ class TestMysql2 < Minitest::Test
     @query_sql.create_author_return_id(name: name, bio: bio)
   end
 
-  def binding_values(id, float_value = nil)
-    {
-      id: id, text_value: nil, blob_value: nil, signed_value: nil, unsigned_value: nil, decimal_value: nil,
-      float_value: float_value, date_value: nil, datetime_value: nil, datetime_2: nil, bool_value: nil,
-      nullable_value: nil
-    }
+  def numeric_values(id)
+    { id: id, c_bool: nil, c_boolean: nil, c_tinyint: nil, c_smallint: nil, c_mediumint: nil, c_int: nil, c_integer: nil,
+      c_bigint: nil, c_bigint_unsigned: nil, c_decimal: nil, c_dec: nil, c_numeric: nil, c_fixed: nil, c_decimal_wide: nil,
+      c_float: nil, c_double: nil, c_double_precision: nil }
+  end
+
+  def string_values(id)
+    { id: id, c_char: nil, c_nchar: nil, c_national_char: nil, c_varchar: nil, c_tinytext: nil, c_text: nil, c_mediumtext: nil,
+      c_longtext: nil, c_json: nil }
+  end
+
+  def datetime_values(id)
+    { id: id, c_date: nil, c_time: nil, c_datetime: nil, c_datetime_6: nil, c_timestamp: nil, c_year: nil }
+  end
+
+  def binary_values(id)
+    { id: id, c_bit: nil, c_bit_16: nil, c_binary: nil, c_varbinary: nil, c_tinyblob: nil, c_blob: nil, c_mediumblob: nil,
+      c_longblob: nil }
+  end
+
+  def assert_matches_rbs(row, row_type)
+    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'mysql2/query_sql.rbs'), row_type)
   end
 
   # ---- :one / :many / :exec -------------------------------------------------------------------------------------
@@ -161,7 +179,7 @@ class TestMysql2 < Minitest::Test
   end
 
   def test_one_on_empty_table_returns_nil
-    assert_nil @query_sql.test
+    assert_nil @query_sql.get_mysql_numeric_types(id: 1)
   end
 
   def test_generated_queries_do_not_create_server_side_prepared_statements
@@ -406,31 +424,49 @@ class TestMysql2 < Minitest::Test
     assert_equal ['uncommitted'], other.list_authors.map(&:name)
   end
 
+  # values written by SQL literals, not by generated parameters, are read with the declared types
   def test_declared_types_match_runtime_values
     client = Mysql2::Client.new(mysql2_params)
-    client.query('DELETE FROM node_mysql_types')
     client.query(<<~SQL)
-      INSERT INTO node_mysql_types VALUES (b'1', 1, 1, 0, 2, 3, 4, 5, 6, 7, 1.5, 2.5, 3.5, 4.5, 1.25, 2.25, 3.25,
-        '2024-01-02', '03:04:05', '2024-01-02 03:04:05', '2024-01-02 03:04:05', 2024, 'a', 'b', 'c', 'dd', 'x', 'yy',
-        'tb', 'tt', 'bl', 'te', 'mb', 'mt', 'lb', 'lt', '{"a": 1}')
+      INSERT INTO mysql_numeric_types VALUES (1, 1, 0, 2, 3, 4, 5, 6, 7, 18446744073709551615, 8, 1.5, 2.5, 3.5, 4.5,
+        5.5, 1.25, 2.25, 3.25)
     SQL
-    row = @query_sql.test
-    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'mysql2/query_sql.rbs'), 'TestRow')
-    assert_equal Date.new(2024, 1, 2), row.c_date
-    assert_equal BigDecimal('1.5'), row.c_decimal
-    assert_equal 2024, row.c_year
+    client.query("INSERT INTO mysql_string_types VALUES (1, 'a', 'b', 'c', 'dd', 'tt', 'te', 'mt', 'lt', '{\"a\": 1}')")
+    client.query(<<~SQL)
+      INSERT INTO mysql_datetime_types VALUES (1, '2024-01-02', '03:04:05', '2024-01-02 03:04:05',
+        '2024-01-02 03:04:05.123456', '2024-01-02 03:04:05', 2024)
+    SQL
+    client.query("INSERT INTO mysql_binary_types VALUES (1, b'1', b'1010101010101010', 'x', 'yy', 'tb', 'bl', 'mb', 'lb')")
+    numeric = @query_sql.get_mysql_numeric_types(id: 1)
+    string = @query_sql.get_mysql_string_types(id: 1)
+    datetime = @query_sql.get_mysql_datetime_types(id: 1)
+    binary = @query_sql.get_mysql_binary_types(id: 1)
+    { 'GetMysqlNumericTypesRow' => numeric, 'GetMysqlStringTypesRow' => string,
+      'GetMysqlDatetimeTypesRow' => datetime, 'GetMysqlBinaryTypesRow' => binary }.each do |type, row|
+      assert_matches_rbs(row, type)
+    end
+    assert_equal BigDecimal('1.5'), numeric.c_decimal
+    assert_equal 18_446_744_073_709_551_615, numeric.c_bigint_unsigned
+    assert_equal({ 'a' => 1 }, JSON.parse(string.c_json))
+    assert_equal Date.new(2024, 1, 2), datetime.c_date
+    assert_equal 2024, datetime.c_year
+    assert_equal [0xAA, 0xAA].pack('C*'), binary.c_bit_16
   ensure
-    client&.query('DELETE FROM node_mysql_types')
+    client&.close
   end
 
   def test_declared_types_match_runtime_values_for_nulls
     client = Mysql2::Client.new(mysql2_params)
-    client.query('DELETE FROM node_mysql_types')
-    client.query('INSERT INTO node_mysql_types (c_int) VALUES (NULL)')
-    row = @query_sql.test
-    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'mysql2/query_sql.rbs'), 'TestRow')
+    TYPE_TABLES.each { |table| client.query("INSERT INTO #{table} (id) VALUES (1)") }
+    { 'GetMysqlNumericTypesRow' => @query_sql.get_mysql_numeric_types(id: 1),
+      'GetMysqlStringTypesRow' => @query_sql.get_mysql_string_types(id: 1),
+      'GetMysqlDatetimeTypesRow' => @query_sql.get_mysql_datetime_types(id: 1),
+      'GetMysqlBinaryTypesRow' => @query_sql.get_mysql_binary_types(id: 1) }.each do |type, row|
+      assert_matches_rbs(row, type)
+      assert_equal [nil], row.to_h.except(:id, :c_serial).values.uniq, type # c_serial is filled by its default
+    end
   ensure
-    client&.query('DELETE FROM node_mysql_types')
+    client&.close
   end
 
   def test_nested_transaction_rolls_back_to_a_savepoint
@@ -563,48 +599,56 @@ class TestMysql2 < Minitest::Test
     assert_equal [id], rows.map(&:id)
   end
 
+  # every type family round-trips through client-side quoting, with values that need escaping
   def test_client_side_quoting_round_trips_supported_values
     text = "quotes ' \" slash \\ question ? -- # /* NUL \0 emoji 🙂"
     binary = "\x00\xFF\x80\x01".b
-    decimal = BigDecimal('123456789012345678901234567890.123456789012345678901234567890')
+    decimal = BigDecimal('12345678901234567890123456789012345.123456789012345678901234567890')
     float = 1.0 / 3
     time = ::Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30')
     date_time = DateTime.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')
-    @query_sql.insert_mysql_binding_values(
-      id: 42, text_value: text, blob_value: binary, signed_value: -9_223_372_036_854_775_808,
-      unsigned_value: 18_446_744_073_709_551_615, decimal_value: decimal, float_value: float,
-      date_value: Date.new(2024, 2, 3), datetime_value: time, datetime_2: date_time,
-      bool_value: true, nullable_value: nil
-    )
+    numeric = {
+      id: 42, c_bool: true, c_boolean: false, c_tinyint: -128, c_smallint: -32_768, c_mediumint: 8_388_607,
+      c_int: -2_147_483_648, c_integer: 2_147_483_647, c_bigint: -9_223_372_036_854_775_808,
+      c_bigint_unsigned: 18_446_744_073_709_551_615, c_decimal: BigDecimal('1.5'), c_dec: BigDecimal('-2.5'),
+      c_numeric: BigDecimal('3.5'), c_fixed: BigDecimal('4.5'), c_decimal_wide: decimal, c_float: 1.25, c_double: float,
+      c_double_precision: 0.1 + 0.2
+    }
+    @query_sql.insert_mysql_numeric_types(**numeric)
+    assert_equal numeric.merge(c_bool: 1, c_boolean: 0), @query_sql.get_mysql_numeric_types(id: 42).to_h.except(:c_serial)
+    string = { id: 42, c_char: 'a', c_nchar: 'é', c_national_char: '?', c_varchar: "it's 🙂", c_tinytext: text, c_text: text,
+               c_mediumtext: text, c_longtext: text, c_json: '{"greeting": "Grüße 🙂", "q": "\\"\'"}' }
+    @query_sql.insert_mysql_string_types(**string)
+    row = @query_sql.get_mysql_string_types(id: 42)
+    assert_equal string.except(:c_json), row.to_h.except(:c_json)
+    assert_equal({ 'greeting' => 'Grüße 🙂', 'q' => "\"'" }, JSON.parse(row.c_json))
+    @query_sql.insert_mysql_datetime_types(id: 42, c_date: Date.new(2024, 2, 3), c_time: nil, c_datetime: nil,
+                                           c_datetime_6: time, c_timestamp: nil, c_year: nil)
+    @query_sql.insert_mysql_datetime_types(**datetime_values(43).merge(c_datetime_6: date_time))
     @query_sql.instance_variable_get(:@db).with do |client|
-      client.query(<<~SQL)
-        UPDATE mysql_binding_values
-        SET bit_value = b'1010101010101010', year_value = 2024, time_value = '12:34:56',
-            json_unicode = '{"greeting":"Grüße 🙂"}'
-        WHERE id = 42
-      SQL
+      client.query("UPDATE mysql_datetime_types SET c_year = 2024, c_time = '12:34:56' WHERE id = 42")
     end
-    row = @query_sql.get_mysql_binding_values(id: 42)
-    assert_equal text, row.text_value
-    assert_equal binary, row.blob_value
-    assert_equal(-9_223_372_036_854_775_808, row.signed_value)
-    assert_equal 18_446_744_073_709_551_615, row.unsigned_value
-    assert_equal decimal, row.decimal_value
-    assert_equal float, row.float_value
-    assert_equal Date.new(2024, 2, 3), row.date_value
-    assert_equal time, row.datetime_value
-    assert_equal date_time.to_time, row.datetime_2
-    assert_equal 1, row.bool_value
-    assert_nil row.nullable_value
-    assert_equal [0xAA, 0xAA].pack('C*'), row.bit_value
-    assert_equal 2024, row.year_value
-    assert_equal ::Time.utc(2000, 1, 1, 12, 34, 56), row.time_value
-    assert_equal 'Grüße 🙂', JSON.parse(row.json_unicode).fetch('greeting')
-
-    @query_sql.insert_mysql_binding_values(**binding_values(43).merge(bool_value: false))
-    assert_equal 0, @query_sql.get_mysql_binding_values(id: 43).bool_value
+    row = @query_sql.get_mysql_datetime_types(id: 42)
+    assert_equal [Date.new(2024, 2, 3), time, 2024, ::Time.utc(2000, 1, 1, 12, 34, 56)],
+                 [row.c_date, row.c_datetime_6, row.c_year, row.c_time]
+    assert_equal [nil, nil], [row.c_datetime, row.c_timestamp]
+    assert_equal date_time.to_time, @query_sql.get_mysql_datetime_types(id: 43).c_datetime_6
+    binaries = { id: 42, c_bit: nil, c_bit_16: nil, c_binary: "\x00".b, c_varbinary: binary, c_tinyblob: binary,
+                 c_blob: binary, c_mediumblob: binary, c_longblob: binary }
+    @query_sql.insert_mysql_binary_types(**binaries)
+    @query_sql.instance_variable_get(:@db).with do |client|
+      client.query("UPDATE mysql_binary_types SET c_bit = b'1', c_bit_16 = b'1010101010101010' WHERE id = 42")
+    end
+    row = @query_sql.get_mysql_binary_types(id: 42)
+    assert_equal binaries.merge(c_bit: "\x01".b, c_bit_16: [0xAA, 0xAA].pack('C*')), row.to_h
     assert_raises(ArgumentError) do
-      @query_sql.insert_mysql_binding_values(**binding_values(44, Float::INFINITY))
+      @query_sql.insert_mysql_numeric_types(**numeric_values(44).merge(c_double: Float::INFINITY))
+    end
+    { 'GetMysqlNumericTypesRow' => @query_sql.get_mysql_numeric_types(id: 42),
+      'GetMysqlStringTypesRow' => @query_sql.get_mysql_string_types(id: 42),
+      'GetMysqlDatetimeTypesRow' => @query_sql.get_mysql_datetime_types(id: 42),
+      'GetMysqlBinaryTypesRow' => @query_sql.get_mysql_binary_types(id: 42) }.each do |type, value|
+      assert_matches_rbs(value, type)
     end
   end
 
@@ -612,18 +656,16 @@ class TestMysql2 < Minitest::Test
   # DateTime with another offset must keep its instant, through bound parameters and :copyfrom alike.
   def test_time_values_keep_their_instant_whatever_their_offset
     with_time_zone('XYZ-3') do # UTC+3, unlike the values below
-      assert_times_round_trip(@query_sql, [
-                                [::Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30'),
-                                 DateTime.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00')],
-                                [::Time.now.utc.round(6), ::Time.now.round(6)]
-                              ])
+      assert_times_round_trip(@query_sql, [::Time.new(2024, 2, 3, 4, 5, Rational(6_123_456, 1_000_000), '+05:30'),
+                                           DateTime.new(2024, 3, 4, 5, 6, Rational(7_654_321, 1_000_000), '-07:00'),
+                                           ::Time.now.utc.round(6), ::Time.now.round(6)])
     end
   end
 
   def test_time_values_follow_a_utc_database_timezone
     query_sql = QuerySql.connect(mysql2_params.merge('database_timezone' => :utc))
     with_time_zone('XYZ-3') do
-      assert_times_round_trip(query_sql, [[::Time.now.round(6), DateTime.new(2024, 3, 4, 5, 6, 7, '+05:30')]])
+      assert_times_round_trip(query_sql, [::Time.now.round(6), DateTime.new(2024, 3, 4, 5, 6, 7, '+05:30')])
     end
   end
 
@@ -712,7 +754,7 @@ class TestMysql2 < Minitest::Test
     binary = "\x00\xFF\x01\"\\,\n".b
     @query_sql.copy_regression_rows([CopyRegressionRowsArgs.new(id: 1, order: 'é', note: nil, payload: binary),
                                      CopyRegressionRowsArgs.new(id: 2, order: 'b', note: 'n', payload: nil)])
-    assert_equal [[1, binary], [2, nil]], @query_sql.list_regression_payloads.map { |r| [r.id, r.payload] }
+    assert_equal [[1, binary], [2, nil]], @query_sql.list_regression_rows.map { |r| [r.id, r.payload] }
     assert_equal 'é', @query_sql.list_regressions_by_ids(id: 1, id_2: 0, id_3: 0).first.order
   end
 
@@ -862,26 +904,26 @@ class TestMysql2 < Minitest::Test
 
   # ---- final sweep fixes: :copyfrom into JSON, IGNORE / REPLACE, reused statements, dead connections ------------
 
-  def copy_type_rows = @query_sql.list_copy_types.map { |r| [r.id, r.code, r.doc && JSON.parse(r.doc), r.flags, r.amount] }
+  def copy_type_rows = @query_sql.list_regression_rows.map { |r| [r.id, r.code, r.doc && JSON.parse(r.doc), r.flags, r.amount] }
 
   def test_copyfrom_loads_json_next_to_binary_values
-    @query_sql.copy_copy_types([CopyCopyTypesArgs.new(id: 1, code: 'é', doc: '{"a": [1, "é"]}', flags: "\x83".b, amount: 4_000_000_000),
-                                CopyCopyTypesArgs.new(id: 2, code: 'b', doc: nil, flags: nil, amount: nil)])
+    @query_sql.copy_regression_types([CopyRegressionTypesArgs.new(id: 1, code: 'é', doc: '{"a": [1, "é"]}', flags: "\x83".b, amount: 4_000_000_000),
+                                      CopyRegressionTypesArgs.new(id: 2, code: 'b', doc: nil, flags: nil, amount: nil)])
     assert_equal [[1, 'é', { 'a' => [1, 'é'] }, "\x83".b, 4_000_000_000], [2, 'b', nil, nil, nil]], copy_type_rows
   end
 
   def test_copyfrom_keeps_insert_ignore_and_replace
-    @query_sql.copy_copy_types_ignore([CopyCopyTypesIgnoreArgs.new(id: 1, code: 'a'), CopyCopyTypesIgnoreArgs.new(id: 1, code: 'b')])
+    @query_sql.copy_regressions_ignore([CopyRegressionsIgnoreArgs.new(id: 1, code: 'a'), CopyRegressionsIgnoreArgs.new(id: 1, code: 'b')])
     assert_equal [[1, 'a']], copy_type_rows.map { |r| r.first(2) }
-    @query_sql.copy_copy_types_replace([CopyCopyTypesReplaceArgs.new(id: 1, code: 'c'), CopyCopyTypesReplaceArgs.new(id: 2, code: 'd')])
+    @query_sql.copy_regressions_replace([CopyRegressionsReplaceArgs.new(id: 1, code: 'c'), CopyRegressionsReplaceArgs.new(id: 2, code: 'd')])
     assert_equal [[1, 'c'], [2, 'd']], copy_type_rows.map { |r| r.first(2) }
   end
 
   def test_batch_with_binary_parameters_after_an_unsigned_int
-    rows = (1..5).map { |i| CreateCopyTypesBatchArgs.new(id: i, code: "c#{i}", flags: [0x83 + i].pack('C'), amount: 586_988_122 + i) }
-    @query_sql.create_copy_types_batch(rows)
+    rows = (1..5).map { |i| CreateRegressionsBatchArgs.new(id: i, code: "c#{i}", flags: [0x83 + i].pack('C'), amount: 586_988_122 + i) }
+    @query_sql.create_regressions_batch(rows)
     assert_equal(rows.map { |r| [r.id, r.flags, r.amount] }, copy_type_rows.map { |r| [r[0], r[3], r[4]] })
-    counts = @query_sql.count_copy_types_by_codes([CountCopyTypesByCodesArgs.new(code: 'c1', code_2: 'c2')])
+    counts = @query_sql.count_regressions_by_codes([CountRegressionsByCodesArgs.new(code: 'c1', code_2: 'c2')])
     assert_equal [2], counts.map(&:matches)
   end
 
