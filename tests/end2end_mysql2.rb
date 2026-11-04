@@ -775,6 +775,38 @@ class TestMysql2 < Minitest::Test
     @query_sql.instance_variable_get(:@db).with { |client| refute client.in_transaction }
   end
 
+  def test_thread_kill_during_a_query_replaces_the_connection_and_ends_its_transaction
+    pooled = QuerySql.connect(mysql2_params, size: 1)
+    id = create_author('kept', 'before')
+    [false, true].each do |in_transaction|
+      started = Queue.new
+      thread = ::Thread.new do
+        if in_transaction
+          pooled.transaction do |tx|
+            tx.update_author(bio: 'killed', id: id)
+            started << true
+            tx.pause_query(seconds: 1)
+          end
+        else
+          started << true
+          pooled.pause_query(seconds: 1)
+        end
+      end
+      started.pop
+      sleep 0.2 # inside SLEEP(1)
+      thread.kill
+      thread.join
+      assert_equal [%w[kept before]], pooled.list_authors.map { |a| [a.name, a.bio] }, "in_transaction: #{in_transaction}"
+      pooled.instance_variable_get(:@db).with { |client| refute client.in_transaction }
+    end
+    other = Mysql2::Client.new(**mysql2_params.transform_keys(&:to_sym))
+    other.query('SET SESSION innodb_lock_wait_timeout = 5')
+    other.query("UPDATE authors SET bio = 'after' WHERE id = #{id}") # the killed transaction's row lock is gone
+    assert_equal 'after', @query_sql.get_author(id: id).bio
+  ensure
+    other&.close
+  end
+
   def test_nested_savepoint_rolls_back_while_outer_transaction_commits
     @query_sql.transaction do |tx|
       tx.create_author_return_id(name: 'outer before', bio: nil)
