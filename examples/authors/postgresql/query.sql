@@ -204,6 +204,9 @@ INSERT INTO regressions (id, "order", payload, doc) VALUES ($1, $2, $3, $4);
 -- name: ListRegressions :many
 SELECT * FROM regressions WHERE (sqlc.narg(order_name)::text IS NULL OR "order" = sqlc.narg(order_name)) ORDER BY id;
 
+-- name: SetRegressionStep :one
+UPDATE regressions SET step = $2 WHERE id = $1 RETURNING step;
+
 -- name: TruncateRegressions :exec
 TRUNCATE TABLE regressions;
 

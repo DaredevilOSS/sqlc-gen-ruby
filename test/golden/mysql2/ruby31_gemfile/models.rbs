@@ -14,6 +14,16 @@ module Mysql2Codegen
     ALL: ::Array[::String]
   end
 
+  module RegressionsStep
+    BEGIN_: ::String
+    END_: ::String
+    ALL_: ::String
+    NIL: ::String
+    SELF: ::String
+    DO: ::String
+    ALL: ::Array[::String]
+  end
+
   class Author < ::Struct[untyped]
     attr_accessor id: ::Integer
     attr_accessor name: ::String
@@ -163,8 +173,21 @@ module Mysql2Codegen
     attr_accessor order: ::String
     attr_accessor note: ::String?
     attr_accessor payload: ::String?
-    def initialize: (  id: ::Integer, order: ::String, note: ::String?, payload: ::String?) -> void
-    def self.new: (  id: ::Integer, order: ::String, note: ::String?, payload: ::String?) -> Regression
+    attr_accessor step: ::String?
+    def initialize: (
+        id: ::Integer,
+        order: ::String,
+        note: ::String?,
+        payload: ::String?,
+        step: ::String?
+    ) -> void
+    def self.new: (
+        id: ::Integer,
+        order: ::String,
+        note: ::String?,
+        payload: ::String?,
+        step: ::String?
+    ) -> Regression
   end
 
   class CopyType < ::Struct[untyped]

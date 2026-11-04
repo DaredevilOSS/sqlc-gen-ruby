@@ -340,6 +340,16 @@ module Mysql2Codegen
     def self.new: (  id: ::Integer, order: ::String, note: ::String?, payload: ::String?) -> CopyRegressionRowsArgs
   end
 
+  SET_REGRESSION_STEP_SQL: ::String
+
+  GET_REGRESSION_STEP_SQL: ::String
+
+  class GetRegressionStepRow < ::Struct[untyped]
+    attr_accessor step: ::String?
+    def initialize: (  step: ::String?) -> void
+    def self.new: (  step: ::String?) -> GetRegressionStepRow
+  end
+
   LIST_REGRESSION_PAYLOADS_SQL: ::String
 
   class ListRegressionPayloadsRow < ::Struct[untyped]
@@ -775,6 +785,12 @@ module Mysql2Codegen
     def copy_regressions: (::Array[CopyRegressionsArgs] rows) -> void
 
     def copy_regression_rows: (::Array[CopyRegressionRowsArgs] rows) -> void
+
+    def set_regression_step: (step: ::String?, id: ::Integer) -> void
+
+    def get_regression_step: (id: ::Integer) -> GetRegressionStepRow?
+
+    def get_regression_step!: (id: ::Integer) -> GetRegressionStepRow
 
     def list_regression_payloads: -> ::Array[ListRegressionPayloadsRow]
 

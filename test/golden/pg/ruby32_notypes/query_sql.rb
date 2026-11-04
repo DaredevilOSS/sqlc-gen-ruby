@@ -375,7 +375,7 @@ module PgCodegen
   end
 
   CREATE_REGRESSION_SQL = <<~'SQL'
-    INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, "order", payload, doc, bio_types, uids
+    INSERT INTO regressions (id, "order", payload, doc, bio_types, uids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, "order", payload, doc, bio_types, uids, step
   SQL
 
   class CreateRegressionRow < ::Data.define(
@@ -384,7 +384,8 @@ module PgCodegen
     :payload,
     :doc,
     :bio_types,
-    :uids
+    :uids,
+    :step
   )
   end
 
@@ -406,7 +407,7 @@ module PgCodegen
   end
 
   LIST_REGRESSIONS_SQL = <<~'SQL'
-    SELECT id, "order", payload, doc, bio_types, uids FROM regressions WHERE ($1::text IS NULL OR "order" = $1) ORDER BY id
+    SELECT id, "order", payload, doc, bio_types, uids, step FROM regressions WHERE ($1::text IS NULL OR "order" = $1) ORDER BY id
   SQL
 
   class ListRegressionsRow < ::Data.define(
@@ -415,8 +416,16 @@ module PgCodegen
     :payload,
     :doc,
     :bio_types,
-    :uids
+    :uids,
+    :step
   )
+  end
+
+  SET_REGRESSION_STEP_SQL = <<~'SQL'
+    UPDATE regressions SET step = $2 WHERE id = $1 RETURNING step
+  SQL
+
+  class SetRegressionStepRow < ::Data.define(:step)
   end
 
   TRUNCATE_REGRESSIONS_SQL = <<~'SQL'
@@ -626,42 +635,61 @@ module PgCodegen
         raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
 
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
-        if outermost
-          client.exec(isolation ? "BEGIN ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}" : 'BEGIN')
-        else
-          client.exec("SAVEPOINT #{savepoint}")
-        end
-        entered = !client.in_transaction
-        client.in_transaction = true
+        start = if outermost
+                  isolation ? "BEGIN ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}" : 'BEGIN'
+                else
+                  "SAVEPOINT #{savepoint}"
+                end
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        # Timeout / Thread#raise / Thread#kill wait while BEGIN, COMMIT and ROLLBACK run and only interrupt the
+        # block: the connection never goes back to the pool inside a transaction.
         bound = TransactionConnection.new(client) unless @db.is_a?(TransactionConnection)
-        failed = false
-        completed = false
-        begin
-          result = bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
-          completed = true
-          result
-        rescue ::Exception # rubocop:disable Lint/RescueException
-          failed = true
-          bound&.close
-          client.cancel if client.transaction_status == ::PG::PQTRANS_ACTIVE
-          client.exec(rollback) unless client.status == ::PG::CONNECTION_BAD # the server already rolled back
-          raise
-        ensure
-          bound&.close
-          client.in_transaction = false if entered
-          if failed
-            nil
-          elsif client.status == ::PG::CONNECTION_BAD
-            # the block rescued the error of a lost connection: the server rolled the transaction back
-            raise ::PG::ConnectionBad, 'transaction rolled back: the connection was lost' if ::Thread.current.status != 'aborting'
-          else
-            # a statement failed and the block rescued the error: PostgreSQL can only roll back
-            rescued = client.transaction_status == ::PG::PQTRANS_INERROR
-            commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-            client.exec(rescued || ::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
-            client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
-            raise ::PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && ::Thread.current.status != 'aborting'
+        ::Thread.handle_interrupt(::Object => :never) do
+          entered = !client.in_transaction
+          client.in_transaction = true
+          started = false
+          failed = false
+          completed = false
+          begin
+            client.exec(start)
+            started = true
+            ::Thread.handle_interrupt(::Object => :immediate) do
+              result = bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
+              completed = true
+              result
+            end
+          rescue ::Exception # rubocop:disable Lint/RescueException
+            failed = true
+            bound&.close
+            client.cancel if client.transaction_status == ::PG::PQTRANS_ACTIVE
+            # BEGIN itself may have raised after it ran (an Async task stopped while it waited)
+            begun = started || (outermost && client.transaction_status != ::PG::PQTRANS_IDLE)
+            client.exec(rollback) if begun && client.status != ::PG::CONNECTION_BAD # the server already rolled back
+            raise
+          ensure
+            bound&.close
+            client.in_transaction = false if entered
+            if failed
+              nil
+            elsif client.status == ::PG::CONNECTION_BAD
+              # the block rescued the error of a lost connection: the server rolled the transaction back
+              raise ::PG::ConnectionBad, 'transaction rolled back: the connection was lost' if ::Thread.current.status != 'aborting'
+            else
+              # a statement failed and the block rescued the error: PostgreSQL can only roll back
+              rescued = client.transaction_status == ::PG::PQTRANS_INERROR
+              commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+              begin
+                client.exec(rescued || ::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
+              rescue ::Exception # rubocop:disable Lint/RescueException
+                # COMMIT did not run (an Async task stopped while it waited): roll back instead of leaving it open
+                client.cancel if client.transaction_status == ::PG::PQTRANS_ACTIVE
+                open = client.status != ::PG::CONNECTION_BAD && client.transaction_status != ::PG::PQTRANS_IDLE
+                client.exec('ROLLBACK') if outermost && open
+                raise
+              end
+              client.exec("RELEASE SAVEPOINT #{savepoint}") if rescued && savepoint
+              raise ::PG::InFailedSqlTransaction, 'transaction rolled back: a statement in it failed' if rescued && ::Thread.current.status != 'aborting'
+            end
           end
         end
       end
@@ -674,11 +702,7 @@ module PgCodegen
     def get_author(id:)
       with_client('get_author') do |client|
         query_params = [id]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_author')
-          client.prepare('pg_codegen_query_sql_get_author', GET_AUTHOR_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_author')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_author', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_get_author', GET_AUTHOR_SQL, query_params)
         row = result.first
         row && GetAuthorRow.new(row['id'], row['name'], row['bio'])
       end
@@ -691,11 +715,7 @@ module PgCodegen
 
     def list_authors
       with_client('list_authors') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_list_authors')
-          client.prepare('pg_codegen_query_sql_list_authors', LIST_AUTHORS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_list_authors')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_list_authors')
+        result = run_prepared(client, 'pg_codegen_query_sql_list_authors', LIST_AUTHORS_SQL)
         result.map do |row|
           ListAuthorsRow.new(row['id'], row['name'], row['bio'])
         end
@@ -705,11 +725,7 @@ module PgCodegen
     def create_author(name:, bio:)
       with_client('create_author') do |client|
         query_params = [name, bio]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_author')
-          client.prepare('pg_codegen_query_sql_create_author', CREATE_AUTHOR_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_author')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_create_author', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_create_author', CREATE_AUTHOR_SQL, query_params)
         row = result.first
         row && CreateAuthorRow.new(row['id'], row['name'], row['bio'])
       end
@@ -723,22 +739,14 @@ module PgCodegen
     def delete_author(id:)
       with_client('delete_author') do |client|
         query_params = [id]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_delete_author')
-          client.prepare('pg_codegen_query_sql_delete_author', DELETE_AUTHOR_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_delete_author')
-        end
-        client.exec_prepared('pg_codegen_query_sql_delete_author', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_delete_author', DELETE_AUTHOR_SQL, query_params)
         nil
       end
     end
 
     def test
       with_client('test') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_test')
-          client.prepare('pg_codegen_query_sql_test', TEST_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_test')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_test')
+        result = run_prepared(client, 'pg_codegen_query_sql_test', TEST_SQL)
         row = result.first
         row && TestRow.new(
           row['c_bit'],
@@ -771,11 +779,7 @@ module PgCodegen
     def set_json_round_trip(id:, json_value:, jsonb_value:)
       with_client('set_json_round_trip') do |client|
         query_params = [id, encode_json(json_value), encode_json(jsonb_value)]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_set_json_round_trip')
-          client.prepare('pg_codegen_query_sql_set_json_round_trip', SET_JSON_ROUND_TRIP_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_set_json_round_trip')
-        end
-        client.exec_prepared('pg_codegen_query_sql_set_json_round_trip', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_set_json_round_trip', SET_JSON_ROUND_TRIP_SQL, query_params)
         nil
       end
     end
@@ -783,11 +787,7 @@ module PgCodegen
     def get_json_round_trip(id:)
       with_client('get_json_round_trip') do |client|
         query_params = [id]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_json_round_trip')
-          client.prepare('pg_codegen_query_sql_get_json_round_trip', GET_JSON_ROUND_TRIP_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_json_round_trip')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_json_round_trip', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_get_json_round_trip', GET_JSON_ROUND_TRIP_SQL, query_params)
         row = result.first
         row && GetJSONRoundTripRow.new(row['json_value'], row['jsonb_value'])
       end
@@ -801,22 +801,14 @@ module PgCodegen
     def toggle_jsonb_round_trip(id:)
       with_client('toggle_jsonb_round_trip') do |client|
         query_params = [id]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_toggle_jsonb_round_trip')
-          client.prepare('pg_codegen_query_sql_toggle_jsonb_round_trip', TOGGLE_JSONB_ROUND_TRIP_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_toggle_jsonb_round_trip')
-        end
-        client.exec_prepared('pg_codegen_query_sql_toggle_jsonb_round_trip', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_toggle_jsonb_round_trip', TOGGLE_JSONB_ROUND_TRIP_SQL, query_params)
         nil
       end
     end
 
     def truncate_json_round_trips
       with_client('truncate_json_round_trips') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_json_round_trips')
-          client.prepare('pg_codegen_query_sql_truncate_json_round_trips', TRUNCATE_JSON_ROUND_TRIPS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_json_round_trips')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_json_round_trips')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_json_round_trips', TRUNCATE_JSON_ROUND_TRIPS_SQL)
         nil
       end
     end
@@ -824,11 +816,7 @@ module PgCodegen
     def pause_query(seconds:)
       with_client('pause_query') do |client|
         query_params = [encode_float(seconds)]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_pause_query')
-          client.prepare('pg_codegen_query_sql_pause_query', PAUSE_QUERY_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_pause_query')
-        end
-        client.exec_prepared('pg_codegen_query_sql_pause_query', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_pause_query', PAUSE_QUERY_SQL, query_params)
         nil
       end
     end
@@ -836,11 +824,7 @@ module PgCodegen
     def list_authors_paged(offset:, limit:)
       with_client('list_authors_paged') do |client|
         query_params = [offset, limit]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_list_authors_paged')
-          client.prepare('pg_codegen_query_sql_list_authors_paged', LIST_AUTHORS_PAGED_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_list_authors_paged')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_list_authors_paged', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_list_authors_paged', LIST_AUTHORS_PAGED_SQL, query_params)
         result.map do |row|
           ListAuthorsPagedRow.new(row['id'], row['name'], row['bio'])
         end
@@ -850,11 +834,7 @@ module PgCodegen
     def get_author_by_name_pattern(name_pattern: nil)
       with_client('get_author_by_name_pattern') do |client|
         query_params = [name_pattern]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_author_by_name_pattern')
-          client.prepare('pg_codegen_query_sql_get_author_by_name_pattern', GET_AUTHOR_BY_NAME_PATTERN_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_author_by_name_pattern')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_author_by_name_pattern', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_get_author_by_name_pattern', GET_AUTHOR_BY_NAME_PATTERN_SQL, query_params)
         result.map do |row|
           GetAuthorByNamePatternRow.new(row['id'], row['name'], row['bio'])
         end
@@ -864,11 +844,7 @@ module PgCodegen
     def get_authors_by_optional_name(lim:, name_filter: nil)
       with_client('get_authors_by_optional_name') do |client|
         query_params = [name_filter, lim]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_authors_by_optional_name')
-          client.prepare('pg_codegen_query_sql_get_authors_by_optional_name', GET_AUTHORS_BY_OPTIONAL_NAME_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_authors_by_optional_name')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_authors_by_optional_name', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_get_authors_by_optional_name', GET_AUTHORS_BY_OPTIONAL_NAME_SQL, query_params)
         result.map do |row|
           GetAuthorsByOptionalNameRow.new(row['id'], row['name'], row['bio'])
         end
@@ -878,11 +854,7 @@ module PgCodegen
     def create_author_return_id(name:, bio:)
       with_client('create_author_return_id') do |client|
         query_params = [name, bio]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_author_return_id')
-          client.prepare('pg_codegen_query_sql_create_author_return_id', CREATE_AUTHOR_RETURN_ID_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_author_return_id')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_create_author_return_id', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_create_author_return_id', CREATE_AUTHOR_RETURN_ID_SQL, query_params)
         row = result.first
         row && row['id']
       end
@@ -892,11 +864,7 @@ module PgCodegen
     def update_author_bios(bio:)
       with_client('update_author_bios') do |client|
         query_params = [bio]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_update_author_bios')
-          client.prepare('pg_codegen_query_sql_update_author_bios', UPDATE_AUTHOR_BIOS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_update_author_bios')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_update_author_bios', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_update_author_bios', UPDATE_AUTHOR_BIOS_SQL, query_params)
         result.cmd_tuples
       end
     end
@@ -904,11 +872,7 @@ module PgCodegen
     def get_authors_by_ids(param1:)
       with_client('get_authors_by_ids') do |client|
         query_params = [encode_array(param1)]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_authors_by_ids')
-          client.prepare('pg_codegen_query_sql_get_authors_by_ids', GET_AUTHORS_BY_IDS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_authors_by_ids')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_authors_by_ids', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_get_authors_by_ids', GET_AUTHORS_BY_IDS_SQL, query_params)
         result.map do |row|
           GetAuthorsByIdsRow.new(row['id'], row['name'], row['bio'])
         end
@@ -918,11 +882,7 @@ module PgCodegen
     def get_authors_by_ids_and_names(param1:, param2:)
       with_client('get_authors_by_ids_and_names') do |client|
         query_params = [encode_array(param1), encode_array(param2)]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_authors_by_ids_and_names')
-          client.prepare('pg_codegen_query_sql_get_authors_by_ids_and_names', GET_AUTHORS_BY_IDS_AND_NAMES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_authors_by_ids_and_names')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_authors_by_ids_and_names', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_get_authors_by_ids_and_names', GET_AUTHORS_BY_IDS_AND_NAMES_SQL, query_params)
         result.map do |row|
           GetAuthorsByIdsAndNamesRow.new(row['id'], row['name'], row['bio'])
         end
@@ -944,11 +904,7 @@ module PgCodegen
 
     def truncate_authors
       with_client('truncate_authors') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_authors')
-          client.prepare('pg_codegen_query_sql_truncate_authors', TRUNCATE_AUTHORS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_authors')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_authors')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_authors', TRUNCATE_AUTHORS_SQL)
         nil
       end
     end
@@ -956,11 +912,7 @@ module PgCodegen
     def create_book(name:, author_id:)
       with_client('create_book') do |client|
         query_params = [name, author_id]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_book')
-          client.prepare('pg_codegen_query_sql_create_book', CREATE_BOOK_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_book')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_create_book', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_create_book', CREATE_BOOK_SQL, query_params)
         row = result.first
         row && row['id']
       end
@@ -969,33 +921,21 @@ module PgCodegen
     def create_deferred_book(author_id:)
       with_client('create_deferred_book') do |client|
         query_params = [author_id]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_deferred_book')
-          client.prepare('pg_codegen_query_sql_create_deferred_book', CREATE_DEFERRED_BOOK_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_deferred_book')
-        end
-        client.exec_prepared('pg_codegen_query_sql_create_deferred_book', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_create_deferred_book', CREATE_DEFERRED_BOOK_SQL, query_params)
         nil
       end
     end
 
     def truncate_deferred_books
       with_client('truncate_deferred_books') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_deferred_books')
-          client.prepare('pg_codegen_query_sql_truncate_deferred_books', TRUNCATE_DEFERRED_BOOKS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_deferred_books')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_deferred_books')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_deferred_books', TRUNCATE_DEFERRED_BOOKS_SQL)
         nil
       end
     end
 
     def list_all_authors_books
       with_client('list_all_authors_books') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_list_all_authors_books')
-          client.prepare('pg_codegen_query_sql_list_all_authors_books', LIST_ALL_AUTHORS_BOOKS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_list_all_authors_books')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_list_all_authors_books').values
+        result = run_prepared(client, 'pg_codegen_query_sql_list_all_authors_books', LIST_ALL_AUTHORS_BOOKS_SQL).values
         result.map do |row|
           ListAllAuthorsBooksRow.new(
             Author.new(row[0], row[1], row[2]),
@@ -1007,11 +947,7 @@ module PgCodegen
 
     def get_duplicate_authors
       with_client('get_duplicate_authors') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_duplicate_authors')
-          client.prepare('pg_codegen_query_sql_get_duplicate_authors', GET_DUPLICATE_AUTHORS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_duplicate_authors')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_duplicate_authors').values
+        result = run_prepared(client, 'pg_codegen_query_sql_get_duplicate_authors', GET_DUPLICATE_AUTHORS_SQL).values
         result.map do |row|
           GetDuplicateAuthorsRow.new(Author.new(row[0], row[1], row[2]), Author.new(row[3], row[4], row[5]))
         end
@@ -1021,11 +957,7 @@ module PgCodegen
     def get_authors_by_book_name(name:)
       with_client('get_authors_by_book_name') do |client|
         query_params = [name]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_authors_by_book_name')
-          client.prepare('pg_codegen_query_sql_get_authors_by_book_name', GET_AUTHORS_BY_BOOK_NAME_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_authors_by_book_name')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_authors_by_book_name', query_params).values
+        result = run_prepared(client, 'pg_codegen_query_sql_get_authors_by_book_name', GET_AUTHORS_BY_BOOK_NAME_SQL, query_params).values
         result.map do |row|
           GetAuthorsByBookNameRow.new(row[0], row[1], row[2], Book.new(row[3], row[4], row[5], row[6]))
         end
@@ -1035,11 +967,7 @@ module PgCodegen
     def create_extended_bio(author_name:, name:, bio_type:)
       with_client('create_extended_bio') do |client|
         query_params = [author_name, name, bio_type]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_extended_bio')
-          client.prepare('pg_codegen_query_sql_create_extended_bio', CREATE_EXTENDED_BIO_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_extended_bio')
-        end
-        client.exec_prepared('pg_codegen_query_sql_create_extended_bio', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_create_extended_bio', CREATE_EXTENDED_BIO_SQL, query_params)
         nil
       end
     end
@@ -1047,11 +975,7 @@ module PgCodegen
     def get_first_extended_bio_by_type(bio_type:)
       with_client('get_first_extended_bio_by_type') do |client|
         query_params = [bio_type]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_first_extended_bio_by_type')
-          client.prepare('pg_codegen_query_sql_get_first_extended_bio_by_type', GET_FIRST_EXTENDED_BIO_BY_TYPE_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_first_extended_bio_by_type')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_first_extended_bio_by_type', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_get_first_extended_bio_by_type', GET_FIRST_EXTENDED_BIO_BY_TYPE_SQL, query_params)
         row = result.first
         row && GetFirstExtendedBioByTypeRow.new(row['author_name'], row['name'], row['bio_type'])
       end
@@ -1064,11 +988,7 @@ module PgCodegen
 
     def truncate_extended_bios
       with_client('truncate_extended_bios') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_extended_bios')
-          client.prepare('pg_codegen_query_sql_truncate_extended_bios', TRUNCATE_EXTENDED_BIOS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_extended_bios')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_extended_bios')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_extended_bios', TRUNCATE_EXTENDED_BIOS_SQL)
         nil
       end
     end
@@ -1085,22 +1005,14 @@ module PgCodegen
           c_money,
           c_not_null
         ]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_insert_extra_types')
-          client.prepare('pg_codegen_query_sql_insert_extra_types', INSERT_EXTRA_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_insert_extra_types')
-        end
-        client.exec_prepared('pg_codegen_query_sql_insert_extra_types', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_insert_extra_types', INSERT_EXTRA_TYPES_SQL, query_params)
         nil
       end
     end
 
     def get_extra_types
       with_client('get_extra_types') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_extra_types')
-          client.prepare('pg_codegen_query_sql_get_extra_types', GET_EXTRA_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_extra_types')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_extra_types')
+        result = run_prepared(client, 'pg_codegen_query_sql_get_extra_types', GET_EXTRA_TYPES_SQL)
         row = result.first
         row && GetExtraTypesRow.new(
           row['c_uuid'],
@@ -1122,11 +1034,7 @@ module PgCodegen
 
     def truncate_extra_types
       with_client('truncate_extra_types') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_extra_types')
-          client.prepare('pg_codegen_query_sql_truncate_extra_types', TRUNCATE_EXTRA_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_extra_types')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_extra_types')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_extra_types', TRUNCATE_EXTRA_TYPES_SQL)
         nil
       end
     end
@@ -1148,22 +1056,14 @@ module PgCodegen
           c_timestamptz,
           encode_array(c_text_matrix)
         ]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_insert_remaining_types')
-          client.prepare('pg_codegen_query_sql_insert_remaining_types', INSERT_REMAINING_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_insert_remaining_types')
-        end
-        client.exec_prepared('pg_codegen_query_sql_insert_remaining_types', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_insert_remaining_types', INSERT_REMAINING_TYPES_SQL, query_params)
         nil
       end
     end
 
     def get_remaining_types
       with_client('get_remaining_types') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_remaining_types')
-          client.prepare('pg_codegen_query_sql_get_remaining_types', GET_REMAINING_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_remaining_types')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_remaining_types')
+        result = run_prepared(client, 'pg_codegen_query_sql_get_remaining_types', GET_REMAINING_TYPES_SQL)
         row = result.first
         row && GetRemainingTypesRow.new(
           row['c_hstore'],
@@ -1190,11 +1090,7 @@ module PgCodegen
 
     def truncate_remaining_types
       with_client('truncate_remaining_types') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_remaining_types')
-          client.prepare('pg_codegen_query_sql_truncate_remaining_types', TRUNCATE_REMAINING_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_remaining_types')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_remaining_types')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_remaining_types', TRUNCATE_REMAINING_TYPES_SQL)
         nil
       end
     end
@@ -1202,22 +1098,14 @@ module PgCodegen
     def insert_array_types(c_uuid_array:, c_bio_type_array:, c_integer_matrix:)
       with_client('insert_array_types') do |client|
         query_params = [encode_array(c_uuid_array), encode_array(c_bio_type_array), encode_array(c_integer_matrix)]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_insert_array_types')
-          client.prepare('pg_codegen_query_sql_insert_array_types', INSERT_ARRAY_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_insert_array_types')
-        end
-        client.exec_prepared('pg_codegen_query_sql_insert_array_types', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_insert_array_types', INSERT_ARRAY_TYPES_SQL, query_params)
         nil
       end
     end
 
     def get_array_types
       with_client('get_array_types') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_array_types')
-          client.prepare('pg_codegen_query_sql_get_array_types', GET_ARRAY_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_array_types')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_array_types')
+        result = run_prepared(client, 'pg_codegen_query_sql_get_array_types', GET_ARRAY_TYPES_SQL)
         row = result.first
         row && GetArrayTypesRow.new(row['c_uuid_array'], row['c_bio_type_array'], row['c_integer_matrix'])
       end
@@ -1230,22 +1118,14 @@ module PgCodegen
 
     def truncate_array_types
       with_client('truncate_array_types') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_array_types')
-          client.prepare('pg_codegen_query_sql_truncate_array_types', TRUNCATE_ARRAY_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_array_types')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_array_types')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_array_types', TRUNCATE_ARRAY_TYPES_SQL)
         nil
       end
     end
 
     def list_authors_with_optional_book
       with_client('list_authors_with_optional_book') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_list_authors_with_optional_book')
-          client.prepare('pg_codegen_query_sql_list_authors_with_optional_book', LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_list_authors_with_optional_book')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_list_authors_with_optional_book').values
+        result = run_prepared(client, 'pg_codegen_query_sql_list_authors_with_optional_book', LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL).values
         result.map do |row|
           ListAuthorsWithOptionalBookRow.new(
             row[0].nil? && row[1].nil? ? nil : Author.new(row[0], row[1], row[2]),
@@ -1258,11 +1138,7 @@ module PgCodegen
     def list_authors_between_ids(id:, id_2:)
       with_client('list_authors_between_ids') do |client|
         query_params = [id, id_2]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_list_authors_between_ids')
-          client.prepare('pg_codegen_query_sql_list_authors_between_ids', LIST_AUTHORS_BETWEEN_IDS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_list_authors_between_ids')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_list_authors_between_ids', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_list_authors_between_ids', LIST_AUTHORS_BETWEEN_IDS_SQL, query_params)
         result.map do |row|
           ListAuthorsBetweenIdsRow.new(row['id'], row['name'], row['bio'])
         end
@@ -1280,22 +1156,14 @@ module PgCodegen
           c_dimensions,
           c_positive
         ]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_insert_special_types')
-          client.prepare('pg_codegen_query_sql_insert_special_types', INSERT_SPECIAL_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_insert_special_types')
-        end
-        client.exec_prepared('pg_codegen_query_sql_insert_special_types', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_insert_special_types', INSERT_SPECIAL_TYPES_SQL, query_params)
         nil
       end
     end
 
     def get_special_types
       with_client('get_special_types') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_special_types')
-          client.prepare('pg_codegen_query_sql_get_special_types', GET_SPECIAL_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_special_types')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_special_types')
+        result = run_prepared(client, 'pg_codegen_query_sql_get_special_types', GET_SPECIAL_TYPES_SQL)
         row = result.first
         row && GetSpecialTypesRow.new(
           row['c_timetz'],
@@ -1316,11 +1184,7 @@ module PgCodegen
 
     def truncate_special_types
       with_client('truncate_special_types') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_special_types')
-          client.prepare('pg_codegen_query_sql_truncate_special_types', TRUNCATE_SPECIAL_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_special_types')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_special_types')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_special_types', TRUNCATE_SPECIAL_TYPES_SQL)
         nil
       end
     end
@@ -1328,24 +1192,16 @@ module PgCodegen
     def create_author_result(name:, bio:)
       with_client('create_author_result') do |client|
         query_params = [name, bio]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_author_result')
-          client.prepare('pg_codegen_query_sql_create_author_result', CREATE_AUTHOR_RESULT_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_author_result')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_create_author_result', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_create_author_result', CREATE_AUTHOR_RESULT_SQL, query_params)
         ExecResult.new(result.cmd_tuples, nil)
       end
     end
 
     def create_authors_batch(rows)
       with_client('create_authors_batch') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_authors_batch')
-          client.prepare('pg_codegen_query_sql_create_authors_batch', CREATE_AUTHORS_BATCH_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_authors_batch')
-        end
         rows.each do |args|
           query_params = [args.name, args.bio]
-          client.exec_prepared('pg_codegen_query_sql_create_authors_batch', query_params)
+          run_prepared(client, 'pg_codegen_query_sql_create_authors_batch', CREATE_AUTHORS_BATCH_SQL, query_params)
         end
         nil
       end
@@ -1353,13 +1209,9 @@ module PgCodegen
 
     def get_author_batch(rows)
       with_client('get_author_batch') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_author_batch')
-          client.prepare('pg_codegen_query_sql_get_author_batch', GET_AUTHOR_BATCH_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_author_batch')
-        end
         rows.map do |args|
           query_params = [args.id]
-          result = client.exec_prepared('pg_codegen_query_sql_get_author_batch', query_params)
+          result = run_prepared(client, 'pg_codegen_query_sql_get_author_batch', GET_AUTHOR_BATCH_SQL, query_params)
           row = result.first
           row && GetAuthorBatchRow.new(row['id'], row['name'], row['bio'])
         end
@@ -1368,13 +1220,9 @@ module PgCodegen
 
     def list_authors_by_name_batch(rows)
       with_client('list_authors_by_name_batch') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_list_authors_by_name_batch')
-          client.prepare('pg_codegen_query_sql_list_authors_by_name_batch', LIST_AUTHORS_BY_NAME_BATCH_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_list_authors_by_name_batch')
-        end
         rows.map do |args|
           query_params = [args.name]
-          result = client.exec_prepared('pg_codegen_query_sql_list_authors_by_name_batch', query_params)
+          result = run_prepared(client, 'pg_codegen_query_sql_list_authors_by_name_batch', LIST_AUTHORS_BY_NAME_BATCH_SQL, query_params)
           result.map do |row|
             ListAuthorsByNameBatchRow.new(row['id'], row['name'], row['bio'])
           end
@@ -1392,11 +1240,7 @@ module PgCodegen
           encode_array(bio_types),
           encode_array(uids)
         ]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_regression')
-          client.prepare('pg_codegen_query_sql_create_regression', CREATE_REGRESSION_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_regression')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_create_regression', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_create_regression', CREATE_REGRESSION_SQL, query_params)
         row = result.first
         row && CreateRegressionRow.new(
           row['id'],
@@ -1404,7 +1248,8 @@ module PgCodegen
           row['payload'],
           row['doc'],
           row['bio_types'],
-          row['uids']
+          row['uids'],
+          row['step']
         )
       end
     end
@@ -1417,11 +1262,7 @@ module PgCodegen
     def create_regression_if_new(id:, order:)
       with_client('create_regression_if_new') do |client|
         query_params = [id, order]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_regression_if_new')
-          client.prepare('pg_codegen_query_sql_create_regression_if_new', CREATE_REGRESSION_IF_NEW_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_regression_if_new')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_create_regression_if_new', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_create_regression_if_new', CREATE_REGRESSION_IF_NEW_SQL, query_params)
         row = result.first
         row && row['id']
       end
@@ -1441,13 +1282,9 @@ module PgCodegen
 
     def create_regressions_batch(rows)
       with_client('create_regressions_batch') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_regressions_batch')
-          client.prepare('pg_codegen_query_sql_create_regressions_batch', CREATE_REGRESSIONS_BATCH_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_regressions_batch')
-        end
         rows.each do |args|
           query_params = [args.id, args.order, encode_bytea(args.payload), encode_json(args.doc)]
-          client.exec_prepared('pg_codegen_query_sql_create_regressions_batch', query_params)
+          run_prepared(client, 'pg_codegen_query_sql_create_regressions_batch', CREATE_REGRESSIONS_BATCH_SQL, query_params)
         end
         nil
       end
@@ -1456,11 +1293,7 @@ module PgCodegen
     def list_regressions(order_name: nil)
       with_client('list_regressions') do |client|
         query_params = [order_name]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_list_regressions')
-          client.prepare('pg_codegen_query_sql_list_regressions', LIST_REGRESSIONS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_list_regressions')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_list_regressions', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_list_regressions', LIST_REGRESSIONS_SQL, query_params)
         result.map do |row|
           ListRegressionsRow.new(
             row['id'],
@@ -1468,29 +1301,36 @@ module PgCodegen
             row['payload'],
             row['doc'],
             row['bio_types'],
-            row['uids']
+            row['uids'],
+            row['step']
           )
         end
       end
     end
 
+    def set_regression_step(id:, step:)
+      with_client('set_regression_step') do |client|
+        query_params = [id, step]
+        result = run_prepared(client, 'pg_codegen_query_sql_set_regression_step', SET_REGRESSION_STEP_SQL, query_params)
+        row = result.first
+        row && SetRegressionStepRow.new(row['step'])
+      end
+    end
+
+    # Like #set_regression_step, but raises NotFound when there is no row.
+    def set_regression_step!(...)
+      set_regression_step(...) || raise(NotFound, 'SetRegressionStep returned no row')
+    end
+
     def truncate_regressions
       with_client('truncate_regressions') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_regressions')
-          client.prepare('pg_codegen_query_sql_truncate_regressions', TRUNCATE_REGRESSIONS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_regressions')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_regressions')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_regressions', TRUNCATE_REGRESSIONS_SQL)
         nil
       end
     end
 
     def create_batch_types_batch(rows)
       with_client('create_batch_types_batch') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_batch_types_batch')
-          client.prepare('pg_codegen_query_sql_create_batch_types_batch', CREATE_BATCH_TYPES_BATCH_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_batch_types_batch')
-        end
         rows.each do |args|
           query_params = [
             args.id,
@@ -1502,7 +1342,7 @@ module PgCodegen
             encode_array(args.amounts),
             encode_array(args.stamps)
           ]
-          client.exec_prepared('pg_codegen_query_sql_create_batch_types_batch', query_params)
+          run_prepared(client, 'pg_codegen_query_sql_create_batch_types_batch', CREATE_BATCH_TYPES_BATCH_SQL, query_params)
         end
         nil
       end
@@ -1522,11 +1362,7 @@ module PgCodegen
 
     def list_batch_types
       with_client('list_batch_types') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_list_batch_types')
-          client.prepare('pg_codegen_query_sql_list_batch_types', LIST_BATCH_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_list_batch_types')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_list_batch_types')
+        result = run_prepared(client, 'pg_codegen_query_sql_list_batch_types', LIST_BATCH_TYPES_SQL)
         result.map do |row|
           ListBatchTypesRow.new(
             row['id'],
@@ -1545,11 +1381,7 @@ module PgCodegen
     def count_batch_types_above(min_id:)
       with_client('count_batch_types_above') do |client|
         query_params = [min_id]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_count_batch_types_above')
-          client.prepare('pg_codegen_query_sql_count_batch_types_above', COUNT_BATCH_TYPES_ABOVE_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_count_batch_types_above')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_count_batch_types_above', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_count_batch_types_above', COUNT_BATCH_TYPES_ABOVE_SQL, query_params)
         row = result.first
         row && CountBatchTypesAboveRow.new(row['count'])
       end
@@ -1562,11 +1394,7 @@ module PgCodegen
 
     def truncate_batch_types
       with_client('truncate_batch_types') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_batch_types')
-          client.prepare('pg_codegen_query_sql_truncate_batch_types', TRUNCATE_BATCH_TYPES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_batch_types')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_batch_types')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_batch_types', TRUNCATE_BATCH_TYPES_SQL)
         nil
       end
     end
@@ -1583,11 +1411,7 @@ module PgCodegen
           camel_case,
           http_server
         ]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_insert_name_case')
-          client.prepare('pg_codegen_query_sql_insert_name_case', INSERT_NAME_CASE_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_insert_name_case')
-        end
-        client.exec_prepared('pg_codegen_query_sql_insert_name_case', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_insert_name_case', INSERT_NAME_CASE_SQL, query_params)
         nil
       end
     end
@@ -1604,11 +1428,7 @@ module PgCodegen
           http_server,
           camel_case
         ]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_name_case')
-          client.prepare('pg_codegen_query_sql_get_name_case', GET_NAME_CASE_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_name_case')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_name_case', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_get_name_case', GET_NAME_CASE_SQL, query_params)
         row = result.first
         row && GetNameCaseRow.new(
           row['id'],
@@ -1631,11 +1451,7 @@ module PgCodegen
     def get_http_server(id:)
       with_client('get_http_server') do |client|
         query_params = [id]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_http_server')
-          client.prepare('pg_codegen_query_sql_get_http_server', GET_HTTP_SERVER_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_http_server')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_http_server', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_get_http_server', GET_HTTP_SERVER_SQL, query_params)
         row = result.first
         row && GetHTTPServerRow.new(
           row['id'],
@@ -1657,22 +1473,14 @@ module PgCodegen
 
     def truncate_name_cases
       with_client('truncate_name_cases') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_name_cases')
-          client.prepare('pg_codegen_query_sql_truncate_name_cases', TRUNCATE_NAME_CASES_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_name_cases')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_name_cases')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_name_cases', TRUNCATE_NAME_CASES_SQL)
         nil
       end
     end
 
     def get_unnamed_columns
       with_client('get_unnamed_columns') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_unnamed_columns')
-          client.prepare('pg_codegen_query_sql_get_unnamed_columns', GET_UNNAMED_COLUMNS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_unnamed_columns')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_unnamed_columns').values
+        result = run_prepared(client, 'pg_codegen_query_sql_get_unnamed_columns', GET_UNNAMED_COLUMNS_SQL).values
         row = result.first
         row && GetUnnamedColumnsRow.new(row[0], row[1])
       end
@@ -1685,11 +1493,7 @@ module PgCodegen
 
     def get_quoted_alias
       with_client('get_quoted_alias') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_quoted_alias')
-          client.prepare('pg_codegen_query_sql_get_quoted_alias', GET_QUOTED_ALIAS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_quoted_alias')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_quoted_alias')
+        result = run_prepared(client, 'pg_codegen_query_sql_get_quoted_alias', GET_QUOTED_ALIAS_SQL)
         row = result.first
         row && GetQuotedAliasRow.new(row['it\'s'])
       end
@@ -1702,22 +1506,14 @@ module PgCodegen
 
     def create_exception
       with_client('create_exception') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_exception')
-          client.prepare('pg_codegen_query_sql_create_exception', CREATE_EXCEPTION_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_exception')
-        end
-        client.exec_prepared('pg_codegen_query_sql_create_exception')
+        run_prepared(client, 'pg_codegen_query_sql_create_exception', CREATE_EXCEPTION_SQL)
         nil
       end
     end
 
     def count_exceptions
       with_client('count_exceptions') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_count_exceptions')
-          client.prepare('pg_codegen_query_sql_count_exceptions', COUNT_EXCEPTIONS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_count_exceptions')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_count_exceptions')
+        result = run_prepared(client, 'pg_codegen_query_sql_count_exceptions', COUNT_EXCEPTIONS_SQL)
         row = result.first
         row && CountExceptionsRow.new(row['n'])
       end
@@ -1730,11 +1526,7 @@ module PgCodegen
 
     def truncate_exceptions
       with_client('truncate_exceptions') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_truncate_exceptions')
-          client.prepare('pg_codegen_query_sql_truncate_exceptions', TRUNCATE_EXCEPTIONS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_truncate_exceptions')
-        end
-        client.exec_prepared('pg_codegen_query_sql_truncate_exceptions')
+        run_prepared(client, 'pg_codegen_query_sql_truncate_exceptions', TRUNCATE_EXCEPTIONS_SQL)
         nil
       end
     end
@@ -1742,11 +1534,7 @@ module PgCodegen
     def create_late_feeling(id:, moods:)
       with_client('create_late_feeling') do |client|
         query_params = [id, encode_array(moods)]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_create_late_feeling')
-          client.prepare('pg_codegen_query_sql_create_late_feeling', CREATE_LATE_FEELING_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_create_late_feeling')
-        end
-        client.exec_prepared('pg_codegen_query_sql_create_late_feeling', query_params)
+        run_prepared(client, 'pg_codegen_query_sql_create_late_feeling', CREATE_LATE_FEELING_SQL, query_params)
         nil
       end
     end
@@ -1754,11 +1542,7 @@ module PgCodegen
     def get_late_feeling(id:)
       with_client('get_late_feeling') do |client|
         query_params = [id]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_get_late_feeling')
-          client.prepare('pg_codegen_query_sql_get_late_feeling', GET_LATE_FEELING_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_get_late_feeling')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_get_late_feeling', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_get_late_feeling', GET_LATE_FEELING_SQL, query_params)
         row = result.first
         row && GetLateFeelingRow.new(row['moods'])
       end
@@ -1778,11 +1562,7 @@ module PgCodegen
           encode_float(c3),
           encode_bytea(c4)
         ]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_many_params')
-          client.prepare('pg_codegen_query_sql_many_params', MANY_PARAMS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_many_params')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_many_params', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_many_params', MANY_PARAMS_SQL, query_params)
         row = result.first
         row && ManyParamsRow.new(row['c0'], row['c1'])
       end
@@ -1796,11 +1576,7 @@ module PgCodegen
     def many_rows(c0:)
       with_client('many_rows') do |client|
         query_params = [c0]
-        unless client.prepared_statements.include?('pg_codegen_query_sql_many_rows')
-          client.prepare('pg_codegen_query_sql_many_rows', MANY_ROWS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_many_rows')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_many_rows', query_params)
+        result = run_prepared(client, 'pg_codegen_query_sql_many_rows', MANY_ROWS_SQL, query_params)
         result.map do |row|
           ManyRowsRow.new(
             row['c0'],
@@ -1815,11 +1591,7 @@ module PgCodegen
 
     def four_cols
       with_client('four_cols') do |client|
-        unless client.prepared_statements.include?('pg_codegen_query_sql_four_cols')
-          client.prepare('pg_codegen_query_sql_four_cols', FOUR_COLS_SQL)
-          client.prepared_statements.add('pg_codegen_query_sql_four_cols')
-        end
-        result = client.exec_prepared('pg_codegen_query_sql_four_cols')
+        result = run_prepared(client, 'pg_codegen_query_sql_four_cols', FOUR_COLS_SQL)
         result.map do |row|
           FourColsRow.new(row['c0'], row['c1'], row['c2'], row['c3'])
         end
@@ -1885,6 +1657,23 @@ module PgCodegen
       end
       known.default_type_map = NewTypes.map(client, known)
       known
+    end
+
+    # Executes a statement prepared once per connection. A statement dropped by hand (DEALLOCATE ALL, DISCARD ALL) is
+    # prepared again; inside a transaction the error has already aborted it, so it is raised.
+    def run_prepared(client, name, sql, params = [])
+      unless client.prepared_statements.include?(name)
+        client.prepare(name, sql)
+        client.prepared_statements.add(name)
+      end
+      client.exec_prepared(name, params)
+    rescue ::PG::InvalidSqlStatementName
+      client.prepared_statements.delete(name)
+      raise unless client.transaction_status == ::PG::PQTRANS_IDLE
+
+      client.prepare(name, sql)
+      client.prepared_statements.add(name)
+      client.exec_prepared(name, params)
     end
 
     def timeout_exits_with_throw?

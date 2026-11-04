@@ -14,6 +14,16 @@ module Mysql2Codegen
     ALL: ::Array[::String]
   end
 
+  module RegressionsStep
+    BEGIN_: ::String
+    END_: ::String
+    ALL_: ::String
+    NIL: ::String
+    SELF: ::String
+    DO: ::String
+    ALL: ::Array[::String]
+  end
+
   class Author
     attr_reader id: ::Integer
     attr_reader name: ::String
@@ -121,7 +131,14 @@ module Mysql2Codegen
     attr_reader order: ::String
     attr_reader note: ::String?
     attr_reader payload: ::String?
-    def initialize: (  ::Integer id, ::String order, ::String? note, ::String? payload) -> void
+    attr_reader step: ::String?
+    def initialize: (
+        ::Integer id,
+        ::String order,
+        ::String? note,
+        ::String? payload,
+        ::String? step
+    ) -> void
   end
 
   class CopyType

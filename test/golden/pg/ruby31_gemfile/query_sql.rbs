@@ -450,13 +450,15 @@ module PgCodegen
     attr_accessor doc: untyped
     attr_accessor bio_types: ::Array[::String]?
     attr_accessor uids: ::Array[::String]?
+    attr_accessor step: ::String?
     def initialize: (
         id: ::Integer,
         order: ::String,
         payload: ::String?,
         doc: untyped,
         bio_types: ::Array[::String]?,
-        uids: ::Array[::String]?
+        uids: ::Array[::String]?,
+        step: ::String?
     ) -> void
     def self.new: (
         id: ::Integer,
@@ -464,7 +466,8 @@ module PgCodegen
         payload: ::String?,
         doc: untyped,
         bio_types: ::Array[::String]?,
-        uids: ::Array[::String]?
+        uids: ::Array[::String]?,
+        step: ::String?
     ) -> CreateRegressionRow
   end
 
@@ -505,13 +508,15 @@ module PgCodegen
     attr_accessor doc: untyped
     attr_accessor bio_types: ::Array[::String]?
     attr_accessor uids: ::Array[::String]?
+    attr_accessor step: ::String?
     def initialize: (
         id: ::Integer,
         order: ::String,
         payload: ::String?,
         doc: untyped,
         bio_types: ::Array[::String]?,
-        uids: ::Array[::String]?
+        uids: ::Array[::String]?,
+        step: ::String?
     ) -> void
     def self.new: (
         id: ::Integer,
@@ -519,8 +524,17 @@ module PgCodegen
         payload: ::String?,
         doc: untyped,
         bio_types: ::Array[::String]?,
-        uids: ::Array[::String]?
+        uids: ::Array[::String]?,
+        step: ::String?
     ) -> ListRegressionsRow
+  end
+
+  SET_REGRESSION_STEP_SQL: ::String
+
+  class SetRegressionStepRow < ::Struct[untyped]
+    attr_accessor step: ::String?
+    def initialize: (  step: ::String?) -> void
+    def self.new: (  step: ::String?) -> SetRegressionStepRow
   end
 
   TRUNCATE_REGRESSIONS_SQL: ::String
@@ -924,6 +938,10 @@ module PgCodegen
 
     def list_regressions: (?order_name: ::String?) -> ::Array[ListRegressionsRow]
 
+    def set_regression_step: (id: ::Integer, step: ::String?) -> SetRegressionStepRow?
+
+    def set_regression_step!: (id: ::Integer, step: ::String?) -> SetRegressionStepRow
+
     def truncate_regressions: -> void
 
     def create_batch_types_batch: (::Array[CreateBatchTypesBatchArgs] rows) -> void
@@ -991,6 +1009,8 @@ module PgCodegen
     def configure: (untyped client) -> void
 
     def string_arrays: (untyped client) -> untyped
+
+    def run_prepared: (untyped client, ::String name, ::String sql, ?::Array[untyped] params) -> untyped
 
     def timeout_exits_with_throw?: () -> bool
 

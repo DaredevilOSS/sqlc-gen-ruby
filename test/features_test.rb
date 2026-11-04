@@ -256,9 +256,9 @@ class FeaturesTest < Minitest::Test
 
   def test_statements_are_named_after_the_module_and_query_class
     rb = generate(load_request('pg')).fetch('query_sql.rb')
-    assert_includes rb, "client.exec_prepared('pg_codegen_query_sql_get_author', query_params)"
+    assert_includes rb, "run_prepared(client, 'pg_codegen_query_sql_get_author', GET_AUTHOR_SQL, query_params)"
     rb = generate(load_request('pg', moduleName: 'Shop::DB')).fetch('query_sql.rb')
-    assert_includes rb, "client.exec_prepared('shop_db_query_sql_get_author', query_params)"
+    assert_includes rb, "run_prepared(client, 'shop_db_query_sql_get_author', GET_AUTHOR_SQL, query_params)"
   end
 
   def test_pg_can_skip_prepared_statements
@@ -587,14 +587,23 @@ class FeaturesTest < Minitest::Test
     assert status.success?, out
   end
 
-  def rubocop(source)
+  def test_ruby31_struct_rows_of_unnamed_columns_are_rubocop_clean
+    %w[pg mysql2 sqlite3].each do |driver|
+      code = generate(load_request(driver, rubyVersion: '3.1')).fetch('query_sql.rb')
+      assert_includes code, 'GetUnnamedColumnsRow.new(column_1: row[0]'
+      out, status = rubocop(code, '--only', 'Naming') # the other cops target the examples' Ruby
+      assert status.success?, "#{driver}: #{out}"
+    end
+  end
+
+  def rubocop(source, *options)
     exe = begin
       Gem.bin_path('rubocop', 'rubocop')
     rescue Gem::GemNotFoundException
       skip 'rubocop not installed'
     end
     out, _err, status = Open3.capture3(RbConfig.ruby, exe, '--stdin', 'examples/pg/query_sql.rb',
-                                       '--format', 'emacs', stdin_data: source, chdir: ROOT)
+                                       '--format', 'emacs', *options, stdin_data: source, chdir: ROOT)
     [out, status]
   end
 

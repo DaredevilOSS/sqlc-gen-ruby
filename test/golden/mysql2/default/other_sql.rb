@@ -54,38 +54,58 @@ module Mysql2Codegen
         raise ::ArgumentError, 'isolation: cannot be set on a nested transaction' if isolation && !outermost
 
         savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
-        if outermost
-          client.query("SET TRANSACTION ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}") if isolation
-          client.query('BEGIN')
-          client.in_transaction = true
-        else
-          client.query("SAVEPOINT #{savepoint}")
-        end
+        level = "SET TRANSACTION ISOLATION LEVEL #{ISOLATION_LEVELS.fetch(isolation)}" if isolation
         rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+        # Timeout / Thread#raise / Thread#kill wait while BEGIN, COMMIT and ROLLBACK run and only interrupt the
+        # block: the connection never goes back to the pool inside a transaction.
         bound = TransactionConnection.new(client) unless @db.is_a?(TransactionConnection)
-        failed = false
-        begin
-          bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
-        rescue ::Exception => e # rubocop:disable Lint/RescueException
-          failed = true
-          bound&.close
+        ::Thread.handle_interrupt(::Object => :never) do
+          started = false
+          failed = false
           begin
-            client.query(rollback)
-          rescue ::Mysql2::Error
-            # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone;
-            # an interrupted query closed the connection: the server rolls back
-            raise unless e.is_a?(::Mysql2::Error) || client.closed?
-          end
-          raise
-        ensure
-          bound&.close
-          begin
-            unless failed
-              commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-              client.query(::Thread.current.status == 'aborting' ? rollback : commit)
+            if outermost
+              client.in_transaction = true
+              client.query(level) if level
+              client.query('BEGIN')
+            else
+              client.query("SAVEPOINT #{savepoint}")
             end
+            started = true
+            ::Thread.handle_interrupt(::Object => :immediate) do
+              bound ? yield(bound_to(bound)) : @db.unlocked { yield self }
+            end
+          rescue ::Exception => e # rubocop:disable Lint/RescueException
+            failed = true
+            bound&.close
+            begin
+              client.query(rollback) if started || outermost
+            rescue ::Mysql2::Error
+              # a deadlock / lock wait timeout already rolled back the transaction: its savepoints are gone;
+              # an interrupted query closed the connection: the server rolls back
+              raise unless e.is_a?(::Mysql2::Error) || client.closed?
+            end
+            raise
           ensure
-            client.in_transaction = false if outermost
+            bound&.close
+            begin
+              unless failed
+                commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+                begin
+                  client.query(::Thread.current.status == 'aborting' ? rollback : commit)
+                rescue ::Exception # rubocop:disable Lint/RescueException
+                  # COMMIT did not run: roll back instead of leaving the transaction open (a closed client is
+                  # discarded and the server rolls back)
+                  begin
+                    client.query('ROLLBACK') if outermost && !client.closed?
+                  rescue ::Mysql2::Error
+                    nil
+                  end
+                  raise
+                end
+              end
+            ensure
+              client.in_transaction = false if outermost
+            end
           end
         end
       end

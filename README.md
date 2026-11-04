@@ -65,7 +65,7 @@ More: [the generated code for every driver](docs/Examples.md) (it is the plugin'
 | `overrides` | none | Change the type of columns / parameters, see [below](#overrides). |
 | `rename` | none | Rename tables (model class) and columns (attribute), e.g. `{authors: Writer, bio: biography}`; `schema.table` works too. |
 | `exactTableNames` | `false` | Keep table names as model names (`authors` → `Authors`) instead of singularizing them (`Author`). |
-| `preparedStatements` | `true` | `pg` only (an error with other drivers). `false` sends the SQL with every call instead of preparing it (needed behind pgbouncer in transaction mode). |
+| `preparedStatements` | `true` | `pg` only (an error with other drivers). `false` sends the SQL with every call instead of preparing it (needed behind pgbouncer in transaction mode). Statements dropped by `DEALLOCATE ALL` / `DISCARD ALL` are prepared again by their next call outside a transaction (inside one, that call raises and the transaction rolls back). |
 
 Unknown or misspelled options are errors, with a hint for near misses (`generate_types` → `generateTypes`).
 Options shared by several `sql:` blocks can go in the top-level `options:` of `sqlc.yaml` under the plugin's name
@@ -119,7 +119,9 @@ queries.transaction(isolation: :serializable) do |tx|
 end
 ```
 * Everything in the block runs on one connection. It commits when the block ends (also on `break`, `return`, `throw`)
-  and rolls back when it raises or the thread is killed. On Ruby <3.3 with timeout <0.4, `break`, `return`, and
+  and rolls back when it raises or the thread is killed. An interrupt (`Timeout`, `Thread#raise`, `Thread#kill`) that
+  arrives while `BEGIN`, `COMMIT` or `ROLLBACK` runs waits for it to finish, and a `BEGIN` / `COMMIT` that raises
+  itself (a stopped `Async` task) is rolled back: the connection never goes back to the pool inside a transaction. On Ruby <3.3 with timeout <0.4, `break`, `return`, and
   `throw` also roll back because Timeout cannot be told apart; add `gem 'timeout', '>= 0.4'` to the generated Gemfile
   to keep those exits committing. A nested `transaction` rolls back only its own part. With `connection_pool` or
   SQLite, parent-object calls from the same thread reuse the transaction connection; injected `#with` objects must do
@@ -176,12 +178,15 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
 
 ### Types
 * Types follow what the drivers return: `Integer`, `Float`, `BigDecimal` (`numeric` / `decimal`), `String`, `Date`, `Time`,
-  `IPAddr`, `true` / `false`; `json` / `jsonb` are parsed (`untyped`); nullable columns and parameters are `T?`.
+  `IPAddr`, `true` / `false`; PostgreSQL `json` / `jsonb` are parsed (`untyped`; MySQL `JSON` columns and parameters are JSON text `String`s, as
+  `mysql2` returns them); nullable columns and parameters are `T?`.
 * PostgreSQL arrays are `Array[T]` (`Array[Array[T]]` for `T[][]`); arrays of types the pg gem does not decode
   (`uuid[]`, enum arrays, ...) are `Array[String]`, also for types created after the connection was opened (a
   migration run while the application is up). Geometric, range, full-text, `hstore`, `ltree`, `timetz`, `reg*` and
   composite types are `String`s; domains and unknown types are `untyped`.
-* Enums are `String`s, with constants in `models.rb` (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`).
+* Enums are `String`s, with constants in `models.rb` (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`). Values that
+  are not valid constant names still get one: `'end'` → `END_`, `'all'` → `ALL_`, `'2x'` → `VALUE_2X`, `'a b'` → `A_B`;
+  values that end up with the same name get `_2`, `_3`, ...
 * SQLite follows its [type affinity rules](https://www.sqlite.org/datatype3.html#determination_of_column_affinity)
   (`VARCHAR(255)` → `String`, `DECIMAL(10,5)` → `Float`, `UNSIGNED BIG INT` → `Integer`); `JSON` and `UUID` columns are `String`s.
   The generated SQLite code uses `Monitor`: if you run Steep, add `library "monitor"` to your `Steepfile`.

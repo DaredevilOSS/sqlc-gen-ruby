@@ -52,25 +52,40 @@ module Sqlite3Codegen
           raise ::ArgumentError, 'mode: cannot be set on a nested transaction' if mode && !outermost
 
           savepoint = outermost ? nil : "sqlc_sp_#{rand(0xffff_ffff).to_s(16)}"
-          @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
           rollback = outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT #{savepoint}"
+          # Timeout / Thread#raise / Thread#kill wait while BEGIN, COMMIT and ROLLBACK run and only interrupt the
+          # block: the database is never left inside a transaction.
           bound = TransactionConnection.new(@db) unless @lock.is_a?(TransactionConnection)
-          failed = false
-          completed = false
-          begin
-            result = bound ? yield(bound_to(bound)) : @lock.unlocked { yield self }
-            completed = true
-            result
-          rescue ::Exception # rubocop:disable Lint/RescueException
-            failed = true
-            bound&.close
-            @db.execute(rollback) if @db.transaction_active? # ON CONFLICT ROLLBACK already ended it
-            raise
-          ensure
-            bound&.close
-            unless failed
-              commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
-              @db.execute(::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
+          ::Thread.handle_interrupt(::Object => :never) do
+            started = false
+            failed = false
+            completed = false
+            begin
+              @db.execute(outermost ? "BEGIN#{" #{mode.to_s.upcase}" if mode}" : "SAVEPOINT #{savepoint}")
+              started = true
+              ::Thread.handle_interrupt(::Object => :immediate) do
+                result = bound ? yield(bound_to(bound)) : @lock.unlocked { yield self }
+                completed = true
+                result
+              end
+            rescue ::Exception # rubocop:disable Lint/RescueException
+              failed = true
+              bound&.close
+              # ON CONFLICT ROLLBACK already ended it
+              @db.execute(rollback) if (started || outermost) && @db.transaction_active?
+              raise
+            ensure
+              bound&.close
+              unless failed
+                commit = outermost ? 'COMMIT' : "RELEASE SAVEPOINT #{savepoint}"
+                begin
+                  @db.execute(::Thread.current.status == 'aborting' || (!completed && timeout_exits_with_throw?) ? rollback : commit)
+                rescue ::Exception # rubocop:disable Lint/RescueException
+                  # COMMIT failed (SQLITE_BUSY) or did not run: roll back instead of leaving the transaction open
+                  @db.execute('ROLLBACK') if outermost && @db.transaction_active?
+                  raise
+                end
+              end
             end
           end
         end
