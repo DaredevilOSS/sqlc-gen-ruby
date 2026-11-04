@@ -220,3 +220,6 @@ INSERT INTO exceptions (id) VALUES (NULL);
 
 -- name: CountExceptions :one
 SELECT COUNT(*) AS n FROM exceptions;
+
+-- name: HasAuthors :one
+SELECT EXISTS (SELECT 1 FROM authors) AS has_any;

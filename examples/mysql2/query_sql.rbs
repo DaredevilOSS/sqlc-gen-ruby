@@ -531,6 +531,13 @@ module Mysql2Codegen
 
   TRUNCATE_EXCEPTIONS_SQL: ::String
 
+  HAS_AUTHORS_SQL: ::String
+
+  class HasAuthorsRow
+    attr_reader has_any: untyped
+    def initialize: (  untyped has_any) -> void
+  end
+
   class QuerySql
     class NotFound < ::StandardError
     end
@@ -686,6 +693,10 @@ module Mysql2Codegen
     def count_exceptions!: -> CountExceptionsRow
 
     def truncate_exceptions: -> void
+
+    def has_authors: -> HasAuthorsRow?
+
+    def has_authors!: -> HasAuthorsRow
 
     private
 

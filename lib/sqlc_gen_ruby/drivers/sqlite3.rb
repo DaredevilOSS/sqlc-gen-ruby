@@ -327,6 +327,13 @@ module SqlcGenRuby
         end
       RUBY
 
+      # JSON / UUID columns have NUMERIC affinity: SQLite stores numeric-looking text ('42', '1.5') as a number.
+      def decode_value(expr, column)
+        TEXT_AS_NUMBER.include?(normalize_type(column&.type&.name.to_s)) ? "#{expr}&.to_s" : expr
+      end
+
+      TEXT_AS_NUMBER = %w[json jsonb uuid].freeze
+
       private
 
       # VARCHAR(255) -> varchar, UNSIGNED BIG INT -> unsignedbigint

@@ -170,20 +170,30 @@ module PgCodegen
     end
 
     # Executes a statement prepared once per connection. A statement dropped by hand (DEALLOCATE ALL, DISCARD ALL) is
-    # prepared again; inside a transaction the error has already aborted it, so it is raised.
+    # prepared again, and one the server already has (its PREPARE was interrupted after it ran) is used; inside a
+    # transaction the error has already aborted it, so it is raised.
     def run_prepared(client, name, sql, params = [])
-      unless client.prepared_statements.include?(name)
-        client.prepare(name, sql)
-        client.prepared_statements.add(name)
-      end
+      prepare(client, name, sql) unless client.prepared_statements.include?(name)
       client.exec_prepared(name, params)
     rescue ::PG::InvalidSqlStatementName
       client.prepared_statements.delete(name)
       raise unless client.transaction_status == ::PG::PQTRANS_IDLE
 
-      client.prepare(name, sql)
-      client.prepared_statements.add(name)
+      prepare(client, name, sql)
       client.exec_prepared(name, params)
+    end
+
+    # Timeout / Thread#raise wait until the statement is prepared and recorded. An exception raised by PREPARE itself
+    # (a stopped Async task) can still leave the statement prepared on the server: it is recorded when PREPARE fails
+    # because the statement exists.
+    def prepare(client, name, sql)
+      ::Thread.handle_interrupt(::Object => :never) do
+        client.prepare(name, sql)
+        client.prepared_statements.add(name)
+      rescue ::PG::DuplicatePstatement
+        client.prepared_statements.add(name)
+        raise unless client.transaction_status == ::PG::PQTRANS_IDLE
+      end
     end
 
     def timeout_exits_with_throw?

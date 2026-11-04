@@ -92,6 +92,9 @@ module SqlcGenRuby
       # Ruby expression that turns a parameter value into what the driver can bind (e.g. bytea escaping).
       def encode_param(expr, _column) = expr
 
+      # Ruby expression that turns a value read from a result row into the declared Ruby type.
+      def decode_value(expr, _column) = expr
+
       # :execresult -> [*statements, rows_affected expression, last_insert_id expression]
       def exec_result_lines(_exec, _query) = raise(NotImplementedError)
 

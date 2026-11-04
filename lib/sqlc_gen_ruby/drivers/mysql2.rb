@@ -75,9 +75,7 @@ module SqlcGenRuby
         load_data = format(LOAD_DATA, table: table, **load_columns(columns, sources),
                                       mode: load_mode(verb), strict: verb.split.include?('IGNORE') ? ', strict: false' : '')
         [
-          "return if #{rows_var}.empty?",
-          '',
-          Code.block("::Tempfile.create(['#{label}', '.csv']) do |file|", "#{write}\nfile.flush\n#{load_data}"),
+          Code.block("::Tempfile.create(['#{label}', '.csv']) do |file|", "#{write}\nfile.flush\n#{load_data} if file.pos.positive?"),
           'nil'
         ]
       end

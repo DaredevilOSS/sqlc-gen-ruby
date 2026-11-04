@@ -224,3 +224,6 @@ SELECT COUNT(*) AS n FROM exceptions;
 
 -- name: TruncateExceptions :exec
 TRUNCATE TABLE exceptions;
+
+-- name: HasAuthors :one
+SELECT EXISTS (SELECT 1 FROM authors) AS has_any;

@@ -108,7 +108,9 @@ per table, one module of constants per enum), `connection.rb` (shared helpers) a
   one at a time.
 * **Style:** SQL lives in frozen heredoc constants (`GET_AUTHOR_SQL`), comments above a query become its doc comment,
   table / column / enum comments of the schema become doc comments of the models. The code is RuboCop-clean; where a
-  name from your schema breaks a RuboCop naming rule (`"UserId"`, `naïve`), that class or method gets a `rubocop:disable`.
+  name from your schema breaks a RuboCop naming rule (`"UserId"`, `naïve`), that class or method gets a `rubocop:disable`
+  (on SQLite keep the query files ASCII, see [Limitations](#limitations)). Query names such as `HasAuthors` / `IsActive`
+  keep their name (`has_authors`) with `Naming/PredicatePrefix` disabled.
   A result column without a usable name (`SELECT 1, now()`) is named by its position: `column_1`, `column_2`, ...
 
 ### Transactions
@@ -156,7 +158,7 @@ end
 | `:execlastid` | the new id | PostgreSQL / SQLite: needs `RETURNING id`; MySQL: the auto-increment id |
 | `:execresult` | `ExecResult` (`rows_affected`, `last_insert_id`) | `last_insert_id` is `nil` on PostgreSQL (use `RETURNING`) |
 | `:batchexec` / `:batchone` / `:batchmany` | `nil` / `Array` of rows or `nil` / `Array` of `Array`s of rows | take an `Array` of `<Query>Args` and run the query once per element, on one connection |
-| `:copyfrom` | `nil` | bulk insert of an `Array` of `<Query>Args`; all rows or none (see below) |
+| `:copyfrom` | `nil` | bulk insert of an `Array` (or any `Enumerable`, also lazy) of `<Query>Args`; all rows or none (see below) |
 
 `:copyfrom` uses `COPY ... FROM STDIN` on PostgreSQL and batched multi-row `INSERT`s on SQLite. On MySQL it uses
 `LOAD DATA LOCAL INFILE`, which needs `local_infile: true` in the `Mysql2::Client` params and `local_infile=1` on the
@@ -191,7 +193,8 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   are not valid constant names still get one: `'end'` → `END_`, `'all'` → `ALL_`, `'2x'` → `VALUE_2X`, `'a b'` → `A_B`;
   values that end up with the same name get `_2`, `_3`, ...
 * SQLite follows its [type affinity rules](https://www.sqlite.org/datatype3.html#determination_of_column_affinity)
-  (`VARCHAR(255)` → `String`, `DECIMAL(10,5)` → `Float`, `UNSIGNED BIG INT` → `Integer`); `JSON` and `UUID` columns are `String`s.
+  (`VARCHAR(255)` → `String`, `DECIMAL(10,5)` → `Float`, `UNSIGNED BIG INT` → `Integer`); `JSON` and `UUID` columns are `String`s,
+  also when SQLite stored numeric-looking text as a number (`'42'` → `"42"`, in SQLite's spelling: `'1.50'` → `"1.5"`).
   The generated SQLite code uses `Monitor`: if you run Steep, add `library "monitor"` to your `Steepfile`.
 
 ### Names
@@ -217,6 +220,9 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   and fibers stop too; `busy_handler_timeout=` waits without blocking them.
 * SQLite transactions belong to the thread that opened them; fibers sharing the same database take turns, and a
   transaction holds it until it ends. Only the yielded `tx` runs inside the transaction from other fibers / threads.
+* SQLite: sqlc (1.27 – 1.31 at least) misplaces the SQL of a query file that contains a non-ASCII character (in a
+  name, literal or comment): that query and the following ones lose characters at the end (`FROM user` instead of
+  `FROM users`). This is a sqlc bug, not a plugin one; keep SQLite query files ASCII and pass such values as parameters.
 * Not applicable to Ruby (they exist in the C# plugin): `withAsyncSuffix` / `withCancellationToken` (use the Fiber
   scheduler), `useDapper`, target framework / csproj options (`moduleName` replaces the namespace).
 

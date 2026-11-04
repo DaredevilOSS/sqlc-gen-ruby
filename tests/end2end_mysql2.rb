@@ -263,6 +263,21 @@ class TestMysql2 < Minitest::Test
     assert_equal 2500, @query_sql.list_authors.size
   end
 
+  def test_copyfrom_takes_any_enumerable
+    @query_sql.copy_authors([].lazy)
+    assert_empty @query_sql.list_authors
+    @query_sql.copy_authors((1..3).lazy.map { |i| CopyAuthorsArgs.new(name: "lazy #{i}", bio: nil) })
+    @query_sql.copy_authors(::Enumerator.new { |rows| rows << CopyAuthorsArgs.new(name: 'streamed', bio: nil) })
+    assert_equal ['lazy 1', 'lazy 2', 'lazy 3', 'streamed'], @query_sql.list_authors.map(&:name).sort
+  end
+
+  # HasAuthors -> has_authors: the query's own name, RuboCop's Naming/PredicatePrefix is disabled for it
+  def test_predicate_like_query_names_are_kept
+    assert_equal 0, @query_sql.has_authors!.has_any
+    create_author('someone')
+    assert_equal 1, @query_sql.has_authors.has_any
+  end
+
   # ---- sqlc.embed ------------------------------------------------------------------------------------------------
 
   def test_embed

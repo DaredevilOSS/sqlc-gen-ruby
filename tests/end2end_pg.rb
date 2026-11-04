@@ -233,6 +233,21 @@ class TestPg < Minitest::Test
     assert_equal 2500, @query_sql.list_authors.size
   end
 
+  def test_copyfrom_takes_any_enumerable
+    @query_sql.copy_authors([].lazy)
+    assert_empty @query_sql.list_authors
+    @query_sql.copy_authors((1..3).lazy.map { |i| CopyAuthorsArgs.new(name: "lazy #{i}", bio: nil) })
+    @query_sql.copy_authors(::Enumerator.new { |rows| rows << CopyAuthorsArgs.new(name: 'streamed', bio: nil) })
+    assert_equal ['lazy 1', 'lazy 2', 'lazy 3', 'streamed'], @query_sql.list_authors.map(&:name).sort
+  end
+
+  # HasAuthors -> has_authors: the query's own name, RuboCop's Naming/PredicatePrefix is disabled for it
+  def test_predicate_like_query_names_are_kept
+    assert_equal false, @query_sql.has_authors!.has_any
+    create_author('someone')
+    assert_equal true, @query_sql.has_authors.has_any
+  end
+
   # ---- sqlc.embed ------------------------------------------------------------------------------------------------
 
   def test_embed
@@ -1195,6 +1210,51 @@ class TestPg < Minitest::Test
       assert_raises(PG::InvalidSqlStatementName, &deallocated)
     end
     assert_equal ['kept'], query_sql.list_authors.map(&:name)
+  ensure
+    client&.close
+  end
+
+  # A connection whose next PREPAREs run the given procs after the server prepared the statement
+  def client_with_hooks_after_prepare(hooks)
+    client = PG.connect(**pg_params)
+    client.singleton_class.prepend(Module.new do
+      define_method(:prepare) { |*args| super(*args).tap { hooks.shift&.call } }
+    end)
+    client
+  end
+
+  def test_an_interrupt_during_prepare_leaves_the_statement_usable
+    skip 'prepared statements are disabled' if ENV['PREPARED_STATEMENTS'] == 'false'
+    prepared = ::Queue.new
+    client = client_with_hooks_after_prepare([-> { prepared << true; sleep 1 }]) # rubocop:disable Style/Semicolon
+    query_sql = QuerySql.new(::ConnectionPool.new(size: 1) { client })
+    create_author('kept')
+    worker = ::Thread.new { query_sql.list_authors }
+    worker.report_on_exception = false
+    prepared.pop
+    worker.raise(::Timeout::Error, 'interrupted while preparing')
+    assert_raises(::Timeout::Error) { worker.join }
+    assert_equal ['kept'], query_sql.list_authors.map(&:name)
+  ensure
+    client&.close
+  end
+
+  # an exception raised by PREPARE itself (a stopped Async task) after the server prepared the statement
+  def test_a_statement_left_prepared_by_a_failed_prepare_is_used
+    skip 'prepared statements are disabled' if ENV['PREPARED_STATEMENTS'] == 'false'
+    stopped = ::Class.new(::StandardError)
+    hooks = [-> { raise stopped }]
+    client = client_with_hooks_after_prepare(hooks)
+    query_sql = QuerySql.new(::ConnectionPool.new(size: 1) { client })
+    create_author('kept')
+    assert_raises(stopped) { query_sql.list_authors }
+    assert_equal ['kept'], query_sql.list_authors.map(&:name)
+    # inside a transaction the failed PREPARE has aborted it: it rolls back, later calls use the statement
+    hooks << -> { raise stopped }
+    assert_raises(stopped) { query_sql.has_authors }
+    assert_raises(PG::DuplicatePstatement) { query_sql.transaction(&:has_authors) }
+    assert query_sql.transaction(&:has_authors!).has_any
+    assert query_sql.has_authors!.has_any
   ensure
     client&.close
   end

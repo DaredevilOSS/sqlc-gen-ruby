@@ -603,6 +603,13 @@ module PgCodegen
     def initialize: (  ::Array[::String] moods) -> void
   end
 
+  HAS_AUTHORS_SQL: ::String
+
+  class HasAuthorsRow
+    attr_reader has_any: bool
+    def initialize: (  bool has_any) -> void
+  end
+
   class QuerySql
     class NotFound < ::StandardError
     end
@@ -793,6 +800,10 @@ module PgCodegen
 
     def get_late_feeling!: (id: ::Integer) -> GetLateFeelingRow
 
+    def has_authors: -> HasAuthorsRow?
+
+    def has_authors!: -> HasAuthorsRow
+
     private
 
     def instrument: [T] (::String name) { () -> T } -> T
@@ -806,6 +817,7 @@ module PgCodegen
     def string_arrays: (untyped client) -> untyped
 
     def run_prepared: (untyped client, ::String name, ::String sql, ?::Array[untyped] params) -> untyped
+    def prepare: (untyped client, ::String name, ::String sql) -> void
 
     def encode_bytea: (::String? value) -> ::String?
 

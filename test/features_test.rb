@@ -362,7 +362,7 @@ class FeaturesTest < Minitest::Test
   end
 
   def test_query_names_cannot_replace_generated_methods
-    %w[Transaction Initialize Connect WithClient Hash].each do |name|
+    %w[Transaction Initialize Connect WithClient Hash Prepare].each do |name|
       request = load_request('pg')
       query(request, 'DeleteAuthor').name = name
       error = assert_raises(RuntimeError) { generate(request) }
@@ -640,6 +640,18 @@ class FeaturesTest < Minitest::Test
       code = generate(load_request(driver, rubyVersion: '3.1')).fetch('query_sql.rb')
       assert_includes code, 'GetUnnamedColumnsRow.new(column_1: row[0]'
       out, status = rubocop(code, '--only', 'Naming') # the other cops target the examples' Ruby
+      assert status.success?, "#{driver}: #{out}"
+    end
+  end
+
+  def test_predicate_like_query_names_are_rubocop_clean
+    %w[pg mysql2 sqlite3].each do |driver|
+      request = load_request(driver)
+      query(request, 'GetAuthor').name = 'IsAuthor' # :one, with a bang method
+      query(request, 'ListAuthors').name = 'HasAuthorsListed'
+      code = generate(request).fetch('query_sql.rb')
+      assert_match(%r{# rubocop:disable Naming/PredicatePrefix\n\s+# Like #is_author, .*\n\s+def is_author!\(\.\.\.\)}, code)
+      out, status = rubocop(code, '--only', 'Naming')
       assert status.success?, "#{driver}: #{out}"
     end
   end

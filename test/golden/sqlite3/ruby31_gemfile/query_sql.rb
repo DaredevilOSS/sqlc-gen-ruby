@@ -398,6 +398,12 @@ module Sqlite3Codegen
 
   CountExceptionsRow = ::Struct.new(:n, keyword_init: true)
 
+  HAS_AUTHORS_SQL = <<~'SQL'
+    SELECT EXISTS (SELECT 1 FROM authors) AS has_any
+  SQL
+
+  HasAuthorsRow = ::Struct.new(:has_any, keyword_init: true)
+
   MANY_PARAMS_SQL = <<~'SQL'
     SELECT 1 -- ? ?
     	  WHERE a = ?
@@ -923,8 +929,8 @@ module Sqlite3Codegen
             c_unsigned_big_int: row[2],
             c_native: row[3],
             c_double: row[4],
-            c_json: row[5],
-            c_uuid: row[6]
+            c_json: row[5]&.to_s,
+            c_uuid: row[6]&.to_s
           )
         ensure
           stmt.close
@@ -1373,6 +1379,28 @@ module Sqlite3Codegen
     def count_exceptions!(...)
       count_exceptions(...) || raise(NotFound, 'CountExceptions returned no row')
     end
+
+    # rubocop:disable Naming/PredicatePrefix
+    def has_authors
+      with_client('has_authors') do |client|
+        stmt = client.prepare(HAS_AUTHORS_SQL)
+        begin
+          result = execute_statement(stmt)
+          row = result.first
+          row && HasAuthorsRow.new(has_any: row[0])
+        ensure
+          stmt.close
+        end
+      end
+    end
+    # rubocop:enable Naming/PredicatePrefix
+
+    # rubocop:disable Naming/PredicatePrefix
+    # Like #has_authors, but raises NotFound when there is no row.
+    def has_authors!(...)
+      has_authors(...) || raise(NotFound, 'HasAuthors returned no row')
+    end
+    # rubocop:enable Naming/PredicatePrefix
 
     def many_params(c0:, c1:, c2:, c3:, c4:)
       with_client('many_params') do |client|

@@ -661,4 +661,7 @@ NSELECT id, name, bio FROM authors WHERE id NOT IN (/*SLICE:ids*/?) ORDER BY id
 exceptionsf
 $SELECT COUNT(*) AS n FROM exceptionsCountExceptions:one"
 n0ÿÿÿÿÿÿÿÿÿ@bbigint:	query.sqlA
-TRUNCATE TABLE exceptionsTruncateExceptions:exec:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}
+TRUNCATE TABLE exceptionsTruncateExceptions:exec:	query.sqlo
+0SELECT EXISTS (SELECT 1 FROM authors) AS has_any
+HasAuthors:one"
+has_any0ÿÿÿÿÿÿÿÿÿbbool:	query.sql"v1.27.0*T{"driver":"mysql2","generateGemfile":false,"generateTypes":true,"rubyVersion":"3.3"}

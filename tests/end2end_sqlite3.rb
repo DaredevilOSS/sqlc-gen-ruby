@@ -153,6 +153,19 @@ class TestSqlite3 < Minitest::Test
     assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'sqlite3/query_sql.rbs'), 'GetDeclaredTypesRow')
   end
 
+  # JSON / UUID columns have NUMERIC affinity: SQLite stores numeric-looking text as a number
+  def test_json_and_uuid_columns_return_strings_that_look_numeric
+    @query_sql.insert_declared_types(c_varchar: 'v', c_decimal: 1.5, c_unsigned_big_int: 7, c_native: 'n', c_double: 2.5,
+                                     c_json: '42', c_uuid: '12345678')
+    row = @query_sql.get_declared_types
+    assert_equal %w[42 12345678], [row.c_json, row.c_uuid]
+    assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'sqlite3/query_sql.rbs'), 'GetDeclaredTypesRow')
+    @query_sql.truncate_declared_types
+    @query_sql.insert_declared_types(c_varchar: 'v', c_decimal: 1.5, c_unsigned_big_int: 7, c_native: 'n', c_double: 2.5,
+                                     c_json: '1.5', c_uuid: '-7')
+    assert_equal %w[1.5 -7], @query_sql.get_declared_types.then { |r| [r.c_json, r.c_uuid] }
+  end
+
   def test_execrows_returns_affected_row_count
     create_author('with bio', 'bio')
     create_author('with bio 2', 'bio')
@@ -294,6 +307,21 @@ class TestSqlite3 < Minitest::Test
     assert_empty @query_sql.list_authors
     @query_sql.copy_authors((1..2500).map { |i| CopyAuthorsArgs.new(name: "author #{i}", bio: i.to_s) })
     assert_equal 2500, @query_sql.list_authors.size
+  end
+
+  def test_copyfrom_takes_any_enumerable
+    @query_sql.copy_authors([].lazy)
+    assert_empty @query_sql.list_authors
+    @query_sql.copy_authors((1..3).lazy.map { |i| CopyAuthorsArgs.new(name: "lazy #{i}", bio: nil) })
+    @query_sql.copy_authors(::Enumerator.new { |rows| rows << CopyAuthorsArgs.new(name: 'streamed', bio: nil) })
+    assert_equal ['lazy 1', 'lazy 2', 'lazy 3', 'streamed'], @query_sql.list_authors.map(&:name).sort
+  end
+
+  # HasAuthors -> has_authors: the query's own name, RuboCop's Naming/PredicatePrefix is disabled for it
+  def test_predicate_like_query_names_are_kept
+    assert_equal 0, @query_sql.has_authors!.has_any
+    create_author('someone')
+    assert_equal 1, @query_sql.has_authors.has_any
   end
 
   # ---- sqlc.embed ------------------------------------------------------------------------------------------------
