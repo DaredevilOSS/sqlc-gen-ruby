@@ -845,6 +845,8 @@ module PgCodegen
 
     def encode_json: (untyped value) -> untyped
 
+    def encode_timestamp: (untyped value) -> untyped
+
     def encode_float: (untyped value) -> untyped
 
     def encode_array: (::Array[untyped]? value, ?::Symbol kind) -> untyped

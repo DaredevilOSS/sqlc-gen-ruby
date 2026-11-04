@@ -505,7 +505,7 @@ class TestPg < Minitest::Test
     assert_equal '<greeting>Grüße🙂</greeting>', row.c_xml
     assert_equal BigDecimal('12345678901234567890.1234567890123456789012345678901234567890'), row.c_numeric
     assert_equal(-9_223_372_036_854_775_808, row.c_bigint)
-    assert_equal timestamp.strftime('%Y-%m-%d %H:%M:%S.%6N'), row.c_timestamp.strftime('%Y-%m-%d %H:%M:%S.%6N')
+    assert_equal timestamp, row.c_timestamp
     assert_equal timestamptz, row.c_timestamptz
     assert_equal matrix, row.c_text_matrix
     assert_empty RbsTypes.mismatches(row, File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'), 'GetRemainingTypesRow')
@@ -806,6 +806,45 @@ class TestPg < Minitest::Test
     @query_sql.instance_variable_get(:@db).with do |client|
       assert_equal PG::PQTRANS_IDLE, client.transaction_status
     end
+  end
+
+  def wait_until_query_runs(admin, pattern)
+    deadline = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) + 5
+    sql = "SELECT 1 FROM pg_stat_activity WHERE state = 'active' AND query LIKE $1 AND pid <> pg_backend_pid()"
+    until admin.exec_params(sql, [pattern]).ntuples.positive?
+      flunk "no running query like #{pattern}" if ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) > deadline
+      sleep 0.01
+    end
+  end
+
+  # A kill skips `rescue`: the running query used to stay on the pooled connection (PQTRANS_ACTIVE), so the next
+  # transaction sent SAVEPOINT instead of BEGIN, and a kill inside a transaction waited for the query to finish.
+  def test_thread_kill_during_a_query_cancels_it_and_leaves_the_connection_idle
+    queries = QuerySql.connect(pg_params, size: 1)
+    admin = PG.connect(**pg_params)
+    [false, true].each do |in_transaction|
+      worker = ::Thread.new do
+        if in_transaction
+          queries.transaction do |tx|
+            tx.create_author_return_id(name: 'killed', bio: nil)
+            tx.pause_query(seconds: 5)
+          end
+        else
+          queries.pause_query(seconds: 5)
+        end
+      end
+      wait_until_query_runs(admin, '%pg_sleep%')
+      started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+      worker.kill.join
+      assert_operator ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started, :<, 2, "in_transaction: #{in_transaction}"
+      queries.instance_variable_get(:@db).with do |client|
+        assert_equal PG::PQTRANS_IDLE, client.transaction_status
+      end
+      assert_equal %w[after], queries.transaction { |tx| tx.create_author_return_id(name: 'after', bio: nil) && tx.list_authors.map(&:name) }
+      queries.truncate_authors
+    end
+  ensure
+    admin&.close
   end
 
   def test_nested_savepoint_rolls_back_while_outer_transaction_commits
@@ -1218,6 +1257,49 @@ class TestPg < Minitest::Test
     assert_equal ['kept'], query_sql.list_authors.map(&:name)
   ensure
     client&.close
+  end
+
+  # A migration changing a column's type: PostgreSQL refuses the prepared plan ("cached plan must not change result
+  # type"); the statement is prepared again outside a transaction, and by the next call after one it aborted.
+  def test_statements_are_prepared_again_after_a_column_type_change
+    queries = QuerySql.connect(pg_params, size: 1)
+    admin = PG.connect(**pg_params)
+    id = create_author('kept')
+    assert_equal 'kept', queries.get_author(id: id).name
+    admin.exec('ALTER TABLE authors ALTER COLUMN name TYPE varchar(200)')
+    assert_equal 'kept', queries.get_author(id: id).name
+    admin.exec('ALTER TABLE authors ALTER COLUMN name TYPE text')
+    in_transaction = -> { queries.transaction { |tx| tx.get_author(id: id).name } }
+    if ENV['PREPARED_STATEMENTS'] == 'false'
+      assert_equal 'kept', in_transaction.call
+    else
+      assert_raises(PG::FeatureNotSupported, &in_transaction)
+    end
+    assert_equal 'kept', in_transaction.call
+    assert_equal 'kept', queries.get_author(id: id).name
+  ensure
+    admin&.exec('ALTER TABLE authors ALTER COLUMN name TYPE text')
+    admin&.close
+  end
+
+  # A Time with any UTC offset keeps its instant in a `timestamp` (without time zone) column, read back as a local
+  # time; PostgreSQL ignores the offset of a timestamp literal, so it used to store the wall clock of the given zone.
+  def test_timestamp_parameters_keep_their_instant_whatever_their_offset
+    saved = ENV.fetch('TZ', nil)
+    ENV['TZ'] = 'XYZ-3' # UTC+3, also on Windows
+    [::Time.utc(2024, 1, 15, 12, 0, Rational(1, 2)), ::Time.new(2024, 2, 3, 4, 5, 6, '+05:30'),
+     ::Time.new(2024, 7, 1, 23, 30, 0, '-07:00'), ::Time.at(::Time.now.to_i)].each do |time|
+      @query_sql.insert_remaining_types(
+        c_hstore: nil, c_ltree: nil, c_regclass: nil, c_cidr: nil, c_macaddr: nil, c_interval: nil, c_varbit: nil,
+        c_xml: nil, c_numeric: nil, c_bigint: nil, c_timestamp: time, c_timestamptz: time, c_text_matrix: nil
+      )
+      row = @query_sql.get_remaining_types
+      assert_equal time, row.c_timestamp, time.inspect
+      assert_equal time, row.c_timestamptz, time.inspect
+      @query_sql.truncate_remaining_types
+    end
+  ensure
+    saved ? ENV['TZ'] = saved : ENV.delete('TZ')
   end
 
   # A connection whose next PREPAREs run the given procs after the server prepared the statement
