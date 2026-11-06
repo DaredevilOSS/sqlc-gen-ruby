@@ -1417,10 +1417,13 @@ class TestPg < Minitest::Test
 
   # Puma / Sidekiq / Resque fork workers from a parent that already ran queries. connection_pool drops the pooled
   # connections in the child (after_fork), and a connection inherited outside a pool is reconnected there: either
-  # way the parent's sessions stay usable.
+  # way the parent's sessions stay usable. A pooled connection the application closed before does not break the fork.
   def test_a_forked_child_leaves_the_parent_connections_usable
     skip_without_fork
     pooled = QuerySql.connect(pg_params, size: 1)
+    closed = QuerySql.connect(pg_params, size: 1)
+    closed.list_authors
+    closed.instance_variable_get(:@db).with(&:close)
     client = pg_connection
     single = QuerySql.new(SingleConnection.new(client))
     id = pooled.create_author_return_id(name: 'before fork', bio: nil)

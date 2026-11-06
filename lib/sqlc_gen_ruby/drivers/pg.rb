@@ -204,13 +204,17 @@ module SqlcGenRuby
             @owner_pid = ::Process.pid
           end
 
-          # connection_pool closes the connections a forked child inherits.
+          # connection_pool closes the connections a forked child inherits, also ones closed before (which would raise).
           def close
+            return if finished?
+
             detach_from_parent if inherited?
             super
           end
 
           def finish
+            return if finished?
+
             detach_from_parent if inherited?
             super
           end
@@ -245,6 +249,8 @@ module SqlcGenRuby
           def socket_io: () -> ::IO
 
           def reset: () -> void
+
+          def finished?: () -> bool
 
           def close: () -> void
 

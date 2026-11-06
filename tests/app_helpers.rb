@@ -18,7 +18,8 @@ module AppHelpers
   # message of what it raised.
   def in_forked_child
     reader, writer = ::IO.pipe
-    pid = fork do
+    parent = ::Process.pid
+    pid = fork_child(parent) do
       reader.close
       result = begin
         yield
@@ -35,6 +36,14 @@ module AppHelpers
     result
   ensure
     reader&.close
+  end
+
+  # A fork hook that raises in the child (connection_pool's after_fork) must not let the child run the rest of the suite.
+  def fork_child(parent, &)
+    fork(&)
+  rescue ::Exception
+    exit!(1) unless ::Process.pid == parent
+    raise
   end
 
   def skip_without_fork

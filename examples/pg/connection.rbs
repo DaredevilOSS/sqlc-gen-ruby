@@ -7,6 +7,8 @@ module PgCodegen
 
     def reset: () -> void
 
+    def finished?: () -> bool
+
     def close: () -> void
 
     def finish: () -> void
