@@ -1420,11 +1420,13 @@ class TestPg < Minitest::Test
   # way the parent's sessions stay usable. A pooled connection the application closed before does not break the fork.
   def test_a_forked_child_leaves_the_parent_connections_usable
     skip_without_fork
-    pooled = QuerySql.connect(pg_params, size: 1)
-    closed = QuerySql.connect(pg_params, size: 1)
+    # libpq's GSS probe crashes a forked child on macOS (the usual PGGSSENCMODE=disable advice for Puma there).
+    params = pg_params.merge('gssencmode' => 'disable')
+    pooled = QuerySql.connect(params, size: 1)
+    closed = QuerySql.connect(params, size: 1)
     closed.list_authors
     closed.instance_variable_get(:@db).with(&:close)
-    client = pg_connection
+    client = pg_connection(gssencmode: 'disable')
     single = QuerySql.new(SingleConnection.new(client))
     id = pooled.create_author_return_id(name: 'before fork', bio: nil)
     assert_equal 'before fork', single.get_author!(id: id).name

@@ -167,6 +167,8 @@ end
   sessions. A `pg` connection used directly (not from a `ConnectionPool`) reconnects in the child; a `mysql2` client
   used that way raises `Mysql2::Error::ConnectionError` in the child (open clients in the process that uses them).
   SQLite: the sqlite3 gem closes writable databases a child inherits, so open the database again in the child.
+  On macOS, connecting from a forked child can crash in libpq's GSSAPI probe; set `gssencmode: 'disable'` (or
+  `PGGSSENCMODE=disable`), as usual for forking `pg` apps there.
 * A `transaction` inside a transaction that another library opened on the same connection (`BEGIN`) is a savepoint
   on PostgreSQL and SQLite. MySQL has no nested transactions: its `BEGIN` commits the open transaction first (see
   [Limitations](#limitations)).
