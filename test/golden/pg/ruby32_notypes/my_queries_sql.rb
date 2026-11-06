@@ -17,9 +17,11 @@ module PgCodegen
     class NotFound < ::StandardError; end
 
     # Opens a pool of connections: QuerySql.connect({ dbname: 'app' }, size: 5, timeout: 5, logger: Logger.new($stdout))
-    # (pool_options go to ConnectionPool.new). To share an existing pool use QuerySql.new(pool).
+    # or QuerySql.connect(ENV.fetch('DATABASE_URL')) (pool_options go to ConnectionPool.new). To share an existing
+    # pool use QuerySql.new(pool).
     def self.connect(pg_params, logger: nil, **pool_options)
-      new(::ConnectionPool.new(**pool_options) { ::PG.connect(**pg_params) }, logger: logger)
+      connect = pg_params.is_a?(::String) ? -> { ::PG.connect(pg_params) } : -> { ::PG.connect(**pg_params) }
+      new(::ConnectionPool.new(**pool_options, &connect), logger: logger)
     end
 
     # db: a ConnectionPool (or anything that responds to #with and yields a PG::Connection).
@@ -126,6 +128,12 @@ module PgCodegen
     def with_client(name)
       instrument(name) do
         @db.with do |client|
+          if client.is_a?(ConnectionState) && client.inherited? # opened before a fork: reconnect in this process
+            raise ::PG::ConnectionBad, 'the connection was inherited by a forked process inside a transaction' if client.in_transaction
+
+            client.detach_from_parent
+            client.reset
+          end
           if client.status == ::PG::CONNECTION_BAD # closed by the server (restart, failover, killed)
             # inside #transaction a new session would run the rest of the block outside the transaction
             raise ::PG::ConnectionBad, 'the connection was lost inside a transaction' if client.is_a?(ConnectionState) && client.in_transaction
@@ -157,14 +165,21 @@ module PgCodegen
 
     # Connections of an injected pool are set up on first use: typed results and Ruby arrays as parameters.
     def configure(client)
+      names = client.field_name_type
+      results = client.type_map_for_results
+      client.field_name_type = :string # the pg gem reads pg_type by column name
+      client.type_map_for_results = ::PG::TypeMapAllStrings.new
       type_map = ::PG::BasicTypeMapForResults.new(client)
       type_map.default_type_map = string_arrays(client) # uuid, enums, money, ... come back as Strings
-      client.type_map_for_results = type_map
       queries = ::PG::BasicTypeMapForQueries.new(client)
       # true / false as text ('t' / 'f'), also valid in COPY (the default binary encoder is not)
       queries[::TrueClass] = queries[::FalseClass] = ::PG::TextEncoder::Boolean.new(oid: 16)
-      client.type_map_for_queries = queries
       client.extend(ConnectionState)
+      client.result_types = type_map
+      client.query_types = queries
+    ensure
+      client.field_name_type = names if names
+      client.type_map_for_results = results if results
     end
 
     # Arrays of types without a decoder (uuid[], enum[], ...) become Arrays of Strings, other types Strings.
@@ -185,14 +200,14 @@ module PgCodegen
     def run_prepared(client, name, sql, params = [])
       prepare(client, name, sql) unless client.prepared_statements.include?(name)
       begin
-        client.exec_prepared(name, params)
+        client.typed(client.exec_prepared(name, params, 0, client.query_types))
       rescue ::PG::InvalidSqlStatementName, ::PG::FeatureNotSupported => e
         client.prepared_statements.delete(name)
         client.stale_statements.add(name) if e.is_a?(::PG::FeatureNotSupported)
         raise unless client.transaction_status == ::PG::PQTRANS_IDLE
 
         prepare(client, name, sql)
-        client.exec_prepared(name, params)
+        client.typed(client.exec_prepared(name, params, 0, client.query_types))
       end
     end
 

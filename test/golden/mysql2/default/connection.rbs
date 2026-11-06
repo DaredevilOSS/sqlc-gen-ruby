@@ -7,6 +7,16 @@ module Mysql2Codegen
     def query_running?: () -> bool
     def rolled_back_error: () -> untyped
     def ends_transaction?: (untyped error) -> bool
+    def self.extended: (untyped client) -> void
+    def inherited?: () -> bool
+    def close: () -> void
+    def release_parent_socket: () -> void
+    def self.after_fork: () -> void
+    module ForkHook
+      def _fork: () -> ::Integer
+    end
+    def socket: () -> ::Integer
+    def automatic_close=: (bool) -> bool
   end
 
   class TransactionEnded < ::StandardError

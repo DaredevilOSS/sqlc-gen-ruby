@@ -2,9 +2,20 @@
 module PgCodegen
   interface _PgConnection
     def backend_pid: () -> ::Integer
+
+    def socket_io: () -> ::IO
+
+    def reset: () -> void
+
+    def finished?: () -> bool
+
+    def close: () -> void
+
+    def finish: () -> void
   end
 
   module ConnectionState : _PgConnection
+    @owner_pid: ::Integer
     @prepared_statements: ::Set[::String]
     @prepared_statements_pid: ::Integer
     @stale_statements: ::Set[::String]
@@ -14,6 +25,30 @@ module PgCodegen
     def stale_statements: () -> ::Set[::String]
 
     attr_accessor in_transaction: bool?
+
+    def self.extended: (untyped client) -> void
+
+    attr_accessor query_types: untyped
+
+    attr_accessor result_types: untyped
+
+    def typed: (untyped result) -> untyped
+
+    def inherited?: () -> bool
+
+    def detach_from_parent: () -> void
+
+    def release_parent_socket: () -> void
+
+    def self.after_fork: () -> void
+
+    module ForkHook
+      def _fork: () -> ::Integer
+    end
+
+    def close: () -> void
+
+    def finish: () -> void
   end
 
   class TransactionEnded < ::StandardError

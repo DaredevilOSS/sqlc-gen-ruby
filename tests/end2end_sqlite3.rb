@@ -11,6 +11,9 @@ require 'tempfile'
 EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../examples', __dir__))).freeze
 require_relative 'consts'
 require_relative 'rbs_types'
+require_relative 'app_helpers'
+require 'delegate'
+require 'json'
 require File.join(EXAMPLES_DIR, 'sqlite3/query_sql')
 RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'Sqlite3Codegen')}::QuerySql"),
                  File.join(EXAMPLES_DIR, 'sqlite3/query_sql.rbs'))
@@ -18,6 +21,7 @@ RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'Sqlite3Codege
 # End-to-end tests of the code generated for examples/authors/sqlite, against a real (in-memory) SQLite database.
 class TestSqlite3 < Minitest::Test
   include Object.const_get(ENV.fetch('EXAMPLES_MODULE', 'Sqlite3Codegen'))
+  include AppHelpers
 
   TEXT_PARTS = ["é", '🙂', "\t", "\n", "\r", '\\', "'", '"', ',', '\N', 'NULL'].freeze
 
@@ -900,5 +904,130 @@ class TestSqlite3 < Minitest::Test
       assert_equal %w[autocommitted committed], @query_sql.list_authors.map(&:name).sort, "#{sql} #{kind}"
       @query_sql.truncate_authors
     end
+  end
+
+  # ---- usage patterns of applications ----------------------------------------------------------------------------
+
+  # Puma / Sidekiq / Resque fork workers: the sqlite3 gem closes writable databases inherited by a child, so a child
+  # opens its own SQLite3::Database (documented); the parent's database stays usable.
+  def test_a_forked_child_opens_its_own_database_and_leaves_the_parent_usable
+    skip_without_fork
+    Tempfile.create(['sqlite-fork-test', '.db']) do |file|
+      db = SQLite3::Database.new(file.path)
+      db.execute_batch(SCHEMA)
+      parent = QuerySql.new(db)
+      parent.create_author_return_id(name: 'before fork', bio: nil)
+      child = in_forked_child do
+        own = SQLite3::Database.new(file.path)
+        queries = QuerySql.new(own)
+        [queries.list_authors.map(&:name), queries.create_author_return_id(name: 'from child', bio: nil).class]
+      ensure
+        own&.close
+      end
+      assert_equal [['before fork'], ::Integer], child
+      assert_equal ['before fork', 'from child'], parent.list_authors.map(&:name).sort
+      assert_equal 2, parent.transaction { |tx| tx.list_authors.size }
+    ensure
+      db&.close
+    end
+  end
+
+  # A database also used by another library (Sequel, ActiveRecord's raw_connection) keeps its results_as_hash
+  # setting, and the generated rows keep their layout.
+  def test_a_database_shared_with_another_library_keeps_its_settings
+    id = create_author('shared', nil)
+    expected = @query_sql.get_author!(id: id)
+    @db.results_as_hash = true
+    assert_equal expected, @query_sql.get_author!(id: id)
+    assert_equal [expected.to_h], @query_sql.transaction { |tx| tx.list_authors.map(&:to_h) }
+    assert @db.results_as_hash
+    assert_equal [{ 'id' => id }], @db.execute('SELECT id FROM authors')
+  end
+
+  # A transaction already opened on the database by another library becomes the outer transaction: #transaction is
+  # a savepoint inside it.
+  def test_transaction_inside_a_transaction_opened_by_another_library_is_a_savepoint
+    @db.execute('BEGIN')
+    @db.execute("INSERT INTO authors (name) VALUES ('outer')")
+    @query_sql.transaction { |tx| tx.create_author_return_id(name: 'inner committed', bio: nil) }
+    assert_raises(RuntimeError) do
+      @query_sql.transaction do |tx|
+        tx.create_author_return_id(name: 'inner rolled back', bio: nil)
+        raise 'rollback the savepoint'
+      end
+    end
+    assert_predicate @db, :transaction_active?
+    assert_equal ['inner committed', 'outer'], @query_sql.list_authors.map(&:name).sort
+    @db.execute('ROLLBACK')
+    assert_empty @query_sql.list_authors
+  end
+
+  # Reads go to a read-only database query object, writes to the writable one: a write sent to the read-only one
+  # raises the driver's error and leaves it usable.
+  def test_primary_and_read_replica_query_objects
+    Tempfile.create(['sqlite-replica-test', '.db']) do |file|
+      primary_db = SQLite3::Database.new(file.path)
+      primary_db.execute_batch(SCHEMA)
+      primary = QuerySql.new(primary_db)
+      replica_db = SQLite3::Database.new(file.path, readonly: true)
+      replica = QuerySql.new(replica_db)
+      id = primary.create_author_return_id(name: 'primary', bio: nil)
+      assert_equal 'primary', replica.get_author!(id: id).name
+      assert_raises(SQLite3::ReadOnlyException) { replica.create_author_return_id(name: 'replica', bio: nil) }
+      assert_raises(SQLite3::ReadOnlyException) do
+        replica.transaction { |tx| tx.create_author_return_id(name: 'replica', bio: nil) }
+      end
+      refute_predicate replica_db, :transaction_active?
+      assert_equal ['primary'], replica.list_authors.map(&:name)
+    ensure
+      replica_db&.close
+      primary_db&.close
+    end
+  end
+
+  # Query objects memoized in a frozen constant, subclassed (caching, scoping) and wrapped (SimpleDelegator,
+  # prepended instrumentation forwarding `...` / `**`), also inside transactions.
+  def test_memoized_frozen_subclassed_and_wrapped_query_objects
+    memoized = QuerySql.new(@db).freeze
+    id = memoized.create_author_return_id(name: 'memoized', bio: nil)
+    instrumentation = Module.new do
+      def calls = @calls ||= []
+
+      def get_author(**args)
+        calls << args
+        super
+      end
+
+      def list_authors(...)
+        calls << :list
+        super
+      end
+    end
+    caching = Class.new(QuerySql) do
+      prepend instrumentation
+      def get_author(id:) = (@cache ||= {}).fetch(id) { @cache[id] = super }
+    end
+    cached = caching.new(@db)
+    assert_equal 'memoized', cached.get_author!(id: id).name
+    assert_same cached.get_author(id: id), cached.get_author(id: id)
+    assert_equal [{ id: id }] * 3, cached.calls
+    in_tx = cached.transaction { |tx| [tx.class, tx.get_author!(id: id).name, tx.list_authors.size] }
+    assert_equal [caching, 'memoized', 1], in_tx
+    repository = SimpleDelegator.new(memoized)
+    assert_equal 'memoized', repository.public_send(:get_author, **{ id: id }).name
+    assert_equal ['memoized'], repository.transaction { |tx| tx.list_authors.map(&:name) }
+    assert_equal [1, 1], Array.new(2) { ::Thread.new { memoized.list_authors.size } }.map(&:value)
+  end
+
+  # Rows cached with Marshal (Rails.cache, Sidekiq-style payloads) and serialized as JSON (API responses).
+  def test_rows_round_trip_through_marshal_and_json
+    id = create_author('json "author"', "bio\nwith é")
+    row = @query_sql.get_author!(id: id)
+    assert_equal row, ::Marshal.load(::Marshal.dump(row))
+    json = JSON.generate(row.to_h)
+    assert_equal({ 'id' => id, 'name' => 'json "author"', 'bio' => "bio\nwith é" }, JSON.parse(json))
+    assert_equal row, row.class.new(**JSON.parse(json, symbolize_names: true))
+    rows = @query_sql.list_authors
+    assert_equal rows, ::Marshal.load(::Marshal.dump(rows))
   end
 end

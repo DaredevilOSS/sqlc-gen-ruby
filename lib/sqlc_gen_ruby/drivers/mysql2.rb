@@ -13,7 +13,12 @@ module SqlcGenRuby
           [CONNECTION_STATE, "module ConnectionState\n  attr_accessor in_transaction: bool\n" \
                              "  attr_accessor rolled_back_by: untyped\n" \
                              "  def query: (*untyped) -> untyped\n  def query_running?: () -> bool\n" \
-                             "  def rolled_back_error: () -> untyped\n  def ends_transaction?: (untyped error) -> bool\nend"],
+                             "  def rolled_back_error: () -> untyped\n  def ends_transaction?: (untyped error) -> bool\n" \
+                             "  def self.extended: (untyped client) -> void\n  def inherited?: () -> bool\n" \
+                             "  def close: () -> void\n  def release_parent_socket: () -> void\n" \
+                             "  def self.after_fork: () -> void\n" \
+                             "  module ForkHook\n    def _fork: () -> ::Integer\n  end\n" \
+                             "  def socket: () -> ::Integer\n  def automatic_close=: (bool) -> bool\nend"],
           [TRANSACTION_CONNECTION, TRANSACTION_CONNECTION_RBS],
           [ISOLATION_LEVELS, ISOLATION_RBS]
         ]
@@ -47,7 +52,7 @@ module SqlcGenRuby
       def execute_stmt(_stmt_name, const, has_params, array_rows: false)
         sql = "bind_params(client, #{const}, #{has_params ? 'query_params' : '[]'})"
         sql = "client.query(#{sql}"
-        sql += ', as: :array' if array_rows
+        sql += ', as: :array, cast: true, cast_booleans: false' if array_rows
         "#{sql})"
       end
 
@@ -135,8 +140,42 @@ module SqlcGenRuby
       end
 
       CONNECTION_STATE = <<~'RUBY'.chomp
-        # State kept on every Mysql2::Client the first time it is used.
+        # State kept on every Mysql2::Client the first time it is used. Rows are read with their own query options
+        # (as: :array, cast: true, cast_booleans: false), whatever the client's or Mysql2::Client.default_query_options.
         module ConnectionState
+          def self.extended(client) = client.instance_variable_set(:@owner_pid, ::Process.pid)
+
+          # A forked child (Puma / Sidekiq / Resque worker) lets go of every inherited session the generated code has
+          # used, also ones another thread had checked out at fork time and ones it never uses: its exit would end
+          # them for the parent.
+          def self.after_fork = ::ObjectSpace.each_object(self) { |client| client.release_parent_socket if client.inherited? }
+
+          module ForkHook
+            def _fork
+              pid = super
+              ConnectionState.after_fork if pid.zero?
+              pid
+            end
+          end
+          ::Process.singleton_class.prepend(ForkHook)
+
+          # Opened by the parent of a forked process (Puma / Sidekiq workers): its socket is the parent's session.
+          def inherited? = @owner_pid != ::Process.pid
+
+          # connection_pool closes the connections a forked child inherits: point this process's copy of the socket
+          # at /dev/null first, so the QUIT sent by #close does not end the parent's session.
+          def close
+            release_parent_socket if inherited?
+            super
+          end
+
+          def release_parent_socket
+            self.automatic_close = false
+            ::IO.for_fd(socket, autoclose: false).reopen(::IO::NULL)
+          rescue ::StandardError # already closed
+            nil
+          end
+
           attr_accessor :in_transaction
           # The error with which the server rolled back the whole transaction (a deadlock, or a lock wait timeout with
           # innodb_rollback_on_timeout): the transaction's later queries raise instead of running in autocommit mode.
@@ -174,7 +213,7 @@ module SqlcGenRuby
 
             if @rollback_on_timeout.nil?
               @rollback_on_timeout = begin
-                query('SELECT @@innodb_rollback_on_timeout', as: :array).first.first == 1
+                query('SELECT @@innodb_rollback_on_timeout', as: :array, cast: true).first.first == 1
               rescue ::Mysql2::Error
                 false
               end
@@ -290,6 +329,12 @@ module SqlcGenRuby
           instrument(name) do
             @db.with do |client|
               client.extend(ConnectionState) unless client.is_a?(ConnectionState)
+              if client.inherited?
+                client.close
+                @db.discard_current_connection if @db.respond_to?(:discard_current_connection)
+                raise ::Mysql2::Error::ConnectionError, 'this Mysql2::Client was opened by another process (inherited through fork): ' \
+                                                        'open clients in the process that uses them, or use a ConnectionPool'
+              end
               begin
                 yield client
               rescue ::Exception # rubocop:disable Lint/RescueException
