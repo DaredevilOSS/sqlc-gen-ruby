@@ -12,6 +12,8 @@ require 'timeout'
 EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../examples', __dir__))).freeze
 require_relative 'consts'
 require_relative 'rbs_types'
+require_relative 'app_helpers'
+require 'delegate'
 require File.join(EXAMPLES_DIR, 'mysql2/query_sql')
 RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'Mysql2Codegen')}::QuerySql"),
                  File.join(EXAMPLES_DIR, 'mysql2/query_sql.rbs'))
@@ -19,6 +21,7 @@ RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'Mysql2Codegen
 # End-to-end tests of the code generated for examples/authors/mysql, against a real MySQL / MariaDB server.
 class TestMysql2 < Minitest::Test
   include Object.const_get(ENV.fetch('EXAMPLES_MODULE', 'Mysql2Codegen'))
+  include AppHelpers
 
   TEXT_PARTS = ["é", '🙂', "\t", "\n", "\r", '\\', "'", '"', ',', '\N', 'NULL'].freeze
 
@@ -1296,5 +1299,140 @@ class TestMysql2 < Minitest::Test
     ensure
       client&.close
     end
+  end
+
+  # ---- usage patterns of applications ----------------------------------------------------------------------------
+
+  def mysql2_client(**options)
+    Mysql2::Client.new(**mysql2_params.transform_keys(&:to_sym), **options)
+  end
+
+  # Puma / Sidekiq / Resque fork workers from a parent that already ran queries. connection_pool drops the pooled
+  # clients in the child (after_fork) without ending the parent's sessions; a client inherited outside a pool is not
+  # used by the child (it shares the parent's socket) and raises Mysql2::Error::ConnectionError there.
+  def test_a_forked_child_leaves_the_parent_connections_usable
+    skip_without_fork
+    pooled = QuerySql.connect(mysql2_params, size: 1)
+    client = mysql2_client
+    single = QuerySql.new(SingleConnection.new(client))
+    id = pooled.create_author_return_id(name: 'before fork', bio: nil)
+    assert_equal 'before fork', single.get_author!(id: id).name
+    parent_threads = [pooled.instance_variable_get(:@db).with(&:thread_id), client.thread_id]
+    child = in_forked_child do
+      error = assert_raises(Mysql2::Error::ConnectionError) { single.list_authors }
+      [pooled.get_author!(id: id).name, pooled.create_author_return_id(name: 'from child', bio: nil).class,
+       parent_threads.include?(pooled.instance_variable_get(:@db).with(&:thread_id)), error.message]
+    end
+    assert_kind_of ::Array, child, child.inspect
+    assert_equal ['before fork', ::Integer, false], child.first(3)
+    assert_match(/another process/, child.last)
+    assert_equal ['before fork', 'from child'], pooled.list_authors.map(&:name).sort
+    assert_equal 2, single.list_authors.size
+    assert_equal 2, pooled.transaction { |tx| tx.list_authors.size }
+    assert_equal parent_threads, [pooled.instance_variable_get(:@db).with(&:thread_id), client.thread_id]
+  ensure
+    client&.close
+  end
+
+  # A client also used by another library or configured globally (Mysql2::Client.default_query_options with
+  # cast_booleans / symbolize_keys, a client with cast: false or as: :hash) keeps its options, and the generated rows
+  # keep the documented types.
+  def test_a_client_with_other_query_options_still_returns_typed_rows
+    defaults = Mysql2::Client.default_query_options.dup
+    @query_sql.insert_mysql_numeric_types(**numeric_values(1).merge(c_bool: 1, c_boolean: 0, c_tinyint: 1, c_int: 7))
+    @query_sql.insert_mysql_datetime_types(**datetime_values(1).merge(c_date: Date.new(2024, 2, 29),
+                                                                       c_datetime: ::Time.new(2024, 2, 29, 12, 30, 0)))
+    id = create_author('typed', nil)
+    expected = [@query_sql.get_mysql_numeric_types(id: 1), @query_sql.get_mysql_datetime_types(id: 1),
+                @query_sql.get_author!(id: id)]
+    Mysql2::Client.default_query_options.merge!(cast_booleans: true, symbolize_keys: true)
+    [{}, { cast: false }, { as: :hash, cache_rows: false }].each do |options|
+      client = mysql2_client
+      client.query_options.merge!(options)
+      own_options = client.query_options.dup
+      shared = QuerySql.new(SingleConnection.new(client))
+      actual = [shared.get_mysql_numeric_types(id: 1), shared.get_mysql_datetime_types(id: 1), shared.get_author!(id: id)]
+      assert_equal expected, actual, options.inspect
+      assert_equal own_options, client.query_options
+    ensure
+      client&.close
+    end
+  ensure
+    Mysql2::Client.default_query_options.replace(defaults) if defaults
+  end
+
+  # Documented limitation: MySQL's BEGIN commits an open transaction, so #transaction on a client already inside a
+  # transaction opened by another library (ActiveRecord::Base.transaction on the same raw connection) commits it.
+  def test_transaction_inside_a_transaction_opened_by_another_library_commits_it
+    client = mysql2_client
+    shared = QuerySql.new(SingleConnection.new(client))
+    client.query('BEGIN')
+    client.query("INSERT INTO authors (name) VALUES ('outer')")
+    shared.transaction { |tx| tx.create_author_return_id(name: 'inner', bio: nil) }
+    client.query('ROLLBACK')
+    assert_equal %w[inner outer], @query_sql.list_authors.map(&:name).sort
+  ensure
+    client&.close
+  end
+
+  # Reads go to a replica query object, writes to the primary: a write sent to the read-only replica raises the
+  # driver's error and leaves the replica usable.
+  def test_primary_and_read_replica_query_objects
+    replica = QuerySql.connect(mysql2_params.merge('init_command' => 'SET SESSION transaction_read_only = 1'), size: 1)
+    id = @query_sql.create_author_return_id(name: 'primary', bio: nil)
+    assert_equal 'primary', replica.get_author!(id: id).name
+    error = assert_raises(Mysql2::Error) { replica.create_author_return_id(name: 'replica', bio: nil) }
+    assert_equal 1792, error.error_number # ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+    error = assert_raises(Mysql2::Error) do
+      replica.transaction { |tx| tx.create_author_return_id(name: 'replica', bio: nil) }
+    end
+    assert_equal 1792, error.error_number
+    assert_equal ['primary'], replica.list_authors.map(&:name)
+  end
+
+  # Query objects memoized in a frozen constant, subclassed (caching, scoping) and wrapped (SimpleDelegator,
+  # prepended instrumentation forwarding `...` / `**`), also inside transactions.
+  def test_memoized_frozen_subclassed_and_wrapped_query_objects
+    memoized = QuerySql.connect(mysql2_params, size: 2).freeze
+    id = memoized.create_author_return_id(name: 'memoized', bio: nil)
+    instrumentation = Module.new do
+      def calls = @calls ||= []
+
+      def get_author(**args)
+        calls << args
+        super
+      end
+
+      def list_authors(...)
+        calls << :list
+        super
+      end
+    end
+    caching = Class.new(QuerySql) do
+      prepend instrumentation
+      def get_author(id:) = (@cache ||= {}).fetch(id) { @cache[id] = super }
+    end
+    cached = caching.new(memoized.instance_variable_get(:@db))
+    assert_equal 'memoized', cached.get_author!(id: id).name
+    assert_same cached.get_author(id: id), cached.get_author(id: id)
+    assert_equal [{ id: id }] * 3, cached.calls
+    in_tx = cached.transaction { |tx| [tx.class, tx.get_author!(id: id).name, tx.list_authors.size] }
+    assert_equal [caching, 'memoized', 1], in_tx
+    repository = SimpleDelegator.new(memoized)
+    assert_equal 'memoized', repository.public_send(:get_author, **{ id: id }).name
+    assert_equal ['memoized'], repository.transaction { |tx| tx.list_authors.map(&:name) }
+    assert_equal [1, 1], Array.new(2) { ::Thread.new { memoized.list_authors.size } }.map(&:value)
+  end
+
+  # Rows cached with Marshal (Rails.cache, Sidekiq-style payloads) and serialized as JSON (API responses).
+  def test_rows_round_trip_through_marshal_and_json
+    id = create_author('json "author"', "bio\nwith é")
+    row = @query_sql.get_author!(id: id)
+    assert_equal row, ::Marshal.load(::Marshal.dump(row))
+    json = JSON.generate(row.to_h)
+    assert_equal({ 'id' => id, 'name' => 'json "author"', 'bio' => "bio\nwith é" }, JSON.parse(json))
+    assert_equal row, row.class.new(**JSON.parse(json, symbolize_names: true))
+    rows = @query_sql.list_authors
+    assert_equal rows, ::Marshal.load(::Marshal.dump(rows))
   end
 end

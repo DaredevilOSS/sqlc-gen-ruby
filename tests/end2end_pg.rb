@@ -13,6 +13,10 @@ require 'timeout'
 EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../examples', __dir__))).freeze
 require_relative 'consts'
 require_relative 'rbs_types'
+require_relative 'app_helpers'
+require 'delegate'
+require 'json'
+require 'uri'
 require File.join(EXAMPLES_DIR, 'pg/query_sql')
 RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'PgCodegen')}::QuerySql"),
                  File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'))
@@ -20,6 +24,7 @@ RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'PgCodegen')}:
 # End-to-end tests of the code generated for examples/authors/postgresql, against a real PostgreSQL server.
 class TestPg < Minitest::Test
   include Object.const_get(ENV.fetch('EXAMPLES_MODULE', 'PgCodegen'))
+  include AppHelpers
 
   TEXT_PARTS = ["é", '🙂', "\t", "\n", "\r", '\\', "'", '"', ',', '\N', 'NULL'].freeze
 
@@ -1402,5 +1407,183 @@ class TestPg < Minitest::Test
     assert query_sql.has_authors!.has_any
   ensure
     client&.close
+  end
+
+  # ---- usage patterns of applications ----------------------------------------------------------------------------
+
+  def pg_connection(**options)
+    PG.connect(**pg_params.transform_keys(&:to_sym), **options)
+  end
+
+  # Puma / Sidekiq / Resque fork workers from a parent that already ran queries. connection_pool drops the pooled
+  # connections in the child (after_fork), and a connection inherited outside a pool is reconnected there: either
+  # way the parent's sessions stay usable.
+  def test_a_forked_child_leaves_the_parent_connections_usable
+    skip_without_fork
+    pooled = QuerySql.connect(pg_params, size: 1)
+    client = pg_connection
+    single = QuerySql.new(SingleConnection.new(client))
+    id = pooled.create_author_return_id(name: 'before fork', bio: nil)
+    assert_equal 'before fork', single.get_author!(id: id).name
+    parent_backends = [pooled, single].map { |q| q.instance_variable_get(:@db).with(&:backend_pid) }
+    child = in_forked_child do
+      [pooled.get_author!(id: id).name, single.get_author!(id: id).name,
+       pooled.create_author_return_id(name: 'from child', bio: nil).class,
+       [pooled, single].map { |q| q.instance_variable_get(:@db).with(&:backend_pid) }.intersect?(parent_backends)]
+    end
+    assert_equal ['before fork', 'before fork', ::Integer, false], child
+    assert_equal ['before fork', 'from child'], pooled.list_authors.map(&:name).sort
+    assert_equal 2, single.list_authors.size
+    assert_equal 2, pooled.transaction { |tx| tx.list_authors.size }
+    assert_equal parent_backends, [pooled, single].map { |q| q.instance_variable_get(:@db).with(&:backend_pid) }
+  ensure
+    client&.close
+  end
+
+  # A raw connection the application also uses through another library (ActiveRecord's raw_connection, Sequel, a
+  # hand-written repository) keeps that library's type maps and field names, and the generated rows stay typed
+  # whatever the library sets later.
+  def test_a_connection_shared_with_another_library_keeps_its_settings
+    client = pg_connection
+    results = PG::TypeMapAllStrings.new
+    queries = PG::TypeMapByClass.new
+    client.type_map_for_results = results
+    client.type_map_for_queries = queries
+    client.field_name_type = :symbol
+    shared = QuerySql.new(SingleConnection.new(client))
+    id = shared.create_author_return_id(name: 'shared', bio: nil)
+    assert_kind_of ::Integer, id
+    assert_equal [id], shared.get_authors_by_ids(param1: [id]).map(&:id)
+    shared.copy_authors([CopyAuthorsArgs.new(name: 'copied', bio: nil)])
+    assert_equal %w[copied shared], shared.transaction { |tx| tx.list_authors.map(&:name).sort }
+    assert_same results, client.type_map_for_results
+    assert_same queries, client.type_map_for_queries
+    assert_equal :symbol, client.field_name_type
+    assert_equal [{ id: id.to_s }], client.exec("SELECT id FROM authors WHERE name = 'shared'").to_a
+
+    client.type_map_for_results = PG::TypeMapByOid.new
+    client.field_name_type = :static_symbol
+    row = shared.get_author!(id: id)
+    assert_equal [id, 'shared'], [row.id, row.name]
+  ensure
+    client&.close
+  end
+
+  # DATABASE_URL (Heroku, Render, Kamal, docker-compose) is passed as it is.
+  def test_connect_accepts_a_connection_url
+    params = pg_params
+    url = "postgresql://#{URI.encode_www_form_component(params.fetch('user'))}:" \
+          "#{URI.encode_www_form_component(params.fetch('password', ''))}@#{params.fetch('host', 'localhost')}:" \
+          "#{params.fetch('port', 5432)}/#{params.fetch('dbname')}"
+    from_url = QuerySql.connect(url, size: 1)
+    id = from_url.create_author_return_id(name: 'from url', bio: nil)
+    assert_equal 'from url', @query_sql.get_author!(id: id).name
+  end
+
+  # A transaction already opened on the connection by another library (ActiveRecord::Base.transaction on the same
+  # raw connection) becomes the outer transaction: #transaction is a savepoint inside it.
+  def test_transaction_inside_a_transaction_opened_by_another_library_is_a_savepoint
+    client = pg_connection
+    shared = QuerySql.new(SingleConnection.new(client))
+    client.exec('BEGIN')
+    client.exec("INSERT INTO authors (name) VALUES ('outer')")
+    shared.transaction { |tx| tx.create_author_return_id(name: 'inner committed', bio: nil) }
+    assert_raises(RuntimeError) do
+      shared.transaction do |tx|
+        tx.create_author_return_id(name: 'inner rolled back', bio: nil)
+        raise 'rollback the savepoint'
+      end
+    end
+    assert_equal PG::PQTRANS_INTRANS, client.transaction_status
+    assert_equal ['inner committed', 'outer'], shared.list_authors.map(&:name).sort
+    assert_empty @query_sql.list_authors # nothing committed yet
+    client.exec('ROLLBACK')
+    assert_empty @query_sql.list_authors
+  ensure
+    client&.close
+  end
+
+  # Schema-per-tenant apps (apartment, acts_as_tenant with schemas) switch search_path on a pooled connection: the
+  # statements prepared for one tenant read the tables of the next one.
+  def test_queries_follow_the_search_path_of_each_tenant
+    client = pg_connection
+    tenants = %w[sqlc_tenant_a sqlc_tenant_b]
+    tenants.each do |tenant|
+      client.exec("DROP SCHEMA IF EXISTS #{tenant} CASCADE; CREATE SCHEMA #{tenant}; " \
+                  "CREATE TABLE #{tenant}.authors (LIKE public.authors INCLUDING ALL)")
+    end
+    shared = QuerySql.new(SingleConnection.new(client))
+    tenants.each do |tenant|
+      client.exec("SET search_path TO #{tenant}")
+      shared.create_author_return_id(name: "#{tenant} author", bio: nil)
+    end
+    tenants.reverse_each do |tenant|
+      client.exec("SET search_path TO #{tenant}")
+      assert_equal ["#{tenant} author"], shared.list_authors.map(&:name)
+    end
+    client.exec('SET search_path TO public')
+    assert_empty shared.list_authors
+  ensure
+    tenants&.each { |tenant| client&.exec("DROP SCHEMA IF EXISTS #{tenant} CASCADE") }
+    client&.close
+  end
+
+  # Reads go to a replica query object, writes to the primary: a write sent to the read-only replica raises the
+  # driver's error and leaves the replica usable.
+  def test_primary_and_read_replica_query_objects
+    replica = QuerySql.connect(pg_params.merge('options' => '-c default_transaction_read_only=on'), size: 1)
+    id = @query_sql.create_author_return_id(name: 'primary', bio: nil)
+    assert_equal 'primary', replica.get_author!(id: id).name
+    assert_raises(PG::ReadOnlySqlTransaction) { replica.create_author_return_id(name: 'replica', bio: nil) }
+    assert_raises(PG::ReadOnlySqlTransaction) do
+      replica.transaction { |tx| tx.create_author_return_id(name: 'replica', bio: nil) }
+    end
+    assert_equal ['primary'], replica.list_authors.map(&:name)
+  end
+
+  # Query objects memoized in a frozen constant, subclassed (caching, scoping) and wrapped (SimpleDelegator,
+  # prepended instrumentation forwarding `...` / `**`), also inside transactions.
+  def test_memoized_frozen_subclassed_and_wrapped_query_objects
+    memoized = QuerySql.connect(pg_params, size: 2).freeze
+    id = memoized.create_author_return_id(name: 'memoized', bio: nil)
+    instrumentation = Module.new do
+      def calls = @calls ||= []
+
+      def get_author(**args)
+        calls << args
+        super
+      end
+
+      def list_authors(...)
+        calls << :list
+        super
+      end
+    end
+    caching = Class.new(QuerySql) do
+      prepend instrumentation
+      def get_author(id:) = (@cache ||= {}).fetch(id) { @cache[id] = super }
+    end
+    cached = caching.new(memoized.instance_variable_get(:@db))
+    assert_equal 'memoized', cached.get_author!(id: id).name
+    assert_same cached.get_author(id: id), cached.get_author(id: id)
+    assert_equal [{ id: id }] * 3, cached.calls
+    in_tx = cached.transaction { |tx| [tx.class, tx.get_author!(id: id).name, tx.list_authors.size] }
+    assert_equal [caching, 'memoized', 1], in_tx
+    repository = SimpleDelegator.new(memoized)
+    assert_equal 'memoized', repository.public_send(:get_author, **{ id: id }).name
+    assert_equal ['memoized'], repository.transaction { |tx| tx.list_authors.map(&:name) }
+    assert_equal [1, 1], Array.new(2) { ::Thread.new { memoized.list_authors.size } }.map(&:value)
+  end
+
+  # Rows cached with Marshal (Rails.cache, Sidekiq-style payloads) and serialized as JSON (API responses).
+  def test_rows_round_trip_through_marshal_and_json
+    id = create_author('json "author"', "bio\nwith é")
+    row = @query_sql.get_author!(id: id)
+    assert_equal row, ::Marshal.load(::Marshal.dump(row))
+    json = JSON.generate(row.to_h)
+    assert_equal({ 'id' => id, 'name' => 'json "author"', 'bio' => "bio\nwith é" }, JSON.parse(json))
+    assert_equal row, row.class.new(**JSON.parse(json, symbolize_names: true))
+    rows = @query_sql.list_authors
+    assert_equal rows, ::Marshal.load(::Marshal.dump(rows))
   end
 end
