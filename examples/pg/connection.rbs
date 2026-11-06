@@ -38,6 +38,14 @@ module PgCodegen
 
     def detach_from_parent: () -> void
 
+    def release_parent_socket: () -> void
+
+    def self.after_fork: () -> void
+
+    module ForkHook
+      def _fork: () -> ::Integer
+    end
+
     def close: () -> void
 
     def finish: () -> void

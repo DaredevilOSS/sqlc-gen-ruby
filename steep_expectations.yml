@@ -3,20 +3,20 @@
   diagnostics:
   - range:
       start:
-        line: 43
+        line: 55
         character: 13
       end:
-        line: 43
+        line: 55
         character: 19
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 68
+        line: 80
         character: 17
       end:
-        line: 68
+        line: 80
         character: 23
     severity: WARNING
     message: 'Cannot find the declaration of constant: `Mysql2`'
@@ -217,60 +217,60 @@
   diagnostics:
   - range:
       start:
-        line: 117
+        line: 135
         character: 58
       end:
-        line: 117
+        line: 135
         character: 60
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 120
+        line: 138
         character: 15
       end:
-        line: 120
+        line: 138
         character: 17
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 122
+        line: 140
         character: 8
       end:
-        line: 122
+        line: 140
         character: 10
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 122
+        line: 140
         character: 84
       end:
-        line: 122
+        line: 140
         character: 86
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 145
+        line: 163
         character: 29
       end:
-        line: 145
+        line: 163
         character: 31
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'
     code: Ruby::UnknownConstant
   - range:
       start:
-        line: 152
+        line: 170
         character: 13
       end:
-        line: 152
+        line: 170
         character: 15
     severity: WARNING
     message: 'Cannot find the declaration of constant: `PG`'

@@ -10,7 +10,11 @@ module Mysql2Codegen
     def self.extended: (untyped client) -> void
     def inherited?: () -> bool
     def close: () -> void
-    def detach_from_parent: () -> void
+    def release_parent_socket: () -> void
+    def self.after_fork: () -> void
+    module ForkHook
+      def _fork: () -> ::Integer
+    end
     def socket: () -> ::Integer
     def automatic_close=: (bool) -> bool
   end

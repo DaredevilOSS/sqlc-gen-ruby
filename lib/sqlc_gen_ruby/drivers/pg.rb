@@ -184,6 +184,20 @@ module SqlcGenRuby
         module ConnectionState
           def self.extended(client) = client.instance_variable_set(:@owner_pid, ::Process.pid)
 
+          # A forked child (Puma / Sidekiq / Resque worker) lets go of every inherited session the generated code has
+          # used, also ones another thread had checked out at fork time and ones it never uses: its exit would end
+          # them for the parent.
+          def self.after_fork = ::ObjectSpace.each_object(self) { |client| client.release_parent_socket if client.inherited? }
+
+          module ForkHook
+            def _fork
+              pid = super
+              ConnectionState.after_fork if pid.zero?
+              pid
+            end
+          end
+          ::Process.singleton_class.prepend(ForkHook)
+
           attr_accessor :query_types, :result_types
 
           def typed(result)
@@ -197,11 +211,15 @@ module SqlcGenRuby
 
           # Points the inherited socket at /dev/null, so closing or resetting it here does not end the parent's session.
           def detach_from_parent
+            release_parent_socket
+          ensure
+            @owner_pid = ::Process.pid
+          end
+
+          def release_parent_socket
             socket_io.reopen(::IO::NULL)
           rescue ::StandardError # already closed
             nil
-          ensure
-            @owner_pid = ::Process.pid
           end
 
           # connection_pool closes the connections a forked child inherits, also ones closed before (which would raise).
@@ -280,6 +298,14 @@ module SqlcGenRuby
           def inherited?: () -> bool
 
           def detach_from_parent: () -> void
+
+          def release_parent_socket: () -> void
+
+          def self.after_fork: () -> void
+
+          module ForkHook
+            def _fork: () -> ::Integer
+          end
 
           def close: () -> void
 

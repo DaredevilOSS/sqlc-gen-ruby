@@ -1334,6 +1334,36 @@ class TestMysql2 < Minitest::Test
     client&.close
   end
 
+  # A worker forked while another thread has a pooled connection checked out (a Puma thread mid-request, a heartbeat
+  # thread during a Resque fork), and a direct connection the child never uses: the child's plain exit leaves both of
+  # the parent's sessions open.
+  def test_a_child_exit_leaves_connections_checked_out_or_unused_at_fork_open
+    skip_without_fork
+    pooled = QuerySql.connect(mysql2_params, size: 2)
+    client = mysql2_client
+    direct = QuerySql.new(SingleConnection.new(client))
+    direct.list_authors
+    ready = ::Queue.new
+    go = ::Queue.new
+    worker = ::Thread.new do
+      pooled.transaction do |tx|
+        tx.list_authors
+        ready << true
+        go.pop
+        tx.list_authors.size
+      end
+    end
+    ready.pop
+    assert_equal 0, exit_forked_child
+    go << true
+    assert_equal 0, worker.value
+    assert_equal [], direct.list_authors
+    assert_equal 0, pooled.list_authors.size
+  ensure
+    go&.push(true)
+    client&.close
+  end
+
   # A client also used by another library or configured globally (Mysql2::Client.default_query_options with
   # cast_booleans / symbolize_keys, a client with cast: false or as: :hash) keeps its options, and the generated rows
   # keep the documented types.

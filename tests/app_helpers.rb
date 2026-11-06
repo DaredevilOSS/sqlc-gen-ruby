@@ -48,6 +48,16 @@ module AppHelpers
     exit!(1)
   end
 
+  # Forks a child that ends with a plain `exit`, like a worker process: at_exit handlers and finalizers run (and
+  # close what the child inherited). Returns its exit status.
+  def exit_forked_child
+    pid = fork do
+      yield if block_given?
+      exit 0
+    end
+    ::Process.wait2(pid).last.exitstatus
+  end
+
   def skip_without_fork
     skip 'Process.fork is not available on this platform' unless ::Process.respond_to?(:fork)
   end

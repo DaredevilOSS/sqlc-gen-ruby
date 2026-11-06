@@ -164,7 +164,9 @@ end
   On SQLite `results_as_hash` and the other settings of the `SQLite3::Database` are kept too.
 * Forked processes (Puma / Sidekiq / Resque workers, `Process.fork`): connections opened before the fork stay the
   parent's. connection_pool's fork handling replaces the pooled ones in the child without closing the parent's
-  sessions. A `pg` connection used directly (not from a `ConnectionPool`) reconnects in the child; a `mysql2` client
+  sessions, and the child lets go of every inherited connection the generated code has used (also ones another
+  thread had checked out at fork time, and ones the child never uses), so its exit does not end them either. A `pg`
+  connection used directly (not from a `ConnectionPool`) reconnects in the child; a `mysql2` client
   used that way raises `Mysql2::Error::ConnectionError` in the child (open clients in the process that uses them).
   SQLite: the sqlite3 gem closes writable databases a child inherits, so open the database again in the child.
   On macOS, connecting from a forked child can crash in libpq's GSSAPI probe; set `gssencmode: 'disable'` (or

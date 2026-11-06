@@ -8,20 +8,32 @@ module Mysql2Codegen
   module ConnectionState
     def self.extended(client) = client.instance_variable_set(:@owner_pid, ::Process.pid)
 
+    # A forked child (Puma / Sidekiq / Resque worker) lets go of every inherited session the generated code has
+    # used, also ones another thread had checked out at fork time and ones it never uses: its exit would end
+    # them for the parent.
+    def self.after_fork = ::ObjectSpace.each_object(self) { |client| client.release_parent_socket if client.inherited? }
+
+    module ForkHook
+      def _fork
+        pid = super
+        ConnectionState.after_fork if pid.zero?
+        pid
+      end
+    end
+    ::Process.singleton_class.prepend(ForkHook)
+
     # Opened by the parent of a forked process (Puma / Sidekiq workers): its socket is the parent's session.
     def inherited? = @owner_pid != ::Process.pid
 
     # connection_pool closes the connections a forked child inherits: point this process's copy of the socket
     # at /dev/null first, so the QUIT sent by #close does not end the parent's session.
     def close
-      if inherited?
-        self.automatic_close = false
-        detach_from_parent
-      end
+      release_parent_socket if inherited?
       super
     end
 
-    def detach_from_parent
+    def release_parent_socket
+      self.automatic_close = false
       ::IO.for_fd(socket, autoclose: false).reopen(::IO::NULL)
     rescue ::StandardError # already closed
       nil
