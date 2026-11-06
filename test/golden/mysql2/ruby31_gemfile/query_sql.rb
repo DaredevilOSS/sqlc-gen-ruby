@@ -656,7 +656,7 @@ module Mysql2Codegen
     def get_author(id:)
       with_client('get_author') do |client|
         query_params = [id]
-        result = client.query(bind_params(client, GET_AUTHOR_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_AUTHOR_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && GetAuthorRow.new(id: row[0], name: row[1], bio: row[2])
       end
@@ -669,7 +669,7 @@ module Mysql2Codegen
 
     def list_authors
       with_client('list_authors') do |client|
-        result = client.query(bind_params(client, LIST_AUTHORS_SQL, []), as: :array)
+        result = client.query(bind_params(client, LIST_AUTHORS_SQL, []), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           ListAuthorsRow.new(id: row[0], name: row[1], bio: row[2])
         end
@@ -738,7 +738,7 @@ module Mysql2Codegen
     def get_mysql_numeric_types(id:)
       with_client('get_mysql_numeric_types') do |client|
         query_params = [id]
-        result = client.query(bind_params(client, GET_MYSQL_NUMERIC_TYPES_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_MYSQL_NUMERIC_TYPES_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && GetMysqlNumericTypesRow.new(
           id: row[0],
@@ -791,7 +791,7 @@ module Mysql2Codegen
     def get_mysql_string_types(id:)
       with_client('get_mysql_string_types') do |client|
         query_params = [id]
-        result = client.query(bind_params(client, GET_MYSQL_STRING_TYPES_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_MYSQL_STRING_TYPES_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && GetMysqlStringTypesRow.new(
           id: row[0],
@@ -833,7 +833,7 @@ module Mysql2Codegen
     def get_mysql_datetime_types(id:)
       with_client('get_mysql_datetime_types') do |client|
         query_params = [id]
-        result = client.query(bind_params(client, GET_MYSQL_DATETIME_TYPES_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_MYSQL_DATETIME_TYPES_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && GetMysqlDatetimeTypesRow.new(
           id: row[0],
@@ -888,7 +888,7 @@ module Mysql2Codegen
     def get_mysql_binary_types(id:)
       with_client('get_mysql_binary_types') do |client|
         query_params = [id]
-        result = client.query(bind_params(client, GET_MYSQL_BINARY_TYPES_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_MYSQL_BINARY_TYPES_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && GetMysqlBinaryTypesRow.new(
           id: row[0],
@@ -913,7 +913,7 @@ module Mysql2Codegen
     def list_authors_paged(limit:, offset:)
       with_client('list_authors_paged') do |client|
         query_params = [limit, offset]
-        result = client.query(bind_params(client, LIST_AUTHORS_PAGED_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, LIST_AUTHORS_PAGED_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           ListAuthorsPagedRow.new(id: row[0], name: row[1], bio: row[2])
         end
@@ -923,7 +923,7 @@ module Mysql2Codegen
     def get_author_by_name_pattern(name_pattern: nil)
       with_client('get_author_by_name_pattern') do |client|
         query_params = [name_pattern]
-        result = client.query(bind_params(client, GET_AUTHOR_BY_NAME_PATTERN_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_AUTHOR_BY_NAME_PATTERN_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           GetAuthorByNamePatternRow.new(id: row[0], name: row[1], bio: row[2])
         end
@@ -933,7 +933,7 @@ module Mysql2Codegen
     def get_authors_by_optional_name(limit:, name_filter: nil)
       with_client('get_authors_by_optional_name') do |client|
         query_params = [name_filter, name_filter, limit]
-        result = client.query(bind_params(client, GET_AUTHORS_BY_OPTIONAL_NAME_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_AUTHORS_BY_OPTIONAL_NAME_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           GetAuthorsByOptionalNameRow.new(id: row[0], name: row[1], bio: row[2])
         end
@@ -943,7 +943,7 @@ module Mysql2Codegen
     def pause_query(seconds:)
       with_client('pause_query') do |client|
         query_params = [seconds]
-        client.query(bind_params(client, PAUSE_QUERY_SQL, query_params), as: :array)
+        client.query(bind_params(client, PAUSE_QUERY_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         nil
       end
     end
@@ -961,7 +961,7 @@ module Mysql2Codegen
       with_client('get_authors_by_ids') do |client|
         query_params = [*ids]
         sql = GET_AUTHORS_BY_IDS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
-        result = client.query(bind_params(client, sql, query_params), as: :array)
+        result = client.query(bind_params(client, sql, query_params), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           GetAuthorsByIdsRow.new(id: row[0], name: row[1], bio: row[2])
         end
@@ -973,7 +973,7 @@ module Mysql2Codegen
         query_params = [*ids, *names]
         sql = GET_AUTHORS_BY_IDS_AND_NAMES_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
         sql = sql.gsub('/*SLICE:names*/?', slice_placeholders(names))
-        result = client.query(bind_params(client, sql, query_params), as: :array)
+        result = client.query(bind_params(client, sql, query_params), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           GetAuthorsByIdsAndNamesRow.new(id: row[0], name: row[1], bio: row[2])
         end
@@ -1011,7 +1011,7 @@ module Mysql2Codegen
 
     def list_all_authors_books
       with_client('list_all_authors_books') do |client|
-        result = client.query(bind_params(client, LIST_ALL_AUTHORS_BOOKS_SQL, []), as: :array)
+        result = client.query(bind_params(client, LIST_ALL_AUTHORS_BOOKS_SQL, []), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           ListAllAuthorsBooksRow.new(
             author: Author.new(id: row[0], name: row[1], bio: row[2]),
@@ -1023,7 +1023,7 @@ module Mysql2Codegen
 
     def get_duplicate_authors
       with_client('get_duplicate_authors') do |client|
-        result = client.query(bind_params(client, GET_DUPLICATE_AUTHORS_SQL, []), as: :array)
+        result = client.query(bind_params(client, GET_DUPLICATE_AUTHORS_SQL, []), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           GetDuplicateAuthorsRow.new(
             author: Author.new(id: row[0], name: row[1], bio: row[2]),
@@ -1036,7 +1036,7 @@ module Mysql2Codegen
     def get_authors_by_book_name(name:)
       with_client('get_authors_by_book_name') do |client|
         query_params = [name]
-        result = client.query(bind_params(client, GET_AUTHORS_BY_BOOK_NAME_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_AUTHORS_BY_BOOK_NAME_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           GetAuthorsByBookNameRow.new(
             id: row[0],
@@ -1059,7 +1059,7 @@ module Mysql2Codegen
     def get_first_extended_bio_by_type(bio_type:)
       with_client('get_first_extended_bio_by_type') do |client|
         query_params = [bio_type]
-        result = client.query(bind_params(client, GET_FIRST_EXTENDED_BIO_BY_TYPE_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_FIRST_EXTENDED_BIO_BY_TYPE_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && GetFirstExtendedBioByTypeRow.new(
           author_name: row[0],
@@ -1104,7 +1104,7 @@ module Mysql2Codegen
       with_client('get_author_batch') do |client|
         rows.map do |args|
           query_params = [args.id]
-          result = client.query(bind_params(client, GET_AUTHOR_BATCH_SQL, query_params), as: :array)
+          result = client.query(bind_params(client, GET_AUTHOR_BATCH_SQL, query_params), as: :array, cast: true, cast_booleans: false)
           row = result.first
           row && GetAuthorBatchRow.new(id: row[0], name: row[1], bio: row[2])
         end
@@ -1115,7 +1115,7 @@ module Mysql2Codegen
       with_client('list_authors_by_name_batch') do |client|
         rows.map do |args|
           query_params = [args.name]
-          result = client.query(bind_params(client, LIST_AUTHORS_BY_NAME_BATCH_SQL, query_params), as: :array)
+          result = client.query(bind_params(client, LIST_AUTHORS_BY_NAME_BATCH_SQL, query_params), as: :array, cast: true, cast_booleans: false)
           result.map do |row|
             ListAuthorsByNameBatchRow.new(id: row[0], name: row[1], bio: row[2])
           end
@@ -1126,7 +1126,7 @@ module Mysql2Codegen
     def count_regressions_by_text(term:)
       with_client('count_regressions_by_text') do |client|
         query_params = [term, term]
-        result = client.query(bind_params(client, COUNT_REGRESSIONS_BY_TEXT_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, COUNT_REGRESSIONS_BY_TEXT_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && CountRegressionsByTextRow.new(count_: row[0])
       end
@@ -1140,7 +1140,7 @@ module Mysql2Codegen
     def list_regressions_by_ids(id:, id_2:, id_3:)
       with_client('list_regressions_by_ids') do |client|
         query_params = [id, id_2, id_3]
-        result = client.query(bind_params(client, LIST_REGRESSIONS_BY_IDS_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, LIST_REGRESSIONS_BY_IDS_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           ListRegressionsByIdsRow.new(id: row[0], order: row[1], note: row[2])
         end
@@ -1184,7 +1184,7 @@ module Mysql2Codegen
     def get_regression_step(id:)
       with_client('get_regression_step') do |client|
         query_params = [id]
-        result = client.query(bind_params(client, GET_REGRESSION_STEP_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_REGRESSION_STEP_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && GetRegressionStepRow.new(step: row[0])
       end
@@ -1197,7 +1197,7 @@ module Mysql2Codegen
 
     def list_regression_rows
       with_client('list_regression_rows') do |client|
-        result = client.query(bind_params(client, LIST_REGRESSION_ROWS_SQL, []), as: :array)
+        result = client.query(bind_params(client, LIST_REGRESSION_ROWS_SQL, []), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           ListRegressionRowsRow.new(
             id: row[0],
@@ -1215,7 +1215,7 @@ module Mysql2Codegen
 
     def list_authors_with_optional_book
       with_client('list_authors_with_optional_book') do |client|
-        result = client.query(bind_params(client, LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL, []), as: :array)
+        result = client.query(bind_params(client, LIST_AUTHORS_WITH_OPTIONAL_BOOK_SQL, []), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           ListAuthorsWithOptionalBookRow.new(
             author: row[0].nil? && row[1].nil? ? nil : Author.new(id: row[0], name: row[1], bio: row[2]),
@@ -1285,7 +1285,7 @@ module Mysql2Codegen
       with_client('count_regressions_by_codes') do |client|
         rows.map do |args|
           query_params = [args.code, args.code_2]
-          result = client.query(bind_params(client, COUNT_REGRESSIONS_BY_CODES_SQL, query_params), as: :array)
+          result = client.query(bind_params(client, COUNT_REGRESSIONS_BY_CODES_SQL, query_params), as: :array, cast: true, cast_booleans: false)
           row = result.first
           row && CountRegressionsByCodesRow.new(matches: row[0])
         end
@@ -1295,7 +1295,7 @@ module Mysql2Codegen
     def find_authors_by_exact_name(name:)
       with_client('find_authors_by_exact_name') do |client|
         query_params = [name]
-        result = client.query(bind_params(client, FIND_AUTHORS_BY_EXACT_NAME_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, FIND_AUTHORS_BY_EXACT_NAME_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           FindAuthorsByExactNameRow.new(id: row[0])
         end
@@ -1306,7 +1306,7 @@ module Mysql2Codegen
     def get_author_with_question_marks(name:)
       with_client('get_author_with_question_marks') do |client|
         query_params = [name]
-        result = client.query(bind_params(client, GET_AUTHOR_WITH_QUESTION_MARKS_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_AUTHOR_WITH_QUESTION_MARKS_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           GetAuthorWithQuestionMarksRow.new(id: row[0])
         end
@@ -1344,7 +1344,7 @@ module Mysql2Codegen
           camel_case,
           initialize
         ]
-        result = client.query(bind_params(client, GET_NAME_CASE_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_NAME_CASE_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && GetNameCaseRow.new(
           id: row[0],
@@ -1368,7 +1368,7 @@ module Mysql2Codegen
     def get_http_server(id:)
       with_client('get_http_server') do |client|
         query_params = [id]
-        result = client.query(bind_params(client, GET_HTTP_SERVER_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, GET_HTTP_SERVER_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && GetHTTPServerRow.new(
           id: row[0],
@@ -1425,7 +1425,7 @@ module Mysql2Codegen
 
     def list_mixed_case_copies
       with_client('list_mixed_case_copies') do |client|
-        result = client.query(bind_params(client, LIST_MIXED_CASE_COPIES_SQL, []), as: :array)
+        result = client.query(bind_params(client, LIST_MIXED_CASE_COPIES_SQL, []), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           ListMixedCaseCopiesRow.new(id: row[0], somevalue: row[1])
         end
@@ -1442,7 +1442,7 @@ module Mysql2Codegen
     # rubocop:disable Naming/VariableNumber
     def get_unnamed_columns
       with_client('get_unnamed_columns') do |client|
-        result = client.query(bind_params(client, GET_UNNAMED_COLUMNS_SQL, []), as: :array)
+        result = client.query(bind_params(client, GET_UNNAMED_COLUMNS_SQL, []), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && GetUnnamedColumnsRow.new(column_1: row[0], column_2: row[1])
       end
@@ -1456,7 +1456,7 @@ module Mysql2Codegen
 
     def get_quoted_alias
       with_client('get_quoted_alias') do |client|
-        result = client.query(bind_params(client, GET_QUOTED_ALIAS_SQL, []), as: :array)
+        result = client.query(bind_params(client, GET_QUOTED_ALIAS_SQL, []), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && GetQuotedAliasRow.new(it_s: row[0])
       end
@@ -1471,7 +1471,7 @@ module Mysql2Codegen
       with_client('get_authors_not_in_ids') do |client|
         query_params = [*ids]
         sql = GET_AUTHORS_NOT_IN_IDS_SQL.gsub('/*SLICE:ids*/?', slice_placeholders(ids))
-        result = client.query(bind_params(client, sql, query_params), as: :array)
+        result = client.query(bind_params(client, sql, query_params), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           GetAuthorsNotInIdsRow.new(id: row[0], name: row[1], bio: row[2])
         end
@@ -1487,7 +1487,7 @@ module Mysql2Codegen
 
     def count_exceptions
       with_client('count_exceptions') do |client|
-        result = client.query(bind_params(client, COUNT_EXCEPTIONS_SQL, []), as: :array)
+        result = client.query(bind_params(client, COUNT_EXCEPTIONS_SQL, []), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && CountExceptionsRow.new(n: row[0])
       end
@@ -1508,7 +1508,7 @@ module Mysql2Codegen
     # rubocop:disable Naming/PredicatePrefix
     def has_authors
       with_client('has_authors') do |client|
-        result = client.query(bind_params(client, HAS_AUTHORS_SQL, []), as: :array)
+        result = client.query(bind_params(client, HAS_AUTHORS_SQL, []), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && HasAuthorsRow.new(has_any: row[0])
       end
@@ -1531,7 +1531,7 @@ module Mysql2Codegen
           c3,
           c4
         ]
-        result = client.query(bind_params(client, MANY_PARAMS_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, MANY_PARAMS_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         row = result.first
         row && ManyParamsRow.new(c0: row[0], c1: row[1])
       end
@@ -1545,7 +1545,7 @@ module Mysql2Codegen
     def many_rows(c0:)
       with_client('many_rows') do |client|
         query_params = [c0]
-        result = client.query(bind_params(client, MANY_ROWS_SQL, query_params), as: :array)
+        result = client.query(bind_params(client, MANY_ROWS_SQL, query_params), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           ManyRowsRow.new(
             c0: row[0],
@@ -1560,7 +1560,7 @@ module Mysql2Codegen
 
     def four_cols
       with_client('four_cols') do |client|
-        result = client.query(bind_params(client, FOUR_COLS_SQL, []), as: :array)
+        result = client.query(bind_params(client, FOUR_COLS_SQL, []), as: :array, cast: true, cast_booleans: false)
         result.map do |row|
           FourColsRow.new(c0: row[0], c1: row[1], c2: row[2], c3: row[3])
         end
@@ -1585,6 +1585,12 @@ module Mysql2Codegen
       instrument(name) do
         @db.with do |client|
           client.extend(ConnectionState) unless client.is_a?(ConnectionState)
+          if client.inherited?
+            client.close
+            @db.discard_current_connection if @db.respond_to?(:discard_current_connection)
+            raise ::Mysql2::Error::ConnectionError, 'this Mysql2::Client was opened by another process (inherited through fork): ' \
+                                                    'open clients in the process that uses them, or use a ConnectionPool'
+          end
           begin
             yield client
           rescue ::Exception # rubocop:disable Lint/RescueException

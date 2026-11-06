@@ -205,7 +205,7 @@ class FeaturesTest < Minitest::Test
 
   def test_mysql_uses_client_side_binding_and_sqlite_closes_prepared_statements
     mysql = generate(load_request('mysql2')).fetch('query_sql.rb')
-    assert_includes mysql, 'client.query(bind_params(client, GET_AUTHOR_SQL, query_params), as: :array)'
+    assert_includes mysql, 'client.query(bind_params(client, GET_AUTHOR_SQL, query_params), as: :array, cast: true, cast_booleans: false)'
     assert_includes mysql, 'def quote(client, value)'
     assert_includes mysql, 'def bind_params(client, sql, params)'
     refute_match(/\bstmt(?:\.| =)/, mysql)
@@ -299,7 +299,7 @@ class FeaturesTest < Minitest::Test
 
   def test_pg_can_skip_prepared_statements
     rb = generate(load_request('pg', preparedStatements: false)).fetch('query_sql.rb')
-    assert_includes rb, 'client.exec_params(GET_AUTHOR_SQL, query_params)'
+    assert_includes rb, 'client.typed(client.exec_params(GET_AUTHOR_SQL, query_params, 0, client.query_types))'
     refute_includes rb, 'client.prepare('
   end
 

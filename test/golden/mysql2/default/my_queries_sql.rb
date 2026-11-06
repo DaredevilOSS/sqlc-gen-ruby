@@ -139,6 +139,12 @@ module Mysql2Codegen
       instrument(name) do
         @db.with do |client|
           client.extend(ConnectionState) unless client.is_a?(ConnectionState)
+          if client.inherited?
+            client.close
+            @db.discard_current_connection if @db.respond_to?(:discard_current_connection)
+            raise ::Mysql2::Error::ConnectionError, 'this Mysql2::Client was opened by another process (inherited through fork): ' \
+                                                    'open clients in the process that uses them, or use a ConnectionPool'
+          end
           begin
             yield client
           rescue ::Exception # rubocop:disable Lint/RescueException

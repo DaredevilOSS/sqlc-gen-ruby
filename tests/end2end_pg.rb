@@ -1462,7 +1462,7 @@ class TestPg < Minitest::Test
     assert_equal [{ id: id.to_s }], client.exec("SELECT id FROM authors WHERE name = 'shared'").to_a
 
     client.type_map_for_results = PG::TypeMapByOid.new
-    client.field_name_type = :static_symbol
+    client.field_name_type = :string
     row = shared.get_author!(id: id)
     assert_equal [id, 'shared'], [row.id, row.name]
   ensure

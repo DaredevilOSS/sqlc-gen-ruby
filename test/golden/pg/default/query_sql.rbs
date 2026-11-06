@@ -630,7 +630,7 @@ module PgCodegen
     class NotFound < ::StandardError
     end
 
-    def self.connect: (::Hash[untyped, untyped] pg_params, ?logger: untyped, **untyped pool_options) -> instance
+    def self.connect: (::Hash[untyped, untyped] | ::String pg_params, ?logger: untyped, **untyped pool_options) -> instance
 
     def initialize: (untyped db, ?logger: untyped) -> void
 

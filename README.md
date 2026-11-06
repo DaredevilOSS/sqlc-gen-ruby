@@ -156,6 +156,20 @@ end
   client that mysql2 closed because a running query was interrupted (an `Async` task stopped, `Thread#raise`) is
   replaced the same way, without failing the next call.
 * SQLite: threads and fibers sharing one `SQLite3::Database` take turns; a transaction holds the database until it ends.
+* `pg`: `QuerySql.connect` also takes a connection URL: `QuerySql.connect(ENV.fetch('DATABASE_URL'), size: 5)`.
+* A connection shared with another library (ActiveRecord's `raw_connection`, Sequel, your own code) keeps its
+  settings: the generated queries pass their own type maps (`pg`; the connection's `type_map_for_results`,
+  `type_map_for_queries` and `field_name_type` are left as they are) or query options (`mysql2`: rows are read with
+  `as: :array, cast: true, cast_booleans: false`, whatever the client's or `Mysql2::Client.default_query_options`).
+  On SQLite `results_as_hash` and the other settings of the `SQLite3::Database` are kept too.
+* Forked processes (Puma / Sidekiq / Resque workers, `Process.fork`): connections opened before the fork stay the
+  parent's. connection_pool's fork handling replaces the pooled ones in the child without closing the parent's
+  sessions. A `pg` connection used directly (not from a `ConnectionPool`) reconnects in the child; a `mysql2` client
+  used that way raises `Mysql2::Error::ConnectionError` in the child (open clients in the process that uses them).
+  SQLite: the sqlite3 gem closes writable databases a child inherits, so open the database again in the child.
+* A `transaction` inside a transaction that another library opened on the same connection (`BEGIN`) is a savepoint
+  on PostgreSQL and SQLite. MySQL has no nested transactions: its `BEGIN` commits the open transaction first (see
+  [Limitations](#limitations)).
 
 ## Supported features
 ### Query annotations
@@ -247,6 +261,9 @@ server; duplicate keys and invalid values raise `Mysql2::Error` instead of being
   elements raises `SQLite3::SQLException: too many SQL variables`; on MySQL the limit is the server's
   `max_allowed_packet`. Load larger sets into a table (`:copyfrom`) and join it instead.
 * `:batchexec` / `:batchone` / `:batchmany` are not atomic on their own: wrap them in `transaction` for all-or-nothing.
+* MySQL: `transaction` on a client inside a transaction that was started with raw SQL or by another library commits
+  that transaction first (MySQL's `BEGIN` does), so a later `ROLLBACK` no longer undoes it. Run the outer work in
+  `transaction` too (inner calls become savepoints), or finish the other transaction first.
 * SQLite: sqlc does not see parameters in `ON CONFLICT ... DO UPDATE SET` (it leaves `sqlc.arg(...)` in the SQL or
   reports fewer parameters than there are `?`), so such queries are generation errors. Use `excluded.<column>`
   (`DO UPDATE SET n = counters.n + excluded.n`) or move the value into `VALUES`.
