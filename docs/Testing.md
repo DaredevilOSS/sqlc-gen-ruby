@@ -1,6 +1,6 @@
 # Testing and CI
 
-Every README claim and supported feature needs a real-database E2E test for each applicable engine, listed in
+Every documented behavior (README and `docs/`) and supported feature needs a real-database E2E test for each applicable engine, listed in
 [`Coverage.md`](Coverage.md). A bug fix starts with a real-database E2E regression that fails before the fix. Use unit
 tests only where E2E cannot reach the behavior, such as option validation or generation errors. CI runs the full E2E
 suites on every supported Ruby version plus full-suite option variants; generator-options E2E runs on Ruby 3.1 and 4.0.

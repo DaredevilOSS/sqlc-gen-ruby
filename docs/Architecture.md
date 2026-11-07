@@ -42,16 +42,20 @@ module PgCodegen
     GET_AUTHOR_SQL = <<~'SQL'      # raw heredoc: the SQL is never interpolated
       SELECT id, name, bio FROM authors WHERE id = $1 LIMIT 1
     SQL
-    GetAuthorRow = Data.define(:id, :name, :bio)   # Struct.new(...) below Ruby 3.2
+    class GetAuthorRow < ::Data.define(:id, :name, :bio)   # a keyword Struct below Ruby 3.2
+    end
 
     def get_author(id:)            # a :one query returns the row or nil ...
       with_client('get_author') do |client|        # one pooled connection + logging
-        ...prepare once per connection, exec_prepared...
+        query_params = [id]
+        result = run_prepared(client, 'PgCodegen::QuerySql#get_author', GET_AUTHOR_SQL, query_params)
+        row = result.first
+        row && GetAuthorRow.new(row['id'], row['name'], row['bio'])
       end
     end
 
-    def get_author!(id:)           # ... and gets a bang variant
-      get_author(id: id) || raise(NotFound, 'GetAuthor returned no row')
+    def get_author!(...)           # ... and gets a bang variant
+      get_author(...) || raise(NotFound, 'GetAuthor returned no row')
     end
 
     def transaction(isolation: nil) { |tx| ... }   # commit / rollback, nested = SAVEPOINT

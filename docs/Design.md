@@ -44,8 +44,8 @@ that plugin (`:execrows`, `:execlastid` for every driver, `:copyfrom`, `sqlc.sli
 transactions, nullability, `overrides`) and Ruby conventions (bang finders, logger, pooling), so the output is
 now idiomatic Ruby rather than a copy of the C# one.
 
-## Known limitations
-See [Troubleshooting](Troubleshooting.md). Design choices that look like limitations:
+## Deliberate trade-offs
+Things that look like limitations but are design choices (symptoms and fixes: [Troubleshooting](Troubleshooting.md)):
 * Overrides only change the RBS types; values are never converted, so the generated code stays a thin layer over the driver.
 * SQLite queries do not overlap: a `SQLite3::Database` is one connection, so the generated code takes one lock per
   database (held for a whole transaction) to keep threads and fibers from mixing their transactions.
