@@ -87,5 +87,5 @@ Design decisions worth knowing (the *why* is in the comments of `drivers/base.rb
 `NotImplementedError`), register it in `Generator#instantiate_driver` and `Options::DRIVERS`, add `examples/authors/<engine>` + an end-to-end test file `tests/end2end_<driver>.rb`, and a service
 container job in `.github/workflows/tests.yml`.
 
-**A new option:** `options.rb` (parse + default), use it where needed, document it in the README option table, and
+**A new option:** `options.rb` (parse + default), use it where needed, document it in the README option table and docs/Options.md, and
 add a case to `test/options_test.rb` and (if it changes output) to the `codegen-options` matrix in `build.yml`.
