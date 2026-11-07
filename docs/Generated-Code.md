@@ -37,7 +37,7 @@ each query and transaction. Parameter values are never logged.
 * Comments above a query become its doc comment; table / column / enum comments of the schema become doc comments of
   the models.
 * The code is RuboCop-clean. Where a name from your schema breaks a RuboCop naming rule (`"UserId"`, `naïve`), that
-  class or method gets a `rubocop:disable` (on SQLite keep the query files ASCII, see [Limitations](Limitations.md)).
+  class or method gets a `rubocop:disable` (on SQLite keep the query files ASCII, see [Troubleshooting](Troubleshooting.md)).
   Query names such as `HasAuthors` / `IsActive` keep their name (`has_authors`) with `Naming/PredicatePrefix` disabled.
 
 ## More

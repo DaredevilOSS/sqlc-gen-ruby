@@ -1,8 +1,8 @@
 <h1 align="center">sqlc-gen-ruby</h1>
 
 <p align="center">
-  Write SQL. Get typed, idiomatic Ruby.<br>
-  A <a href="https://sqlc.dev">sqlc</a> plugin for <b>PostgreSQL</b>, <b>MySQL</b> and <b>SQLite</b>, with RBS signatures.
+  <b>Write SQL. Get typed, idiomatic Ruby.</b><br>
+  A <a href="https://sqlc.dev">sqlc</a> plugin for PostgreSQL, MySQL and SQLite, with RBS signatures.
 </p>
 
 <p align="center">
@@ -12,17 +12,46 @@
 
 ---
 
-You write the schema and the queries:
+## How it works
+
+**1. You write SQL**
 
 ```sql
+-- schema.sql
+CREATE TABLE authors (
+  id   BIGSERIAL PRIMARY KEY,
+  name text NOT NULL,
+  bio  text
+);
+
+-- query.sql
 -- name: GetAuthor :one
-SELECT * FROM authors WHERE id = $1;
+-- Returns the author with the given id, or nil when there is none.
+SELECT * FROM authors WHERE id = $1 LIMIT 1;
 
 -- name: CreateAuthor :one
 INSERT INTO authors (name, bio) VALUES ($1, $2) RETURNING *;
 ```
 
-`sqlc generate` gives you plain Ruby you call like any other object:
+**2. `sqlc generate` writes Ruby, and RBS to go with it**
+
+```ruby
+# Returns the author with the given id, or nil when there is none.
+def get_author(id:)
+  ...
+end
+```
+```rbs
+def get_author: (id: ::Integer) -> GetAuthorRow?
+def get_author!: (id: ::Integer) -> GetAuthorRow
+class GetAuthorRow
+  attr_reader id: ::Integer
+  attr_reader name: ::String
+  attr_reader bio: ::String?
+end
+```
+
+**3. You call it**
 
 ```ruby
 queries = PgCodegen::QuerySql.connect({ dbname: 'app', host: 'localhost' }, size: 5)   # a connection pool
@@ -36,25 +65,15 @@ queries.transaction do |tx|                                # COMMIT at the end, 
 end
 ```
 
-No ORM, no runtime dependency on the plugin, no magic: the SQL stays yours, the Ruby is generated, committed and
-reviewable.
+No ORM and no runtime dependency on the plugin: you get plain Ruby files that are committed and reviewable, in the
+style you would have written by hand (keyword arguments, `Data` rows, pattern matching, RuboCop- and Steep-clean).
+See the [full generated output](docs/Examples.md) for every driver.
 
-## Why you might like it
+## Install
 
-| | |
-|---|---|
-| **Three databases** | `pg`, `mysql2` and `sqlite3`, Ruby 3.1 – 4.0. |
-| **Typed** | `.rbs` signatures for every model, row and method. The generated code is RuboCop- and Steep-clean. |
-| **Idiomatic Ruby** | Keyword arguments, frozen `Data` rows (`Struct` below Ruby 3.2), pattern matching, doc comments from your SQL comments. |
-| **Real transactions** | Nested savepoints, isolation levels, safe under `Timeout`, `Thread#kill`, fibers (`async`) and forks (Puma, Sidekiq). |
-| **Everything sqlc offers** | `:one` `:many` `:exec` `:execrows` `:execlastid` `:execresult` `:batch*` `:copyfrom`, plus `sqlc.arg` / `narg` / `slice` / `embed`. |
-| **Nothing to install but sqlc** | The plugin is pure Ruby shipped as one WebAssembly file ([ruby.wasm](https://github.com/ruby/ruby.wasm)). No Ruby needed to *generate*. |
-| **Safe by default** | Parameters are bound (PostgreSQL / SQLite) or escaped by the driver (MySQL), and their values are never logged. |
-
-## Quick start
-
-**1. Point sqlc at the plugin** in `sqlc.yaml`. The URL and sha256 of every version are in its
-[release notes](https://github.com/DaredevilOSS/sqlc-gen-ruby/releases).
+The plugin is one WebAssembly file ([ruby.wasm](https://github.com/ruby/ruby.wasm) with the plugin inside): the only
+thing to install is [sqlc](https://docs.sqlc.dev/en/latest/overview/install.html). Add it to `sqlc.yaml` (the URL and
+sha256 of every version are in its [release notes](https://github.com/DaredevilOSS/sqlc-gen-ruby/releases)):
 
 ```yaml
 version: "2"
@@ -74,126 +93,83 @@ sql:
           driver: pg            # or mysql2 / sqlite3
 ```
 
-**2. Write your queries** in `db/query.sql` (see above).
+Run `sqlc generate`, add `connection_pool` and your driver gem (`pg`, `mysql2` or `sqlite3`) to your Gemfile (or set
+`generateGemfile: true` and the plugin writes one), and `require_relative 'app/db/query_sql'`.
 
-**3. Run `sqlc generate`** and `require_relative 'app/db/query_sql'`.
+## What's supported
 
-Add the gems the generated code uses (`pg`, `mysql2` or `sqlite3`, and `connection_pool`), or set
-`generateGemfile: true` to get a ready `Gemfile`.
+Ruby 3.1 – 4.0 · PostgreSQL (`pg`) · MySQL (`mysql2`) · SQLite (`sqlite3`)
 
-> Want to see the output first? [docs/Examples.md](docs/Examples.md) shows the real generated code for every driver,
-> built from [these schemas and queries](examples/authors).
+### Query annotations
 
-## What you get
+| Annotation | Returns | PostgreSQL | MySQL | SQLite |
+|---|---|:---:|:---:|:---:|
+| `:one` | the row or `nil`, plus a bang finder (`get_author!`) | ✅ | ✅ | ✅ |
+| `:many` | an `Array` of rows | ✅ | ✅ | ✅ |
+| `:exec` | `nil` | ✅ | ✅ | ✅ |
+| `:execrows` | number of affected rows | ✅ | ✅ | ✅ |
+| `:execlastid` | the new id | ✅ | ✅ | ✅ |
+| `:execresult` | `ExecResult` (`rows_affected`, `last_insert_id`) | ✅ | ✅ | ✅ |
+| `:batchexec` `:batchone` `:batchmany` | run the query for every element of an `Array`, on one connection | ✅ | ✅ | ✅ |
+| `:copyfrom` | bulk insert of an `Array` or any `Enumerable` | ✅ `COPY` | ✅ `LOAD DATA` | ✅ multi-row `INSERT` |
 
-For each query file `foo.sql`, in `out:`:
-
-| File | Contents |
-|---|---|
-| `foo_sql.rb` | `FooSql`: one method per query, plus `transaction` |
-| `models.rb` | one class per table, one module of constants per enum |
-| `connection.rb` | shared helpers |
-| `*.rbs` | type signatures for all of the above |
-
-How it feels to use (details in [Generated code](docs/Generated-Code.md)):
-
-* **Arguments** are keywords (`get_author(id:)`); missing or unknown ones raise `ArgumentError`.
-* **Rows** are frozen `Data` objects (or keyword `Struct`s below Ruby 3.2) and work with pattern matching.
-* **Bang finders**: every `:one` query also has `get_author!`.
-* **Pooling**: `connect` builds a [`connection_pool`](https://github.com/mperham/connection_pool); or pass your own to
-  `QuerySql.new(pool)`. SQLite takes a `SQLite3::Database`.
-* **Logging**: `connect(params, logger: Rails.logger)` logs `QuerySql#get_author (0.4ms)`, never the values.
-
-## Query annotations
-
-| Annotation | Returns |
-|---|---|
-| `:one` | the row or `nil` (+ a `!` finder) |
-| `:many` | an `Array` of rows |
-| `:exec` | `nil` |
-| `:execrows` | the number of affected rows |
-| `:execlastid` | the new id |
-| `:execresult` | `ExecResult` (`rows_affected`, `last_insert_id`) |
-| `:batchexec` `:batchone` `:batchmany` | run the query once per element of an `Array`, on one connection |
-| `:copyfrom` | bulk insert (`COPY` / `LOAD DATA` / multi-row `INSERT`) |
-
-Per-database notes and conflict-clause rules: [Queries](docs/Queries.md).
-
-## sqlc macros
+### sqlc macros
 
 | Macro | PostgreSQL | MySQL | SQLite |
 |---|:---:|:---:|:---:|
-| `sqlc.arg(name)` | ✅ | ✅ | ✅ |
-| `sqlc.narg(name)` (nullable, defaults to `nil`) | ✅ | ✅ | ✅ |
-| `sqlc.slice(ids)` (`IN (...)` with an `Array`) | use `= ANY($1::bigint[])` | ✅ | ✅ |
-| `sqlc.embed(table)` (the row holds the table's model) | ✅ | ✅ | ✅ |
+| `sqlc.arg(name)`: name a parameter | ✅ | ✅ | ✅ |
+| `sqlc.narg(name)`: nullable, defaults to `nil` | ✅ | ✅ | ✅ |
+| `sqlc.slice(ids)`: `IN (...)` with an `Array` | `= ANY($1::bigint[])` | ✅ | ✅ |
+| `sqlc.embed(table)`: the row holds the table's model | ✅ | ✅ | ✅ |
 
-## Transactions
+### Types
 
-```ruby
-queries.transaction(isolation: :serializable) do |tx|
-  id = tx.create_author_return_id(name: 'a', bio: nil)
-  tx.transaction { tx.create_book(name: 'b', author_id: id) }   # nested: a SAVEPOINT
-  :done                                                          # the block's value is returned
-end
-```
+| SQL | Ruby |
+|---|---|
+| integers, floats | `Integer`, `Float` |
+| `numeric`, `decimal` | `BigDecimal` |
+| text, `varchar` | `String` |
+| enums | `String`, plus constants (`ExtendedBioType::MEMOIR`, `ExtendedBioType::ALL`) |
+| `date`, `timestamp`, `timestamptz`, `datetime` | `Date`, `Time` |
+| `inet`, `cidr` | `IPAddr` |
+| `json`, `jsonb` | parsed Ruby objects on PostgreSQL, JSON text on MySQL |
+| arrays (PostgreSQL) | `Array[T]` |
+| nullable columns and parameters | `T?` |
 
-Commit on exit, rollback on exception, savepoints for nesting. `tx` stays in the transaction from any fiber or thread
-and raises `TransactionEnded` once it is over. Dead connections, timeouts, killed threads, forks, deadlocks and shared
-connections (ActiveRecord, Sequel) are all handled and documented in [Transactions and connections](docs/Transactions.md).
+Types follow what each driver returns; override any of them with [`overrides`](docs/Options.md#overrides).
+Everything else (ranges, geometric types, composite types, SQLite affinity, time zones): [Types and names](docs/Types.md).
+
+### Built for production
+
+| | |
+|---|---|
+| **Transactions** | `transaction` with commit/rollback, nested savepoints and isolation levels (`isolation:` / `mode:`) |
+| **Pooling** | `connection_pool` built for you, or bring your own pool, `SQLite3::Database` or a shared ActiveRecord / Sequel connection |
+| **Resilience** | `Timeout`, `Thread#kill`, stopped `Async` tasks, lost connections, deadlocks and forked workers (Puma, Sidekiq) are handled |
+| **Concurrency** | plain Ruby that works with the Fiber scheduler (`async`) |
+| **Logging** | `connect(params, logger: Rails.logger)` logs `QuerySql#get_author (0.4ms)`; parameter values are never logged |
+| **Docs and types** | SQL comments become doc comments; `.rbs` for every model, row and method |
+
+Details: [Transactions and connections](docs/Transactions.md) · [Generated code](docs/Generated-Code.md) · [Queries](docs/Queries.md).
 
 ## Options
+
+Set them under `options:` of the `codegen` entry.
 
 | Option | Default | What it does |
 |---|---|---|
 | `driver` | required | `pg`, `mysql2` or `sqlite3`; must match the sqlc `engine:` |
-| `rubyVersion` | `3.3` | oldest Ruby the code must run on (`3.1` – `4.0`) |
+| `rubyVersion` | `3.3` | oldest Ruby the code must run on (`3.1` – `4.0`); `Data` rows from 3.2, `Struct` below |
 | `generateTypes` | `true` | also generate `.rbs` signatures |
-| `generateGemfile` | `false` | also generate a `Gemfile` with the gems the code needs |
+| `generateGemfile` | `false` | also generate a `Gemfile` |
 | `moduleName` | `<Driver>Codegen` | the module the code lives in, e.g. `MyApp::Db` |
 | `overrides` | none | change the Ruby type of columns / parameters |
 | `rename` | none | rename tables and columns, e.g. `{authors: Writer, bio: biography}` |
 | `exactTableNames` | `false` | keep `authors` as `Authors` instead of singularizing to `Author` |
 | `preparedStatements` | `true` | `pg` only; `false` for pgbouncer in transaction mode |
 
-Misspelled options are errors with a "did you mean" hint. Full reference, overrides and `sqlc.yaml`-level sharing:
-[Options](docs/Options.md).
-
-## Types
-
-| SQL | Ruby |
-|---|---|
-| integers / floats | `Integer` / `Float` |
-| `numeric`, `decimal` | `BigDecimal` |
-| text, enums | `String` (enums also get constants: `ExtendedBioType::MEMOIR`) |
-| dates / times | `Date` / `Time` |
-| `inet`, `cidr` | `IPAddr` |
-| `json`, `jsonb` (PostgreSQL) | parsed (`untyped`) |
-| PostgreSQL arrays | `Array[T]` |
-| nullable | `T?` |
-
-Types follow what each driver returns. Time-zone behavior, the exotic PostgreSQL types, MySQL `JSON`, SQLite affinity
-and naming rules (keywords, acronyms, clashing columns) are in [Types and names](docs/Types.md).
-
-## Good to know
-
-The plugin is deliberately direct, so a few things work differently from what you might expect. The ones people hit
-first:
-
-| Database | Heads-up | Do this |
-|---|---|---|
-| all | Two result columns with the same name (`a.id, b.id`) are a generation error | alias one, or use `sqlc.embed` |
-| all | `:batch*` calls are not atomic | wrap them in `transaction` |
-| all | `timestamp` / `DATETIME` store local wall-clock time | use `timestamptz` / `TIMESTAMP`, or run with `TZ=UTC` |
-| PostgreSQL | no `sqlc.slice` | `= ANY($1::bigint[])` |
-| PostgreSQL | prepared statements break behind pgbouncer (transaction mode) | `preparedStatements: false` |
-| MySQL | no server-side prepared statements (client-side quoting); `:copyfrom` needs `local_infile` | enable it on client and server |
-| MySQL | `sqlc.embed` lowercases table names | alias the table: `` sqlc.embed(m) FROM `MixedItems` AS m `` |
-| SQLite | sqlc breaks queries in files with non-ASCII characters | keep query files ASCII, pass values as parameters |
-| SQLite | `ON CONFLICT ... DO UPDATE` with `sqlc.arg` is a generation error | use `excluded.<column>` |
-| SQLite | at most 32,766 parameters per statement | `:copyfrom` into a table and join |
-
-Everything else, with the reasons: [Limitations](docs/Limitations.md).
+Misspelled options are errors with a "did you mean" hint. Everything about them, including sharing options between
+`sql:` blocks: [Options](docs/Options.md).
 
 ## Documentation
 
@@ -204,36 +180,10 @@ Everything else, with the reasons: [Limitations](docs/Limitations.md).
 | [Transactions and connections](docs/Transactions.md) | transactions, pools, forks, Async, shared connections |
 | [Types and names](docs/Types.md) | type mapping, time zones, enums, naming rules |
 | [Options](docs/Options.md) | every option and `overrides` |
-| [Limitations](docs/Limitations.md) | the complete list, per database |
+| [Troubleshooting](docs/Troubleshooting.md) | "I got this error / this looks odd": causes and fixes, per database |
 | [Examples](docs/Examples.md) | per-driver configs and generated output |
 
 ## Contributing
 
-Contributions are welcome. You need Ruby 3.3 (`bundle install`), [sqlc](https://docs.sqlc.dev/en/latest/overview/install.html)
-(version in [`scripts/tool-versions.env`](scripts/tool-versions.env)), `curl` + `tar` to build the WASM, and
-PostgreSQL / MySQL servers (or Docker) for the end-to-end tests.
-
-```
-bundle exec rake test                 # unit + golden tests (no database needed)
-bundle exec rake rubocop steep        # the generated code must stay RuboCop- and Steep-clean
-rake sqlc_generate_process            # regenerate examples/ with exe/plugin.rb
-rake sqlc_generate_wasm               # build dist/plugin.wasm, then regenerate examples/ with it
-rake end2end_sqlite3                  # end-to-end, no server needed
-rake end2end_pg end2end_mysql2        # end-to-end, needs servers (see docs/Testing.md)
-rake run_end2end_tests                # all of it in Docker (docker-compose)
-```
-
-`examples/` is the plugin's committed output and CI fails when it drifts, so regenerate it with every change to the
-generated code. Pull requests need both CI workflows (`build.yml`, `tests.yml`) green.
-
-Releases are started by a maintainer (**Actions → Release → Run workflow**) and are automated from there: the full test
-gate, the tag, the GitHub release with the tested `sqlc-gen-ruby.wasm` and its sha256, and a check of the published file.
-
-| Doc | What |
-|---|---|
-| [docs/Architecture.md](docs/Architecture.md) | how the generator works, where to change what, adding a feature / driver / option |
-| [docs/Testing.md](docs/Testing.md) | the test layers, CI workflows, what to run before pushing |
-| [docs/Releasing.md](docs/Releasing.md) | the release process and versioning rules |
-| [docs/Design.md](docs/Design.md) | the WASM packaging and design decisions |
-| [docs/Coverage.md](docs/Coverage.md) | every documented behavior mapped to its end-to-end test |
-| [CLAUDE.md](CLAUDE.md) | the same orientation condensed for AI coding assistants |
+Contributions are welcome: see [Contributing](docs/Contributing.md) for the setup, the test commands and the release
+process, and [Architecture](docs/Architecture.md) for how the generator works.

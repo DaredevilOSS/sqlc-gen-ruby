@@ -24,7 +24,7 @@ end
   injected `#with` objects must do the same.
 * A `transaction` inside a transaction that another library opened on the same connection (`BEGIN`) is a savepoint on
   PostgreSQL and SQLite. MySQL has no nested transactions: its `BEGIN` commits the open transaction first (see
-  [Limitations](Limitations.md)).
+  [Limitations](Troubleshooting.md)).
 
 ## When something goes wrong
 
