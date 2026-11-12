@@ -2,7 +2,7 @@
 
 sqlc-gen-ruby: a [sqlc](https://sqlc.dev) plugin, written in pure Ruby, that generates Ruby data-access code (+ RBS)
 for `pg`, `mysql2` and `sqlite3`. It ships as one WASM module (the ruby.wasm interpreter with the plugin embedded).
-Docs: [Architecture](docs/Architecture.md) · [Testing](docs/Testing.md) · [Releasing](docs/Releasing.md) · [Design](docs/Design.md).
+Docs: [Architecture](docs/Architecture.md) · [Testing](docs/Testing.md) · [Coverage](docs/Coverage.md) · [Releasing](docs/Releasing.md).
 
 ## Commands
 ```
@@ -33,7 +33,7 @@ UPDATE_GOLDEN=1 bundle exec ruby -Itest test/extended_golden_test.rb   # rewrite
   the C# sibling plugin's style. Parameter *values* are never logged.
 * PostgreSQL prepared statements are per connection (`ConnectionState`) because the query object is shared by pooled
   connections. MySQL uses client-side quoting and `Mysql2::Client#query` instead of server-side prepared statements.
-* Every README claim or supported feature needs a real-database E2E test for each applicable engine, listed in
+* Every documented behavior (README or `docs/`) or supported feature needs a real-database E2E test for each applicable engine, listed in
   `docs/Coverage.md`. A bug fix starts with an E2E test that fails before the fix; use unit tests only where E2E cannot
   reach the behavior (for example option validation or generation errors).
 * E2E coverage runs on every supported Ruby and includes full-suite option variants. Update `docs/Coverage.md` and
