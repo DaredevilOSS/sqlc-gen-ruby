@@ -47,7 +47,3 @@ from the plugin.
 | A fiber or thread waits for a transaction | a SQLite transaction holds the database until it ends, and belongs to the thread that opened it | keep transactions short; inside one, use the yielded `tx` from other fibers / threads |
 | The model is named `Items` instead of `Item` | sqlc before 1.30 (including the pinned 1.27) reports a quoted table name with its quotes | `rename` or `exactTableNames`, see [Names](Generated-Code.md#names) |
 
-## Coming from sqlc-gen-csharp
-
-These options of the C# plugin do not exist here: `withAsyncSuffix` / `withCancellationToken` (use the Fiber scheduler), `useDapper` and the target
-framework / csproj options. `moduleName` replaces the namespace option.
