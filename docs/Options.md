@@ -12,21 +12,31 @@ codegen:
       moduleName: MyApp::Db
 ```
 
-Unknown or misspelled options are errors, with a hint for near misses (`generate_types` → `generateTypes`).
-Options shared by several `sql:` blocks can go in the top-level `options:` of `sqlc.yaml` under the plugin's name
-(`options: {ruby: {moduleName: MyApp::Db}}`); a codegen entry's own options win, and the `overrides` of both apply.
-
 | Option | Default | What it does |
 |---|---|---|
 | `driver` | required | `pg`, `mysql2` or `sqlite3`. Must match the sqlc `engine:`. |
-| `rubyVersion` | `3.3` | Oldest Ruby the code must run on, `3.1` – `4.0`. Rows are `Data` classes from 3.2 and `Struct`s below; `3` means any 3.x, so it gets what Ruby 3.1 needs (`Struct`s, the Timeout handling below 3.3). |
+| `rubyVersion` | `3.3` | Oldest Ruby the code must run on, `3.1` – `4.0`. Rows are `Data` classes from 3.2 and `Struct`s below; `3` means any 3.x, so it gets what Ruby 3.1 needs (`Struct`s, the [Timeout handling](Transactions.md#ruby-below-33-with-timeout--04) below 3.3). |
 | `generateTypes` | `true` | Also generate `.rbs` type signatures. |
 | `generateGemfile` | `false` | Also generate a `Gemfile` with the gems the code needs. |
 | `moduleName` | `<Driver>Codegen` | The module the code lives in, e.g. `MyApp::Db`. |
 | `overrides` | none | Change the type of columns / parameters, see [Overrides](#overrides). |
-| `rename` | none | Rename tables (model class) and columns (attribute), e.g. `{authors: Writer, bio: biography}`; `schema.table` works too. |
+| `rename` | none | Rename tables (model class) and columns (attribute), e.g. `{authors: Writer, bio: biography}`; `schema.table` works too. See [Names](Generated-Code.md#names). |
 | `exactTableNames` | `false` | Keep table names as model names (`authors` → `Authors`) instead of singularizing them (`Author`). |
 | `preparedStatements` | `true` | `pg` only (an error with other drivers). See [below](#preparedstatements-pg). |
+
+Unknown or misspelled options are errors, with a hint for near misses (`generate_types` → `generateTypes`).
+
+## Sharing options between `sql:` blocks
+
+Options used by several `sql:` blocks can go in the top-level `options:` of `sqlc.yaml`, under the plugin's name:
+
+```yaml
+options:
+  ruby:
+    moduleName: MyApp::Db
+```
+
+A codegen entry's own options win, and the `overrides` of both apply.
 
 ## `preparedStatements` (pg)
 
@@ -56,4 +66,5 @@ overrides:
 ```
 
 The first match wins in this order: `<query>:<column>`, `<table>.<column>`, `*:<column>`, `db_type`.
-Overrides only change the RBS types; the values are whatever the driver returns. Unknown keys are errors.
+Overrides only change the declared (RBS) types: values are never converted and stay what the driver returns (see
+[Types](Types.md)). Unknown keys are errors.

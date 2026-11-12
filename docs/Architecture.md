@@ -1,8 +1,18 @@
-# Architecture: how the generator works
+# Architecture
 
-A sqlc plugin is a program that gets a protobuf `GenerateRequest` on stdin (the parsed schema, the queries, the
-plugin's `options:`) and writes a `GenerateResponse` (a list of files) to stdout. This plugin does exactly that in
-pure Ruby; [Design.md](Design.md) explains how it is packed into a WASM module.
+How the generator works, why it is built this way, and where to change what.
+
+## What a sqlc plugin is
+
+sqlc parses the schema and the queries, then hands the plugin a protobuf `GenerateRequest` on stdin (tables, enums,
+queries with their typed parameters and columns, and the plugin's `options:`). The plugin answers on stdout with a
+`GenerateResponse`: a list of files. sqlc can run a plugin as a process or as a WASI module.
+
+This plugin is pure Ruby. It runs as a process during development (`exe/plugin.rb`) and is released as one WASI module:
+the [ruby.wasm](https://github.com/ruby/ruby.wasm) interpreter with the plugin inside
+([Packaging](#packaging-as-webassembly)).
+
+## The pipeline
 
 ```
 stdin ─► Proto (decode) ─► Generator ─┬─► Options / RubyVersion        what the user asked for
@@ -14,37 +24,41 @@ stdin ─► Proto (decode) ─► Generator ─┬─► Options / RubyVersion 
 stdout ◄─ Proto (encode) ◄─ GenerateResponse (query_sql.rb, query_sql.rbs, models.rb, connection.rb, Gemfile, ...)
 ```
 
-## The pieces
+Everything is in `lib/sqlc_gen_ruby/`:
 
-| Piece | Responsibility |
+| File | Responsibility |
 |---|---|
 | `exe/plugin.rb` | entry point. Errors go to stderr with exit code 1 (sqlc shows them); `SQLC_GEN_RUBY_DEBUG=1` adds a backtrace |
-| `proto.rb`, `plugin_pb.rb` | a ~150 line protobuf wire codec and the subset of sqlc's `codegen.proto` we read. Field numbers must match upstream. `google-protobuf` is a C extension and cannot run inside ruby.wasm |
-| `options.rb`, `ruby_version.rb` | parse + validate the `options:` JSON (`driver`, `rubyVersion`, `overrides`, `rename`, ...; unknown keys are errors) |
-| `generator.rb` | the orchestrator: one file per query file (`query_sql.rb`), plus `models.rb`, `connection.rb` (per-connection state and helpers the query classes share), `Gemfile`; builds the module / class / `Data` skeleton |
-| `method_gen.rb` | the code of one query: signature (keyword arguments), SQL constant, command (`:one`, `:many`, `:exec`, `:execrows`, `:execlastid`, `:execresult`, `:batchexec` / `:batchone` / `:batchmany`, `:copyfrom`), `sqlc.slice`, bang finder, and the RBS signature |
+| `proto.rb`, `plugin_pb.rb` | a small protobuf wire codec and the subset of sqlc's `codegen.proto` the plugin reads. Field numbers must match upstream |
+| `options.rb`, `ruby_version.rb` | parse and validate the `options:` JSON; unknown keys are errors |
+| `generator.rb` | the orchestrator: one file per query file, plus `models.rb`, `connection.rb` and `Gemfile`; builds the module / class / row skeleton |
+| `method_gen.rb` | the code of one query: signature, SQL constant, the annotation's behavior, `sqlc.slice`, the bang method, and the RBS signature |
 | `row_layout.rb` | turns result columns into row attributes; `sqlc.embed` collapses a table's columns into one model attribute |
-| `type_resolver.rb` | RBS type of a column / parameter: driver type table, arrays, nullability (`T?`), `overrides:` (a `db_type` override types array elements too) |
+| `type_resolver.rb` | the RBS type of a column or parameter: driver type table, arrays, nullability, `overrides` |
 | `catalog.rb` | the schema's tables and enums, and their Ruby names |
-| `drivers/base.rb` | the driver interface and what all drivers share: `instrument` logging, `NotFound`, transaction RBS |
-| `drivers/{pg,mysql2,sqlite3}.rb` | the per-library parts: type mapping, connecting / pooling, executing statements, transactions, `:copyfrom` |
-| `code.rb` | text helpers: indentation, `snake_case`, `camelize`, Ruby-keyword-safe parameter names, `rubocop:disable` pairs for schema names that break a naming cop |
+| `drivers/base.rb` | the driver interface and what all drivers share: logging, `NotFound`, transaction RBS |
+| `drivers/{pg,mysql2,sqlite3}.rb` | the per-library parts: type mapping, connecting and pooling, executing statements, transactions, `:copyfrom` |
+| `code.rb` | text helpers: indentation, `snake_case`, `camelize`, keyword-safe names, `rubocop:disable` pairs |
 
-**Rule of thumb:** `MethodGen` / `Generator` decide *what* is generated and are the same for every database; a driver only
-supplies *snippets* (how to prepare a statement, how to read the affected rows, ...). If you find a `case driver` in
-`MethodGen`, it belongs in a driver hook instead.
+**The one rule:** `MethodGen` and `Generator` decide *what* is generated and are the same for every database. A driver
+only supplies *snippets* (how to prepare a statement, how to read the affected rows, ...) through the hooks of
+`Drivers::Base`. A `case driver` in `MethodGen` belongs in a driver hook instead.
 
-## What the generated code looks like
+## The generated code
+
+Abridged from [`examples/pg/query_sql.rb`](../examples/pg/query_sql.rb), the plugin's real output:
 
 ```ruby
 module PgCodegen
-  class QuerySql
-    GET_AUTHOR_SQL = <<~'SQL'      # raw heredoc: the SQL is never interpolated
-      SELECT id, name, bio FROM authors WHERE id = $1 LIMIT 1
-    SQL
-    class GetAuthorRow < ::Data.define(:id, :name, :bio)   # a keyword Struct below Ruby 3.2
-    end
+  GET_AUTHOR_SQL = <<~'SQL'        # raw heredoc: the SQL is never interpolated
+    SELECT id, name, bio FROM authors
+    WHERE id = $1 LIMIT 1
+  SQL
 
+  class GetAuthorRow < ::Data.define(:id, :name, :bio)   # a keyword Struct below Ruby 3.2
+  end
+
+  class QuerySql
     def get_author(id:)            # a :one query returns the row or nil ...
       with_client('get_author') do |client|        # one pooled connection + logging
         query_params = [id]
@@ -57,39 +71,76 @@ module PgCodegen
     def get_author!(...)           # ... and gets a bang variant
       get_author(...) || raise(NotFound, 'GetAuthor returned no row')
     end
-
-    def transaction(isolation: nil) { |tx| ... }   # commit / rollback, nested = SAVEPOINT
   end
 end
 ```
-Look at [`examples/pg/query_sql.rb`](../examples/pg/query_sql.rb) for a complete file; it is the plugin's real output.
 
-Design decisions worth knowing (the *why* is in the comments of `drivers/base.rb` and `drivers/pg.rb`):
+## Design decisions
 
-* **PostgreSQL prepared statements are per connection.** A pooled query object is shared by many connections, and a
+The *why* behind most of these is in the comments of `drivers/base.rb` and `drivers/pg.rb`.
+
+* **Idiomatic Ruby, not a port.** The plugin started as a port of
+  [sqlc-gen-csharp](https://github.com/DaredevilOSS/sqlc-gen-csharp). Its output now follows Ruby conventions instead:
+  keyword arguments rather than parameter objects, `Data` rows, implicit returns, bang methods, 2-space indentation.
+* **Nothing from the plugin leaks into the application.** The generated code only requires the driver gem and
+  `connection_pool`.
+* **A thin layer over the driver.** Values are never converted: `overrides` only change the RBS types.
+* **Pool injection.** `QuerySql.new(pool)` accepts anything that responds to `#with`, so an application can share its
+  pool and tests can pass a fake. `connect(...)` is only a convenience that builds a `connection_pool`.
+* **PostgreSQL prepared statements are per connection.** A query object is shared by many pooled connections, and a
   prepared statement exists only on the connection that prepared it, so each connection remembers its own
-  (`ConnectionState`). MySQL quotes values client-side and uses `Mysql2::Client#query` so queries cooperate with the
-  Fiber scheduler.
-* **Pool injection.** `QuerySql.new(pool)` accepts anything that responds to `#with`, so an app can share its pool
-  and tests can pass a fake. `connect(...)` is only a convenience that builds a `connection_pool`.
-* **SQLite statements are closed.** They are closed in `ensure` because an open statement blocks `COMMIT`.
-* **Parameters are encoded by the driver.** `Driver#encode_param` (e.g. `bytea`, `json` and arrays on `pg`) is used by
-  every command, batches included; add a type's encoding there, not in `MethodGen`.
-* **`:copyfrom` is all or nothing** on every driver (a savepoint / transaction around the load), and MySQL's
+  (`ConnectionState`, a module mixed into the connection). Statements are named per module and query class, so several
+  query objects can share a pool.
+* **MySQL quotes parameters client-side** and uses `Mysql2::Client#query`, not server-side prepared statements, so
+  queries cooperate with the Fiber scheduler.
+* **SQLite queries do not overlap.** A `SQLite3::Database` is one connection, so the generated code takes one lock per
+  database (held for a whole transaction) to keep threads and fibers from mixing their transactions. Statements are
+  closed in `ensure`, because an open statement blocks `COMMIT`.
+* **Parameters are encoded by the driver.** `Driver#encode_param` (`bytea`, `json` and arrays on `pg`) is used by every
+  annotation, batches included. Add a type's encoding there, not in `MethodGen`.
+* **`:copyfrom` is all or nothing** on every driver (a savepoint or transaction around the load), and MySQL's
   `LOAD DATA` warnings (skipped duplicates, coerced values) are raised as errors.
-* **Nothing from the plugin leaks into the app.** The generated code only requires the driver gem and `connection_pool`.
+
+## Packaging as WebAssembly
+
+sqlc gives a WASI plugin no filesystem, no network and no way to install gems. That shapes the plugin:
+
+* `lib/` and `exe/` use only Ruby core and `json`.
+* `google-protobuf` is a C extension and cannot be loaded inside ruby.wasm, so the plugin has its own codec
+  (`proto.rb`).
+
+`scripts/wasm/build.sh` builds `dist/plugin.wasm`:
+
+1. download the *prebuilt* `ruby-3.3-wasm32-unknown-wasip1-full` release of ruby.wasm (no need to compile CRuby);
+2. strip the ~18 MB of DWARF debug info and names from the interpreter (`strip_wasm.rb`);
+3. stage a slim stdlib, `lib/` and `exe/`, plus an empty `syntax_suggest/core_ext.rb` (the interpreter loads it to
+   format errors and would otherwise print a warning before the plugin's own error message);
+4. embed that filesystem into the interpreter with `rbwasm pack` (wasi-vfs).
+
+**The argv trick:** sqlc runs the module as `plugin.wasm /plugin.CodegenService/Generate`, and the interpreter takes
+that path as its script. The build embeds a file at exactly that path containing `load '/app/exe/plugin.rb'`.
+
+Tool versions (sqlc, ruby.wasm) are pinned in [`scripts/tool-versions.env`](../scripts/tool-versions.env).
 
 ## Adding things
 
-**A new query feature** (an annotation or macro):
-1. read what sqlc sends in a real request: `scripts/capture_request.rb` saves one to `test/fixtures/` (see [Testing](Testing.md));
-2. handle it in `MethodGen` (add a driver hook in `Base` if the code differs per database);
-3. add a query using it to `examples/authors/*/{schema,query}.sql` for every driver that can run it;
-4. `rake sqlc_generate_process`, review the diff of `examples/`, update the golden files, add unit and end-to-end tests.
+**A query feature** (an annotation or macro):
 
-**A new driver** (e.g. `trilogy`): subclass `Drivers::Base`, implement the abstract hooks (the abstract ones raise
-`NotImplementedError`), register it in `Generator#instantiate_driver` and `Options::DRIVERS`, add `examples/authors/<engine>` + an end-to-end test file `tests/end2end_<driver>.rb`, and a service
-container job in `.github/workflows/tests.yml`.
+1. look at what sqlc sends: `scripts/capture_request.rb` saves a real request to `test/fixtures/`;
+2. handle it in `MethodGen`, with a hook in `Drivers::Base` if the code differs per database;
+3. add a query that uses it to `examples/authors/*/{schema,query}.sql` for every database that can run it;
+4. run `rake sqlc_generate_process`, read the diff of `examples/`, update the golden files;
+5. add end-to-end tests and list them in [Coverage](Coverage.md) ([Testing](Testing.md)); document the feature.
 
-**A new option:** `options.rb` (parse + default), use it where needed, document it in the README option table and docs/Options.md, and
-add a case to `test/options_test.rb` and (if it changes output) to the `codegen-options` matrix in `build.yml`.
+**An option:**
+
+1. parse and default it in `options.rb`, and use it where needed;
+2. document it in [Options](Options.md) and the README option table;
+3. add a case to `test/options_test.rb` and, if it changes the output, to the `codegen-options` matrix in `build.yml`.
+
+**A driver** (for example `trilogy`):
+
+1. subclass `Drivers::Base` and implement its hooks (the required ones raise `NotImplementedError`);
+2. register it in `Generator#instantiate_driver` and `Options::DRIVERS`;
+3. add `examples/authors/<engine>/`, an end-to-end suite `tests/end2end_<driver>.rb` and its job in
+   `.github/workflows/tests.yml`.

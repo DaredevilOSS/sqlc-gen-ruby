@@ -1,8 +1,26 @@
 # Contributing
 
-You need Ruby 3.3 (`bundle install`), [sqlc](https://docs.sqlc.dev/en/latest/overview/install.html) (version in
-[`scripts/tool-versions.env`](../scripts/tool-versions.env)), `curl` + `tar` to build the WASM, and PostgreSQL / MySQL
-servers (or Docker) for the end-to-end tests.
+Contributions are welcome. This page gets you set up; the other contributor docs go deeper.
+
+| Doc | What |
+|---|---|
+| [Architecture](Architecture.md) | how the generator works, the WASM packaging, adding a feature / option / driver |
+| [Testing](Testing.md) | the test layers, CI workflows, what to run before pushing |
+| [Coverage](Coverage.md) | every documented behavior mapped to its end-to-end test |
+| [Releasing](Releasing.md) | the release workflow and versioning rules |
+| [CLAUDE.md](../CLAUDE.md) | the same orientation, condensed for AI coding assistants |
+
+## Setup
+
+You need:
+
+* Ruby 3.3 and `bundle install`;
+* [sqlc](https://docs.sqlc.dev/en/latest/overview/install.html), in the version pinned in
+  [`scripts/tool-versions.env`](../scripts/tool-versions.env);
+* `curl` and `tar` to build the WASM;
+* PostgreSQL and MySQL servers, or Docker, for the end-to-end tests.
+
+## Commands
 
 ```
 bundle exec rake test                 # unit + golden tests (no database needed)
@@ -11,20 +29,16 @@ rake sqlc_generate_process            # regenerate examples/ with exe/plugin.rb
 rake sqlc_generate_wasm               # build dist/plugin.wasm, then regenerate examples/ with it
 rake end2end_sqlite3                  # end-to-end, no server needed
 rake end2end_pg end2end_mysql2        # end-to-end, needs servers (see Testing.md)
-rake run_end2end_tests                # all of it in Docker (docker-compose)
+rake run_end2end_tests                # end-to-end in Docker (docker-compose)
 ```
 
-`examples/` is the plugin's committed output and CI fails when it drifts, so regenerate it with every change to the
-generated code. Pull requests need both CI workflows (`build.yml`, `tests.yml`) green.
+## Making a change
 
-Releases are started by a maintainer (**Actions → Release → Run workflow**) and are automated from there: the full test
-gate, the tag, the GitHub release with the tested `sqlc-gen-ruby.wasm` and its sha256, and a check of the published file.
+* **Generated output:** `examples/` is the plugin's committed output and CI fails when it drifts. When a change alters
+  the generated code, regenerate `examples/` and the golden files in the same commit, and read their diff.
+* **Tests:** new behavior and bug fixes come with an end-to-end test and a row in [Coverage](Coverage.md).
+* **Docs:** user-facing behavior is documented in `docs/`; the README stays a short overview that links there.
+* **Pull requests** target `main`, need both CI workflows (`build.yml`, `tests.yml`) green, and get a label: `bug`,
+  `enhancement` or `documentation` (`breaking` for incompatible changes).
 
-| Doc | What |
-|---|---|
-| [Architecture.md](Architecture.md) | how the generator works, where to change what, adding a feature / driver / option |
-| [Testing.md](Testing.md) | the test layers, CI workflows, what to run before pushing |
-| [Releasing.md](Releasing.md) | the release process and versioning rules |
-| [Design.md](Design.md) | the WASM packaging and design decisions |
-| [Coverage.md](Coverage.md) | every documented behavior mapped to its end-to-end test |
-| [../CLAUDE.md](../CLAUDE.md) | the same orientation condensed for AI coding assistants |
+Releases are started by a maintainer and automated from there: see [Releasing](Releasing.md).

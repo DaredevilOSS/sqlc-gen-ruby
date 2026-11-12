@@ -2,7 +2,7 @@
 
 sqlc-gen-ruby: a [sqlc](https://sqlc.dev) plugin, written in pure Ruby, that generates Ruby data-access code (+ RBS)
 for `pg`, `mysql2` and `sqlite3`. It ships as one WASM module (the ruby.wasm interpreter with the plugin embedded).
-Docs: [Architecture](docs/Architecture.md) · [Testing](docs/Testing.md) · [Releasing](docs/Releasing.md) · [Design](docs/Design.md).
+Docs: [Architecture](docs/Architecture.md) · [Testing](docs/Testing.md) · [Coverage](docs/Coverage.md) · [Releasing](docs/Releasing.md).
 
 ## Commands
 ```

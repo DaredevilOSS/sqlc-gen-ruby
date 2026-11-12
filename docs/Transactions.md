@@ -1,4 +1,4 @@
-# Transactions and connections
+# Transactions
 
 ```ruby
 queries.transaction(isolation: :serializable) do |tx|
@@ -10,87 +10,90 @@ end
 
 ## The basics
 
-* Everything in the block runs on one connection. It commits when the block ends (also on `break`, `return`, `throw`)
-  and rolls back when it raises or the thread is killed. A nested `transaction` is a savepoint and rolls back only its
-  own part.
-* `isolation:` (`pg`, `mysql2`) takes `:read_uncommitted`, `:read_committed`, `:repeatable_read`, `:serializable`;
-  `mode:` (`sqlite3`) takes `:deferred`, `:immediate`, `:exclusive`. Other values raise `ArgumentError` before anything
-  runs, and so do `isolation:` / `mode:` on a nested `transaction` (a savepoint cannot change them).
-* `tx` is a copy of the query object bound to the transaction: its queries stay in the transaction from any fiber or
-  thread (an `Enumerator`, an `Async` task, a `Thread`), one at a time, and raise `TransactionEnded` once the
-  transaction is over. Other query objects (the parent `queries`, another generated class sharing the pool) used from
-  another fiber or thread check out their own connection and run outside the transaction: pass `tx` instead.
-* With `connection_pool` or SQLite, parent-object calls from the same thread reuse the transaction connection;
-  injected `#with` objects must do the same.
-* A `transaction` inside a transaction that another library opened on the same connection (`BEGIN`) is a savepoint on
-  PostgreSQL and SQLite. MySQL has no nested transactions: its `BEGIN` commits the open transaction first (see
-  [Troubleshooting](Troubleshooting.md)).
+* Everything in the block runs on one connection.
+* **Commit:** when the block ends, also with `break`, `return` or `throw`.
+* **Rollback:** when the block raises or its thread is killed.
+* **Nesting:** a `transaction` inside a transaction is a savepoint and rolls back only its own part.
+* **Result:** `transaction` returns the value of the block.
+
+### Isolation
+
+| Driver | Keyword | Values |
+|---|---|---|
+| `pg`, `mysql2` | `isolation:` | `:read_uncommitted`, `:read_committed`, `:repeatable_read`, `:serializable` |
+| `sqlite3` | `mode:` | `:deferred`, `:immediate`, `:exclusive` |
+
+Any other value raises `ArgumentError` before anything runs. So does `isolation:` / `mode:` on a nested `transaction`,
+because a savepoint cannot change them.
+
+### Use `tx` inside the block
+
+`tx` is a copy of the query object that is bound to the transaction:
+
+* Its queries stay in the transaction from any fiber or thread (an `Enumerator`, an `Async` task, a `Thread`), one at
+  a time.
+* After the transaction is over it raises `TransactionEnded`.
+
+The original `queries` object also joins the transaction when it is called from the thread that opened it (with
+`connection_pool` or SQLite; a pool you inject must hand out the same connection again inside `#with`). From another
+fiber or thread, `queries` and other query classes sharing the pool check out their own connection and run **outside**
+the transaction, so pass `tx` there.
+
+### Inside another library's transaction
+
+When another library already opened a transaction on the same connection (`BEGIN`):
+
+* **PostgreSQL, SQLite:** `transaction` is a savepoint in it.
+* **MySQL** has no nested transactions, and its `BEGIN` commits the open transaction first. A later rollback no longer
+  undoes the earlier work. Run the outer work in `transaction` too (inner calls then become savepoints), or finish
+  the other transaction first.
 
 ## When something goes wrong
 
-### Errors inside the block
+The rule behind everything below: a connection never goes back to the pool inside a transaction, and `transaction`
+never reports a commit that did not happen.
 
-* **PostgreSQL:** if a statement fails and the block rescues the error, PostgreSQL still rolls the whole transaction
-  back, so `transaction` raises `PG::InFailedSqlTransaction` instead of pretending it committed. In a nested
-  `transaction` only the savepoint is rolled back: the outer block can rescue that error and go on.
-* **MySQL:** a deadlock (or a lock wait timeout with `innodb_rollback_on_timeout`) rolls the whole transaction back on
-  the server, its savepoints too. If the block rescues that error, every later query in the transaction and
-  `transaction` itself raise it again (a `Mysql2::Error` with the same `error_number`, its message prefixed with
-  `transaction rolled back:`) instead of running in autocommit mode and reporting a commit; retry the whole
-  `transaction`. A lock wait timeout without that setting fails only its statement: the block can rescue it and go on.
-* **SQLite:** threads and fibers sharing one `SQLite3::Database` take turns; a transaction holds the database until it
-  ends.
+### A statement fails and the block rescues the error
 
-### Interrupts (`Timeout`, `Thread#raise`, `Thread#kill`, a stopped `Async` task)
+* **PostgreSQL** aborts the whole transaction when a statement fails, so `transaction` raises
+  `PG::InFailedSqlTransaction` at the end instead of pretending it committed. To carry on after an error, run the
+  statement in a nested `transaction`: only that savepoint is rolled back, and the outer block can rescue the error.
+* **MySQL** rolls the whole transaction back on a deadlock (or a lock wait timeout with
+  `innodb_rollback_on_timeout`), savepoints included. Every later query in the block and `transaction` itself then
+  raise the error again: a `Mysql2::Error` with the same `error_number` and a message that starts with
+  `transaction rolled back:`. Retry the whole `transaction`. A lock wait timeout without that setting fails only its
+  statement, and the block can rescue it and go on.
 
-* An interrupt that arrives while `BEGIN`, `COMMIT` or `ROLLBACK` runs waits for it to finish, and a `BEGIN` /
-  `COMMIT` that raises itself (a stopped `Async` task) is rolled back: the connection never goes back to the pool
-  inside a transaction.
-* **PostgreSQL:** a query interrupted by any of them (inside or outside a transaction) is cancelled at once, so the
-  connection goes back to the pool idle and a killed transaction rolls back without waiting for its query.
-* **MySQL:** a `Thread#kill` during a query closes that client (mysql2 cannot send `ROLLBACK` while it waits for the
-  query's result), so the server rolls the transaction back and the pool replaces the client.
-* **Ruby < 3.3 with timeout < 0.4:** `break`, `return` and `throw` also roll back because Timeout cannot be told
-  apart; add `gem 'timeout', '>= 0.4'` to the generated Gemfile to keep those exits committing. An old `Timeout` that
-  interrupts a PostgreSQL query in a transaction still raises `Timeout::Error` (not the `PG::InFailedSqlTransaction`
-  of the cancelled query) after rolling back.
+### Interrupts
+
+`Timeout`, `Thread#raise`, `Thread#kill` and a stopped `Async` task can arrive at any moment:
+
+* **During `BEGIN`, `COMMIT` or `ROLLBACK`:** the interrupt waits for the statement to finish. A `BEGIN` / `COMMIT`
+  that raises itself (a stopped `Async` task) is rolled back.
+* **During a query on PostgreSQL** (inside or outside a transaction): the query is cancelled at once. The connection
+  goes back to the pool idle, and a killed transaction rolls back without waiting for its query.
+* **`Thread#kill` during a query on MySQL:** the client is closed, because mysql2 cannot send `ROLLBACK` while it
+  waits for the query's result. The server rolls the transaction back and the pool replaces the client.
+
+### Ruby below 3.3 with timeout < 0.4
+
+The `timeout` gem bundled with Ruby before 3.3 leaves a block with `throw`, which cannot be told apart from your own
+`break`, `return` or `throw`. With that gem all of them **roll back** instead of committing.
+
+Use `gem 'timeout', '>= 0.4'` to keep those exits committing. A generated Gemfile (`generateGemfile: true`) for a
+`rubyVersion` below 3.3 already has it.
+
+With the old gem, a `Timeout` that interrupts a PostgreSQL query in a transaction still raises `Timeout::Error` (not
+the `PG::InFailedSqlTransaction` of the cancelled query) after rolling back.
 
 ### Lost connections
 
-A connection the server closed (restart, failover, killed backend) is reconnected (`pg`) or replaced in the pool
-(`mysql2`) the next time it is checked out; the call that hit the dead connection still raises. Inside `transaction` a
-lost `pg` connection is not reconnected: every later call in the block and `transaction` itself raise
-`PG::ConnectionBad`, so nothing after the loss runs outside the transaction (the server rolled it back). A `mysql2`
-client that mysql2 closed because a running query was interrupted (an `Async` task stopped, `Thread#raise`) is
-replaced the same way, without failing the next call.
+A `pg` connection lost inside `transaction` is not reconnected. Every later call in the block and `transaction` itself
+raise `PG::ConnectionBad`, so nothing after the loss runs outside the transaction; the server has rolled it back.
 
-## Connections
+Outside a transaction, lost connections are replaced: see [Connections](Connections.md#lost-connections).
 
-* `QuerySql.connect(params, **pool_options)` builds a [`connection_pool`](https://github.com/mperham/connection_pool).
-  To use a pool you already have (or a fake in tests) pass it to `QuerySql.new(pool)`; anything with `#with` works.
-* `pg`: `QuerySql.connect` also takes a connection URL: `QuerySql.connect(ENV.fetch('DATABASE_URL'), size: 5)`.
-* SQLite: pass a `SQLite3::Database` (opened with any options, `results_as_hash: true` included): `QuerySql.new(db)`.
-  SQLite transactions belong to the thread that opened them; fibers sharing the same database take turns, and a
-  transaction holds it until it ends. Only the yielded `tx` runs inside the transaction from other fibers / threads.
-* **Shared with another library** (ActiveRecord's `raw_connection`, Sequel, your own code): the connection keeps its
-  settings. The generated queries pass their own type maps (`pg`; the connection's `type_map_for_results`,
-  `type_map_for_queries` and `field_name_type` are left as they are) or query options (`mysql2`: rows are read with
-  `as: :array, cast: true, cast_booleans: false`, whatever the client's or `Mysql2::Client.default_query_options`).
-  On SQLite `results_as_hash` and the other settings of the `SQLite3::Database` are kept too.
-* **Forked processes** (Puma / Sidekiq / Resque workers, `Process.fork`): connections opened before the fork stay the
-  parent's. connection_pool's fork handling replaces the pooled ones in the child without closing the parent's
-  sessions, and the child lets go of every inherited connection the generated code has used (also ones another thread
-  had checked out at fork time, and ones the child never uses), so its exit does not end them either.
-  * A `pg` connection used directly (not from a `ConnectionPool`) reconnects in the child; a `mysql2` client used that
-    way raises `Mysql2::Error::ConnectionError` in the child (open clients in the process that uses them).
-  * SQLite: the sqlite3 gem closes writable databases a child inherits, so open the database again in the child.
-  * macOS: connecting from a forked child can crash in libpq's GSSAPI probe; set `gssencmode: 'disable'` (or
-    `PGGSSENCMODE=disable`), as usual for forking `pg` apps there.
+### SQLite
 
-## Async / fibers
-
-The generated code is plain synchronous Ruby and works with the Fiber scheduler
-([`async`](https://github.com/socketry/async)): inside `Sync { ... }`, pooled `pg` and `mysql2` queries run
-concurrently (`mysql2` blocks the thread on Windows). MySQL parameters are quoted client-side with
-`Mysql2::Client#escape` and sent with `Client#query`, not server-side prepared statements. SQLite queries run one at a
-time.
+A SQLite transaction belongs to the thread that opened it and holds the database until it ends. Other threads and
+fibers sharing the same `SQLite3::Database` wait for it.

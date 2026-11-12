@@ -1,48 +1,88 @@
 # Queries
 
+Each query in your `.sql` files becomes one method. Its annotation (`-- name: GetAuthor :one`) decides what the
+method returns.
+
 ## Annotations
 
 | Annotation | Returns | Notes |
 |---|---|---|
-| `:one` | the row or `nil` | plus a bang finder (`get_author!`) that raises `QuerySql::NotFound` instead of returning `nil` |
+| `:one` | the row or `nil` | also generates `get_author!`, which raises `QuerySql::NotFound` instead of returning `nil` |
 | `:many` | `Array` of rows | |
 | `:exec` | `nil` | |
-| `:execrows` | number of affected rows | MySQL: rows changed, not rows matched; connect with `flags: Mysql2::Client::FOUND_ROWS` to count matched rows |
-| `:execlastid` | the new id | PostgreSQL / SQLite: needs `RETURNING id`; MySQL: the auto-increment id |
-| `:execresult` | `ExecResult` (`rows_affected`, `last_insert_id`) | `last_insert_id` is `nil` on PostgreSQL (use `RETURNING`) |
-| `:batchexec` / `:batchone` / `:batchmany` | `nil` / `Array` of rows or `nil` / `Array` of `Array`s of rows | take an `Array` of `<Query>Args` and run the query once per element, on one connection. Not atomic on their own: wrap them in `transaction` for all-or-nothing |
-| `:copyfrom` | `nil` | bulk insert of an `Array` (or any `Enumerable`, also lazy) of `<Query>Args`; all rows or none |
-
-### `:copyfrom`
-
-| | Implementation |
-|---|---|
-| PostgreSQL | `COPY ... FROM STDIN` |
-| MySQL | `LOAD DATA LOCAL INFILE`: needs `local_infile: true` in the `Mysql2::Client` params and `local_infile=1` on the server; duplicate keys and invalid values raise `Mysql2::Error` instead of being skipped |
-| SQLite | batched multi-row `INSERT`s |
-
-Conflict clauses are kept: `INSERT OR REPLACE` / `OR IGNORE` / `ON CONFLICT ... DO ...` on SQLite, `INSERT IGNORE`
-(duplicates skipped) and `REPLACE` on MySQL. Clauses `COPY` / `LOAD DATA` cannot express (`ON CONFLICT` / `RETURNING`
-on PostgreSQL, `ON DUPLICATE KEY UPDATE` on MySQL) are generation errors; use `:batchexec` for those.
-
-* MySQL: `LOAD DATA` names the table and columns as the `INSERT` writes them (`` `MixedCase` ``): sqlc reports MySQL
-  names in lowercase, but table names are case-sensitive on Linux.
-* MySQL: `LOAD DATA` commits an open transaction that was started with raw SQL (`BEGIN`); call `:copyfrom` inside
-  `transaction` instead.
-
-## Macros
-
-| Macro | PostgreSQL | MySQL | SQLite | Notes |
-|---|:---:|:---:|:---:|---|
-| `sqlc.arg` | ✅ | ✅ | ✅ | names a parameter (unnamed ones such as `ANY($1::BIGINT[])` become `param1`, ...) |
-| `sqlc.narg` | ✅ | ✅ | ✅ | a nullable parameter (`T?`, defaults to `nil`) |
-| `sqlc.slice` | 🚫 | ✅ | ✅ | `IN (sqlc.slice(ids))` takes an `Array` (an empty one: `IN` matches nothing, `NOT IN` everything). PostgreSQL: use `= ANY($1::bigint[])` with an array |
-| `sqlc.embed` | ✅ | ✅ | ✅ | the row gets an attribute holding the table's model (`author`, `author2` for the same table twice); `nil` when an outer join found no row |
-
-🚫 = not offered by sqlc for that database.
+| `:execrows` | number of affected rows | MySQL counts rows changed, not rows matched; connect with `flags: Mysql2::Client::FOUND_ROWS` to count matched rows |
+| `:execlastid` | the new id | PostgreSQL / SQLite: the query needs `RETURNING id`. MySQL: the auto-increment id |
+| `:execresult` | `ExecResult` (`rows_affected`, `last_insert_id`) | `last_insert_id` is `nil` on PostgreSQL; use `RETURNING` there |
+| `:batchexec` | `nil` | see [Batches](#batches) |
+| `:batchone` | `Array` of rows or `nil` | |
+| `:batchmany` | `Array` of `Array`s of rows | |
+| `:copyfrom` | `nil` | see [`:copyfrom`](#copyfrom) |
 
 ## Arguments
 
-Keywords named after the parameters (`get_author(id:)`); `sqlc.arg(name)` names them yourself. Missing or unknown ones
-raise `ArgumentError`. Nullable parameters named with `sqlc.arg` / `sqlc.narg` default to `nil`; other nullable
-parameters (`VALUES ($1, $2)`) must be passed, even as `nil`.
+```ruby
+queries.get_author(id: 1)
+queries.create_author(name: 'Seuss', bio: nil)
+```
+
+* Arguments are keywords named after the parameters. Name one yourself with `sqlc.arg(name)`; a parameter sqlc cannot
+  name (`ANY($1::BIGINT[])`) becomes `param1`, `param2`, ...
+* Missing or unknown keywords raise `ArgumentError`.
+* A nullable parameter named with `sqlc.arg` / `sqlc.narg` is optional and defaults to `nil`. Other nullable
+  parameters (`VALUES ($1, $2)`) must be passed, even as `nil`.
+
+## Macros
+
+| Macro | PostgreSQL | MySQL | SQLite | What it does |
+|---|:---:|:---:|:---:|---|
+| `sqlc.arg(name)` | ✅ | ✅ | ✅ | names a parameter |
+| `sqlc.narg(name)` | ✅ | ✅ | ✅ | names a nullable parameter (`T?`, defaults to `nil`) |
+| `sqlc.slice(ids)` | 🚫 | ✅ | ✅ | `IN (sqlc.slice(ids))` takes an `Array`. With an empty one, `IN` matches nothing and `NOT IN` everything |
+| `sqlc.embed(table)` | ✅ | ✅ | ✅ | the row gets an attribute holding the table's model (`author`; `author2` when the table is embedded twice). It is `nil` when an outer join found no row |
+
+🚫 sqlc does not offer `sqlc.slice` for PostgreSQL. Use an array parameter instead: `WHERE id = ANY($1::bigint[])`.
+
+Two result columns with the same name (`a.id, b.id`) are a generation error: alias one (`b.id AS book_id`) or use
+`sqlc.embed`.
+
+## Batches
+
+`:batchexec`, `:batchone` and `:batchmany` take an `Array` of `<Query>Args` and run the query once per element, on one
+connection:
+
+```ruby
+queries.create_authors_batch([
+  PgCodegen::CreateAuthorsBatchArgs.new(name: 'a', bio: nil),
+  PgCodegen::CreateAuthorsBatchArgs.new(name: 'b', bio: nil)
+])
+```
+
+A batch is not atomic on its own: wrap it in [`transaction`](Transactions.md) for all-or-nothing.
+
+## `:copyfrom`
+
+A bulk insert of an `Array`, or any `Enumerable` (also a lazy one), of `<Query>Args`. Either all rows are inserted or
+none.
+
+| Database | Implementation | Requirements |
+|---|---|---|
+| PostgreSQL | `COPY ... FROM STDIN` | |
+| MySQL | `LOAD DATA LOCAL INFILE` | `local_infile: true` in the `Mysql2::Client` params and `local_infile=1` on the server |
+| SQLite | batched multi-row `INSERT`s | |
+
+**Conflict clauses**
+
+| Database | Kept | Generation error (use `:batchexec` instead) |
+|---|---|---|
+| PostgreSQL | | `ON CONFLICT`, `RETURNING` |
+| MySQL | `INSERT IGNORE` (duplicates are skipped), `REPLACE` | `ON DUPLICATE KEY UPDATE` |
+| SQLite | `INSERT OR REPLACE`, `INSERT OR IGNORE`, `ON CONFLICT ... DO ...` | |
+
+**MySQL notes**
+
+* Without `INSERT IGNORE`, duplicate keys and invalid values raise `Mysql2::Error` instead of being skipped or coerced
+  as `LOAD DATA` would do by itself.
+* `LOAD DATA` commits a transaction that was opened with raw SQL (`BEGIN`). Call `:copyfrom` inside
+  [`transaction`](Transactions.md) instead.
+* Table and column names are written as in your `INSERT` (`` `MixedCase` ``), so mixed-case tables work on Linux, where
+  MySQL table names are case-sensitive.
