@@ -1,0 +1,97 @@
+name: Stress macOS PostgreSQL E2E (temporary)
+
+# TEMPORARY, only on the branch that investigates the macOS E2E hang (never merged): runs the PostgreSQL E2E suite
+# many times on macOS with the old settings (default durability, as in the failing run) and with the tuned ones,
+# to see whether the hang reproduces and whether the tuning removes it. A hang is reported by tests/hang_watchdog.rb.
+on:
+  push:
+    branches: [ci/macos-e2e-hang]
+    paths:
+      - .github/workflows/stress-macos-pg.yml
+      - .github/stress/**
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stress-macos-pg-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stress:
+    name: ${{ matrix.variant }} #${{ matrix.shard }}
+    runs-on: macos-latest
+    timeout-minutes: 25
+
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [old-settings, tuned]
+        shard: [1, 2, 3, 4]
+
+    env:
+      DB_NAME: tests
+      DB_USER: root
+      DB_PASS: pass
+      POSTGRES_HOST: 127.0.0.1
+      EXAMPLES_DRIVER: pg
+      BUNDLE_GEMFILE: ${{ github.workspace }}/.github/stress/Gemfile
+      E2E_TEST_TIMEOUT: '45'
+      ITERATIONS: '20'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ankane/setup-postgres@b1a598d92f86cb2ed364411898d150d4eac6d5ca # v1
+        with:
+          postgres-version: '16'
+          database: ${{ env.DB_NAME }}
+          user: ${{ env.DB_USER }}
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+
+      - name: Create the schema
+        run: psql -v ON_ERROR_STOP=1 -h "${POSTGRES_HOST}" -U "${DB_USER}" -d "${DB_NAME}" -f examples/authors/postgresql/schema.sql
+
+      - name: Turn off PostgreSQL durability (tuned only)
+        if: matrix.variant == 'tuned'
+        run: |
+          psql -v ON_ERROR_STOP=1 -h "${POSTGRES_HOST}" -U "${DB_USER}" -d "${DB_NAME}" \
+            -c 'ALTER SYSTEM SET fsync = off' \
+            -c 'ALTER SYSTEM SET synchronous_commit = off' \
+            -c 'ALTER SYSTEM SET full_page_writes = off' \
+            -c 'SELECT pg_reload_conf()'
+
+      - name: Show the server settings
+        run: psql -h "${POSTGRES_HOST}" -U "${DB_USER}" -d "${DB_NAME}" -c 'SELECT name, setting FROM pg_settings WHERE name IN ($$fsync$$, $$synchronous_commit$$, $$full_page_writes$$, $$max_connections$$, $$wal_sync_method$$) ORDER BY name'
+
+      - run: bundle install
+
+      - name: Run the PostgreSQL suite ${{ env.ITERATIONS }} times
+        run: |
+          mkdir -p logs
+          hangs=0
+          failures=0
+          for i in $(seq 1 "${ITERATIONS}"); do
+            start=$(date +%s)
+            if bundle exec ruby tests/end2end_pg.rb > "logs/run-${i}.log" 2>&1; then
+              status=ok
+            elif grep -q '^HANG:' "logs/run-${i}.log"; then
+              status=HANG
+              hangs=$((hangs + 1))
+              echo "::group::iteration ${i}: HANG"; grep -A60 '^HANG:' "logs/run-${i}.log" | head -150; echo "::endgroup::"
+            else
+              status=FAILED
+              failures=$((failures + 1))
+              echo "::group::iteration ${i}: FAILED"; tail -60 "logs/run-${i}.log"; echo "::endgroup::"
+            fi
+            echo "iteration ${i}: ${status} in $(( $(date +%s) - start ))s ($(grep -o 'seed [0-9]*' "logs/run-${i}.log" | head -1))"
+          done
+          echo "### ${{ matrix.variant }} #${{ matrix.shard }}: ${hangs} hangs, ${failures} other failures in ${ITERATIONS} runs" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "${hangs}" -eq 0 ] && [ "${failures}" -eq 0 ]

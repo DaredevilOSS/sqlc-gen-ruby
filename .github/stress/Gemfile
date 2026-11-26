@@ -1,0 +1,12 @@
+# frozen_string_literal: true
+
+# TEMPORARY (stress-macos-pg.yml): the gems the PostgreSQL E2E suite needs, nothing else.
+source 'https://rubygems.org'
+
+gem 'async', '>= 2.7'
+gem 'bigdecimal'
+gem 'connection_pool'
+gem 'logger'
+gem 'minitest'
+gem 'pg'
+gem 'rake'
