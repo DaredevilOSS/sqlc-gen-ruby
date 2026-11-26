@@ -57,6 +57,12 @@ The servers are configured with `DB_NAME`, `DB_USER`, `DB_PASS`, `POSTGRES_HOST`
 `*_PORT`). The MySQL tests connect without a password (`DB_PASS` is only used for PostgreSQL), so use a MySQL user
 that has none.
 
+A test that runs longer than `E2E_TEST_TIMEOUT` seconds (default 120; the slowest real test takes a few seconds) is
+reported by `tests/hang_watchdog.rb`: the test, every thread's backtrace and, for PostgreSQL, the server's sessions and
+the locks nobody got. The process then exits with status 1, so a stuck suite fails with a diagnosis instead of CI
+cancelling the whole job. The cross-platform workflow also gives each E2E step its own `timeout-minutes` and turns off
+PostgreSQL's `fsync` / `synchronous_commit` / `full_page_writes` (the tests need no durability).
+
 What each test proves is listed in [Coverage](Coverage.md).
 
 ## CI workflows (`.github/workflows/`)

@@ -14,12 +14,29 @@ EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../e
 require_relative 'consts'
 require_relative 'rbs_types'
 require_relative 'app_helpers'
+require_relative 'hang_watchdog'
 require 'delegate'
 require 'json'
 require 'uri'
 require File.join(EXAMPLES_DIR, 'pg/query_sql')
 RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'PgCodegen')}::QuerySql"),
                  File.join(EXAMPLES_DIR, 'pg/query_sql.rbs'))
+
+# a hanging test also reports the server's sessions and the locks nobody got (see hang_watchdog.rb)
+HangWatchdog.diagnose do
+  params = { dbname: ENV.fetch('DB_NAME', nil), host: ENV.fetch('POSTGRES_HOST', nil), port: ENV.fetch('POSTGRES_PORT', nil),
+             user: ENV.fetch('DB_USER', nil), password: ENV.fetch('DB_PASS', nil), connect_timeout: 5 }.compact
+  PG.connect(**params) do |admin|
+    queries = {
+      'pg_stat_activity (pid | state | wait | in state | query)' =>
+        "SELECT pid, state, wait_event_type || '/' || wait_event, now() - state_change, left(query, 100) FROM pg_stat_activity " \
+        'WHERE datname = current_database() AND pid <> pg_backend_pid() ORDER BY pid',
+      'locks not granted (pid | mode | type | relation)' =>
+        'SELECT pid, mode, locktype, relation::regclass FROM pg_locks WHERE NOT granted'
+    }
+    queries.map { |title, sql| "#{title}:\n" + admin.exec(sql).values.map { |row| "  #{row.join(' | ')}" }.join("\n") }.join("\n")
+  end
+end
 
 # End-to-end tests of the code generated for examples/authors/postgresql, against a real PostgreSQL server.
 class TestPg < Minitest::Test

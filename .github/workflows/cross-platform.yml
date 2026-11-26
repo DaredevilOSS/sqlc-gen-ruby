@@ -153,6 +153,16 @@ jobs:
       - name: Generate the E2E examples with the WASM
         run: ruby scripts/tests/generate_examples.rb "${{ matrix.ruby-version }}" sqlc.ci.yaml --generate-gemfile
 
+      # the tests TRUNCATE a dozen tables in every setup and need no durability: with fsync on, a flush that stalls on a
+      # macOS runner freezes the suite (both macOS E2E jobs hung inside a setup's TRUNCATEs and were cancelled after 10 minutes)
+      - name: Turn off PostgreSQL durability (tests only)
+        run: |
+          psql -v ON_ERROR_STOP=1 -h "${POSTGRES_HOST}" -U "${DB_USER}" -d "${DB_NAME}" \
+            -c 'ALTER SYSTEM SET fsync = off' \
+            -c 'ALTER SYSTEM SET synchronous_commit = off' \
+            -c 'ALTER SYSTEM SET full_page_writes = off' \
+            -c 'SELECT pg_reload_conf()'
+
       - name: Create the schemas (and allow LOAD DATA LOCAL INFILE for :copyfrom)
         run: |
           psql -v ON_ERROR_STOP=1 -h "${POSTGRES_HOST}" -U "${DB_USER}" -d "${DB_NAME}" -f examples/authors/postgresql/schema.sql
@@ -184,24 +194,28 @@ jobs:
 
       - name: End-to-End tests (SQLite)
         if: ${{ !cancelled() }}
+        timeout-minutes: 4
         env:
           EXAMPLES_DRIVER: sqlite3
         run: bundle install && bundle exec rake end2end_sqlite3
 
       - name: End-to-End tests (PostgreSQL ${{ matrix.postgres-version }})
         if: ${{ !cancelled() }}
+        timeout-minutes: 4
         env:
           EXAMPLES_DRIVER: pg
         run: bundle install && bundle exec rake end2end_pg
 
       - name: End-to-End tests (MySQL 8.4)
         if: ${{ !cancelled() }}
+        timeout-minutes: 5
         env:
           EXAMPLES_DRIVER: mysql2
         run: bundle install && bundle exec rake end2end_mysql2
 
       - name: Generator options E2E
         if: ${{ !cancelled() }}
+        timeout-minutes: 3
         env:
           BUNDLE_GEMFILE: ${{ github.workspace }}/Gemfile.options.e2e
         # default gem path (only prebuilt gems): with BUNDLE_PATH, the test's nested `bundle install` on Windows Ruby
