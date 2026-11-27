@@ -12,6 +12,7 @@ EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../e
 require_relative 'consts'
 require_relative 'rbs_types'
 require_relative 'app_helpers'
+require_relative 'hang_watchdog'
 require 'delegate'
 require 'json'
 require File.join(EXAMPLES_DIR, 'sqlite3/query_sql')

@@ -13,6 +13,7 @@ EXAMPLES_DIR = File.expand_path(ENV.fetch('EXAMPLES_DIR', File.expand_path('../e
 require_relative 'consts'
 require_relative 'rbs_types'
 require_relative 'app_helpers'
+require_relative 'hang_watchdog'
 require 'delegate'
 require File.join(EXAMPLES_DIR, 'mysql2/query_sql')
 RbsTypes.install(Object.const_get("#{ENV.fetch('EXAMPLES_MODULE', 'Mysql2Codegen')}::QuerySql"),
